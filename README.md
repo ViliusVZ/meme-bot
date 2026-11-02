@@ -1,4 +1,4 @@
-﻿# Meme Bot 3000
+# Meme Bot 3000
 
 Every day, posts the top image post from r/ProgrammerHumor *published the previous UTC day* to a
 Discord channel. Every Reddit post belongs to exactly one day, so it can never be posted twice, and
@@ -7,10 +7,10 @@ Python script with only the standard library. It runs once a day on GitHub Actio
 through a Discord webhook, so nothing runs between posts.
 
 ## Setup
-1. Discord: channel settings â†’ Integrations â†’ Webhooks â†’ New Webhook â†’ copy URL.
+1. Discord: channel settings → Integrations → Webhooks → New Webhook → copy URL.
 2. Push this folder to a GitHub repo (public repos get unlimited Actions minutes).
-3. Repo â†’ Settings â†’ Secrets and variables â†’ Actions â†’ new secret `DISCORD_WEBHOOK_URL`.
-4. Actions tab â†’ "Daily meme" â†’ Run workflow. Manual runs only preview the meme in the log. Tick
+3. Repo → Settings → Secrets and variables → Actions → new secret `DISCORD_WEBHOOK_URL`.
+4. Actions tab → "Daily meme" → Run workflow. Manual runs only preview the meme in the log. Tick
    "Actually post" only if that day's scheduled post failed.
 
 Change the time in `.github/workflows/daily-meme.yml` (cron is UTC).
