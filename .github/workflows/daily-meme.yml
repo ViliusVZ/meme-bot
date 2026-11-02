@@ -5,6 +5,13 @@ on:
     - cron: "0 10 * * *"   # 10:00 UTC = 12:00/13:00 Lithuania. GitHub cron can run a few minutes late.
   workflow_dispatch:        # "Run workflow" button for manual tests
 
+permissions:
+  contents: write           # commit posted.txt back
+
+concurrency:
+  group: daily-meme         # never two runs at once (could double-post)
+  cancel-in-progress: false
+
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -14,3 +21,12 @@ jobs:
       - run: python3 meme_bot.py
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      - name: Remember posted meme
+        run: |
+          git config user.name "meme-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add posted.txt
+          git diff --cached --quiet && exit 0
+          git commit -m "posted $(tail -n1 posted.txt)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done
+          exit 1
