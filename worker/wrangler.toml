@@ -1,0 +1,25 @@
+name = "meme-bot"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[triggers]
+# keep in sync with CRON_* in src/index.ts
+crons = [
+  "30 13 * * *",   # daily fallback, in case the GitHub fetcher was late
+  "0 18 * * SUN",  # Meme of the Week
+  "0 9 1 * *",     # monthly Hall of Fame
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meme-bot"
+database_id = "19a2aa9d-a88b-4645-aee3-2d7b367021f0"
+
+[vars]
+GUILD_ID = "968922621662076988"    # Terrible Trio
+CHANNEL_ID = "975506122507178015"  # #daily-memes
+SUBREDDIT = "ProgrammerHumor"
+POST_HOUR_UTC = "10"
+
+[observability]
+enabled = true

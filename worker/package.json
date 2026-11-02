@@ -1,0 +1,16 @@
+{
+  "name": "meme-bot-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "db:init": "wrangler d1 execute meme-bot --remote --file schema.sql",
+    "logs": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

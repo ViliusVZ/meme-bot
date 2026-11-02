@@ -1,18 +1,18 @@
-"""Post yesterday's top r/ProgrammerHumor meme to a Discord webhook.
+"""Fetch this week's top r/ProgrammerHumor image posts and hand them to the Worker.
 
 Stdlib only. Reddit's JSON API now requires approved OAuth apps, but the
-public Atom feed still works and is already sorted by score.
+public Atom feed still works and is already sorted by score. Reddit is fetched
+from GitHub Actions rather than the Worker because it's proven to work from here.
 
-Picks the highest-scoring image post *published yesterday* (UTC). Every Reddit
-post belongs to exactly one day, so it can only ever be picked once: no
-duplicates and no state to store, as long as it runs once per day (which the
-scheduled workflow does).
+The Worker (worker/) stores everything in D1, posts the daily meme, and handles
+votes and slash commands. Calling it repeatedly is safe: the database allows
+exactly one daily meme per day.
 
 Env:
-  DISCORD_WEBHOOK_URL  (required)
-  SUBREDDIT            (default: ProgrammerHumor)
-  DAY=YYYY-MM-DD       pick a specific UTC day instead of yesterday
-  DRY_RUN=1            print the payload instead of posting
+  WORKER_URL      e.g. https://meme-bot.<account>.workers.dev
+  INGEST_SECRET   shared secret, same as the Worker's
+  SUBREDDIT       (default: ProgrammerHumor)
+  DRY_RUN=1       print what would be sent instead of sending
 """
 import html
 import json
@@ -23,13 +23,11 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta, timezone
 
 SUBREDDIT = os.environ.get("SUBREDDIT", "ProgrammerHumor")
-# Top 100 of the week holds ~10-16 posts per day, so yesterday's best is always in it.
 FEED_URL = f"https://www.reddit.com/r/{SUBREDDIT}/top/.rss?t=week&limit=100"
-USER_AGENT = "discord-meme-bot/2.0 (daily top post)"
-NS = {"a": "http://www.w3.org/2005/Atom", "media": "http://search.yahoo.com/mrss/"}
+USER_AGENT = "discord-meme-bot/3.0 (daily top post)"
+NS = {"a": "http://www.w3.org/2005/Atom"}
 IMAGE_RE = re.compile(r'href="(https://i\.redd\.it/[^"]+\.(?:png|jpe?g|gif|webp))"')
 
 
@@ -47,57 +45,39 @@ def fetch(url, attempts=5):
             time.sleep(min(wait, 60))
 
 
-def top_meme(day):
+def image_posts():
     root = ET.fromstring(fetch(FEED_URL))
-    for entry in root.iterfind("a:entry", NS):  # sorted by score
-        # e.g. 2026-11-02T08:31:53+00:00 - always UTC
-        if not entry.findtext("a:published", "", NS).startswith(day):
+    for rank, entry in enumerate(root.iterfind("a:entry", NS), start=1):
+        match = IMAGE_RE.search(html.unescape(entry.findtext("a:content", "", NS)))
+        if not match:  # video, gallery, text post
             continue
-        content = html.unescape(entry.findtext("a:content", "", NS))
-        match = IMAGE_RE.search(content)
-        if not match:  # video, gallery, text post - skip to the next best
-            continue
-        return {
+        yield {
+            "id": entry.findtext("a:id", "", NS),
             "title": html.unescape(entry.findtext("a:title", "", NS)),
             "image": match.group(1),
             "link": entry.find("a:link", NS).get("href"),
             "author": entry.findtext("a:author/a:name", "", NS),
+            "published": entry.findtext("a:published", "", NS),
+            "rank": rank,
         }
-    return None
-
-
-def post(webhook, meme):
-    payload = {
-        "username": "Meme Bot 3000",
-        "embeds": [{
-            "title": meme["title"][:256],
-            "url": meme["link"],
-            "image": {"url": meme["image"]},
-            "color": 0xFF4500,
-            "footer": {"text": f"r/{SUBREDDIT} · {meme['author']}"},
-        }],
-    }
-    if os.environ.get("DRY_RUN"):
-        print(json.dumps(payload, indent=2))
-        return
-    req = urllib.request.Request(
-        webhook, data=json.dumps(payload).encode(), method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-    )
-    urllib.request.urlopen(req, timeout=20).close()
 
 
 def main():
-    webhook = os.environ.get("DISCORD_WEBHOOK_URL", "").strip("﻿ \r\n")
-    if not webhook and not os.environ.get("DRY_RUN"):
-        sys.exit("DISCORD_WEBHOOK_URL is not set")
-    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
-    day = os.environ.get("DAY") or yesterday.isoformat()
-    meme = top_meme(day)
-    if not meme:
-        sys.exit(f"no image post from {day} in this week's top 100")
-    post(webhook, meme)
-    print(f"{day}: {meme['title']} -> {meme['image']}")
+    memes = list(image_posts())
+    print(f"fetched {len(memes)} image posts")
+    if os.environ.get("DRY_RUN"):
+        print(json.dumps(memes[:3], indent=2, ensure_ascii=False))
+        return
+    url = os.environ["WORKER_URL"].strip("﻿ \r\n/") + "/ingest"
+    secret = os.environ["INGEST_SECRET"].strip("﻿ \r\n")
+    req = urllib.request.Request(
+        url, method="POST",
+        data=json.dumps({"memes": memes, "post_daily": True}).encode(),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}",
+                 "User-Agent": USER_AGENT},
+    )
+    with urllib.request.urlopen(req, timeout=60) as r:
+        print(r.read().decode())
 
 
 if __name__ == "__main__":

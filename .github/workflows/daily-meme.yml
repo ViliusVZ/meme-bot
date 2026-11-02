@@ -1,28 +1,28 @@
-﻿name: Daily meme
+﻿name: Fetch memes
 
 on:
   schedule:
-    - cron: "0 10 * * *"   # 10:00 UTC = 12:00/13:00 Lithuania. GitHub cron can run a few minutes late.
-  workflow_dispatch:        # manual runs only preview, so they can't double-post
-    inputs:
-      post:
-        description: "Actually post to Discord (only if today's scheduled post failed)"
-        type: boolean
-        default: false
+    # Refills the /meme pool 4x a day. The Worker posts the daily meme on the first
+    # run after 10:00 UTC; repeat calls are no-ops because the DB allows one daily per day.
+    - cron: "0 4,10,16,22 * * *"
+  workflow_dispatch:
 
 permissions:
   actions: write            # keepalive below
 
+concurrency:
+  group: fetch-memes
+
 jobs:
-  post:
+  fetch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
       - run: python3 meme_bot.py
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && !inputs.post && '1' || '' }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
       # GitHub disables cron workflows after 60 days without repo activity;
       # re-enabling via the API resets that timer without any commits.
       - if: github.event_name == 'schedule'

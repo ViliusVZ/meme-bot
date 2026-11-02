@@ -1,24 +1,40 @@
 # Meme Bot 3000
 
-Every day, posts the top image post from r/ProgrammerHumor *published the previous UTC day* to a
-Discord channel. Every Reddit post belongs to exactly one day, so it can never be posted twice, and
-the bot needs no database or state file. It's a single
-Python script with only the standard library. It runs once a day on GitHub Actions and posts
-through a Discord webhook, so nothing runs between posts.
+Posts the top r/ProgrammerHumor image of the previous UTC day to Discord, with vote buttons,
+a discussion thread, voting streaks, weekly/monthly recaps and slash commands.
 
-## Setup
-1. Discord: channel settings → Integrations → Webhooks → New Webhook → copy URL.
-2. Push this folder to a GitHub repo (public repos get unlimited Actions minutes).
-3. Repo → Settings → Secrets and variables → Actions → new secret `DISCORD_WEBHOOK_URL`.
-4. Actions tab → "Daily meme" → Run workflow. Manual runs only preview the meme in the log. Tick
-   "Actually post" only if that day's scheduled post failed.
+    GitHub Actions (cron, 4x/day)          Cloudflare Worker + D1 (free tier)
+    meme_bot.py: Reddit RSS  ── /ingest ──▶ stores memes, posts the daily one,
+                                            handles buttons + slash commands
 
-Change the time in `.github/workflows/daily-meme.yml` (cron is UTC).
+- **No duplicates, ever:** the database has a unique index allowing one daily meme per day, and a
+  meme can only be claimed once (daily or `/meme`).
+- **Votes:** 🔥 +3 · 😂 +2 · 💀 +2 · 🗑️ −1. Click again to remove; the message updates live.
+- **Streaks:** vote on the daily meme on consecutive days.
+- **Recaps:** Meme of the Week (Sun 18:00 UTC), Meme of the Month (1st, 09:00 UTC).
+- **Commands:** `/meme` (random recent banger), `/top [week|month|all]`, `/stats [user]`, `/hall-of-fame`.
+
+Reddit is fetched from GitHub Actions because Reddit's RSS works reliably from there. The Worker
+also has a 13:30 UTC fallback cron that posts from already-ingested memes.
+
+## Deploy (`worker/`)
+    npm install
+    npx wrangler login
+    npx wrangler d1 create meme-bot          # put database_id in wrangler.toml
+    npm run db:init
+    npx wrangler deploy
+    npx wrangler secret put DISCORD_TOKEN      # also DISCORD_PUBLIC_KEY, DISCORD_APP_ID, INGEST_SECRET
+
+Discord Developer Portal → General Information → Interactions Endpoint URL =
+`https://<worker>.workers.dev/interactions`. Then register the slash commands:
+
+    curl -X POST -H "Authorization: Bearer $INGEST_SECRET" https://<worker>.workers.dev/admin/register
+
+GitHub repo secrets: `WORKER_URL`, `INGEST_SECRET`. Channel/guild/post hour are in `wrangler.toml`.
 
 ## Local test
-    DRY_RUN=1 python meme_bot.py          # prints payload only
-    DRY_RUN=1 DAY=2026-10-30 python meme_bot.py
-    DISCORD_WEBHOOK_URL=... python meme_bot.py
+    DRY_RUN=1 python meme_bot.py     # prints the first 3 parsed memes
+    cd worker && npm run check && npm run logs
 
 ## Why RSS instead of the Reddit API
 Reddit's `.json` endpoints return 403 without OAuth, and new API apps need manual approval
