@@ -1,0 +1,16 @@
+name: Daily meme
+
+on:
+  schedule:
+    - cron: "0 10 * * *"   # 10:00 UTC = 12:00/13:00 Lithuania. GitHub cron can run a few minutes late.
+  workflow_dispatch:        # "Run workflow" button for manual tests
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 meme_bot.py
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
