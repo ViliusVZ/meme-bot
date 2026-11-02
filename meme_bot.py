@@ -77,7 +77,7 @@ def post(webhook, meme):
 
 
 def main():
-    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    webhook = os.environ.get("DISCORD_WEBHOOK_URL", "").strip("﻿ \r\n")
     if not webhook and not os.environ.get("DRY_RUN"):
         sys.exit("DISCORD_WEBHOOK_URL is not set")
     meme = top_meme()
