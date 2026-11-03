@@ -15,7 +15,7 @@ a discussion thread, voting streaks, weekly/monthly recaps and slash commands.
 - **Commands:** `/meme` (random recent banger), `/top [week|month|all]`, `/stats [user]`, `/hall-of-fame`.
 
 Reddit is fetched from GitHub Actions because Reddit's RSS works reliably from there. The Worker
-posts the daily meme itself on its 15-minute tick (from 10:00 UTC), from memes already ingested, so a
+posts the daily meme itself on its 5-minute tick (from 10:00 UTC), from memes already ingested, so a
 late GitHub cron run doesn't delay it.
 
 ## Game night (`src/gamenight.ts`)
@@ -53,7 +53,7 @@ needs the others' input sends one nudge ping, which is deleted when the next one
 - `/games list|add|remove` edits the game list.
 - Time logic tests (DST, presets, parsing): `cd worker && node test/time.test.mjs`.
 - Players, channel, timezone and poll hour are in `wrangler.toml` (`PLAYERS`, `GAME_CHANNEL_ID`,
-  `TIMEZONE`, `GAME_POLL_HOUR`). One `*/15` cron handles both the poll and the reminders.
+  `TIMEZONE`, `GAME_POLL_HOUR`). One `*/5` cron handles the poll, reminders, starts and rooms.
 - Testing without pinging anyone: `/admin/gamenight` with `{"action": "start" | "tick" | "reset"}` or
   `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`.
   `worker/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
@@ -61,11 +61,15 @@ needs the others' input sends one nudge ping, which is deleted when the next one
 ## 🔊 Lobby and game rooms (`src/voice.ts`)
 Hang out in **🛋️ Lobby**. When a locked-in game night starts, the bot opens a voice room for the
 game right under the Lobby (96 kbps), moves every player who's in the Lobby into it, and links it
-in the start ping. **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
+in the start ping. Starts are on the dot: the tick before a start waits for it, opens the room
+~10 s early, and moves everyone and pings at the exact minute (the 5-minute tick is only the
+fallback). **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
 or type something else. One open room per game: asking again reuses it.
 
-Rooms tidy themselves on the 5-minute tick: empty for 20 min (or an hour if nobody ever joined)
-→ moved to **🗄️ Recent games** → deleted after 3 days. Joining an archived room brings it back.
+Rooms tidy themselves: 15 min after the last person leaves (an hour if nobody ever joined) →
+moved to **🗄️ Recent games**, and the night's Discord event ends → deleted after 3 days. Open rooms
+are re-checked every minute (each scheduled tick lingers until the next one), and while people
+are still playing near the event's planned end, the end is pushed back so Discord doesn't end it early. Joining an archived room brings it back.
 The archive category exists only while it has something in it; rooms deleted by hand are simply
 forgotten. The bot has no gateway, so occupancy comes from `GET /guilds/{id}/voice-states/{user}`
 for each player; if that lookup fails, the tick skips room maintenance rather than archive on a

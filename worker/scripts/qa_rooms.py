@@ -1,4 +1,8 @@
-"""QA: game-room lifecycle with nobody in voice (archive → delete, never-joined, deleted by hand)."""
+"""QA: game-room lifecycle with nobody in voice (archive → delete, never-joined, deleted by hand).
+
+The live bot's own once-a-minute room sweep runs alongside and follows the same rules, so checks
+look at the resulting state rather than at which sweep did the work.
+"""
 import json
 import subprocess
 import sys
@@ -21,7 +25,16 @@ def channels():
 
 
 require_idle()  # no real rooms exist past this point, so every room below is ours
-tick = lambda: admin("/admin/gamenight", {"action": "rooms"})
+def tick():
+    time.sleep(2)  # back-to-back channel listings hit Discord's rate limit
+    return admin("/admin/gamenight", {"action": "rooms"})
+
+
+def row(channel_id):
+    rows = sql(f"SELECT * FROM rooms WHERE channel_id = '{channel_id}'")
+    return rows[0] if rows else None
+
+
 now = int(time.time())
 
 # start clean: drop leftovers from earlier runs
@@ -33,24 +46,27 @@ tick()
 # 1) a room people played in and left 25 min ago: archive, then delete after 3 days
 first = admin("/admin/gamenight", {"action": "room", "game": "Phasmophobia", "emoji": "👻"})
 sql(f"UPDATE rooms SET last_seen = {now - 1500} WHERE channel_id = '{first['channelId']}'")
-ok(tick().get("archived") == ["Phasmophobia"], "empty 25 min → archived")
+tick()
+ok(row(first["channelId"])["archived_at"] is not None, "empty 25 min → archived")
 sql(f"UPDATE rooms SET archived_at = {now - 4 * 86400} WHERE channel_id = '{first['channelId']}'")
 r = tick()
-ok(r.get("deleted") == ["Phasmophobia"], f"archived 4 days → deleted ({r})")
+ok(row(first["channelId"]) is None, f"archived 4 days → deleted ({r})")
 names = [c["name"] for c in channels()]
 ok("👻 Phasmophobia" not in names and "🗄️ Recent games" not in names, "room and empty archive category are gone")
 
 # 2) opened but nobody comes: kept for an hour, then archived
 room = admin("/admin/gamenight", {"action": "room", "game": "R.E.P.O.", "emoji": "📦"})
 ok(room["moved"] == [] and not room["reused"], "room opens even with an empty Lobby (nobody to move)")
-ok(not tick(), "fresh empty room is left alone")
+tick()
+ok(row(room["channelId"])["archived_at"] is None, "fresh empty room is left alone")
 sql(f"UPDATE rooms SET created_at = {now - 3700} WHERE channel_id = '{room['channelId']}'")
-ok(tick().get("archived") == ["R.E.P.O."], "never joined for an hour → archived")
+tick()
+ok(row(room["channelId"])["archived_at"] is not None, "never joined for an hour → archived")
 
 # 3) someone deletes a room by hand: forgotten without errors, archive tidied
 call("DELETE", f"/channels/{room['channelId']}")
 r = tick()
-ok(r.get("forgotten") == ["R.E.P.O."], f"hand-deleted room is forgotten ({r})")
+ok(row(room["channelId"]) is None, f"hand-deleted room is forgotten ({r})")
 ok(not sql("SELECT * FROM rooms"), "rooms table is empty")
 ok("🗄️ Recent games" not in [c["name"] for c in channels()], "archive category removed when empty")
 

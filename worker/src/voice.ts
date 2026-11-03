@@ -3,8 +3,10 @@
 // Lobby into it. Once a room has sat empty for a while it moves to 🗄️ Recent games, and after a
 // few days it's deleted. Someone rejoining an archived room brings it back.
 //
-// The bot has no gateway connection, so occupancy is checked over REST, per player, on the
-// 15-minute tick. Rooms are only for the trio, which keeps that to three calls per room.
+// The bot has no gateway connection, so occupancy is checked over REST, per player: once a minute
+// while a room is open (watchRooms, inside the 5-minute tick), so a room and its night's event
+// wrap up 15 minutes after the last person leaves. Rooms are only for the trio, which keeps that
+// to three calls per check.
 import type { Env } from "./index";
 import { api, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord";
 import { games, players } from "./gamenight";
@@ -19,7 +21,9 @@ export interface Room {
   archived_at: number | null;
 }
 
-const EMPTY_GRACE = 20 * 60; // empty this long after people leave → archive
+const EMPTY_GRACE = 15 * 60; // empty this long after the last person leaves → archive + end the event
+const EVENT_MARGIN = 10 * 60; // still playing this close to the event's end → push the end back
+const EVENT_EXTEND = 30 * 60;
 const NEVER_JOINED_GRACE = 60 * 60; // opened but nobody came → archive after this
 const ARCHIVE_TTL = 3 * 86400; // archived rooms are deleted after this
 const ARCHIVE_NAME = "🗄️ Recent games";
@@ -56,7 +60,7 @@ const latestRoom = (env: Env, game: string) =>
  * Phasmophobia rooms: creation is claimed with a placeholder row first, and whoever loses the
  * claim waits for the winner's room instead of making its own.
  */
-export async function openRoom(env: Env, game: string, emoji: string | null, opts: { day?: string; by?: string } = {}) {
+export async function openRoom(env: Env, game: string, emoji: string | null, opts: { day?: string; by?: string; move?: boolean } = {}) {
   let room = await latestRoom(env, game);
   let reused = !!room;
   if (room) {
@@ -114,22 +118,94 @@ export async function openRoom(env: Env, game: string, emoji: string | null, opt
   if (reused && opts.day) {
     await env.DB.prepare("UPDATE rooms SET day = ?, last_seen = ? WHERE channel_id = ?").bind(opts.day, nowSec(), room.channel_id).run();
   }
-  const moved = await moveFromLobby(env, room.channel_id);
-  if (moved.length) await env.DB.prepare("UPDATE rooms SET last_seen = ? WHERE channel_id = ?").bind(nowSec(), room.channel_id).run();
+  // a game night opens its room a few seconds early and moves people on the dot itself
+  const moved = opts.move === false ? [] : await moveFromLobby(env, room.channel_id);
   return { channelId: room.channel_id, moved, reused };
 }
 
-/** Moves every player currently in the Lobby into a room. Returns who was moved. */
-async function moveFromLobby(env: Env, channelId: string) {
+/** Moves every player currently in the Lobby into a room, all at once. Returns who was moved. */
+export async function moveFromLobby(env: Env, channelId: string) {
   const moved: string[] = [];
-  for (const p of players(env)) {
-    const at = await voiceChannel(env, p).catch((e) => (console.log("voice lookup failed", p, e), null));
-    if (at !== env.LOBBY_CHANNEL_ID) continue;
-    await api(env, "PATCH", `/guilds/${env.GUILD_ID}/members/${p}`, { channel_id: channelId })
-      .then(() => moved.push(p))
-      .catch((e) => console.log("move failed", p, e));
+  await Promise.all(
+    players(env).map(async (p) => {
+      const at = await voiceChannel(env, p).catch((e) => (console.log("voice lookup failed", p, e), null));
+      if (at !== env.LOBBY_CHANNEL_ID) return;
+      await api(env, "PATCH", `/guilds/${env.GUILD_ID}/members/${p}`, { channel_id: channelId })
+        .then(() => moved.push(p))
+        .catch((e) => console.log("move failed", p, e));
+    }),
+  );
+  if (moved.length) await env.DB.prepare("UPDATE rooms SET last_seen = ? WHERE channel_id = ?").bind(nowSec(), channelId).run();
+  return players(env).filter((p) => moved.includes(p)); // stable order for the ping
+}
+
+/** Who's in which voice channel right now (null: couldn't tell, so don't act on it). */
+async function occupancy(env: Env) {
+  try {
+    const where = await Promise.all(players(env).map((p) => voiceChannel(env, p)));
+    return new Set(where.filter(Boolean) as string[]);
+  } catch (e) {
+    console.log("voice lookup failed", e);
+    return null;
   }
-  return moved;
+}
+
+/** Empty past its grace? Then move the room to 🗄️ Recent games and end its night's event. */
+async function archiveIfIdle(env: Env, r: Room, t: number) {
+  const idleSince = r.last_seen ?? r.created_at;
+  const grace = r.last_seen ? EMPTY_GRACE : NEVER_JOINED_GRACE;
+  if (t - idleSince < grace) return false;
+  const cat = await archiveCategory(env, true);
+  await api(env, "PATCH", `/channels/${r.channel_id}`, { parent_id: cat });
+  await env.DB.prepare("UPDATE rooms SET archived_at = ? WHERE channel_id = ? AND archived_at IS NULL").bind(t, r.channel_id).run();
+  // the session's over: end its Discord event if it went live
+  if (r.day) {
+    const n = await env.DB.prepare("SELECT event_id FROM game_nights WHERE day = ? AND stage = 'set'").bind(r.day).first<{ event_id: string | null }>();
+    if (n?.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 }).catch(() => {});
+  }
+  return true;
+}
+
+/** Still playing near the event's planned end: push it back, so Discord doesn't end it under us. */
+async function keepEventAlive(env: Env, r: Room, t: number) {
+  if (!r.day) return;
+  const n = await env.DB.prepare("SELECT event_id, event_end FROM game_nights WHERE day = ? AND stage = 'set' AND reminded = 1")
+    .bind(r.day)
+    .first<{ event_id: string | null; event_end: number | null }>();
+  if (!n?.event_id || !n.event_end || n.event_end - t > EVENT_MARGIN) return;
+  const end = t + EVENT_EXTEND;
+  await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { scheduled_end_time: new Date(end * 1000).toISOString() })
+    .then(() => env.DB.prepare("UPDATE game_nights SET event_end = ? WHERE day = ?").bind(end, r.day).run())
+    .catch((e) => console.log("event extend failed", e));
+}
+
+/**
+ * Inside a tick: re-check open rooms every minute until `until` (unix seconds), so "empty for 15
+ * minutes" is measured to the minute rather than to the 5-minute tick.
+ */
+export async function watchRooms(env: Env, until: number) {
+  const done: string[] = [];
+  while (nowSec() + 60 <= until) {
+    await sleep(60_000);
+    const open = (await env.DB.prepare("SELECT * FROM rooms WHERE archived_at IS NULL AND channel_id NOT LIKE ?").bind(`${PENDING}%`).all<Room>()).results;
+    if (!open.length) continue;
+    const occupied = await occupancy(env);
+    if (!occupied) continue;
+    const t = nowSec();
+    for (const r of open) {
+      try {
+        if (occupied.has(r.channel_id)) {
+          await env.DB.prepare("UPDATE rooms SET last_seen = ? WHERE channel_id = ?").bind(t, r.channel_id).run();
+          await keepEventAlive(env, r, t);
+        } else if (await archiveIfIdle(env, r, t)) {
+          done.push(r.game);
+        }
+      } catch (e) {
+        console.log("room watch failed", r.channel_id, e); // the next minute (or tick) tries again
+      }
+    }
+  }
+  return done;
 }
 
 /** New rooms go right under the Lobby, newest first. */
@@ -178,15 +254,9 @@ export async function maintainRooms(env: Env) {
   await tidyArchive(env, all);
   if (!rooms.length) return done;
   const t = nowSec();
-  const where = new Map<string, string | null>();
-  try {
-    for (const p of players(env)) where.set(p, await voiceChannel(env, p));
-  } catch (e) {
-    // never archive on a guess: if we can't see who's in voice, try again next tick
-    console.log("voice lookup failed, skipping room maintenance", e);
-    return { ...done, skipped: ["voice lookup failed"] };
-  }
-  const occupied = new Set([...where.values()].filter(Boolean) as string[]);
+  // never archive on a guess: if we can't see who's in voice, try again next tick
+  const occupied = await occupancy(env);
+  if (!occupied) return { ...done, skipped: ["voice lookup failed"] };
 
   for (const r of rooms) {
     const busy = occupied.has(r.channel_id);
@@ -197,22 +267,13 @@ export async function maintainRooms(env: Env) {
           await api(env, "PATCH", `/channels/${r.channel_id}`, { parent_id: env.VOICE_CATEGORY_ID });
           await placeAfterLobby(env, r.channel_id);
           note("revived", r.game);
+        } else {
+          await keepEventAlive(env, r, t);
         }
         continue;
       }
       if (!r.archived_at) {
-        const idleSince = r.last_seen ?? r.created_at;
-        const grace = r.last_seen ? EMPTY_GRACE : NEVER_JOINED_GRACE;
-        if (t - idleSince < grace) continue;
-        const cat = await archiveCategory(env, true);
-        await api(env, "PATCH", `/channels/${r.channel_id}`, { parent_id: cat });
-        await env.DB.prepare("UPDATE rooms SET archived_at = ? WHERE channel_id = ?").bind(t, r.channel_id).run();
-        note("archived", r.game);
-        // the session's over: end its Discord event if it went live
-        if (r.day) {
-          const n = await env.DB.prepare("SELECT event_id FROM game_nights WHERE day = ? AND stage = 'set'").bind(r.day).first<{ event_id: string | null }>();
-          if (n?.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 }).catch(() => {});
-        }
+        if (await archiveIfIdle(env, r, t)) note("archived", r.game);
       } else if (t - r.archived_at >= ARCHIVE_TTL) {
         await api(env, "DELETE", `/channels/${r.channel_id}`).catch((e) => {
           if (!String(e).includes(" 404 ")) throw e; // already gone is fine
@@ -275,7 +336,7 @@ export async function roomPicker(env: Env) {
               ]
             : []),
           { type: 1, components: [{ type: 2, style: 2, emoji: { name: "✏️" }, label: "Something else", custom_id: "room:other" }] },
-          { type: 10, content: "-# Rooms tidy themselves: empty for ~20 min → 🗄️ Recent games, deleted after 3 days." },
+          { type: 10, content: "-# Rooms tidy themselves: 15 min after the last person leaves → 🗄️ Recent games, deleted after 3 days." },
         ],
       },
     ],

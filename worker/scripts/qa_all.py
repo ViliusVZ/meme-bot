@@ -11,7 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from dc import admin, call
-from qa_guard import TEST_DAYS, Snapshot, require_idle, vilnius
+from qa_guard import TEST_DAYS, Snapshot, quiet_window, require_idle, vilnius
 
 sys.stdout.reconfigure(encoding="utf-8")
 V, K, L = "306836805825593344", "212567787896307713", "747902984003780651"
@@ -248,6 +248,7 @@ for u, hh in ((V, "17:00"), (K, "17:00"), (L, "17:00")):
     gn(D3, u, "time", at(D3, hh))
 n3 = night(D3)
 ok(n3["stage"] == "set", "D3 locked in")
+quiet_window()
 now = int(time.time())
 sql(f"UPDATE game_nights SET start_at = {now} WHERE day = '{D3}'")
 tk = admin("/admin/gamenight", {"action": "tick"})

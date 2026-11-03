@@ -31,6 +31,7 @@ export interface Night {
   stage_at: number | null; // unix seconds the current stage began
   renudged: string | null; // stage whose "still waiting on you" ping was sent
   conflict: string | null; // the time clash we last pinged about, so we ping once per clash
+  event_end: number | null; // the Discord event's current end (pushed back while people still play)
 }
 interface Game {
   name: string;
@@ -55,6 +56,8 @@ const mention = (id: string) => `<@${id}>`;
 const pings = (env: Env, users: string[]) => (env.QUIET ? { parse: [] } : { users });
 const ts = (sec: number, style: string) => `<t:${sec}:${style}>`;
 const nowSec = () => Math.floor(Date.now() / 1000);
+const sleepUntil = (ms: number) => new Promise((ok) => setTimeout(ok, Math.max(0, ms - Date.now())));
+const ROOM_EARLY = 10; // a night's room opens this many seconds before the start, so the moves land on the dot
 const ok: Outcome = { update: true };
 const say = (notice: string, update = false): Outcome => ({ notice, update });
 
@@ -666,16 +669,18 @@ async function lockIn(env: Env, day: string) {
     const start = n.start_at! * 1000;
     const until = Object.values(await votes(env, day, "until")).map(Number);
     const end = until.length ? Math.min(...until) * 1000 : start + 3 * 3600e3;
+    const evStart = Math.max(start, Date.now() + 60e3);
+    const evEnd = Math.max(end, evStart + 15 * 60e3);
     const ev = await api(env, "POST", `/guilds/${env.GUILD_ID}/scheduled-events`, {
       name: `${await emojiFor(env, n.game!)} ${n.game}`,
       description: `Terrible Trio game night: ${n.game}. Planned by Meme Bot 3000.`,
       privacy_level: 2,
       entity_type: 3,
       entity_metadata: { location: "Terrible Trio 🔊" },
-      scheduled_start_time: new Date(Math.max(start, Date.now() + 60e3)).toISOString(),
-      scheduled_end_time: new Date(Math.max(end, Math.max(start, Date.now() + 60e3) + 15 * 60e3)).toISOString(),
+      scheduled_start_time: new Date(evStart).toISOString(),
+      scheduled_end_time: new Date(evEnd).toISOString(),
     });
-    await env.DB.prepare("UPDATE game_nights SET event_id = ? WHERE day = ?").bind(ev.id, day).run();
+    await env.DB.prepare("UPDATE game_nights SET event_id = ?, event_end = ? WHERE day = ?").bind(ev.id, Math.floor(evEnd / 1000), day).run();
     await refresh(env, day);
   } catch (e) {
     console.log("event failed", e); // the night still happens; the card just has no event link
@@ -699,7 +704,7 @@ async function cancelLocked(env: Env, n: Night, user: string) {
 }
 
 /**
- * Cron, every 15 minutes: keep open cards fresh (drops start times that just passed), ping
+ * Cron, every 5 minutes: keep open cards fresh (drops start times that just passed), ping
  * anyone who's left a stage waiting for an hour (once per stage), and ping the squad when a
  * locked-in night starts.
  */
@@ -722,37 +727,68 @@ export async function maintain(env: Env) {
     }
   }
 
-  const due = await env.DB.prepare("SELECT * FROM game_nights WHERE stage = 'set' AND reminded = 0 AND start_at <= ?").bind(t + 120).all<Night>();
-  for (const n of due.results) {
-    const claimed = await env.DB.prepare("UPDATE game_nights SET reminded = 1 WHERE day = ? AND stage = 'set' AND reminded = 0").bind(n.day).run();
-    if (!claimed.meta.changes || n.start_at! < t - 1800) continue;
-    try {
-      await startReminder(env, n);
-      done.reminded = n.day;
-    } catch (e) {
-      // the ping didn't go out: release the claim so the next tick tries again
-      console.log("start reminder failed", n.day, e);
-      await env.DB.prepare("UPDATE game_nights SET reminded = 0 WHERE day = ?").bind(n.day).run();
-    }
-  }
+  // a start the tick before it missed (preciseStarts normally gets there first, on the dot)
+  const due = await env.DB.prepare("SELECT * FROM game_nights WHERE stage = 'set' AND reminded = 0 AND start_at <= ?").bind(t).all<Night>();
+  for (const n of due.results) if (n.start_at! >= t - 1800 && (await claimStart(env, n))) done.reminded = n.day;
   return done;
 }
 
-/** It's time: open the room (moving the Lobby in), make the event live, and ping the squad. */
-async function startReminder(env: Env, n: Night) {
+/**
+ * Starts due before the next tick (`until`, unix seconds): wait for them inside this tick, open
+ * the room a few seconds early, then move everyone and ping at the exact start time.
+ */
+export async function preciseStarts(env: Env, until: number) {
+  const soon = await env.DB.prepare("SELECT * FROM game_nights WHERE stage = 'set' AND reminded = 0 AND start_at > ? AND start_at <= ?")
+    .bind(nowSec(), until)
+    .all<Night>();
+  const started: string[] = [];
+  await Promise.all(
+    soon.results.map(async (n) => {
+      await sleepUntil((n.start_at! - ROOM_EARLY) * 1000);
+      const fresh = await getNight(env, n.day); // cancelled or moved while we waited?
+      if (fresh?.stage !== "set" || fresh.start_at !== n.start_at) return;
+      if (await claimStart(env, fresh, fresh.start_at! * 1000)) started.push(n.day);
+    }),
+  );
+  return started;
+}
+
+/** Claim the start (once, whoever gets there first), then run it; a failure releases the claim. */
+async function claimStart(env: Env, n: Night, at?: number) {
+  const claimed = await env.DB.prepare("UPDATE game_nights SET reminded = 1 WHERE day = ? AND stage = 'set' AND reminded = 0").bind(n.day).run();
+  if (!claimed.meta.changes) return false;
+  try {
+    await startReminder(env, n, at);
+    return true;
+  } catch (e) {
+    // the ping didn't go out: release the claim so the next tick tries again
+    console.log("start reminder failed", n.day, e);
+    await env.DB.prepare("UPDATE game_nights SET reminded = 0 WHERE day = ?").bind(n.day).run();
+    return false;
+  }
+}
+
+/**
+ * It's time: open the room, then (at `at`, epoch ms, when given) move the Lobby in, make the
+ * event live and ping the squad.
+ */
+async function startReminder(env: Env, n: Night, at?: number) {
   const ps = players(env);
   const emoji = await emojiFor(env, n.game!);
   // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
   let where = "Hop in 🔊";
-  try {
-    const room = await voice.openRoom(env, n.game!, emoji, { day: n.day });
-    await late.markArrived(env, n.day, room.moved);
-    where = `Room: <#${room.channelId}>${room.moved.length ? ` (moved ${room.moved.map(mention).join(" ")} from the Lobby)` : ""}`;
-  } catch (e) {
-    console.log("room failed", e);
-  }
+  const room = await voice.openRoom(env, n.game!, emoji, { day: n.day, move: false }).catch((e) => (console.log("room failed", e), null));
+  if (at) await sleepUntil(at);
   // external events don't go live on their own
-  if (n.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 2 }).catch((e) => console.log("event start", e));
+  const live = n.event_id
+    ? api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 2 }).catch((e) => console.log("event start", e))
+    : null;
+  if (room) {
+    const moved = await voice.moveFromLobby(env, room.channelId).catch((e) => (console.log("lobby move failed", e), [] as string[]));
+    await late.markArrived(env, n.day, moved);
+    where = `Room: <#${room.channelId}>${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`;
+  }
+  await live;
   await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
     content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
     allowed_mentions: pings(env, ps),

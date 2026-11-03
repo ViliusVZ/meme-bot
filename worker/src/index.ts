@@ -46,7 +46,14 @@ const CRON_MONTHLY = "0 9 1 * *";
  * Every 5 minutes. Each job is idempotent and guarded by the database, so a tick can be
  * repeated or skipped safely, and one failing job doesn't stop the others.
  */
-async function tick(env: Env) {
+/**
+ * Every 5 minutes. A scheduled tick also lingers until just before the next one (cron runs may take
+ * up to 15 minutes; waiting costs no CPU): game nights starting before then are started on the dot,
+ * and open voice rooms are re-checked every minute. The admin test route skips the lingering.
+ */
+async function tick(env: Env, linger = false) {
+  const until = Math.floor(Date.now() / 1000) + 290;
+  const precise = linger ? gn.preciseStarts(env, until + 10).catch((e) => ({ error: String(e) })) : null;
   const jobs: [string, (env: Env) => Promise<unknown>][] = [
     ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
     ["close", gn.closeStale], // midnight: close yesterday's unfinished poll
@@ -58,6 +65,11 @@ async function tick(env: Env) {
   ];
   const out: Record<string, unknown> = {};
   for (const [name, job] of jobs) out[name] = await job(env).catch((e) => ({ error: String(e) }));
+  if (linger) {
+    const [started, archived] = await Promise.all([precise, voice.watchRooms(env, until).catch((e) => ({ error: String(e) }))]);
+    out.precise = started;
+    out.watch = archived;
+  }
   return out;
 }
 
@@ -129,6 +141,9 @@ export default {
         const quiet = { ...env, QUIET: true };
         if (input.action === "start") return json(await gn.startNight(quiet, input.user, true));
         if (input.action === "tick") return json(await tick(quiet));
+        // the lingering parts of a scheduled tick, awaited here (the request stays open while they wait)
+        if (input.action === "precise") return json(await gn.preciseStarts(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 120)));
+        if (input.action === "watch") return json(await voice.watchRooms(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 70)));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
         if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
         if (input.action === "room") return json(await voice.openRoom(env, input.game, input.emoji ?? null, { by: input.user }));
@@ -190,13 +205,12 @@ export default {
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    const job = { [CRON_TICK]: tick, [CRON_WEEKLY]: weeklyRecap, [CRON_MONTHLY]: monthlyRecap }[event.cron];
+    const job = { [CRON_TICK]: (e: Env) => tick(e, true), [CRON_WEEKLY]: weeklyRecap, [CRON_MONTHLY]: monthlyRecap }[event.cron];
+    // awaited rather than waitUntil: a cron run may last up to 15 minutes, and the tick lingers
     if (job) {
-      ctx.waitUntil(
-        job(env).then(
-          (r) => console.log(event.cron, JSON.stringify(r)),
-          (e) => console.log(event.cron, "failed", e),
-        ),
+      await job(env).then(
+        (r) => console.log(event.cron, JSON.stringify(r)),
+        (e) => console.log(event.cron, "failed", e),
       );
     }
   },

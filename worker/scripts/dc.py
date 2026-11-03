@@ -28,7 +28,7 @@ def admin(route, payload=None):
         data=json.dumps(payload or {}).encode(),
         headers={"Authorization": f"Bearer {SECRET}", "Content-Type": "application/json", "User-Agent": "dc.py"},
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=150) as r:
         return json.loads(r.read())
 
 

@@ -62,7 +62,8 @@ def require_idle():
     for n in sql(f"SELECT day, stage, start_at FROM game_nights WHERE day <= '{REAL_UNTIL}'"):
         if n["stage"] in ("ask", "game", "time"):
             problems.append(f"real night {n['day']} is still voting ({n['stage']})")
-        elif n["stage"] == "set" and (n["start_at"] or 0) > now - 5 * 3600:
+        elif n["stage"] == "set" and (n["start_at"] or 0) > now - 3 * 3600:
+            # coming up, or in its first 3 hours; a longer session still shows up as a room / voice below
             problems.append(f"real night {n['day']} is on or coming up")
     for r in sql(f"SELECT game FROM rooms WHERE day IS NULL OR day <= '{REAL_UNTIL}'"):
         problems.append(f"a real game room is open ({r['game']})")
@@ -76,6 +77,14 @@ def require_idle():
     if problems:
         print("🛑 Not running QA, the bot isn't idle:\n  - " + "\n  - ".join(problems))
         sys.exit(2)
+
+
+def quiet_window():
+    """Wait until a scheduled tick has just run (15 s to 3 min past a 5-minute mark). A test night
+    whose start is moved to "now" in this window is only ever seen by the quiet admin route, never
+    by a real tick, which would ping everyone for real."""
+    while not 15 <= time.time() % 300 <= 180:
+        time.sleep(5)
 
 
 class Snapshot:
