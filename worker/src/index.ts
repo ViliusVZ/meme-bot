@@ -15,6 +15,7 @@ import * as hub from "./hub";
 import * as polls from "./polls";
 import * as tiebreak from "./tiebreak";
 import * as voice from "./voice";
+import * as activity from "./activity";
 import * as late from "./late";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
@@ -62,11 +63,12 @@ async function tick(env: Env, linger = false) {
     ["maintain", gn.maintain], // refresh time options, re-nudges, start-time reminders (+ open rooms)
     ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
     ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
+    ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
   ];
   const out: Record<string, unknown> = {};
   for (const [name, job] of jobs) out[name] = await job(env).catch((e) => ({ error: String(e) }));
   if (linger) {
-    const [started, archived] = await Promise.all([precise, voice.watchRooms(env, until).catch((e) => ({ error: String(e) }))]);
+    const [started, archived] = await Promise.all([precise, voice.watchVoice(env, until).catch((e) => ({ error: String(e) }))]);
     out.precise = started;
     out.watch = archived;
   }
@@ -102,6 +104,7 @@ const COMMANDS = [
   { name: "poll", description: "Ask the trio a question and let democracy decide" },
   { name: "games", description: "See, add or remove games in the game-night list" },
   { name: "room", description: "Open a voice room for a game and bring everyone from the Lobby" },
+  { name: "gamestats", description: "Voice time, calls and games played: this week, month, year or all time" },
   { name: "help", description: "How to use Meme Bot 3000" },
 ];
 
@@ -141,9 +144,19 @@ export default {
         const quiet = { ...env, QUIET: true };
         if (input.action === "start") return json(await gn.startNight(quiet, input.user, true));
         if (input.action === "tick") return json(await tick(quiet));
+        // 📊 QA with stand-in players, so real voice time is never touched
+        if (input.action === "stats") {
+          const e = { ...quiet, PLAYERS: input.players ?? env.PLAYERS };
+          if (input.track) {
+            await activity.track(e, new Map(Object.entries(input.track)), Number(input.t));
+            return json({ tracked: true });
+          }
+          if (input.recaps) return json(await activity.recaps(e));
+          return json(await activity.statsPanel(e, input.kind ?? "week", Number(input.offset ?? 0)));
+        }
         // the lingering parts of a scheduled tick, awaited here (the request stays open while they wait)
         if (input.action === "precise") return json(await gn.preciseStarts(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 120)));
-        if (input.action === "watch") return json(await voice.watchRooms(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 70)));
+        if (input.action === "watch") return json(await voice.watchVoice(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 70)));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
         if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
         if (input.action === "room") return json(await voice.openRoom(env, input.game, input.emoji ?? null, { by: input.user }));
@@ -342,12 +355,22 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
   if (i.type === 3 && cid.startsWith("hub:")) {
     const what = cid.slice(4);
     if (what === "help") return json({ type: R.Message, data: hub.helpMessage(env) });
+    if (what === "stats") return json({ type: R.Message, data: await activity.statsPanel(env) });
     if (!isPlayer) return ephemeral("This one's for the trio 😅");
     if (what === "play") return playToday(env, i, user.id, ctx);
     if (what === "plan") return json({ type: R.Message, data: await gn.planPicker(env) });
     if (what === "poll") return json({ type: R.Modal, data: polls.pollModal() });
     if (what === "games") return json({ type: R.Message, data: await hub.gamesManager(env) });
     if (what === "room") return json({ type: R.Message, data: await voice.roomPicker(env) });
+  }
+
+  // ---- 📊 stats panel: st:<week|month|year|all>:<offset>[:share]
+  if (i.type === 3 && cid.startsWith("st:")) {
+    const [, kind, off, share] = cid.split(":");
+    const k = (["week", "month", "year", "all"].includes(kind) ? kind : "week") as activity.Kind;
+    const offset = Math.min(0, Math.max(-520, Number(off) || 0));
+    if (share) return json({ type: R.Message, data: await activity.statsPanel(env, k, offset, true) });
+    return json({ type: R.UpdateMessage, data: await activity.statsPanel(env, k, offset) });
   }
 
   // ---- ⏰ late slips: late:<day>:<user>:<5|15|30|out>
@@ -522,6 +545,8 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
       return json({ type: R.Message, data: await hub.gamesManager(env) });
     case "help":
       return json({ type: R.Message, data: hub.helpMessage(env) });
+    case "gamestats":
+      return json({ type: R.Message, data: await activity.statsPanel(env) });
     case "room":
       if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return json({ type: R.Message, data: await voice.roomPicker(env) });

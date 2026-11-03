@@ -143,3 +143,17 @@ CREATE TABLE IF NOT EXISTS night_attendance (
   arrived_at INTEGER,
   PRIMARY KEY (day, user_id)
 );
+
+-- ---------------------------------------------------------------- 📊 voice time
+-- one row per player per stretch in one voice channel, from the once-a-minute check (activity.ts)
+CREATE TABLE IF NOT EXISTS voice_segments (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  game       TEXT,                   -- the game room's game; NULL = Lobby or another channel
+  started_at INTEGER NOT NULL,       -- unix seconds, first seen there
+  last_seen  INTEGER NOT NULL,       -- last check that saw them there
+  open       INTEGER NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX IF NOT EXISTS voice_segments_one_open ON voice_segments (user_id) WHERE open = 1;
+CREATE INDEX IF NOT EXISTS voice_segments_time ON voice_segments (started_at);

@@ -10,6 +10,7 @@
 import type { Env } from "./index";
 import { api, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord";
 import { games, players } from "./gamenight";
+import * as activity from "./activity";
 
 export interface Room {
   channel_id: string;
@@ -139,15 +140,22 @@ export async function moveFromLobby(env: Env, channelId: string) {
   return players(env).filter((p) => moved.includes(p)); // stable order for the ping
 }
 
-/** Who's in which voice channel right now (null: couldn't tell, so don't act on it). */
-async function occupancy(env: Env) {
+/** Each player's voice channel right now (null: couldn't tell, so don't act on it). */
+async function whereIs(env: Env) {
   try {
-    const where = await Promise.all(players(env).map((p) => voiceChannel(env, p)));
-    return new Set(where.filter(Boolean) as string[]);
+    const ps = players(env);
+    const at = await Promise.all(ps.map((p) => voiceChannel(env, p)));
+    return new Map(ps.map((p, i) => [p, at[i]]));
   } catch (e) {
     console.log("voice lookup failed", e);
     return null;
   }
+}
+
+/** The voice channels with a player in them right now (null: couldn't tell). */
+async function occupancy(env: Env) {
+  const where = await whereIs(env);
+  return where && new Set([...where.values()].filter(Boolean) as string[]);
 }
 
 /** Empty past its grace? Then move the room to 🗄️ Recent games and end its night's event. */
@@ -180,18 +188,20 @@ async function keepEventAlive(env: Env, r: Room, t: number) {
 }
 
 /**
- * Inside a tick: re-check open rooms every minute until `until` (unix seconds), so "empty for 15
- * minutes" is measured to the minute rather than to the 5-minute tick.
+ * Inside a tick: check voice now and then every minute until `until` (unix seconds). Each check
+ * records voice time (activity.ts) and re-checks open rooms, so "empty for 15 minutes" is
+ * measured to the minute rather than to the 5-minute tick.
  */
-export async function watchRooms(env: Env, until: number) {
+export async function watchVoice(env: Env, until: number) {
   const done: string[] = [];
-  while (nowSec() + 60 <= until) {
-    await sleep(60_000);
-    const open = (await env.DB.prepare("SELECT * FROM rooms WHERE archived_at IS NULL AND channel_id NOT LIKE ?").bind(`${PENDING}%`).all<Room>()).results;
-    if (!open.length) continue;
-    const occupied = await occupancy(env);
-    if (!occupied) continue;
+  for (let first = true; first || nowSec() + 60 <= until; first = false) {
+    if (!first) await sleep(60_000);
+    const where = await whereIs(env);
+    if (!where) continue;
     const t = nowSec();
+    await activity.track(env, where, t).catch((e) => console.log("voice tracking failed", e));
+    const occupied = new Set([...where.values()].filter(Boolean) as string[]);
+    const open = (await env.DB.prepare("SELECT * FROM rooms WHERE archived_at IS NULL AND channel_id NOT LIKE ?").bind(`${PENDING}%`).all<Room>()).results;
     for (const r of open) {
       try {
         if (occupied.has(r.channel_id)) {

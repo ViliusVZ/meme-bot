@@ -9,7 +9,7 @@ const button = (style: number, emoji: string, label: string, custom_id: string) 
 
 export const actions = () => [
   { type: 1, components: [button(3, "🎮", "Play today", "hub:play"), button(1, "📅", "Plan a day", "hub:plan"), button(1, "🔊", "Game room", "hub:room")] },
-  { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "❓", "Help", "hub:help")] },
+  { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "📊", "Stats", "hub:stats"), button(2, "❓", "Help", "hub:help")] },
 ];
 
 function guide(env: Env) {
@@ -38,6 +38,13 @@ function guide(env: Env) {
       [
         "### 🗳️ Polls",
         "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer (🤫 secret until it's decided, then revealed); the first to 2 votes wins. Not settled? **🔒 Close** it.",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      [
+        "### 📊 Stats",
+        "**📊 Stats** (or **/gamestats**) shows time together in voice, calls, games played and when we play, for this week, month, year or all time. Step back with ◀️, share it with 📣. A recap lands here every Monday, on the 1st of each month and on New Year's Day.",
       ].join("\n"),
     ),
     divider,

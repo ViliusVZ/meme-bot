@@ -5,6 +5,7 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "check": "tsc --noEmit",
+    "test": "node test/time.test.mjs && node test/tiebreak.test.mjs && node test/activity.test.mjs",
     "db:init": "wrangler d1 execute meme-bot --remote --file schema.sql",
     "logs": "wrangler tail"
   },

@@ -102,6 +102,23 @@ start and is marked ended when the room is archived.
 QA: `node test/time.test.mjs`, `node test/tiebreak.test.mjs` (unit), then `python scripts/qa_all.py`
 (end-to-end against the live bot, quiet, cleans up), plus `qa_tiebreak.py` and `qa_rooms.py`.
 
+## 📊 Voice time and game stats (`src/activity.ts`)
+Once a minute (inside the lingering tick) the bot checks which voice channel each player is in and
+records it as segments (who, which channel, which game room, first and last seen), so times are
+accurate to about a minute. A **call** is a stretch with at least two of us in the same channel;
+hopping from the Lobby into a game room together, or a gap under 3 minutes, doesn't end it. Game
+time is time together in that game's room; together time elsewhere counts as hanging out.
+
+**📊 Stats** on the panel (or `/gamestats`) shows, for this week / month / year / all time (◀️ ▶️ to
+step through periods, 📣 to share): time together, calls (count, longest, average, change vs the
+previous period), time per game and game nights played / called off / coming up, voice time per
+person and who's usually first in, and when we play (busiest weekday, usual start, latest finish).
+Weeks run Monday–Sunday in Vilnius time. A recap of last week is posted in #game-night on Monday
+from 10:00, last month's on the 1st, last year's on 1 January (quiet periods are skipped).
+Limits: no gateway means the game is only known from game rooms (playing in the Lobby counts as
+hanging out), and only the three players are tracked. QA: `scripts/qa_stats.py` (stand-in players),
+`test/activity.test.mjs`.
+
 ## 🤫 Secret ballots
 Every vote (are we playing, game, start time + leave-by, polls) is secret while it runs: the card
 shows only who has voted (🗳️ / ⏳), never what, and no counts (in a group of three they'd give picks
