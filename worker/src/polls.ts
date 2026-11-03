@@ -1,6 +1,7 @@
 // Quick democratic polls: /poll (or the 🗳️ button) opens a form, the answers become buttons.
-// One vote each, changeable (tap again to take it back). The first answer to reach a majority of
-// the trio wins automatically. If everyone has voted without a majority, or someone 🔒 closes a
+// One vote each, changeable (tap again to take it back), and 🤫 secret: the card shows only who
+// has voted until the poll is decided, then reveals who picked what. The first answer to reach a
+// majority of the trio wins automatically. If everyone has voted without a majority, or someone 🔒 closes a
 // tied poll, it goes to a ⚔️ tiebreaker (wheel or rock-paper-scissors, see tiebreak.ts).
 import type { Env } from "./index";
 import { api, IS_COMPONENTS_V2 } from "./discord";
@@ -22,6 +23,7 @@ type Outcome = { notice?: string; update: boolean };
 
 const LETTERS = ["🇦", "🇧", "🇨", "🇩", "🇪", "🇫", "🇬", "🇭", "🇮", "🇯"];
 const majority = (env: Env) => Math.floor(players(env).length / 2) + 1;
+const SECRET = "\n-# 🤫 Only you can see this. Everyone's votes are revealed once the poll's decided.";
 
 export const pollModal = () => ({
   custom_id: "poll:new",
@@ -99,7 +101,7 @@ export async function pollAct(env: Env, id: number, user: string, action: string
   if (!Number.isInteger(choice) || choice < 0 || choice >= c.options.length) return { update: true };
   if (c.mine(user) === choice) {
     await env.DB.prepare("DELETE FROM poll_votes WHERE poll_id = ? AND user_id = ?").bind(id, user).run();
-    return { update: true };
+    return { notice: `🗳️ Took your vote back.${SECRET}`, update: true };
   }
   await env.DB.prepare(
     `INSERT INTO poll_votes (poll_id, user_id, choice, voted_at) VALUES (?, ?, ?, ?)
@@ -112,6 +114,8 @@ export async function pollAct(env: Env, id: number, user: string, action: string
   if (winner >= 0) await close(env, id, `win:${after.options[winner]}`);
   // everyone in the trio has voted and there's no majority: straight to the tiebreaker
   else if (players(env).every((p) => after.voters.some((v) => v.includes(p)))) await startTiebreak(env, poll, after);
+  // still open: the card doesn't say what you picked, so tell you privately
+  else return { notice: `🗳️ Your vote: ${LETTERS[choice]} **${c.options[choice]}**. Tap another answer to change it.${SECRET}`, update: true };
   return { update: true };
 }
 
@@ -134,30 +138,34 @@ export async function refreshPoll(env: Env, id: number) {
 export async function renderPoll(env: Env, id: number) {
   const poll = (await getPoll(env, id))!;
   const c = await counts(env, poll);
+  const tb = await tiebreak.get(env, "poll", String(id));
+  const hidden = !poll.closed_at && !tb; // decided (or tied into a tiebreak) = revealed
   const top = Math.max(1, ...c.voters.map((v) => v.length));
   const lines = c.options.map((o, i) => {
+    if (hidden) return `${LETTERS[i]} **${o}**`;
     const n = c.voters[i].length;
     const filled = Math.round((n / top) * 8);
     return `${LETTERS[i]} **${o}**\n\`${"█".repeat(filled)}${"░".repeat(8 - filled)}\` ${n}${n ? ` · ${c.voters[i].map((u) => `<@${u}>`).join(" ")}` : ""}`;
   });
+  const ballots = players(env)
+    .map((p) => `${c.voters.some((v) => v.includes(p)) ? "🗳️" : "⏳"} <@${p}>`)
+    .join("　");
 
-  const body: unknown[] = [text(`## 🗳️ ${poll.question}`), text(lines.join("\n"))];
-  const tb = await tiebreak.get(env, "poll", String(id));
+  const body: unknown[] = [text(`## 🗳️ ${poll.question}`), text(hidden ? `${lines.join("\n")}\n\n${ballots}` : lines.join("\n"))];
   const label = (o: string) => `${LETTERS[c.options.indexOf(o)] ?? ""} ${o}`;
   if (!poll.closed_at && tb) {
     body.push(...tiebreak.section(tb, label), text(`-# asked by <@${poll.created_by}>`));
   } else if (!poll.closed_at) {
-    const waiting = players(env).filter((p) => !c.voters.some((v) => v.includes(p)));
     body.push(
       text(
-        `-# asked by <@${poll.created_by}> · first to ${majority(env)} votes wins · tap again to take a vote back${waiting.length ? ` · waiting on ${waiting.map((u) => `<@${u}>`).join(" ")}` : ""}`,
+        `-# asked by <@${poll.created_by}> · 🤫 votes stay secret until it's decided · first to ${majority(env)} votes wins · tap again to take yours back · 🔒 Close decides it now`,
       ),
     );
     const buttons = c.options.map((o, i) => ({
       type: 2,
-      style: c.voters[i].length && c.voters[i].length === Math.max(...c.voters.map((v) => v.length)) ? 3 : 2,
+      style: 2,
       emoji: { name: LETTERS[i] },
-      label: `${o.slice(0, 70)}${c.voters[i].length ? ` · ${c.voters[i].length}` : ""}`,
+      label: o.slice(0, 80),
       custom_id: `poll:${id}:${i}`,
     }));
     buttons.push({ type: 2, style: 2, emoji: { name: "🔒" }, label: "Close", custom_id: `poll:${id}:close` });

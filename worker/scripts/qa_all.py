@@ -1,6 +1,7 @@
 """End-to-end QA against the live bot, through the quiet admin routes (nobody gets pinged).
 
-Uses throwaway future days so today's real poll is untouched, and cleans up after itself.
+Only runs while the bot is idle (qa_guard.require_idle), uses far-future test days, and cleans up
+only what it created.
     python scripts/qa_all.py
 """
 import json
@@ -8,14 +9,13 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
 
 from dc import admin, call
+from qa_guard import TEST_DAYS, Snapshot, require_idle, vilnius
 
 sys.stdout.reconfigure(encoding="utf-8")
 V, K, L = "306836805825593344", "212567787896307713", "747902984003780651"
 CH = "1567132345213911240"
-WINTER = timezone(timedelta(hours=2))  # November in Vilnius; Windows Python has no tz database
 results = {"pass": 0, "fail": 0}
 
 
@@ -52,17 +52,18 @@ def gn(day, user, choice, value=None):
     return admin("/admin/gamenight", {"action": "vote", "day": day, "user": user, "choice": choice, "value": value})
 
 
-def at(day, hhmm):
-    y, m, d = map(int, day.split("-"))
-    h, mi = map(int, hhmm.split(":"))
-    return str(int(datetime(y, m, d, h, mi, tzinfo=WINTER).timestamp()))
+at = vilnius
 
 
 def card_text(day):
     n = night(day)
     if not n or not n["message_id"]:
         return ""
-    m = call("GET", f"/channels/{CH}/messages/{n['message_id']}")
+    return flatten(call("GET", f"/channels/{CH}/messages/{n['message_id']}"))
+
+
+def flatten(m):
+    """A message's text and button labels (not dropdown options), one per line."""
     out = []
 
     def walk(cs):
@@ -91,12 +92,16 @@ def to_time_stage(day, game="Palworld"):
     gn(day, K, "game", game)
 
 
-D1, D2, D3, D4 = "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"
-# start clean, even after an aborted run
+require_idle()
+D1, D2, D3, D4, D5 = TEST_DAYS[:5]
+DAYS = ", ".join(f"'{d}'" for d in (D1, D2, D3, D4))
+QA_ROOM = "QA Test Room"
+snap = Snapshot()
+# start clean, even after an aborted run (test days and the QA room only)
 reset(D1, D2, D3, D4)
-for rm in sql("SELECT channel_id FROM rooms"):
+for rm in sql(f"SELECT channel_id FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}'"):
     call("DELETE", f"/channels/{rm['channel_id']}")
-sql("DELETE FROM rooms; DELETE FROM tiebreaks; DELETE FROM night_attendance")
+sql(f"DELETE FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}'")
 
 # ------------------------------------------------------------------ dedupe + planning
 section("one poll per day")
@@ -111,6 +116,17 @@ ok(sum(1 for r in rs if r.get("started")) == 1 and len({r["message_id"] for r in
 card_id = rs[0]["message_id"]
 day_cards = [m for m in call("GET", f"/channels/{CH}/messages?limit=30") if f"gn:{D2}:" in json.dumps(m)]
 ok([m["id"] for m in day_cards] == [card_id], f"and exactly one {D2} card message in the channel ({len(day_cards)})")
+
+section("🤫 answers are secret until everyone has answered")
+sql(f"DELETE FROM game_night_votes WHERE day = '{D2}'")  # whoever won the race above said yes; start from known answers
+gn(D2, V, "yes")
+r = gn(D2, K, "no")
+ok("Can't" in (r.get("notice") or ""), "the voter gets a private receipt")
+txt = card_text(D2)
+ok("❌" not in txt and "✅ <@" not in txt and f"🗳️ <@{K}>" in txt and f"⏳ <@{L}>" in txt, "the card shows who answered, not what")
+gn(D2, L, "yes")
+txt = card_text(D2)
+ok(f"❌ <@{K}>" in txt and f"✅ <@{V}>" in txt and f"✅ <@{L}>" in txt, "everyone answered → who said what is revealed")
 
 section("a claimed day whose post failed gets retried")
 sql(f"INSERT INTO game_nights (day, stage, reminded, started_by, stage_at) VALUES ('{D3}', 'ask', 0, '{V}', {int(time.time())})")
@@ -129,9 +145,14 @@ ok(bool(night(D1)["nudge_id"]), "a nudge went out for the next stage")
 
 # ------------------------------------------------------------------ game stage + tiebreak
 section("game picking")
-gn(D1, V, "game", "Phasmophobia")
+r = gn(D1, V, "game", "Phasmophobia")
+ok("Phasmophobia" in (r.get("notice") or ""), "your receipt names your game")
 gn(D1, K, "game", "Palworld")
+txt = card_text(D1)
+ok("Phasmophobia" not in txt and "Palworld" not in txt and f"🗳️ <@{K}>" in txt and f"⏳ <@{L}>" in txt, "game votes stay secret")
 gn(D1, L, "game", "R.E.P.O.")
+txt = card_text(D1)
+ok(all(g in txt for g in ("Phasmophobia", "Palworld", "R.E.P.O.")) and all(f"<@{u}>" in txt for u in (V, K, L)), "the tie reveals who picked what")
 tb = sql(f"SELECT * FROM tiebreaks WHERE kind='night' AND ref='{D1}'")
 ok(len(tb) == 1 and night(D1)["stage"] == "game", "three-way split opens one tiebreak and waits")
 ok("tiebreaker" in (gn(D1, V, "game", "Palworld")["notice"] or "").lower(), "changing a game vote during a tiebreak is refused")
@@ -148,33 +169,57 @@ gn(D4, L, "yes")
 gn(D4, V, "game", "Enshrouded")
 gn(D4, K, "game", "Enshrouded")
 ok(night(D4)["stage"] == "time" and night(D4)["game"] == "Enshrouded" and not sql(f"SELECT 1 FROM tiebreaks WHERE ref='{D4}'"), "2 of 3 → time stage, no tiebreak")
+ok(f"Enshrouded** ← <@{V}> <@{K}>" in card_text(D4), "the decided game vote is revealed")
 
 # ------------------------------------------------------------------ time stage
 section("time picking")
 ok("passed" in (gn(D4, V, "time", str(int(time.time()) - 600))["notice"] or "") or "isn't on" in (gn(D4, V, "time", str(int(time.time()) - 600))["notice"] or ""), "a past time is refused")
-ok("isn't on" in (gn(D4, V, "time", at("2026-11-20", "20:00"))["notice"] or ""), "a time on another day is refused")
+ok("isn't on" in (gn(D4, V, "time", at(TEST_DAYS[7], "20:00"))["notice"] or ""), "a time on another day is refused")
 ok("Couldn't read" in (gn(D4, V, "custom", "25:99")["notice"] or ""), "nonsense custom time is refused")
 gn(D4, V, "custom", "19.15")
 ok(sql(f"SELECT choice FROM game_night_votes WHERE day='{D4}' AND stage='time' AND user_id='{V}'")[0]["choice"] == at(D4, "19:15"), "custom 19.15 is stored as 19:15 that day")
 gn(D4, V, "time", at(D4, "19:15"))
 ok(not sql(f"SELECT 1 FROM game_night_votes WHERE day='{D4}' AND stage='time' AND user_id='{V}'"), "tapping your pick again takes it back")
-gn(D4, V, "custom", "01:30")
-ok(sql(f"SELECT choice FROM game_night_votes WHERE day='{D4}' AND stage='time' AND user_id='{V}'")[0]["choice"] == at("2026-11-14", "01:30"), "01:30 means after midnight")
-ok("🌙 01:30" in card_text(D4), "after-midnight time shows with a 🌙")
+r = gn(D4, V, "custom", "01:30")
+ok(sql(f"SELECT choice FROM game_night_votes WHERE day='{D4}' AND stage='time' AND user_id='{V}'")[0]["choice"] == at(D5, "01:30"), "01:30 means after midnight")
+ok("🌙 01:30" in (r.get("notice") or ""), "the receipt shows the pick, with a 🌙 for after midnight")
+txt = card_text(D4)
+ok("01:30" not in txt and f"🗳️ <@{V}>" in txt, "the card doesn't: no button for a secret custom time")
 gn(D4, V, "time", at(D4, "18:00"))
 
 section("leave-by")
 gn(D4, K, "until", "19:00")
-gn(D4, K, "time", at(D4, "17:00"))
+r = gn(D4, K, "time", at(D4, "17:00"))
+ok("17:00" in (r.get("notice") or "") and "19:00" in (r.get("notice") or ""), "the receipt shows your start and leave-by")
+txt = card_text(D4)
+ok("Someone has to leave by **19:00**" in txt and f"<@{K}> from" not in txt and "· 1" not in txt, "a leave-by shows without its owner, no counts")
 gn(D4, L, "time", at(D4, "19:00"))
 n4 = night(D4)
 ok(n4["stage"] == "time" and n4["conflict"], "K leaves 19:00 but L starts 19:00 → clash, not locked")
-ok("Doesn't fit yet" in card_text(D4), "the card explains the clash")
+txt = card_text(D4)
+ok("Doesn't fit yet" in txt and f"<@{K}> has to leave" in txt and f"🕐 <@{L}> from" in txt, "everyone picked → revealed, and the card explains the clash")
 gn(D4, K, "until", "")
 n4 = night(D4)
 ok(n4["stage"] == "set" and n4["start_at"] == int(at(D4, "19:00")), "clearing the leave-by locks it at 19:00")
 ok(bool(n4["event_id"]), "a Discord event was created")
-ok("Slowpoke" in card_text(D4), "the slowpoke gets credit")
+txt = card_text(D4)
+ok("Slowpoke" in txt, "the slowpoke gets credit")
+ok(f"<@{L}> **19:00**" in txt and f"<@{K}> **17:00**" in txt and "Enshrouded** ← " in txt, "the locked card reveals everyone's picks")
+
+# ------------------------------------------------------------------ polls
+section("🤫 secret polls")
+pid = sql(f"INSERT INTO polls (question, options, created_by, created_at) VALUES ('qa secret', '[\"Pizza\", \"Kebab\"]', '{K}', 'qa') RETURNING id")[0]["id"]
+pv = lambda u, c: admin("/admin/gamenight", {"action": "poll-vote", "poll": pid, "user": u, "choice": c})
+render = lambda: flatten(admin("/admin/gamenight", {"action": "poll-render", "poll": pid}))
+ok("Pizza" in (pv(V, 0).get("notice") or ""), "the voter's receipt names their answer")
+txt = render()
+ok("█" not in txt and "· 1" not in txt and f"🗳️ <@{V}>" in txt and f"⏳ <@{L}>" in txt, "the poll shows who voted, not what or how many")
+ok("Took your vote back" in (pv(V, 0).get("notice") or "") and f"⏳ <@{V}>" in render(), "tapping again takes it back")
+pv(V, 0)
+pv(L, 0)
+txt = render()
+ok("Decided: Pizza" in txt and "█" in txt and f"<@{V}> <@{L}>" in txt, "decided → bars and voters revealed")
+sql(f"DELETE FROM poll_votes WHERE poll_id = {pid}; DELETE FROM polls WHERE id = {pid}")
 
 # ------------------------------------------------------------------ cancel + reopen
 section("cancel before the start, then reopen")
@@ -184,7 +229,9 @@ n4 = night(D4)
 ok(n4["stage"] == "off", "out before the start cancels the night")
 evs = [e["id"] for e in call("GET", "/guilds/{guild}/scheduled-events")]
 ok(n4["event_id"] not in evs, "and deletes the Discord event")
-ok("Reopen" in card_text(D4), "the cancelled card offers 🔄 Reopen")
+txt = card_text(D4)
+ok("Reopen" in txt, "the cancelled card offers 🔄 Reopen")
+ok("How everyone voted" in txt and f"<@{V}> **18:00**" in txt, "and reveals how everyone voted")
 gn(D4, K, "reopen")
 n4 = night(D4)
 v4 = sql(f"SELECT stage, user_id, choice FROM game_night_votes WHERE day='{D4}'")
@@ -231,14 +278,14 @@ ok(sql(f"SELECT state FROM night_attendance WHERE day='{D3}' AND user_id='{L}'")
 
 section("rooms: concurrent opens make one room")
 with ThreadPoolExecutor(3) as ex:
-    rr = list(ex.map(lambda _: admin("/admin/gamenight", {"action": "room", "game": "Counter-Strike 2", "emoji": "🔫"}), range(3)))
+    rr = list(ex.map(lambda _: admin("/admin/gamenight", {"action": "room", "game": QA_ROOM, "emoji": "🧪"}), range(3)))
 ids = {r.get("channelId") for r in rr}
 ok(len(ids) == 1 and None not in ids, f"three simultaneous opens → one room ({len(ids)})")
-cs = [c for c in channels() if c["name"] == "🔫 Counter-Strike 2"]
+cs = [c for c in channels() if c["name"] == f"🧪 {QA_ROOM}"]
 ok(len(cs) == 1, f"exactly one channel exists ({len(cs)})")
 
 section("session over: room archived, event ended")
-for rm in sql("SELECT channel_id FROM rooms"):
+for rm in sql(f"SELECT channel_id FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}'"):
     sql(f"UPDATE rooms SET last_seen = {now - 1500}, created_at = {now - 4000} WHERE channel_id = '{rm['channel_id']}'")
 tk = admin("/admin/gamenight", {"action": "rooms"})
 ok(len(tk.get("archived", [])) == 2, f"both empty rooms archived ({tk})")
@@ -249,18 +296,16 @@ ok(ev.get("status") == 3 or "error" in ev, f"the night's event ended (status {ev
 section("cleanup")
 for rm in sql("SELECT channel_id FROM rooms"):
     call("DELETE", f"/channels/{rm['channel_id']}")
-sql("DELETE FROM rooms")
+sql(f"DELETE FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}'")
 reset(D1, D2, D3, D4)
 admin("/admin/gamenight", {"action": "rooms"})
-for m in call("GET", f"/channels/{CH}/messages?limit=50"):
-    if not m.get("pinned"):
-        call("DELETE", f"/channels/{CH}/messages/{m['id']}")
-for e in call("GET", "/guilds/{guild}/scheduled-events"):
-    call("DELETE", f"/guilds/{{guild}}/scheduled-events/{e['id']}")
-sql("DELETE FROM tiebreaks; DELETE FROM night_attendance; DELETE FROM games WHERE name = 'Lethal Company'; UPDATE games SET plays = 0")
-left = sql("SELECT (SELECT count(*) FROM game_nights) n, (SELECT count(*) FROM rooms) r, (SELECT count(*) FROM night_attendance) a")[0]
-ok(left == {"n": 0, "r": 0, "a": 0}, f"database clean {left}")
-ok(len(call("GET", f"/channels/{CH}/messages?limit=10")) == 1, "only the pinned panel left in #game-night")
+snap.cleanup()
+left = sql(
+    f"SELECT (SELECT count(*) FROM game_nights WHERE day IN ({DAYS})) n, (SELECT count(*) FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}') r,"
+    f" (SELECT count(*) FROM night_attendance WHERE day IN ({DAYS})) a, (SELECT count(*) FROM tiebreaks WHERE kind = 'night' AND ref IN ({DAYS})) t"
+)[0]
+ok(left == {"n": 0, "r": 0, "a": 0, "t": 0}, f"test data gone {left}")
+ok(not [m for m in call("GET", f"/channels/{CH}/messages?after={snap.marker}&limit=100") if m["author"]["id"] == "968964425514102895"], "no QA messages left in #game-night")
 ok("🗄️ Recent games" not in [c["name"] for c in channels()], "no leftover archive category")
 
 print(f"\n{results['pass']} passed, {results['fail']} failed")

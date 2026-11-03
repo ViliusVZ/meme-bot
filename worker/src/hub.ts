@@ -22,6 +22,7 @@ function guide(env: Env) {
         "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
         "• **🚪 I'm out** on a card cancels that night for everyone",
+        "• **🤫 Votes are secret** while they run: the card shows who has voted, never what (you get a private receipt). Once it's decided, everyone's picks are revealed.",
       ].join("\n"),
     ),
     divider,
@@ -36,7 +37,7 @@ function guide(env: Env) {
     text(
       [
         "### 🗳️ Polls",
-        "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer; the first to 2 votes wins. Not settled? **🔒 Close** it.",
+        "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer (🤫 secret until it's decided, then revealed); the first to 2 votes wins. Not settled? **🔒 Close** it.",
       ].join("\n"),
     ),
     divider,

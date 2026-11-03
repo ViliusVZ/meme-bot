@@ -5,6 +5,7 @@ import sys
 import time
 
 from dc import admin, call
+from qa_guard import require_idle
 
 sys.stdout.reconfigure(encoding="utf-8")
 ok = lambda cond, msg: print(("✅ " if cond else "❌ ") + msg)
@@ -19,6 +20,7 @@ def channels():
     return call("GET", "/guilds/{guild}/channels")
 
 
+require_idle()  # no real rooms exist past this point, so every room below is ours
 tick = lambda: admin("/admin/gamenight", {"action": "rooms"})
 now = int(time.time())
 
@@ -32,7 +34,7 @@ tick()
 first = admin("/admin/gamenight", {"action": "room", "game": "Phasmophobia", "emoji": "👻"})
 sql(f"UPDATE rooms SET last_seen = {now - 1500} WHERE channel_id = '{first['channelId']}'")
 ok(tick().get("archived") == ["Phasmophobia"], "empty 25 min → archived")
-sql(f"UPDATE rooms SET archived_at = {now - 4 * 86400}")
+sql(f"UPDATE rooms SET archived_at = {now - 4 * 86400} WHERE channel_id = '{first['channelId']}'")
 r = tick()
 ok(r.get("deleted") == ["Phasmophobia"], f"archived 4 days → deleted ({r})")
 names = [c["name"] for c in channels()]

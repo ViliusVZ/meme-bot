@@ -9,14 +9,13 @@ import json
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta, timezone
 
 from dc import admin, call
+from qa_guard import TEST_DAYS, require_idle, vilnius
 
 sys.stdout.reconfigure(encoding="utf-8")
 V, K, L = "306836805825593344", "212567787896307713", "747902984003780651"
-DAY, OFFDAY = "2026-11-12", "2026-11-13"
-WINTER = timezone(timedelta(hours=2))
+DAY, OFFDAY = TEST_DAYS[2], TEST_DAYS[3]
 
 
 def sql(q):
@@ -30,12 +29,13 @@ def gn(day, user, choice, value=None):
 
 cmd = sys.argv[1]
 if cmd == "setup":
+    require_idle()
     admin("/admin/gamenight", {"action": "plan", "user": V, "day": DAY})
     for u in (K, L):
         gn(DAY, u, "yes")
     gn(DAY, V, "game", "Phasmophobia")
     gn(DAY, K, "game", "Phasmophobia")
-    t = str(int(datetime(2026, 11, 12, 18, 0, tzinfo=WINTER).timestamp()))
+    t = vilnius(DAY, "18:00")
     for u in (V, K, L):
         gn(DAY, u, "time", t)
     now = int(time.time())
@@ -47,6 +47,7 @@ elif cmd == "tick":
     r = admin("/admin/gamenight", {"action": "tick"})
     print("late:", r["late"], "| rooms:", r["rooms"])
 elif cmd == "offcard":
+    require_idle()
     admin("/admin/gamenight", {"action": "plan", "user": V, "day": OFFDAY})
     for u in (K, L):
         gn(OFFDAY, u, "yes")

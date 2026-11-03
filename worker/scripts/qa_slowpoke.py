@@ -1,18 +1,18 @@
 """QA: a planned night through to lock-in with three different start times (quiet, no pings)."""
 import sys
 import time
-from datetime import datetime, timedelta, timezone
 
 from dc import admin, call
+from qa_guard import TEST_DAYS, require_idle, vilnius
 
 sys.stdout.reconfigure(encoding="utf-8")
 V, K, L = "306836805825593344", "212567787896307713", "747902984003780651"
-DAY, CH = "2026-11-09", "1567132345213911240"
-VILNIUS_WINTER = timezone(timedelta(hours=2))  # November; Windows Python has no tz database
-at = lambda hh: str(int(datetime(2026, 11, 9, hh, 0, tzinfo=VILNIUS_WINTER).timestamp()))
+DAY, CH = TEST_DAYS[7], "1567132345213911240"
+at = lambda hh: vilnius(DAY, f"{hh}:00")
 vote = lambda u, c, v=None: admin("/admin/gamenight", {"action": "vote", "day": DAY, "user": u, "choice": c, "value": v})
 
 if "--resume" not in sys.argv:
+    require_idle()
     print("plan", admin("/admin/gamenight", {"action": "plan", "user": V, "day": DAY})["started"])
     for u in (K, L):
         vote(u, "yes")

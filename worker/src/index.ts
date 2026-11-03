@@ -146,6 +146,7 @@ export default {
           await polls.refreshPoll(quiet, Number(input.poll));
           return json(r);
         }
+        if (input.action === "poll-render") return json(await polls.renderPoll(env, Number(input.poll)));
         if (input.action === "tb") {
           // simulate a player's tiebreak click (no animation), then refresh the host card
           const t = await tiebreakTurn(quiet, Number(input.id), input.user, input.choice, input.value, ctx);

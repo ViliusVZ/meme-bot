@@ -246,6 +246,91 @@ function tally(env: Env, v: Votes) {
   return counts;
 }
 
+// ---------------------------------------------------------------- 🤫 secret ballots
+// While a vote runs, the card shows only who has voted, never what. No counts either: in a group
+// of three they'd give picks away. Each voter gets a private receipt instead. Picks are revealed
+// once the vote is decided: everyone has answered, a game wins (or ties into a ⚔️ tiebreaker),
+// or every start time is in.
+
+/** Is this stage's vote still secret? Once revealed it stays revealed (a time clash sets `conflict`). */
+async function secret(env: Env, n: Night) {
+  const ps = players(env);
+  if (n.stage === "ask") {
+    const v = await votes(env, n.day, "ask");
+    return !ps.every((p) => v[p]);
+  }
+  if (n.stage === "game") return !(await tiebreak.get(env, "night", n.day));
+  if (n.stage === "time") {
+    if (n.conflict) return false;
+    const v = await votes(env, n.day, "time");
+    return !ps.every((p) => v[p]);
+  }
+  return false;
+}
+
+/** The clicker's own ballot, told privately while the card keeps it secret. */
+async function receipt(env: Env, day: string, user: string, was: Stage) {
+  const n = await getNight(env, day);
+  if (!n || n.stage !== was || !(await secret(env, n))) return undefined; // decided: the card shows it all
+  const tail = "\n-# 🤫 Only you can see this. Everyone's picks are revealed once the vote's decided.";
+  if (was === "ask") {
+    const a = (await votes(env, day, "ask"))[user];
+    return a && `🗳️ You answered **${a === "yes" ? "✅ I'm in" : "✖️ Can't"}**. Change it anytime.${tail}`;
+  }
+  if (was === "game") {
+    const g = (await votes(env, day, "game"))[user];
+    return g ? `🗳️ Your vote: **${(await gameLabel(env))(g)}**. Pick again to change it.${tail}` : undefined;
+  }
+  const start = (await votes(env, day, "time"))[user];
+  const until = (await votes(env, day, "until"))[user];
+  const parts = [
+    start ? `🕐 from **${timeLabel(env, Number(start), day)}**` : "🕐 no start time yet",
+    until ? `🏁 leaving by **${timeLabel(env, Number(until), day)}**` : null,
+  ].filter(Boolean);
+  return `🗳️ Your pick: ${parts.join(" · ")}${tail}`;
+}
+
+/** "👻 **Phasmophobia** ← @a @b · 🔫 **Valorant** ← @c", or null if nobody voted. */
+async function gameVotesLine(env: Env, day: string) {
+  const v = await votes(env, day, "game");
+  const by = new Map<string, string[]>();
+  for (const p of players(env)) if (v[p]) by.set(v[p], [...(by.get(v[p]) ?? []), p]);
+  if (!by.size) return null;
+  const label = await gameLabel(env);
+  return [...by]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([g, us]) => `**${label(g)}** ← ${us.map(mention).join(" ")}`)
+    .join(" · ");
+}
+
+/** "@a 18:00 · @b 19:00 (🏁 22:00) · @c no pick", or null if nobody picked anything. */
+async function timeVotesLine(env: Env, day: string) {
+  const v = await votes(env, day, "time");
+  const until = await votes(env, day, "until");
+  const ps = players(env);
+  if (!ps.some((p) => v[p] || until[p])) return null;
+  return ps
+    .map((p) => {
+      const start = v[p] ? `**${timeLabel(env, Number(v[p]), day)}**` : "no pick";
+      return `${mention(p)} ${start}${until[p] ? ` (🏁 ${timeLabel(env, Number(until[p]), day)})` : ""}`;
+    })
+    .join(" · ");
+}
+
+/** A night that ended without playing reveals whatever was voted before it stopped. */
+async function revealOff(env: Env, day: string) {
+  const game = await gameVotesLine(env, day);
+  const time = await timeVotesLine(env, day);
+  const lines = [...(game ? [`🕹️ ${game}`] : []), ...(time ? [`🕐 ${time}`] : [])];
+  if (!lines.length) {
+    // it never got past "are we playing?": who was in, who wasn't, who never answered
+    const v = await votes(env, day, "ask");
+    const ps = players(env);
+    if (ps.some((p) => v[p])) lines.push(ps.map((p) => `${v[p] === "yes" ? "✅" : v[p] === "no" ? "❌" : "⏳"} ${mention(p)}`).join("　"));
+  }
+  return lines.length ? [text(`-# 🗳️ How everyone voted\n${lines.map((l) => `-# ${l}`).join("\n")}`)] : [];
+}
+
 // ---------------------------------------------------------------- flow
 
 export type StartResult = { started: boolean; day: string; message_id: string | null; stage: Stage };
@@ -470,7 +555,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
       return say("That button is from an older version of me. Try **/playtoday** 🤖");
   }
   await settle(env, day, user, defer);
-  return ok;
+  return { update: true, notice: await receipt(env, day, user, n.stage) };
 }
 
 /** Moves the night forward if the votes allow it. */
@@ -750,46 +835,38 @@ export async function render(env: Env, day: string) {
   switch (n.stage) {
     case "ask": {
       const v = await votes(env, day, "ask");
-      const yes = ps.filter((p) => v[p] === "yes").length;
-      const no = ps.filter((p) => v[p] === "no").length;
       const today = day === local(env).day;
-      const status = no
-        ? ps.every((p) => v[p])
-          ? `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind.`
-          : `Someone's out for now. Votes can change until the end of ${today ? "today" : weekday(env, day)}.`
-        : `Waiting on ${ps.length - yes} more. It's on when all ${ps.length} say yes.`;
+      const hidden = await secret(env, n);
+      // revealed means everyone answered and someone can't (all yes would have moved on)
+      const status = hidden
+        ? `🤫 Answers stay secret until everyone's answered · waiting on ${ps.filter((p) => !v[p]).length} more · it's on when all ${ps.length} say yes`
+        : `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${today ? "today" : weekday(env, day)}).`;
+      const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : v[p] === "yes" ? "✅" : "❌");
       body = [
         text(`## 🎮 Game night? · ${date}\n### ${today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`}`),
-        text(ps.map((p) => `${v[p] === "yes" ? "✅" : v[p] === "no" ? "❌" : "⏳"} ${mention(p)}`).join("　")),
+        text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
         text(`-# ${status}${starter}`),
-        row(button(3, "✅", `I'm in · ${yes}`, id("yes")), button(4, "✖️", `${today ? "Not today" : "Can't"} · ${no}`, id("no"))),
+        row(button(3, "✅", "I'm in", id("yes")), button(4, "✖️", today ? "Not today" : "Can't", id("no"))),
       ];
       break;
     }
     case "game": {
       const v = await votes(env, day, "game");
       const list = await games(env);
-      const emoji = new Map(list.map((g) => [g.name, g.emoji ?? "🎮"]));
-      const picks = [...tally(env, v)]
-        .sort((a, b) => b[1] - a[1])
-        .map(([g, c]) => `${emoji.get(g) ?? "🎮"} **${g}** · ${c} · ${ps.filter((p) => v[p] === g).map(mention).join(" ")}`);
-      const waiting = ps.filter((p) => !v[p]);
       const tb = await tiebreak.get(env, "night", day);
       if (tb) {
-        // a tie: the dropdown makes way for the ⚔️ tiebreaker
+        // a tie: the votes are revealed and the dropdown makes way for the ⚔️ tiebreaker
         body = [
           text(`## 🕹️ What are we playing? · ${date}`),
-          ...tiebreak.section(tb, await gameLabel(env), ps.every((p) => v[p]) && picks.length === ps.length ? "Everyone picked something different!" : "It's a tie!"),
+          ...tiebreak.section(tb, await gameLabel(env), ps.every((p) => v[p]) && tally(env, v).size === ps.length ? "Everyone picked something different!" : "It's a tie!"),
           row(out),
         ];
         break;
       }
       body = [
         text(`## 🕹️ What are we playing? · ${date}\n✅ All ${ps.length} are in!`),
-        text(picks.length ? picks.join("\n") : "*No picks yet…*"),
-        text(
-          `-# First game to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker${waiting.length ? ` · waiting on ${waiting.map(mention).join(" ")}` : ""}`,
-        ),
+        text(ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
+        text(`-# 🤫 Votes stay secret until a game wins · first to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker`),
         // a dropdown needs at least one option; with an empty game list, suggesting is the way in
         ...(list.length
           ? [
@@ -815,8 +892,9 @@ export async function render(env: Env, day: string) {
       const until = await votes(env, day, "until");
       const f = fit(ps, v, until, soonest());
       const at = (t: number) => `**${timeLabel(env, t, day)}**`;
-      const lead = f.start === null ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
-      const lines = ps.map((p) => {
+      const hidden = await secret(env, n);
+      const lead = f.start === null || hidden ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
+      const lines = hidden ? [ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")] : ps.map((p) => {
         const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
         return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
       });
@@ -824,7 +902,11 @@ export async function render(env: Env, day: string) {
       const leaver = f.end !== null ? ps.find((p) => Number(until[p]) === f.end)! : null;
       const deadline = f.end !== null ? ` · start by ${at(f.end - MIN_TOGETHER)} so we get an hour before ${mention(leaver!)} leaves` : "";
       let status: string;
-      if (f.conflict) {
+      if (hidden) {
+        // a leave-by is shown without its owner, so nobody picks a start that's too late
+        const limit = f.end !== null ? `\n-# 🏁 Someone has to leave by ${at(f.end)}, so start by ${at(f.end - MIN_TOGETHER)} to get an hour together.` : "";
+        status = `-# 🤫 Picks stay secret until everyone's chosen · tap the earliest time you can start (tap again to take it back) · have to leave early? Tap 🏁 Leave by${limit}`;
+      } else if (f.conflict) {
         const c = f.conflict;
         status = [
           `### ⚠️ Doesn't fit yet`,
@@ -840,12 +922,16 @@ export async function render(env: Env, day: string) {
       } else {
         status = `-# Starting at ${at(f.start)}`;
       }
-      const times = timeOptions(env, n, v).map((t) => {
-        const count = ps.filter((p) => v[p] === String(t)).length;
+      // while secret, custom picks get no button of their own (that would give them away)
+      const times = timeOptions(env, n, hidden ? {} : v).map((t) => {
+        const count = hidden ? 0 : ps.filter((p) => v[p] === String(t)).length;
         return button(t === lead ? 3 : 2, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
       });
+      // the game vote is decided, so it's revealed (a tiebreak's story already names everyone)
+      const gameVotes = n.note ? null : await gameVotesLine(env, day);
+      const notes = [...(gameVotes ? [`🗳️ ${gameVotes}`] : []), ...(n.note ? n.note.split("\n") : [])];
       body = [
-        text(`## ⏰ What time? · ${date}\n${n.note ? `${n.note.split("\n").map((l) => `-# ${l}`).join("\n")}\n` : ""}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
+        text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
         text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
         text(status),
         ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(2, "🏁", "Leave by", id("leaveby")), out]),
@@ -865,12 +951,15 @@ export async function render(env: Env, day: string) {
       const until = await votes(env, day, "until");
       const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
       const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
+      const timeVotes = await timeVotesLine(env, day);
+      const gameVotes = await gameVotesLine(env, day);
       const endLine = end === null ? "" : `\n🏁 until **${timeLabel(env, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
       body = [
         text(`## 🎉 Game night is ON · ${date}`),
         text(
-          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}\n👥 ${ps.map(mention).join(" ")}${flavour}`,
+          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
         ),
+        ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
         row(
           ...(n.event_id
             ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${env.GUILD_ID}/${n.event_id}` }]
@@ -884,6 +973,7 @@ export async function render(env: Env, day: string) {
       body = [
         text(`## 😴 No game night · ${date}`),
         text(n.note ?? "Maybe tomorrow 🫡"),
+        ...(await revealOff(env, day)),
         // still today (or a planned day ahead): let anyone who changed their mind start it over
         ...(day >= local(env).day ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
       ];

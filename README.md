@@ -98,6 +98,15 @@ start and is marked ended when the room is archived.
 QA: `node test/time.test.mjs`, `node test/tiebreak.test.mjs` (unit), then `python scripts/qa_all.py`
 (end-to-end against the live bot, quiet, cleans up), plus `qa_tiebreak.py` and `qa_rooms.py`.
 
+## 🤫 Secret ballots
+Every vote (are we playing, game, start time + leave-by, polls) is secret while it runs: the card
+shows only who has voted (🗳️ / ⏳), never what, and no counts (in a group of three they'd give picks
+away). Each voter gets an ephemeral receipt of their own ballot. A vote is revealed once it's
+decided: everyone answered, a game won or tied into a tiebreaker, every start time is in (a clash
+is shown with names so it can be fixed), or a poll closed. Locked and cancelled cards show how
+everyone voted. A leave-by shows without its owner ("someone has to leave by 22:00") so nobody
+picks a start that's too late. Rock-paper-scissors throws were already secret until each round ends.
+
 ## Polls, help and the HQ panel
 - `/poll` (or 🗳️ on the panel) opens a form: question + answers (one per line; empty = Yes/No).
   Answers are buttons; one vote each, tap again to take it back. The first answer to a majority of

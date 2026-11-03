@@ -7,19 +7,17 @@
 import json
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
 
 from dc import admin, call
+from qa_guard import TEST_DAYS, require_idle, vilnius, wall
 
 sys.stdout.reconfigure(encoding="utf-8")
 WHO = {"V": "306836805825593344", "K": "212567787896307713", "L": "747902984003780651"}
-DAY, CH = "2026-11-09", "1567132345213911240"
-VILNIUS_WINTER = timezone(timedelta(hours=2))  # November; Windows Python has no tz database
+DAY, CH = TEST_DAYS[7], "1567132345213911240"
 
 
 def at(hhmm):
-    h, m = map(int, hhmm.split(":"))
-    return str(int(datetime(2026, 11, 9, h, m, tzinfo=VILNIUS_WINTER).timestamp()))
+    return vilnius(DAY, hhmm)
 
 
 def vote(who, choice, value=None):
@@ -33,6 +31,7 @@ def sql(q):
 
 cmd = sys.argv[1]
 if cmd == "setup":
+    require_idle()
     print(admin("/admin/gamenight", {"action": "plan", "user": WHO["V"], "day": DAY}))
     for w in ("K", "L"):
         vote(w, "yes")
@@ -49,7 +48,7 @@ if cmd in ("state", "vote"):
     print("NIGHT", night)
     for v in sql(f"SELECT stage, user_id, choice FROM game_night_votes WHERE day='{DAY}' AND stage IN ('time','until')"):
         who = next(k for k, u in WHO.items() if u == v["user_id"])
-        print("  ", v["stage"], who, datetime.fromtimestamp(int(v["choice"]), VILNIUS_WINTER).strftime("%H:%M"))
+        print("  ", v["stage"], who, wall(v["choice"]))
     if night and night[0]["message_id"]:
         m = call("GET", f"/channels/{CH}/messages/{night[0]['message_id']}")
         texts = []
