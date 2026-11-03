@@ -41,6 +41,8 @@ needs the others' input sends one nudge ping, which is deleted when the next one
   compare-and-set, so simultaneous clicks can't double-advance.
 - `/playtoday` starts today's poll early and counts as the starter's yes. If today already has a
   poll (manual or scheduled), it links to it instead; the 17:00 job never posts a second one.
+- `/plan` opens a day picker (today + 6 days). Picking a day posts that day's card right away.
+  Future-day cards offer 16:00–21:00 start times; the 17:00 job skips any day that's already planned.
 - Anyone a stage has been waiting on for an hour gets one extra reminder ping.
 - `/games list|add|remove` edits the game list.
 - Time logic tests (DST, presets, parsing): `cd worker && node test/time.test.mjs`.
@@ -49,6 +51,15 @@ needs the others' input sends one nudge ping, which is deleted when the next one
 - Testing without pinging anyone: `/admin/gamenight` with `{"action": "start" | "tick" | "reset"}` or
   `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`.
   `worker/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
+
+## Polls, help and the HQ panel
+- `/poll` (or 🗳️ on the panel) opens a form: question + answers (one per line; empty = Yes/No).
+  Answers are buttons; one vote each, tap again to take it back. The first answer to a majority of
+  the trio (2) wins automatically; 🔒 Close settles it early, and a tie gets a 🎲 button. (`src/polls.ts`)
+- `/help` shows the guide privately. The same guide with action buttons (🎮 Play today · 📅 Plan a
+  day · 🗳️ New poll · 🕹️ Games · ❓ Help) is pinned in #game-night, so nothing needs typing.
+  Repost it with `/admin/gamenight {"action": "hub"}`. (`src/hub.ts`)
+- `/games` opens the game list with ➕ Add (form) and a 🗑️ remove dropdown.
 
 ## Deploy (`worker/`)
     npm install

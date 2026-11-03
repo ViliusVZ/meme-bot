@@ -41,7 +41,7 @@ test("local day/hour across DST", () => {
 
 const presets = (stageIso, nowIso, votes = {}) => {
   at(nowIso);
-  return gn.timeOptions({ stage_at: Date.parse(stageIso) / 1000 }, votes).map(hm);
+  return gn.timeOptions(env, { day: gn.local(env).day, stage_at: Date.parse(stageIso) / 1000 }, votes).map(hm);
 };
 test("time stage at 14:00 → afternoon presets", () =>
   assert.deepEqual(presets("2026-11-03T12:00:00Z", "2026-11-03T12:00:00Z"), ["15:00", "15:30", "16:00", "17:00", "18:00"]));
@@ -82,5 +82,18 @@ test("parse respects summer time", () => {
   at("2026-07-01T10:00:00Z");
   assert.equal(gn.parseTime(env, "20:00"), Date.parse("2026-07-01T17:00:00Z") / 1000);
 });
+
+test("planned day → that day's 16:00-21:00", () => {
+  at("2026-11-03T10:00:00Z");
+  assert.deepEqual(gn.timeOptions(env, { day: "2026-11-06", stage_at: Date.now() / 1000 }, {}).map((s) => new Date(s * 1000).toISOString().slice(0, 16)), [
+    "2026-11-06T14:00", "2026-11-06T15:00", "2026-11-06T16:00", "2026-11-06T17:00", "2026-11-06T18:00", "2026-11-06T19:00",
+  ]);
+});
+test("custom time on a planned day", () => {
+  at("2026-11-03T20:00:00Z"); // 22:00 today: 19:30 has passed today but not on Friday
+  assert.equal(gn.parseTime(env, "19:30", "2026-11-06"), Date.parse("2026-11-06T17:30:00Z") / 1000);
+  assert.equal(gn.parseTime(env, "01:00", "2026-11-06"), Date.parse("2026-11-06T23:00:00Z") / 1000);
+});
+test("weekday names", () => assert.equal(gn.weekday(env, "2026-11-06"), "Friday"));
 
 console.log(`${passed} passed${process.exitCode ? ", some FAILED" : ""}`);

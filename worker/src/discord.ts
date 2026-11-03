@@ -9,6 +9,7 @@ export const enum Response {
   Pong = 1,
   Message = 4,
   DeferredMessage = 5,
+  DeferredUpdate = 6,
   UpdateMessage = 7,
   Autocomplete = 8,
   Modal = 9,

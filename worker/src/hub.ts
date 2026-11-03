@@ -1,0 +1,108 @@
+// Button-first entry points: /help (private) and the pinned "Game Night HQ" panel share the same
+// guide and action buttons, so nobody has to remember a single command.
+import type { Env } from "./index";
+import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
+import { games } from "./gamenight";
+
+const text = (content: string) => ({ type: 10, content });
+const divider = { type: 14, divider: true, spacing: 1 };
+const button = (style: number, emoji: string, label: string, custom_id: string) => ({ type: 2, style, emoji: { name: emoji }, label, custom_id });
+
+export const actions = () => ({
+  type: 1,
+  components: [
+    button(3, "🎮", "Play today", "hub:play"),
+    button(1, "📅", "Plan a day", "hub:plan"),
+    button(1, "🗳️", "New poll", "hub:poll"),
+    button(2, "🕹️", "Games", "hub:games"),
+    button(2, "❓", "Help", "hub:help"),
+  ],
+});
+
+function guide(env: Env) {
+  return [
+    text("## 🤖 Meme Bot 3000 · how to use me"),
+    text(
+      [
+        `### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`,
+        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (first to 2 votes, 🎲 on a three-way split), then **picking a time**: tap the earliest time you can start, and we start when everyone's ready. Then you get a Discord event and a ping at start time.",
+        "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
+        "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
+        "• **🚪 I'm out** on a card cancels that night for everyone",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      [
+        "### 🗳️ Polls",
+        "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer; the first to 2 votes wins. Not settled? **🔒 Close** it, and a tie can be 🎲 rolled.",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      [
+        `### 😂 Memes · <#${env.CHANNEL_ID}>`,
+        "A top r/ProgrammerHumor meme lands every day. Vote 🔥 😂 💀 🗑️ on it to build a voting streak. Weekly and monthly winners are crowned automatically.",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      "-# Commands, if you prefer typing: `/playtoday` · `/plan` · `/poll` · `/games` · `/meme` · `/top` · `/stats` · `/hall-of-fame` · `/help`",
+    ),
+    actions(),
+  ];
+}
+
+/** /help and the ❓ button: the guide, privately. */
+export const helpMessage = (env: Env) => ({
+  flags: IS_COMPONENTS_V2 | EPHEMERAL,
+  components: [{ type: 17, accent_color: 0x8e44ad, components: guide(env) }],
+});
+
+/** The pinned panel in the game-night channel. */
+export const hubPanel = (env: Env) => ({
+  flags: IS_COMPONENTS_V2,
+  allowed_mentions: { parse: [] },
+  components: [{ type: 17, accent_color: 0x8e44ad, components: guide(env) }],
+});
+
+/** 🕹️ Games: the list, an add button (form) and a remove dropdown. */
+export async function gamesManager(env: Env, notice?: string) {
+  const list = await games(env);
+  return {
+    flags: IS_COMPONENTS_V2 | EPHEMERAL,
+    components: [
+      {
+        type: 17,
+        accent_color: 0x57f287,
+        components: [
+          text(`## 🕹️ Game list${notice ? `\n${notice}` : ""}`),
+          text(list.map((g) => `${g.emoji ?? "🎮"} **${g.name}**${g.plays ? ` · played ${g.plays}×` : ""}`).join("\n") || "*Empty. Add something!*"),
+          text("-# These are the choices in game-night polls, most played first. ➕ Suggest a game on a poll adds one too."),
+          { type: 1, components: [button(3, "➕", "Add a game", "games:add")] },
+          ...(list.length
+            ? [
+                {
+                  type: 1,
+                  components: [
+                    {
+                      type: 3,
+                      custom_id: "games:remove",
+                      placeholder: "🗑️ Remove a game…",
+                      options: list.map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+    ],
+  };
+}
+
+export const addGameModal = () => ({
+  custom_id: "games:add",
+  title: "Add a game",
+  components: [{ type: 1, components: [{ type: 4, custom_id: "value", style: 1, label: "Game name", placeholder: "Lethal Company", max_length: 60, required: true }] }],
+});

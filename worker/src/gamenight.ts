@@ -94,31 +94,47 @@ function timeLabel(env: Env, sec: number, day: string) {
  * Start-time presets, generated from when the time stage began: three half-hour steps from the
  * earliest sensible start, then two hourly ones (14:00 → 15:00 15:30 16:00 17:00 18:00;
  * 17:00 → 18:00 18:30 19:00 20:00 21:00). Past times are dropped; if the stage has dragged on
- * so long that few remain, they're regenerated from now. Times anyone voted for (including
+ * so long that few remain, they're regenerated from now. A night planned for a later day gets
+ * that day's afternoon/evening on the hour (16:00 … 21:00). Times anyone voted for (including
  * custom ones) are always offered so others can join them.
  */
-export function timeOptions(n: Night, v: Votes) {
+export function timeOptions(env: Env, n: Night, v: Votes) {
   const t = nowSec();
-  const build = (base: number) => {
-    const first = Math.ceil((base + LEAD) / HALF_HOUR) * HALF_HOUR;
-    return [0, 1, 2, 4, 6].map((k) => first + k * HALF_HOUR);
-  };
-  let presets = build(n.stage_at ?? t).filter((s) => s > t);
-  if (presets.length < 3) presets = build(t);
+  let presets: number[];
+  if (n.day > local(env).day) {
+    const [y, m, d] = n.day.split("-").map(Number);
+    presets = [16, 17, 18, 19, 20, 21].map((h) => wallToUnix(env, y, m, d, h, 0));
+  } else {
+    const build = (base: number) => {
+      const first = Math.ceil((base + LEAD) / HALF_HOUR) * HALF_HOUR;
+      return [0, 1, 2, 4, 6].map((k) => first + k * HALF_HOUR);
+    };
+    presets = build(n.stage_at ?? t).filter((s) => s > t);
+    if (presets.length < 3) presets = build(t);
+  }
   const voted = Object.values(v).map(Number).filter((s) => s > t);
   return [...new Set([...presets, ...voted])].sort((a, b) => a - b).slice(0, 8);
 }
 
-/** Parses "20", "20:15", "2015", "20.15" or "20h15" typed into the custom-time box. */
-export function parseTime(env: Env, raw: string): number | string {
+/**
+ * Parses "20", "20:15", "2015", "20.15" or "20h15" typed into the custom-time box, as a time on
+ * the night's day. Early-morning hours (before 06:00) mean after midnight that night.
+ */
+export function parseTime(env: Env, raw: string, day = local(env).day): number | string {
   const m = raw.trim().match(/^(\d{1,2})(?:\s*[:.h]?\s*(\d{2}))?$/i);
   if (!m || +m[1] > 23 || +(m[2] ?? 0) > 59) return "Couldn't read that time. Try something like **20:30**.";
-  const today = local(env);
-  let t = wallToUnix(env, today.y, today.m, today.d, +m[1], +(m[2] ?? 0));
-  if (t < nowSec() && +m[1] < 6) t += 86400; // "01:00" late at night means tonight, after midnight
+  const [y, mo, d] = day.split("-").map(Number);
+  const today = day === local(env).day;
+  let t = wallToUnix(env, y, mo, d, +m[1], +(m[2] ?? 0));
+  if (+m[1] < 6 && (!today || t < nowSec())) t += 86400;
   if (t < nowSec() + 120) return `**${clock(env, t)}** has already passed ⏰`;
-  if (t > nowSec() + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
+  if (today && t > nowSec() + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
   return t;
+}
+
+/** "Friday", for cards about a day other than today. */
+export function weekday(env: Env, day: string) {
+  return new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
 }
 
 // ---------------------------------------------------------------- storage
@@ -182,12 +198,15 @@ function tally(env: Env, v: Votes) {
 export type StartResult = { started: boolean; day: string; message_id: string | null; stage: Stage };
 
 /**
- * Posts today's card if there isn't one yet. `by` is the player who ran /playtoday (their
- * "yes" is counted straight away); without it this is the 17:00 schedule, which only acts in
- * the poll hour. Either way the INSERT OR IGNORE on the day decides who wins.
+ * Posts the card for a day (today by default) if there isn't one yet. `by` is the player who ran
+ * /playtoday or planned the day (their "yes" counts straight away); without it this is the 17:00
+ * schedule, which only acts in the poll hour. Either way the INSERT OR IGNORE on the day decides
+ * who wins, so a day planned in advance is never posted again by the schedule.
  */
-export async function startNight(env: Env, by?: string, anyHour = false): Promise<StartResult | { skipped: string }> {
-  const { day, hour } = local(env);
+export async function startNight(env: Env, by?: string, anyHour = false, forDay?: string): Promise<StartResult | { skipped: string }> {
+  const { day: today, hour } = local(env);
+  const day = forDay ?? today;
+  if (day < today) return { skipped: "that day is over" };
   let n = await getNight(env, day);
   if (!n) {
     if (!by && !anyHour && hour !== Number(env.GAME_POLL_HOUR)) return { skipped: "not poll hour" };
@@ -249,7 +268,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
   const n = await getNight(env, day);
   if (!n) return say("This poll has vanished 🫥");
   if (!players(env).includes(user)) return say("This one's for the trio 😅");
-  if (OPEN.includes(n.stage) && day !== local(env).day) {
+  if (OPEN.includes(n.stage) && day < local(env).day) {
     await close(env, day);
     return say("That poll closed at midnight. Start a new one with **/playtoday** 🎮", true);
   }
@@ -274,7 +293,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
     case "time":
     case "custom": {
       if (n.stage !== "time") return action === "custom" ? say("Time picking is already over for today.", true) : ok;
-      const t = action === "custom" ? parseTime(env, value ?? "") : Number(value);
+      const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
       if (t < nowSec() + 60) return say(`**${clock(env, t)}** has already passed ⏰ Pick a later time.`, true);
@@ -381,7 +400,7 @@ async function lockIn(env: Env, day: string) {
     console.log("event failed", e); // the night still happens; the card just has no event link
   }
   await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: `🎉 ${ps.map(mention).join(" ")} it's on! ${await emojiFor(env, n.game!)} **${n.game}** at ${ts(n.start_at!, "t")} (${ts(n.start_at!, "R")})`,
+    content: `🎉 ${ps.map(mention).join(" ")} it's on! ${await emojiFor(env, n.game!)} **${n.game}** ${day === local(env).day ? "at" : "on"} ${ts(n.start_at!, day === local(env).day ? "t" : "f")} (${ts(n.start_at!, "R")})`,
     allowed_mentions: pings(env, ps),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
@@ -399,27 +418,30 @@ async function cancelLocked(env: Env, n: Night, user: string) {
 }
 
 /**
- * Cron, every 15 minutes: keep today's open card fresh (drops start times that just passed),
- * ping anyone who's left a stage waiting for an hour (once per stage), and ping the squad when a
+ * Cron, every 15 minutes: keep open cards fresh (drops start times that just passed), ping
+ * anyone who's left a stage waiting for an hour (once per stage), and ping the squad when a
  * locked-in night starts.
  */
 export async function maintain(env: Env) {
   const t = nowSec();
-  const today = await getNight(env, local(env).day);
   const done: Record<string, unknown> = {};
+  const open = await env.DB.prepare("SELECT * FROM game_nights WHERE day >= ? AND stage IN ('ask', 'game', 'time') AND message_id IS NOT NULL")
+    .bind(local(env).day)
+    .all<Night>();
 
-  if (today && OPEN.includes(today.stage) && today.message_id) {
-    if (today.stage === "time") await refresh(env, today.day);
-    const v = await votes(env, today.day, today.stage);
+  for (const n of open.results) {
+    if (n.stage === "time") await refresh(env, n.day);
+    const v = await votes(env, n.day, n.stage);
     const missing = players(env).filter((p) => !v[p]);
-    if (missing.length && today.renudged !== today.stage && t - (today.stage_at ?? t) >= RENUDGE_AFTER) {
+    if (missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
       const claimed = await env.DB.prepare("UPDATE game_nights SET renudged = ? WHERE day = ? AND stage = ? AND (renudged IS NULL OR renudged != ?)")
-        .bind(today.stage, today.day, today.stage, today.stage)
+        .bind(n.stage, n.day, n.stage, n.stage)
         .run();
       if (claimed.meta.changes) {
-        const ask = { ask: "are you in tonight?", game: "pick a game so we can get going", time: "when can you start?" }[today.stage as "ask"];
-        await nudge(env, today.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
-        done.renudged = missing;
+        const when = n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`;
+        const ask = { ask: `are you in ${when}?`, game: "pick a game so we can get going", time: "when can you start?" }[n.stage as "ask"];
+        await nudge(env, n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
+        done[`renudged ${n.day}`] = missing;
       }
     }
   }
@@ -474,16 +496,17 @@ export async function render(env: Env, day: string) {
       const v = await votes(env, day, "ask");
       const yes = ps.filter((p) => v[p] === "yes").length;
       const no = ps.filter((p) => v[p] === "no").length;
+      const today = day === local(env).day;
       const status = no
         ? ps.every((p) => v[p])
-          ? "😴 Not tonight… unless someone changes their mind before midnight."
-          : "Someone's out for now. Votes can change until midnight."
+          ? `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind.`
+          : `Someone's out for now. Votes can change until the end of ${today ? "today" : weekday(env, day)}.`
         : `Waiting on ${ps.length - yes} more. It's on when all ${ps.length} say yes.`;
       body = [
-        text(`## 🎮 Game night? · ${date}\n### Are we playing today?`),
+        text(`## 🎮 Game night? · ${date}\n### ${today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`}`),
         text(ps.map((p) => `${v[p] === "yes" ? "✅" : v[p] === "no" ? "❌" : "⏳"} ${mention(p)}`).join("　")),
         text(`-# ${status}${starter}`),
-        row(button(3, "✅", `I'm in · ${yes}`, id("yes")), button(4, "✖️", `Not today · ${no}`, id("no"))),
+        row(button(3, "✅", `I'm in · ${yes}`, id("yes")), button(4, "✖️", `${today ? "Not today" : "Can't"} · ${no}`, id("no"))),
       ];
       break;
     }
@@ -527,7 +550,7 @@ export async function render(env: Env, day: string) {
           : picked.length < ps.length
             ? `So far we'd start at **${timeLabel(env, lead, day)}** · waiting on ${ps.filter((p) => !v[p]).map(mention).join(" ")}`
             : `Starting at **${timeLabel(env, lead, day)}**`;
-      const times = timeOptions(n, v).map((t) => {
+      const times = timeOptions(env, n, v).map((t) => {
         const count = ps.filter((p) => v[p] === String(t)).length;
         return button(t === lead ? 3 : 2, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
       });
@@ -561,6 +584,36 @@ export async function render(env: Env, day: string) {
     flags: IS_COMPONENTS_V2,
     allowed_mentions: { parse: [] },
     components: [{ type: 17, accent_color: COLORS[n.stage], components: body }],
+  };
+}
+
+/** Ephemeral "which day?" picker for planning ahead: today plus the next 6 days. */
+export async function planPicker(env: Env) {
+  const today = local(env).day;
+  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${today}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10));
+  const existing = await env.DB.prepare(`SELECT day, stage FROM game_nights WHERE day >= ? AND day <= ?`)
+    .bind(days[0], days[6])
+    .all<{ day: string; stage: Stage }>();
+  const has = new Map(existing.results.map((n) => [n.day, n.stage]));
+  const mark: Record<Stage, string> = { ask: "🗳️", game: "🕹️", time: "⏰", set: "🎉", off: "😴" };
+  const buttons = days.map((d, i) => {
+    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : `${weekday(env, d).slice(0, 3)} ${Number(d.slice(8))}`;
+    const stage = has.get(d);
+    return button(stage ? 2 : 1, stage ? mark[stage] : null, label, `plan:${d}`);
+  });
+  return {
+    flags: IS_COMPONENTS_V2 | EPHEMERAL,
+    components: [
+      {
+        type: 17,
+        accent_color: COLORS.ask,
+        components: [
+          text("## 📅 Plan a game night\nPick a day and I'll post its poll in the game-night channel, with your ✅ already in."),
+          text("-# Days with an icon already have a poll, so tapping them just links to it. One poll per day, always."),
+          ...rows(buttons),
+        ],
+      },
+    ],
   };
 }
 

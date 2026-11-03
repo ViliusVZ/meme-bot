@@ -85,3 +85,20 @@ INSERT OR IGNORE INTO games (name, emoji, added_at) VALUES
   ('Enshrouded', '🌫️', '2026-11-03'),
   ('RuneScape: Dragonwilds', '🐉', '2026-11-03'),
   ('Counter-Strike 2', '🔫', '2026-11-03');
+-- ---------------------------------------------------------------- polls
+CREATE TABLE IF NOT EXISTS polls (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  question   TEXT NOT NULL,
+  options    TEXT NOT NULL,          -- JSON array of answers
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  closed_at  TEXT,
+  result     TEXT                    -- win:<answer> | tie:<JSON answers> | dice:<answer>
+);
+CREATE TABLE IF NOT EXISTS poll_votes (
+  poll_id  INTEGER NOT NULL REFERENCES polls(id),
+  user_id  TEXT NOT NULL,
+  choice   INTEGER NOT NULL,         -- index into polls.options
+  voted_at TEXT NOT NULL,
+  PRIMARY KEY (poll_id, user_id)
+);

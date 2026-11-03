@@ -4,12 +4,15 @@ import {
   avatarUrl,
   editOriginal,
   EPHEMERAL,
+  IS_COMPONENTS_V2,
   followup,
   originalMessage,
   Response as R,
   verifySignature,
 } from "./discord";
 import * as gn from "./gamenight";
+import * as hub from "./hub";
+import * as polls from "./polls";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
 export interface Env {
@@ -75,25 +78,10 @@ const COMMANDS = [
   },
   { name: "hall-of-fame", description: "The 10 greatest memes this server has ever voted on" },
   { name: "playtoday", description: "Start today's game-night poll right now (counts as your yes)" },
-  {
-    name: "games",
-    description: "The game list used in game-night polls",
-    options: [
-      { type: 1, name: "list", description: "Show all games" },
-      {
-        type: 1,
-        name: "add",
-        description: "Add a game",
-        options: [{ type: 3, name: "name", description: "Game name", required: true, max_length: 60 }],
-      },
-      {
-        type: 1,
-        name: "remove",
-        description: "Remove a game",
-        options: [{ type: 3, name: "name", description: "Game name", required: true, autocomplete: true }],
-      },
-    ],
-  },
+  { name: "plan", description: "Plan a game night for any day this week" },
+  { name: "poll", description: "Ask the trio a question and let democracy decide" },
+  { name: "games", description: "See, add or remove games in the game-night list" },
+  { name: "help", description: "How to use Meme Bot 3000" },
 ];
 
 const json = (data: unknown, status = 200) =>
@@ -133,6 +121,13 @@ export default {
         if (input.action === "start") return json(await gn.startNight(quiet, input.user, true));
         if (input.action === "tick") return json(await tick(quiet));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
+        if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
+        if (input.action === "hub") {
+          // post the button panel in the game-night channel and pin it
+          const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, hub.hubPanel(env));
+          await api(env, "PUT", `/channels/${env.GAME_CHANNEL_ID}/pins/${msg.id}`);
+          return json({ hub: msg.id });
+        }
         if (input.action === "vote") {
           const day = input.day ?? gn.local(env).day;
           const r = await gn.act(quiet, day, input.user, input.choice, input.value, (p) => ctx.waitUntil(p));
@@ -286,15 +281,74 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     return json({ type: R.UpdateMessage, data: await gn.render(env, day) });
   }
 
-  if (i.type === 4 && i.data.name === "games") {
-    const typed = String(i.data.options?.[0]?.options?.[0]?.value ?? "").toLowerCase();
-    const choices = (await gn.games(env))
-      .filter((g) => g.name.toLowerCase().includes(typed))
-      .map((g) => ({ name: g.name, value: g.name }));
-    return json({ type: R.Autocomplete, data: { choices } });
+  const isPlayer = gn.players(env).includes(user.id);
+  const cid: string = i.data?.custom_id ?? "";
+  const modalValue = (field: string) =>
+    (i.data.components ?? [])
+      .map((r: any) => r.components?.[0] ?? r.component)
+      .find((c: any) => c?.custom_id === field)?.value ?? "";
+
+  // ---- the HQ panel / help buttons
+  if (i.type === 3 && cid.startsWith("hub:")) {
+    const what = cid.slice(4);
+    if (what === "help") return json({ type: R.Message, data: hub.helpMessage(env) });
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    if (what === "play") return playToday(env, i, user.id, ctx);
+    if (what === "plan") return json({ type: R.Message, data: await gn.planPicker(env) });
+    if (what === "poll") return json({ type: R.Modal, data: polls.pollModal() });
+    if (what === "games") return json({ type: R.Message, data: await hub.gamesManager(env) });
   }
 
-  if (i.type !== 2) return ephemeral("🤷");
+  // ---- 📅 plan picker: plan:<day>
+  if (i.type === 3 && cid.startsWith("plan:")) {
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    const day = cid.slice(5);
+    ctx.waitUntil(
+      gn
+        .startNight(env, user.id, false, day)
+        .then((r) => {
+          if (!("day" in r)) return "That day is already over 🕰️";
+          const when = day === gn.local(env).day ? "today" : gn.weekday(env, day);
+          const link = r.message_id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${r.message_id}` : `<#${env.GAME_CHANNEL_ID}>`;
+          return r.started ? `🎮 Poll for **${when}** is up, with your ✅ already in: ${link}` : `**${when}** already has a poll: ${link}`;
+        })
+        .catch((e) => {
+          console.log("plan failed", e);
+          return "😵 Couldn't post that poll just now. Try again in a minute.";
+        })
+        .then((note) => editOriginal(env, i.token, { flags: IS_COMPONENTS_V2, components: [{ type: 17, accent_color: 0x5865f2, components: [{ type: 10, content: note }] }] })),
+    );
+    return json({ type: R.DeferredUpdate });
+  }
+
+  // ---- 🕹️ games manager
+  if (cid === "games:add" && i.type === 3) return json({ type: R.Modal, data: hub.addGameModal() });
+  if (cid === "games:add" && i.type === 5) {
+    const name = await gn.addGame(env, modalValue("value"), user.id);
+    ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+    return json({ type: R.UpdateMessage, data: await hub.gamesManager(env, name ? `➕ Added **${name}**` : "Give the game a name 🙃") });
+  }
+  if (cid === "games:remove" && i.type === 3) {
+    const name: string = i.data.values?.[0] ?? "";
+    await gn.removeGame(env, name);
+    ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+    return json({ type: R.UpdateMessage, data: await hub.gamesManager(env, `🗑️ Removed **${name}**`) });
+  }
+
+  // ---- 🗳️ polls: poll:new (modal) and poll:<id>:<choice|close|dice>
+  if (cid === "poll:new" && i.type === 5) {
+    const id = await polls.createPoll(env, user.id, modalValue("question"), modalValue("options"));
+    return json({ type: R.Message, data: await polls.renderPoll(env, id) });
+  }
+  if (cid.startsWith("poll:") && i.type === 3) {
+    const [, id, action] = cid.split(":");
+    const r = await polls.pollAct(env, Number(id), user.id, action);
+    if (!r.update) return ephemeral(r.notice ?? "🤷");
+    if (r.notice) ctx.waitUntil(gn.notify(env, i.token, r.notice));
+    return json({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id)) });
+  }
+
+  if (i.type !== 2) return ephemeral("That button is from an older version of me. Try **/help** 🤖");
   switch (i.data.name) {
     case "meme": {
       // pool: unposted memes from 2-7 days ago, so /meme never steals an upcoming daily
@@ -339,47 +393,41 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
         }),
       );
     }
-    case "playtoday": {
-      if (!gn.players(env).includes(user.id)) return ephemeral("This one's for the trio 😅");
-      // posting can take a moment (retries), so answer "thinking…" now and fill it in after
-      ctx.waitUntil(
-        gn
-          .startNight(env, user.id)
-          .then((r) => {
-            if (!("day" in r)) return "🤔 Couldn't start a poll.";
-            const link = r.message_id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${r.message_id}` : `<#${env.GAME_CHANNEL_ID}>`;
-            if (r.started) return `🎮 Game night poll is up, with your ✅ already in: ${link}`;
-            const state = { ask: "still collecting yeses", game: "picking a game", time: "picking a time", set: "already locked in 🎉", off: "called off" }[r.stage];
-            return `Today's poll already exists (${state}): ${link}`;
-          })
-          .catch((e) => {
-            console.log("playtoday failed", e);
-            return "😵 Couldn't post the poll just now. I'll retry automatically within 15 minutes, or run /playtoday again.";
-          })
-          .then((content) => editOriginal(env, i.token, { content })),
-      );
-      return json({ type: R.DeferredMessage, data: { flags: EPHEMERAL } });
-    }
-    case "games": {
-      const sub = i.data.options[0];
-      const arg: string = sub.options?.[0]?.value ?? "";
-      if (sub.name === "add") {
-        const name = await gn.addGame(env, arg, user.id);
-        ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
-        return ephemeral(name ? `➕ **${name}** is in the game list.` : "Give the game a name 🙃");
-      }
-      if (sub.name === "remove") {
-        const r = await gn.removeGame(env, arg);
-        ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
-        return ephemeral(r.meta.changes ? `🗑️ Removed **${arg}**.` : `No game called **${arg}**.`);
-      }
-      const list = await gn.games(env);
-      return ephemeral(
-        `## 🎮 Game list\n${list.map((g) => `${g.emoji ?? "🎮"} **${g.name}**${g.plays ? ` · played ${g.plays}×` : ""}`).join("\n")}\n-# Add with /games add, or ➕ Suggest a game during a poll.`,
-      );
-    }
+    case "playtoday":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
+      return playToday(env, i, user.id, ctx);
+    case "plan":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
+      return json({ type: R.Message, data: await gn.planPicker(env) });
+    case "poll":
+      return json({ type: R.Modal, data: polls.pollModal() });
+    case "games":
+      return json({ type: R.Message, data: await hub.gamesManager(env) });
+    case "help":
+      return json({ type: R.Message, data: hub.helpMessage(env) });
   }
   return ephemeral("Unknown command 🤔");
+}
+
+/** /playtoday and the 🎮 button. Posting can take a moment (retries), so answer "thinking…" first. */
+function playToday(env: Env, i: any, userId: string, ctx: ExecutionContext) {
+  ctx.waitUntil(
+    gn
+      .startNight(env, userId)
+      .then((r) => {
+        if (!("day" in r)) return "🤔 Couldn't start a poll.";
+        const link = r.message_id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${r.message_id}` : `<#${env.GAME_CHANNEL_ID}>`;
+        if (r.started) return `🎮 Game night poll is up, with your ✅ already in: ${link}`;
+        const state = { ask: "still collecting yeses", game: "picking a game", time: "picking a time", set: "already locked in 🎉", off: "called off" }[r.stage];
+        return `Today's poll already exists (${state}): ${link}`;
+      })
+      .catch((e) => {
+        console.log("playtoday failed", e);
+        return "😵 Couldn't post the poll just now. I'll retry automatically within 15 minutes, or try again.";
+      })
+      .then((content) => editOriginal(env, i.token, { content })),
+  );
+  return json({ type: R.DeferredMessage, data: { flags: EPHEMERAL } });
 }
 
 const message = (data: object) => json({ type: R.Message, data });
