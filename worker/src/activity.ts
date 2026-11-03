@@ -1,8 +1,10 @@
 // 📊 Voice time and game stats: calls, hours together, games played, when we play.
 //
-// Tracking: the bot has no gateway, so once a minute (voice.watchVoice, inside the lingering tick)
-// it looks up which voice channel each player is in. Each player's stretch in one channel is a
-// segment (first seen → last seen), so everything is accurate to about a minute. A segment in a
+// Tracking: the bot has no gateway, so it looks up which voice channel each player is in: once a
+// minute while anyone is in voice, once per 5-minute tick while nobody is (voice.watchVoice). Each
+// player's stretch in one channel is a segment (first seen → last seen). Calls and game time are
+// accurate to about a minute; only the very first join after a quiet spell can be up to 5 min late,
+// and that's before anyone else is there, so call lengths aren't affected. A segment in a
 // game room carries that room's game; the Lobby and other channels count as hanging out.
 //
 // Stats: a call is a stretch where at least two of us are in the same channel (hopping from the

@@ -79,7 +79,7 @@ before = time.time()
 r = admin("/admin/gamenight", {"action": "watch", "within": 70})
 # (the real tick's own minute sweep may get there first; either way it's the same 15-minute rule)
 archived = sql(f"SELECT archived_at FROM rooms WHERE day = '{DAY}'")[0]["archived_at"]
-ok(archived is not None and "QA Test Room" not in r, f"a minute later: the room empty 15 min is archived ({r}, {time.time() - before:.0f}s)")
+ok(archived is not None and "QA Test Room" not in r, f"right at the 15-minute mark the empty room is archived ({r}, {time.time() - before:.0f}s)")
 ev = call("GET", f"/guilds/{{guild}}/scheduled-events/{n['event_id']}")
 ok(ev.get("status") == 3, f"and the night's event ended (status {ev.get('status')})")
 ok(sql(f"SELECT archived_at FROM rooms WHERE channel_id = '{other['channelId']}'")[0]["archived_at"] is None, "the other room is still open")

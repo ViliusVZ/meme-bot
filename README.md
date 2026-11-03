@@ -67,8 +67,9 @@ fallback). **🔊 Game room** on the panel (or `/room`) does the same on demand:
 or type something else. One open room per game: asking again reuses it.
 
 Rooms tidy themselves: 15 min after the last person leaves (an hour if nobody ever joined) →
-moved to **🗄️ Recent games**, and the night's Discord event ends → deleted after 3 days. Open rooms
-are re-checked every minute (each scheduled tick lingers until the next one), and while people
+moved to **🗄️ Recent games**, and the night's Discord event ends → deleted after 3 days. While anyone is
+in voice, rooms are re-checked every minute (each scheduled tick lingers until the next one); an
+empty room is checked again exactly when its 15 minutes are up, and while people
 are still playing near the event's planned end, the end is pushed back so Discord doesn't end it early. Joining an archived room brings it back.
 The archive category exists only while it has something in it; rooms deleted by hand are simply
 forgotten. The bot has no gateway, so occupancy comes from `GET /guilds/{id}/voice-states/{user}`
@@ -103,9 +104,10 @@ QA: `node test/time.test.mjs`, `node test/tiebreak.test.mjs` (unit), then `pytho
 (end-to-end against the live bot, quiet, cleans up), plus `qa_tiebreak.py` and `qa_rooms.py`.
 
 ## 📊 Voice time and game stats (`src/activity.ts`)
-Once a minute (inside the lingering tick) the bot checks which voice channel each player is in and
-records it as segments (who, which channel, which game room, first and last seen), so times are
-accurate to about a minute. A **call** is a stretch with at least two of us in the same channel;
+The bot checks which voice channel each player is in (once a minute while anyone is in voice, once
+per 5-minute tick while nobody is) and records it as segments (who, which channel, which game
+room, first and last seen). Calls and game time are accurate to about a minute; only the first
+join after a quiet spell can be up to 5 minutes late, before anyone else is there. A **call** is a stretch with at least two of us in the same channel;
 hopping from the Lobby into a game room together, or a gap under 3 minutes, doesn't end it. Game
 time is time together in that game's room; together time elsewhere counts as hanging out.
 

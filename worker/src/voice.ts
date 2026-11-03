@@ -4,7 +4,7 @@
 // few days it's deleted. Someone rejoining an archived room brings it back.
 //
 // The bot has no gateway connection, so occupancy is checked over REST, per player: once a minute
-// while a room is open (watchRooms, inside the 5-minute tick), so a room and its night's event
+// while anyone is in voice (watchVoice, inside the 5-minute tick), so a room and its night's event
 // wrap up 15 minutes after the last person leaves. Rooms are only for the trio, which keeps that
 // to three calls per check.
 import type { Env } from "./index";
@@ -188,16 +188,22 @@ async function keepEventAlive(env: Env, r: Room, t: number) {
 }
 
 /**
- * Inside a tick: check voice now and then every minute until `until` (unix seconds). Each check
- * records voice time (activity.ts) and re-checks open rooms, so "empty for 15 minutes" is
- * measured to the minute rather than to the 5-minute tick.
+ * Inside a tick, until `until` (unix seconds): check voice now, then every minute while anyone is
+ * in voice. Each check records voice time (activity.ts) and re-checks open rooms. With nobody in
+ * voice there's nothing to measure: the next tick (≤ 5 min) spots the next join, and an empty
+ * room is only looked at again when its 15 minutes are up. So call lengths and the wrap-up are
+ * accurate to the minute, and quiet hours cost one check per tick.
  */
 export async function watchVoice(env: Env, until: number) {
   const done: string[] = [];
-  for (let first = true; first || nowSec() + 60 <= until; first = false) {
-    if (!first) await sleep(60_000);
+  let next = nowSec();
+  while (next <= until) {
+    await sleep(Math.max(0, next * 1000 - Date.now()));
     const where = await whereIs(env);
-    if (!where) continue;
+    if (!where) {
+      next = nowSec() + 60; // couldn't tell: try again in a minute
+      continue;
+    }
     const t = nowSec();
     await activity.track(env, where, t).catch((e) => console.log("voice tracking failed", e));
     const occupied = new Set([...where.values()].filter(Boolean) as string[]);
@@ -214,6 +220,14 @@ export async function watchVoice(env: Env, until: number) {
         console.log("room watch failed", r.channel_id, e); // the next minute (or tick) tries again
       }
     }
+    if (occupied.size) {
+      next = t + 60;
+      continue;
+    }
+    // nobody in voice: only an empty room's wrap-up is worth waiting for
+    const still = (await env.DB.prepare("SELECT * FROM rooms WHERE archived_at IS NULL AND channel_id NOT LIKE ?").bind(`${PENDING}%`).all<Room>()).results;
+    const due = still.map((r) => (r.last_seen ? r.last_seen + EMPTY_GRACE : r.created_at + NEVER_JOINED_GRACE));
+    next = due.length ? Math.max(t + 1, Math.min(...due)) : Infinity;
   }
   return done;
 }
