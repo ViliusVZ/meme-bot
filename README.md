@@ -26,12 +26,13 @@ Every day at 17:00 Lithuanian time (or earlier, when anyone runs `/playtoday`) a
    change until midnight; an unfinished poll closes itself at midnight.
 2. **What are we playing?** A dropdown of games, sorted by how often they've been played, plus
    ➕ *Suggest a game*, which adds the game permanently. The first game to 2 votes wins; if all
-   three pick different games, a die decides.
+   three pick different games, it's a ⚔️ tiebreaker (see below).
 3. **What time?** Buttons with start times generated from when this stage began: three half-hour
    steps from ~45 min out, then two hourly ones (stage at 14:00 → 15:00 15:30 16:00 17:00 18:00;
    at 17:00 → 18:00 … 21:00). Passed times disappear; ✏️ *Other time* takes any HH:MM, and custom
    picks become buttons for the others. Everyone taps the *earliest* time they can start (tap again
    to take it back); the session starts at the latest of those, so there are no ties to break.
+   Whoever picked the latest time is named 🐢 slowpoke of the night.
 
 Then it creates a Discord event and pings everyone once, and again at start time. Each stage that
 needs the others' input sends one nudge ping, which is deleted when the next one replaces it.
@@ -60,6 +61,20 @@ needs the others' input sends one nudge ping, which is deleted when the next one
   day · 🗳️ New poll · 🕹️ Games · ❓ Help) is pinned in #game-night, so nothing needs typing.
   Repost it with `/admin/gamenight {"action": "hub"}`. (`src/hub.ts`)
 - `/games` opens the game list with ➕ Add (form) and a 🗑️ remove dropdown.
+
+## ⚔️ Tiebreakers (`src/tiebreak.ts`)
+A three-way game split, a poll where everyone voted without a majority, or a tied poll someone
+🔒 closed all get a tiebreaker section on the card:
+- **🎰 Spin the wheel:** anyone taps it; the card becomes a slot reel that spins (a few message
+  edits) and lands on the winner, then returns to the card with the story.
+- **✊✋✌️ Rock Paper Scissors** between the tied voters: throws are secret (ephemeral
+  confirmation) until everyone's in, rounds are revealed on the card, draws replay, and with three
+  players two can survive into a final. After 5 draws, or whenever anyone taps 🎰 *Just spin it*,
+  the wheel decides.
+
+One tiebreak per card (unique index), with compare-and-set updates, so double clicks can't produce
+two winners. The tick heals a tiebreak whose card didn't move on. QA scripts: `scripts/qa_*.py`;
+unit tests: `node test/tiebreak.test.mjs`.
 
 ## Deploy (`worker/`)
     npm install

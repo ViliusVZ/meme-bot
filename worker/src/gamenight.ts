@@ -10,6 +10,7 @@
 import type { Env } from "./index";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
 import { now } from "./db";
+import * as tiebreak from "./tiebreak";
 
 type Stage = "ask" | "game" | "time" | "set" | "off";
 export interface Night {
@@ -281,10 +282,12 @@ export async function act(env: Env, day: string, user: string, action: string, v
       break;
     case "game":
       if (n.stage !== "game" || !value) return ok;
+      if (await tiebreak.get(env, "night", day)) return say("It's tiebreaker time ⚔️ Settle it on the card.", true);
       await vote(env, day, "game", user, value);
       break;
     case "suggest": {
       if (n.stage !== "game") return say("Game picking is already over for today.", true);
+      if (await tiebreak.get(env, "night", day)) return say("It's tiebreaker time ⚔️ Settle it on the card.", true);
       const name = await addGame(env, value ?? "", user);
       if (!name) return say("Give the game a name 🙃");
       await vote(env, day, "game", user, name);
@@ -296,6 +299,10 @@ export async function act(env: Env, day: string, user: string, action: string, v
       const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
+      // a start time must fall on the night's day (or the small hours after it)
+      const [y, mo, d] = day.split("-").map(Number);
+      const dayStart = wallToUnix(env, y, mo, d, 0, 0);
+      if (t < dayStart || t > dayStart + 30 * 3600) return say("That time isn't on this game night's day 🤔", true);
       if (t < nowSec() + 60) return say(`**${clock(env, t)}** has already passed ⏰ Pick a later time.`, true);
       const mine = (await votes(env, day, "time"))[user];
       // clicking your current pick again takes it back
@@ -333,15 +340,16 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
   if (n.stage === "game") {
     const v = await votes(env, day, "game");
     const counts = tally(env, v);
-    let winner = [...counts].find(([, c]) => c >= majority(env))?.[0];
-    let note: string | null = null;
-    if (!winner && ps.every((p) => v[p])) {
-      const options = [...counts.keys()];
-      winner = options[Math.floor(Math.random() * options.length)];
-      note = "🎲 Everyone picked something different, so the dice chose";
-    }
-    if (winner && (await advance(env, day, "game", "time", { game: winner, note }))) {
+    const winner = [...counts].find(([, c]) => c >= majority(env))?.[0];
+    if (winner && (await advance(env, day, "game", "time", { game: winner }))) {
       defer(nudge(env, day, ps.filter((p) => p !== actor), `${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
+    } else if (!winner && ps.every((p) => v[p])) {
+      // everyone voted and nothing has a majority: ⚔️ tiebreaker between the most-voted games
+      const top = Math.max(...counts.values());
+      const tied = [...counts].filter(([, c]) => c === top).map(([g]) => g);
+      const existed = await tiebreak.get(env, "night", day);
+      await tiebreak.open(env, "night", day, tied, Object.fromEntries(ps.filter((p) => tied.includes(v[p])).map((p) => [p, v[p]])));
+      if (!existed) defer(nudge(env, day, ps.filter((p) => p !== actor), "⚔️ It's a tie! Spin the wheel or settle it with rock-paper-scissors ⬆️"));
     }
     return;
   }
@@ -353,6 +361,23 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     const start = Math.max(soonest, ...ps.map((p) => Number(v[p])));
     if (await advance(env, day, "time", "set", { start_at: start })) defer(lockIn(env, day));
   }
+}
+
+/** A game-pick tiebreak finished: the winner goes on to time picking, with the story as a note. */
+export async function applyTiebreak(env: Env, day: string, actor: string, defer: Defer) {
+  const tb = await tiebreak.get(env, "night", day);
+  if (!tb?.result) return;
+  const label = await gameLabel(env);
+  if (await advance(env, day, "game", "time", { game: tb.result, note: tiebreak.story(tb, label) })) {
+    defer(nudge(env, day, players(env).filter((p) => p !== actor), `${label(tb.result)} it is! When can you start? ⬆️`));
+  }
+}
+
+/** "👻 Phasmophobia", using each game's emoji. */
+export async function gameLabel(env: Env) {
+  const list = await env.DB.prepare("SELECT name, emoji FROM games").all<{ name: string; emoji: string | null }>();
+  const emoji = new Map(list.results.map((g) => [g.name.toLowerCase(), g.emoji]));
+  return (g: string) => `${emoji.get(g.toLowerCase()) ?? "🎮"} ${g}`;
 }
 
 /**
@@ -411,7 +436,7 @@ async function cancelLocked(env: Env, n: Night, user: string) {
   if (n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
   const others = players(env).filter((p) => p !== user);
   await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: `😢 ${others.map(mention).join(" ")} ${mention(user)} can't make it, so tonight's **${n.game}** is off.`,
+    content: `😢 ${others.map(mention).join(" ")} ${mention(user)} can't make it, so ${n.day === local(env).day ? "tonight's" : `${weekday(env, n.day)}'s`} **${n.game}** is off.`,
     allowed_mentions: pings(env, others),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
@@ -430,6 +455,12 @@ export async function maintain(env: Env) {
     .all<Night>();
 
   for (const n of open.results) {
+    if (n.stage === "game" && (await tiebreak.get(env, "night", n.day))?.result) {
+      // a tiebreak finished but the card never moved on (failed follow-up): finish the job
+      await applyTiebreak(env, n.day, "", (p) => p);
+      await refresh(env, n.day);
+      continue;
+    }
     if (n.stage === "time") await refresh(env, n.day);
     const v = await votes(env, n.day, n.stage);
     const missing = players(env).filter((p) => !v[p]);
@@ -518,11 +549,21 @@ export async function render(env: Env, day: string) {
         .sort((a, b) => b[1] - a[1])
         .map(([g, c]) => `${emoji.get(g) ?? "🎮"} **${g}** · ${c} · ${ps.filter((p) => v[p] === g).map(mention).join(" ")}`);
       const waiting = ps.filter((p) => !v[p]);
+      const tb = await tiebreak.get(env, "night", day);
+      if (tb) {
+        // a tie: the dropdown makes way for the ⚔️ tiebreaker
+        body = [
+          text(`## 🕹️ What are we playing? · ${date}`),
+          ...tiebreak.section(tb, await gameLabel(env), ps.every((p) => v[p]) && picks.length === ps.length ? "Everyone picked something different!" : "It's a tie!"),
+          row(out),
+        ];
+        break;
+      }
       body = [
         text(`## 🕹️ What are we playing? · ${date}\n✅ All ${ps.length} are in!`),
         text(picks.length ? picks.join("\n") : "*No picks yet…*"),
         text(
-          `-# First game to ${majority(env)} votes wins · all different → 🎲 dice decide${waiting.length ? ` · waiting on ${waiting.map(mention).join(" ")}` : ""}`,
+          `-# First game to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker${waiting.length ? ` · waiting on ${waiting.map(mention).join(" ")}` : ""}`,
         ),
         row({
           type: 3,
@@ -555,18 +596,27 @@ export async function render(env: Env, day: string) {
         return button(t === lead ? 3 : 2, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
       });
       body = [
-        text(`## ⏰ What time? · ${date}\n${n.note ? `-# ${n.note}\n` : ""}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
+        text(`## ⏰ What time? · ${date}\n${n.note ? `${n.note.split("\n").map((l) => `-# ${l}`).join("\n")}\n` : ""}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
         text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
         text(`-# ${status}`),
         ...rows([...times, button(1, "✏️", "Other time", id("custom")), out]),
       ];
       break;
     }
-    case "set":
+    case "set": {
+      // different times aren't a tie: we start when the last person is free. Credit them.
+      const v = await votes(env, day, "time");
+      const picks = ps.filter((p) => v[p]).map((p) => Number(v[p]));
+      const latest = Math.max(...picks);
+      const slowpokes = ps.filter((p) => Number(v[p]) === latest);
+      const flavour =
+        picks.length === ps.length && Math.min(...picks) < latest
+          ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(env, latest, day)}). Everyone else, warm up!`
+          : "";
       body = [
         text(`## 🎉 Game night is ON · ${date}`),
         text(
-          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}\n👥 ${ps.map(mention).join(" ")}`,
+          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}\n👥 ${ps.map(mention).join(" ")}${flavour}`,
         ),
         row(
           ...(n.event_id
@@ -576,6 +626,7 @@ export async function render(env: Env, day: string) {
         ),
       ];
       break;
+    }
     case "off":
       body = [text(`## 😴 No game night · ${date}`), text(n.note ?? "Maybe tomorrow 🫡")];
       break;
@@ -639,6 +690,7 @@ export async function resetNight(env: Env, day: string) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM game_night_votes WHERE day = ?").bind(day),
     env.DB.prepare("DELETE FROM game_nights WHERE day = ?").bind(day),
+    env.DB.prepare("DELETE FROM tiebreaks WHERE kind = 'night' AND ref = ?").bind(day),
   ]);
   return { reset: true };
 }

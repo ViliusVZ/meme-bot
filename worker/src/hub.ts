@@ -25,7 +25,7 @@ function guide(env: Env) {
     text(
       [
         `### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`,
-        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (first to 2 votes, 🎲 on a three-way split), then **picking a time**: tap the earliest time you can start, and we start when everyone's ready. Then you get a Discord event and a ping at start time.",
+        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (first to 2 votes), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Then you get a Discord event and a ping at start time.",
         "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
         "• **🚪 I'm out** on a card cancels that night for everyone",
@@ -35,7 +35,14 @@ function guide(env: Env) {
     text(
       [
         "### 🗳️ Polls",
-        "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer; the first to 2 votes wins. Not settled? **🔒 Close** it, and a tie can be 🎲 rolled.",
+        "**🗳️ New poll** opens a form: a question plus answers. Everyone taps an answer; the first to 2 votes wins. Not settled? **🔒 Close** it.",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      [
+        "### ⚔️ Ties",
+        "A three-way split on a game, or a tied poll, becomes a tiebreaker: **🎰 spin the wheel** (watch it spin), or the tied players duel at **✊✋✌️ rock-paper-scissors**. Throws stay secret, draws replay, and after 5 draws the wheel takes over.",
       ].join("\n"),
     ),
     divider,

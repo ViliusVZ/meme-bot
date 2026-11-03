@@ -13,6 +13,7 @@ import {
 import * as gn from "./gamenight";
 import * as hub from "./hub";
 import * as polls from "./polls";
+import * as tiebreak from "./tiebreak";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
 export interface Env {
@@ -122,8 +123,23 @@ export default {
         if (input.action === "tick") return json(await tick(quiet));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
         if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
+        if (input.action === "poll-vote") {
+          // simulate a player's poll click, then refresh the poll message
+          const r = await polls.pollAct(quiet, Number(input.poll), input.user, String(input.choice));
+          await polls.refreshPoll(quiet, Number(input.poll));
+          return json(r);
+        }
+        if (input.action === "tb") {
+          // simulate a player's tiebreak click (no animation), then refresh the host card
+          const t = await tiebreakTurn(quiet, Number(input.id), input.user, input.choice, input.value, ctx);
+          const tb = await tiebreak.getById(env, Number(input.id));
+          if (tb?.kind === "night") await gn.refresh(quiet, tb.ref);
+          if (tb?.kind === "poll") await polls.refreshPoll(quiet, Number(tb.ref));
+          return json({ notice: t?.notice, tiebreak: tb });
+        }
         if (input.action === "hub") {
-          // post the button panel in the game-night channel and pin it
+          // update the pinned panel in place, or post a new one and pin it
+          if (input.message) return json(await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${input.message}`, hub.hubPanel(env)));
           const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, hub.hubPanel(env));
           await api(env, "PUT", `/channels/${env.GAME_CHANNEL_ID}/pins/${msg.id}`);
           return json({ hub: msg.id });
@@ -335,9 +351,40 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     return json({ type: R.UpdateMessage, data: await hub.gamesManager(env, `🗑️ Removed **${name}**`) });
   }
 
-  // ---- 🗳️ polls: poll:new (modal) and poll:<id>:<choice|close|dice>
+  // ---- ⚔️ tiebreakers: tb:<id>:<wheel|rps|hand>[:<r|p|s>]
+  if (cid.startsWith("tb:") && i.type === 3) {
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    const [, idStr, action, hand] = cid.split(":");
+    const r = await tiebreakTurn(env, Number(idStr), user.id, action, hand, ctx);
+    if (!r) return ephemeral("That tiebreak has vanished 🫥");
+    if (!r.update) return ephemeral(r.notice ?? "🤷");
+    if (r.notice) ctx.waitUntil(gn.notify(env, i.token, r.notice));
+    if (r.frames) {
+      // 🎰 animate: answer with the first reel frame, then edit through the rest and land on the card
+      const [first, ...rest] = r.frames;
+      ctx.waitUntil(
+        (async () => {
+          for (const frame of rest) {
+            await sleep(850);
+            await editOriginal(env, i.token, frame);
+          }
+          await sleep(1400);
+          await editOriginal(env, i.token, await r.render());
+        })().catch((e) => console.log("spin failed", e)),
+      );
+      return json({ type: R.UpdateMessage, data: first });
+    }
+    return json({ type: R.UpdateMessage, data: await r.render() });
+  }
+
+  // ---- 🗳️ polls: poll:new (modal) and poll:<id>:<choice|close>
   if (cid === "poll:new" && i.type === 5) {
     const id = await polls.createPoll(env, user.id, modalValue("question"), modalValue("options"));
+    ctx.waitUntil(
+      originalMessage(env, i.token)
+        .then((m) => polls.setMessage(env, id, m.channel_id, m.id))
+        .catch((e) => console.log("poll @original", e)),
+    );
     return json({ type: R.Message, data: await polls.renderPoll(env, id) });
   }
   if (cid.startsWith("poll:") && i.type === 3) {
@@ -407,6 +454,36 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
       return json({ type: R.Message, data: hub.helpMessage(env) });
   }
   return ephemeral("Unknown command 🤔");
+}
+
+const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+/**
+ * A tiebreak click, wired to its host (a game-night card or a poll): when the tiebreak resolves,
+ * the host moves on. Returns how to re-render the host, plus wheel frames when one was spun.
+ */
+async function tiebreakTurn(env: Env, id: number, userId: string, action: string, hand: string | undefined, ctx: ExecutionContext) {
+  const tb = await tiebreak.getById(env, id);
+  if (!tb) return null;
+  const r = await tiebreak.act(env, id, userId, action, hand);
+  const defer = (p: Promise<unknown>) => ctx.waitUntil(p.catch((e) => console.log("tb", e)));
+  // apply whenever a result exists (idempotent), so a lost follow-up heals on the next click
+  if ((await tiebreak.getById(env, id))?.result) {
+    if (tb.kind === "night") await gn.applyTiebreak(env, tb.ref, userId, defer);
+    else await polls.applyTiebreak(env, Number(tb.ref));
+  }
+  const render = () => (tb.kind === "night" ? gn.render(env, tb.ref) : polls.renderPoll(env, Number(tb.ref)));
+  let frames: object[] | undefined;
+  if (r.spin) {
+    const options: string[] = JSON.parse(tb.options);
+    const label = tb.kind === "night" ? await gn.gameLabel(env) : (o: string) => o;
+    frames = r.spin.map((at, k) => ({
+      flags: IS_COMPONENTS_V2,
+      allowed_mentions: { parse: [] },
+      components: [tiebreak.spinFrame(options, at, label, k === r.spin!.length - 1)],
+    }));
+  }
+  return { ...r, render, frames };
 }
 
 /** /playtoday and the 🎮 button. Posting can take a moment (retries), so answer "thinking…" first. */

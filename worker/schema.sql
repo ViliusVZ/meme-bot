@@ -93,7 +93,9 @@ CREATE TABLE IF NOT EXISTS polls (
   created_by TEXT NOT NULL,
   created_at TEXT NOT NULL,
   closed_at  TEXT,
-  result     TEXT                    -- win:<answer> | tie:<JSON answers> | dice:<answer>
+  result     TEXT,                   -- win:<answer>
+  channel_id TEXT,
+  message_id TEXT
 );
 CREATE TABLE IF NOT EXISTS poll_votes (
   poll_id  INTEGER NOT NULL REFERENCES polls(id),
@@ -102,3 +104,20 @@ CREATE TABLE IF NOT EXISTS poll_votes (
   voted_at TEXT NOT NULL,
   PRIMARY KEY (poll_id, user_id)
 );
+-- ---------------------------------------------------------------- tiebreakers (tiebreak.ts)
+CREATE TABLE IF NOT EXISTS tiebreaks (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind       TEXT NOT NULL,          -- night | poll
+  ref        TEXT NOT NULL,          -- night day, or poll id
+  options    TEXT NOT NULL,          -- JSON: the tied options
+  contenders TEXT NOT NULL,          -- JSON {user: option they backed}
+  alive      TEXT NOT NULL,          -- JSON users still in the rock-paper-scissors
+  mode       TEXT,                   -- NULL (choosing) | wheel | rps
+  round      INTEGER NOT NULL DEFAULT 1,
+  hands      TEXT NOT NULL DEFAULT '{}',  -- JSON {user: r|p|s}, current round, secret
+  history    TEXT NOT NULL DEFAULT '[]',  -- JSON lines, one per finished round
+  result     TEXT,
+  how        TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS one_tiebreak_per_host ON tiebreaks(kind, ref);
