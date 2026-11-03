@@ -285,9 +285,11 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
   // custom_id is gn:<day>:<action>[:<value>], e.g. gn:2026-11-03:time:1793736000
   if ((i.type === 3 || i.type === 5) && i.data.custom_id.startsWith("gn:")) {
     const [, day, action, arg] = i.data.custom_id.split(":");
-    if (i.type === 3 && (action === "suggest" || action === "custom")) {
+    if (i.type === 3 && (action === "suggest" || action === "custom" || action === "leaveby")) {
       if (!gn.players(env).includes(user.id)) return ephemeral("This one's for the trio 😅");
-      return json({ type: R.Modal, data: action === "suggest" ? gn.suggestModal(day) : gn.customTimeModal(day) });
+      const modal =
+        action === "suggest" ? gn.suggestModal(day) : action === "custom" ? gn.customTimeModal(day) : await gn.leaveByModal(env, day, user.id);
+      return json({ type: R.Modal, data: modal });
     }
     const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);

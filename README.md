@@ -33,6 +33,11 @@ Every day at 17:00 Lithuanian time (or earlier, when anyone runs `/playtoday`) a
    picks become buttons for the others. Everyone taps the *earliest* time they can start (tap again
    to take it back); the session starts at the latest of those, so there are no ties to break.
    Whoever picked the latest time is named 🐢 slowpoke of the night.
+   **🏁 Leave by** (optional) records when you have to go. A night only locks if everyone gets at
+   least an hour together (`MIN_TOGETHER`); otherwise the card shows a ⚠️ naming who has to leave
+   and who can't start in time, pings those people once per distinct clash, and waits for someone to
+   move a start, push a leave-by or bow out. Time is never settled by dice or rock-paper-scissors.
+   The Discord event ends at the earliest leave-by.
 
 Then it creates a Discord event and pings everyone once, and again at start time. Each stage that
 needs the others' input sends one nudge ping, which is deleted when the next one replaces it.

@@ -25,7 +25,7 @@ function guide(env: Env) {
     text(
       [
         `### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`,
-        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (first to 2 votes), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Then you get a Discord event and a ping at start time.",
+        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (first to 2 votes), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Have to leave early? Tap **🏁 Leave by**. The bot only locks a time that gives everyone at least an hour together, and tells you who clashes if it doesn't. Then you get a Discord event and a ping at start time.",
         "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
         "• **🚪 I'm out** on a card cancels that night for everyone",

@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS game_nights (
   nudge_id   TEXT,                   -- latest "your turn" ping, deleted when superseded
   started_by TEXT,                   -- player who ran /playtoday; NULL = the 17:00 schedule
   stage_at   INTEGER,                -- unix seconds the current stage began (time presets, re-nudges)
-  renudged   TEXT                    -- stage whose one-off "still waiting on you" ping went out
+  renudged   TEXT,                   -- stage whose one-off "still waiting on you" ping went out
+  conflict   TEXT                    -- last start/leave-by clash we pinged about (one ping per clash)
 );
 
 CREATE TABLE IF NOT EXISTS game_night_votes (

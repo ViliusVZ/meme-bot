@@ -96,4 +96,44 @@ test("custom time on a planned day", () => {
 });
 test("weekday names", () => assert.equal(gn.weekday(env, "2026-11-06"), "Friday"));
 
+// ---- 🏁 leave-by: does everyone get at least an hour together?
+const H = 3600;
+const T = (h) => String(Date.parse("2026-11-03T00:00:00Z") / 1000 + h * H); // hours as unix strings
+const ps = ["a", "b", "c"];
+const fitAt = (starts, untils = {}) => gn.fit(ps, starts, untils, 0);
+test("no leave-by: start at the latest pick", () => {
+  const f = fitAt({ a: T(17), b: T(18), c: T(20) });
+  assert.deepEqual([f.ready, f.start, f.end, f.conflict], [true, +T(20), null, null]);
+});
+test("leave-by with room to play: fits, ends at the earliest leave-by", () => {
+  const f = fitAt({ a: T(17), b: T(18), c: T(19) }, { a: T(22), b: T(23) });
+  assert.deepEqual([f.ready, f.start, f.end, f.conflict], [true, +T(19), +T(22), null]);
+});
+test("exactly one hour together is enough", () => assert.equal(fitAt({ a: T(17), b: T(18), c: T(20) }, { a: T(21) }).conflict, null));
+test("under an hour together is a clash naming who and when", () => {
+  const f = fitAt({ a: T(17), b: T(18), c: T(20) }, { a: T(20.5) });
+  assert.deepEqual(f.conflict, { leaver: "a", leaveBy: +T(20.5), late: ["c"], lateFrom: +T(20), bumped: false });
+});
+test("leaving before the start is a clash", () => assert.ok(fitAt({ a: T(17), b: T(18), c: T(20) }, { a: T(19) }).conflict));
+test("the earliest leave-by is the one that matters", () => {
+  const f = fitAt({ a: T(17), b: T(17), c: T(18) }, { a: T(23), b: T(18.5) });
+  assert.equal(f.conflict.leaver, "b");
+  assert.deepEqual(f.conflict.late, ["c"]);
+});
+test("several late starters are all named", () => assert.deepEqual(fitAt({ a: T(17), b: T(20), c: T(20) }, { a: T(20) }).conflict.late, ["b", "c"]));
+test("partial picks: not ready, but an early clash warning shows", () => {
+  const f = fitAt({ a: T(20) }, { b: T(20.5) });
+  assert.equal(f.ready, false);
+  assert.equal(f.conflict.leaver, "b");
+});
+test("no picks yet: nothing to clash", () => {
+  const f = fitAt({}, { a: T(19) });
+  assert.deepEqual([f.ready, f.start, f.end, f.conflict], [false, null, +T(19), null]);
+});
+test("passed picks are bumped to `soonest`, and that can clash", () => {
+  const f = gn.fit(ps, { a: T(17), b: T(17), c: T(17) }, { a: T(18.5) }, +T(18));
+  assert.equal(f.start, +T(18));
+  assert.equal(f.conflict.bumped, true);
+});
+
 console.log(`${passed} passed${process.exitCode ? ", some FAILED" : ""}`);

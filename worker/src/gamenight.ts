@@ -26,6 +26,7 @@ export interface Night {
   started_by: string | null; // null = the 17:00 schedule
   stage_at: number | null; // unix seconds the current stage began
   renudged: string | null; // stage whose "still waiting on you" ping was sent
+  conflict: string | null; // the time clash we last pinged about, so we ping once per clash
 }
 interface Game {
   name: string;
@@ -138,18 +139,58 @@ export function weekday(env: Env, day: string) {
   return new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
 }
 
+/** The least time we must all get together, or the night doesn't fit. */
+export const MIN_TOGETHER = 3600;
+
+export type Fit = {
+  ready: boolean; // everyone has picked a start time
+  start: number | null; // latest start picked so far (bumped to `soonest` if that has passed)
+  end: number | null; // earliest leave-by, if anyone set one
+  // lateFrom is the latest pick; `bumped` means even that has passed, so we start at `start`
+  conflict: { leaver: string; leaveBy: number; late: string[]; lateFrom: number; bumped: boolean } | null;
+};
+
+/**
+ * Do the picks fit? We start at the latest "earliest start" (so everyone can make it) and must
+ * get at least MIN_TOGETHER before the first person has to leave. A conflict names who has to
+ * leave and who can't start in time, so they can sort it out. No dice and no rock-paper-scissors:
+ * nobody gets voted into a time they can't make.
+ */
+export function fit(ps: string[], starts: Votes, untils: Votes, soonest: number): Fit {
+  const picked = ps.filter((p) => starts[p]);
+  const latestPick = picked.length ? Math.max(...picked.map((p) => Number(starts[p]))) : null;
+  const start = latestPick === null ? null : Math.max(soonest, latestPick);
+  const limits = ps.filter((p) => untils[p]).map((p) => ({ p, t: Number(untils[p]) }));
+  limits.sort((a, b) => a.t - b.t);
+  const first = limits[0];
+  const conflict =
+    start !== null && first && first.t - start < MIN_TOGETHER
+      ? {
+          leaver: first.p,
+          leaveBy: first.t,
+          late: picked.filter((p) => Number(starts[p]) === latestPick),
+          lateFrom: latestPick!,
+          bumped: start > latestPick!,
+        }
+      : null;
+  return { ready: picked.length === ps.length, start, end: first?.t ?? null, conflict };
+}
+
 // ---------------------------------------------------------------- storage
 
 const getNight = (env: Env, day: string) => env.DB.prepare("SELECT * FROM game_nights WHERE day = ?").bind(day).first<Night>();
 
-async function votes(env: Env, day: string, stage: Stage): Promise<Votes> {
+/** Vote buckets: one per stage, plus "until" for optional 🏁 leave-by times (unix seconds). */
+type VoteStage = Stage | "until";
+
+async function votes(env: Env, day: string, stage: VoteStage): Promise<Votes> {
   const r = await env.DB.prepare("SELECT user_id, choice FROM game_night_votes WHERE day = ? AND stage = ?")
     .bind(day, stage)
     .all<{ user_id: string; choice: string }>();
   return Object.fromEntries(r.results.map((v) => [v.user_id, v.choice]));
 }
 
-const vote = (env: Env, day: string, stage: Stage, user: string, choice: string) =>
+const vote = (env: Env, day: string, stage: VoteStage, user: string, choice: string) =>
   env.DB.prepare(
     `INSERT INTO game_night_votes (day, stage, user_id, choice, voted_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(day, stage, user_id) DO UPDATE SET choice = excluded.choice, voted_at = excluded.voted_at`,
@@ -157,7 +198,7 @@ const vote = (env: Env, day: string, stage: Stage, user: string, choice: string)
     .bind(day, stage, user, choice, now())
     .run();
 
-const unvote = (env: Env, day: string, stage: Stage, user: string) =>
+const unvote = (env: Env, day: string, stage: VoteStage, user: string) =>
   env.DB.prepare("DELETE FROM game_night_votes WHERE day = ? AND stage = ? AND user_id = ?").bind(day, stage, user).run();
 
 export async function games(env: Env): Promise<Game[]> {
@@ -295,19 +336,45 @@ export async function act(env: Env, day: string, user: string, action: string, v
     }
     case "time":
     case "custom": {
-      if (n.stage !== "time") return action === "custom" ? say("Time picking is already over for today.", true) : ok;
+      if (n.stage !== "time") return action === "custom" ? say("Time picking is already over for this night.", true) : ok;
       const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
-      // a start time must fall on the night's day (or the small hours after it)
-      const [y, mo, d] = day.split("-").map(Number);
-      const dayStart = wallToUnix(env, y, mo, d, 0, 0);
-      if (t < dayStart || t > dayStart + 30 * 3600) return say("That time isn't on this game night's day 🤔", true);
+      if (!onNightDay(env, day, t)) return say("That time isn't on this game night's day 🤔", true);
       if (t < nowSec() + 60) return say(`**${clock(env, t)}** has already passed ⏰ Pick a later time.`, true);
       const mine = (await votes(env, day, "time"))[user];
       // clicking your current pick again takes it back
-      if (action === "time" && mine === String(t)) await unvote(env, day, "time", user);
-      else await vote(env, day, "time", user, String(t));
+      if (action === "time" && mine === String(t)) {
+        await unvote(env, day, "time", user);
+        break;
+      }
+      const until = (await votes(env, day, "until"))[user];
+      if (until && Number(until) - t < MIN_TOGETHER) {
+        return say(
+          `You said you have to leave by **${timeLabel(env, Number(until), day)}**, so starting at **${timeLabel(env, t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
+        );
+      }
+      await vote(env, day, "time", user, String(t));
+      break;
+    }
+    case "until": {
+      // 🏁 optional "I have to leave by…"; an empty form clears it
+      if (n.stage !== "time") return say("Time picking is already over for this night.", true);
+      if (!(value ?? "").trim()) {
+        await unvote(env, day, "until", user);
+        break;
+      }
+      const t = parseTime(env, value ?? "", day);
+      if (typeof t === "string") return say(t);
+      if (!onNightDay(env, day, t)) return say("That time isn't on this game night's day 🤔");
+      if (t < nowSec() + MIN_TOGETHER) return say(`Leaving by **${clock(env, t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
+      const start = (await votes(env, day, "time"))[user];
+      if (start && t - Number(start) < MIN_TOGETHER) {
+        return say(
+          `Your start is **${timeLabel(env, Number(start), day)}**, so a leave-by of **${timeLabel(env, t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
+        );
+      }
+      await vote(env, day, "until", user, String(t));
       break;
     }
     case "out":
@@ -355,12 +422,32 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
   }
 
   if (n.stage === "time") {
-    const v = await votes(env, day, "time");
-    if (!ps.every((p) => v[p])) return;
-    const soonest = Math.ceil((nowSec() + 120) / 300) * 300; // in case everyone's picks have since passed
-    const start = Math.max(soonest, ...ps.map((p) => Number(v[p])));
-    if (await advance(env, day, "time", "set", { start_at: start })) defer(lockIn(env, day));
+    const f = fit(ps, await votes(env, day, "time"), await votes(env, day, "until"), soonest());
+    if (!f.ready) return;
+    if (f.conflict) {
+      // ping the people involved once per distinct clash (not on every click)
+      const key = `${f.conflict.leaver}@${f.conflict.leaveBy}/${f.conflict.lateFrom}`;
+      const claimed = await env.DB.prepare("UPDATE game_nights SET conflict = ? WHERE day = ? AND (conflict IS NULL OR conflict != ?)")
+        .bind(key, day, key)
+        .run();
+      const who = [...new Set([f.conflict.leaver, ...f.conflict.late])].filter((p) => p !== actor);
+      if (claimed.meta.changes && who.length) {
+        defer(nudge(env, day, who, "⚠️ The times don't fit together yet. Take a look ⬆️"));
+      }
+      return;
+    }
+    if (await advance(env, day, "time", "set", { start_at: f.start! })) defer(lockIn(env, day));
   }
+}
+
+/** If everyone's picks have already passed, start a few minutes from now instead. */
+const soonest = () => Math.ceil((nowSec() + 120) / 300) * 300;
+
+/** A time belongs to a night if it's on that day or in the small hours after it. */
+function onNightDay(env: Env, day: string, t: number) {
+  const [y, mo, d] = day.split("-").map(Number);
+  const dayStart = wallToUnix(env, y, mo, d, 0, 0);
+  return t >= dayStart && t <= dayStart + 30 * 3600;
 }
 
 /** A game-pick tiebreak finished: the winner goes on to time picking, with the story as a note. */
@@ -410,6 +497,8 @@ async function lockIn(env: Env, day: string) {
   await env.DB.prepare("UPDATE games SET plays = plays + 1 WHERE name = ?").bind(n.game).run();
   try {
     const start = n.start_at! * 1000;
+    const until = Object.values(await votes(env, day, "until")).map(Number);
+    const end = until.length ? Math.min(...until) * 1000 : start + 3 * 3600e3;
     const ev = await api(env, "POST", `/guilds/${env.GUILD_ID}/scheduled-events`, {
       name: `${await emojiFor(env, n.game!)} ${n.game}`,
       description: `Terrible Trio game night: ${n.game}. Planned by Meme Bot 3000.`,
@@ -417,7 +506,7 @@ async function lockIn(env: Env, day: string) {
       entity_type: 3,
       entity_metadata: { location: "Terrible Trio 🔊" },
       scheduled_start_time: new Date(Math.max(start, Date.now() + 60e3)).toISOString(),
-      scheduled_end_time: new Date(start + 3 * 3600e3).toISOString(),
+      scheduled_end_time: new Date(Math.max(end, Math.max(start, Date.now() + 60e3) + 15 * 60e3)).toISOString(),
     });
     await env.DB.prepare("UPDATE game_nights SET event_id = ? WHERE day = ?").bind(ev.id, day).run();
     await refresh(env, day);
@@ -582,15 +671,34 @@ export async function render(env: Env, day: string) {
     }
     case "time": {
       const v = await votes(env, day, "time");
-      const picked = ps.filter((p) => v[p]).map((p) => Number(v[p]));
-      const lead = picked.length ? Math.max(...picked) : null;
-      const lines = ps.map((p) => (v[p] ? `🕐 ${mention(p)} from **${timeLabel(env, Number(v[p]), day)}**` : `⏳ ${mention(p)}`));
-      const status =
-        lead === null
-          ? "Tap the earliest time you can start. Tap it again to take it back."
-          : picked.length < ps.length
-            ? `So far we'd start at **${timeLabel(env, lead, day)}** · waiting on ${ps.filter((p) => !v[p]).map(mention).join(" ")}`
-            : `Starting at **${timeLabel(env, lead, day)}**`;
+      const until = await votes(env, day, "until");
+      const f = fit(ps, v, until, soonest());
+      const at = (t: number) => `**${timeLabel(env, t, day)}**`;
+      const lead = f.start === null ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
+      const lines = ps.map((p) => {
+        const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
+        return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
+      });
+      const waiting = ps.filter((p) => !v[p]);
+      const leaver = f.end !== null ? ps.find((p) => Number(until[p]) === f.end)! : null;
+      const deadline = f.end !== null ? ` · start by ${at(f.end - MIN_TOGETHER)} so we get an hour before ${mention(leaver!)} leaves` : "";
+      let status: string;
+      if (f.conflict) {
+        const c = f.conflict;
+        status = [
+          `### ⚠️ Doesn't fit yet`,
+          c.bumped
+            ? `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but the earliest we can still start is ${at(f.start!)}. That's under an hour together.`
+            : `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but ${c.late.map(mention).join(" & ")} can't start before ${at(c.lateFrom)}. That's under an hour together.`,
+          `-# Fix it: pick an earlier start, push your 🏁 leave-by, or tap 🚪 I'm out.`,
+        ].join("\n");
+      } else if (f.start === null) {
+        status = `-# Tap the earliest time you can start (tap again to take it back). Have to leave early? Tap 🏁 Leave by.${deadline}`;
+      } else if (!f.ready) {
+        status = `-# So far we'd start at ${at(f.start)}${f.end !== null ? ` and play until ${at(f.end)}` : ""} · waiting on ${waiting.map(mention).join(" ")}${deadline}`;
+      } else {
+        status = `-# Starting at ${at(f.start)}`;
+      }
       const times = timeOptions(env, n, v).map((t) => {
         const count = ps.filter((p) => v[p] === String(t)).length;
         return button(t === lead ? 3 : 2, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
@@ -598,8 +706,8 @@ export async function render(env: Env, day: string) {
       body = [
         text(`## ⏰ What time? · ${date}\n${n.note ? `${n.note.split("\n").map((l) => `-# ${l}`).join("\n")}\n` : ""}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
         text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
-        text(`-# ${status}`),
-        ...rows([...times, button(1, "✏️", "Other time", id("custom")), out]),
+        text(status),
+        ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(2, "🏁", "Leave by", id("leaveby")), out]),
       ];
       break;
     }
@@ -613,10 +721,14 @@ export async function render(env: Env, day: string) {
         picks.length === ps.length && Math.min(...picks) < latest
           ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(env, latest, day)}). Everyone else, warm up!`
           : "";
+      const until = await votes(env, day, "until");
+      const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
+      const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
+      const endLine = end === null ? "" : `\n🏁 until **${timeLabel(env, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
       body = [
         text(`## 🎉 Game night is ON · ${date}`),
         text(
-          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}\n👥 ${ps.map(mention).join(" ")}${flavour}`,
+          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}\n👥 ${ps.map(mention).join(" ")}${flavour}`,
         ),
         row(
           ...(n.event_id
@@ -679,6 +791,18 @@ export const suggestModal = (day: string) =>
 
 export const customTimeModal = (day: string) =>
   modal(`gn:${day}:custom`, "Pick your own start time", { label: "Earliest time you can start (HH:MM)", placeholder: "20:15", max_length: 5 });
+
+/** 🏁 "I have to leave by…", prefilled with your current one; submitting it empty clears it. */
+export async function leaveByModal(env: Env, day: string, user: string) {
+  const current = (await votes(env, day, "until"))[user];
+  return modal(`gn:${day}:until`, "When do you have to leave?", {
+    label: "Leave by (HH:MM). Leave empty for no limit",
+    placeholder: "22:30",
+    max_length: 5,
+    required: false,
+    ...(current ? { value: clock(env, Number(current)) } : {}),
+  });
+}
 
 /** Testing/maintenance: wipe a day's night (card, nudge, event, votes). */
 export async function resetNight(env: Env, day: string) {
