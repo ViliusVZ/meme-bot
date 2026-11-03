@@ -8,6 +8,7 @@ crons = [
   "30 13 * * *",   # daily fallback, in case the GitHub fetcher was late
   "0 18 * * SUN",  # Meme of the Week
   "0 9 1 * *",     # monthly Hall of Fame
+  "*/15 * * * *",  # game night: 17:00 Vilnius poll + start-time reminders
 ]
 
 [[d1_databases]]
@@ -20,6 +21,10 @@ GUILD_ID = "968922621662076988"    # Terrible Trio
 CHANNEL_ID = "975506122507178015"  # #daily-memes
 SUBREDDIT = "ProgrammerHumor"
 POST_HOUR_UTC = "10"
+GAME_CHANNEL_ID = "1567132345213911240"  # #game-night
+PLAYERS = "306836805825593344,212567787896307713,747902984003780651"  # Vithis, Koral, Lionixity
+TIMEZONE = "Europe/Vilnius"
+GAME_POLL_HOUR = "17"                    # local time
 
 [observability]
 enabled = true

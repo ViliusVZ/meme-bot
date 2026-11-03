@@ -8,6 +8,7 @@ import {
   Response as R,
   verifySignature,
 } from "./discord";
+import * as gn from "./gamenight";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
 export interface Env {
@@ -20,12 +21,20 @@ export interface Env {
   CHANNEL_ID: string;
   SUBREDDIT: string;
   POST_HOUR_UTC: string;
+  GAME_CHANNEL_ID: string;
+  PLAYERS: string;
+  TIMEZONE: string;
+  GAME_POLL_HOUR: string;
+  QUIET?: boolean;
 }
 
 // keep in sync with wrangler.toml [triggers]
 const CRON_DAILY_FALLBACK = "30 13 * * *";
 const CRON_WEEKLY = "0 18 * * SUN";
 const CRON_MONTHLY = "0 9 1 * *";
+const CRON_GAME_NIGHT = "*/15 * * * *";
+
+const gameNightTick = async (env: Env) => ({ start: await gn.startNight(env), remind: await gn.remind(env) });
 
 const COMMANDS = [
   { name: "meme", description: "Summon a fresh top meme right now" },
@@ -51,6 +60,26 @@ const COMMANDS = [
     options: [{ type: 6, name: "user", description: "Whose stats (default: yours)" }],
   },
   { name: "hall-of-fame", description: "The 10 greatest memes this server has ever voted on" },
+  { name: "gamenight", description: "Start today's game-night poll now instead of waiting for 17:00" },
+  {
+    name: "games",
+    description: "The game list used in game-night polls",
+    options: [
+      { type: 1, name: "list", description: "Show all games" },
+      {
+        type: 1,
+        name: "add",
+        description: "Add a game",
+        options: [{ type: 3, name: "name", description: "Game name", required: true, max_length: 60 }],
+      },
+      {
+        type: 1,
+        name: "remove",
+        description: "Remove a game",
+        options: [{ type: 3, name: "name", description: "Game name", required: true, autocomplete: true }],
+      },
+    ],
+  },
 ];
 
 const json = (data: unknown, status = 200) =>
@@ -75,6 +104,20 @@ export default {
         const daily = input.post_daily ? await postDaily(env) : null;
         return json({ ingested, daily });
       }
+      case "/admin/discord": // raw bot-token passthrough for maintenance scripts
+        return json(await api(env, input.method ?? "GET", input.path, input.body ?? undefined).catch((e) => ({ error: String(e) })));
+      case "/admin/gamenight": // testing: start | vote (as a player) | reset
+        if (input.action === "start") return json(await gn.startNight(env, true));
+        if (input.action === "tick") return json(await gameNightTick({ ...env, QUIET: true }));
+        if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
+        if (input.action === "vote") {
+          const day = input.day ?? gn.local(env).day;
+          const quiet = { ...env, QUIET: true };
+          const err = await gn.act(quiet, day, input.user, input.choice, input.value, (p) => ctx.waitUntil(p));
+          if (!err) await gn.refresh(quiet, day);
+          return json({ err });
+        }
+        return json({ error: "action?" }, 400);
       case "/admin/register":
         return json(await api(env, "PUT", `/applications/${env.DISCORD_APP_ID}/guilds/${env.GUILD_ID}/commands`, COMMANDS));
       case "/admin/recap":
@@ -95,7 +138,12 @@ export default {
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    const job = { [CRON_DAILY_FALLBACK]: postDaily, [CRON_WEEKLY]: weeklyRecap, [CRON_MONTHLY]: monthlyRecap }[event.cron];
+    const job = {
+      [CRON_DAILY_FALLBACK]: postDaily,
+      [CRON_WEEKLY]: weeklyRecap,
+      [CRON_MONTHLY]: monthlyRecap,
+      [CRON_GAME_NIGHT]: gameNightTick,
+    }[event.cron];
     if (job) ctx.waitUntil(job(env).then((r) => console.log(event.cron, JSON.stringify(r))));
   },
 };
@@ -197,6 +245,28 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     return json({ type: R.UpdateMessage, data: memeMessage(meme, await db.tally(env, memeId), env.SUBREDDIT) });
   }
 
+  // game night: buttons/selects (type 3) and the suggest-a-game modal (type 5)
+  if ((i.type === 3 || i.type === 5) && i.data.custom_id.startsWith("gn:")) {
+    const [, day, action] = i.data.custom_id.split(":");
+    if (i.type === 3 && action === "suggest") {
+      if (!gn.players(env).includes(user.id)) return ephemeral("This one's for the trio 😅");
+      return json({ type: R.Modal, data: gn.suggestModal(day) });
+    }
+    const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
+    const value: string | undefined = i.type === 5 ? field?.value : i.data.values?.[0];
+    const err = await gn.act(env, day, user.id, action, value, (p) => ctx.waitUntil(p.catch((e) => console.log("gn", e))));
+    if (err) return ephemeral(err);
+    return json({ type: R.UpdateMessage, data: await gn.render(env, day) });
+  }
+
+  if (i.type === 4 && i.data.name === "games") {
+    const typed = String(i.data.options?.[0]?.options?.[0]?.value ?? "").toLowerCase();
+    const choices = (await gn.games(env))
+      .filter((g) => g.name.toLowerCase().includes(typed))
+      .map((g) => ({ name: g.name, value: g.name }));
+    return json({ type: R.Autocomplete, data: { choices } });
+  }
+
   if (i.type !== 2) return ephemeral("🤷");
   switch (i.data.name) {
     case "meme": {
@@ -240,6 +310,31 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
           best: s.user?.best_streak ?? 0,
           summoned: s.summoned,
         }),
+      );
+    }
+    case "gamenight": {
+      const r = await gn.startNight(env, true);
+      const night = "night" in r ? r.night : null;
+      const id = "message_id" in r ? r.message_id : night?.message_id;
+      const link = id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${id}` : `<#${env.GAME_CHANNEL_ID}>`;
+      return ephemeral("started" in r ? `🎮 Poll is up: ${link}` : `Today's poll is already running: ${link}`);
+    }
+    case "games": {
+      const sub = i.data.options[0];
+      const arg: string = sub.options?.[0]?.value ?? "";
+      if (sub.name === "add") {
+        const name = await gn.addGame(env, arg, user.id);
+        ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+        return ephemeral(name ? `➕ **${name}** is in the game list.` : "Give the game a name 🙃");
+      }
+      if (sub.name === "remove") {
+        const r = await gn.removeGame(env, arg);
+        ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+        return ephemeral(r.meta.changes ? `🗑️ Removed **${arg}**.` : `No game called **${arg}**.`);
+      }
+      const list = await gn.games(env);
+      return ephemeral(
+        `## 🎮 Game list\n${list.map((g) => `${g.emoji ?? "🎮"} **${g.name}**${g.plays ? ` · played ${g.plays}×` : ""}`).join("\n")}\n-# Add with /games add, or ➕ Suggest a game during a poll.`,
       );
     }
   }

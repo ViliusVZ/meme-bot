@@ -10,6 +10,8 @@ export const enum Response {
   Message = 4,
   DeferredMessage = 5,
   UpdateMessage = 7,
+  Autocomplete = 8,
+  Modal = 9,
 }
 
 export async function verifySignature(req: Request, body: string, publicKey: string) {

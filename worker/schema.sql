@@ -42,3 +42,43 @@ CREATE TABLE IF NOT EXISTS recaps (
   period    TEXT PRIMARY KEY,
   posted_at TEXT NOT NULL
 );
+
+-- ---------------------------------------------------------------- game night
+-- one row per day; the PRIMARY KEY is what guarantees a single poll per day
+CREATE TABLE IF NOT EXISTS game_nights (
+  day        TEXT PRIMARY KEY,       -- local (Europe/Vilnius) date
+  stage      TEXT NOT NULL,          -- ask | game | time | set | off
+  message_id TEXT,
+  game       TEXT,
+  start_at   INTEGER,                -- unix seconds
+  event_id   TEXT,
+  reminded   INTEGER NOT NULL DEFAULT 0,
+  note       TEXT,
+  nudge_id   TEXT                    -- latest "your turn" ping, deleted when superseded
+);
+
+CREATE TABLE IF NOT EXISTS game_night_votes (
+  day      TEXT NOT NULL,
+  stage    TEXT NOT NULL,            -- ask (yes/no) | game (name) | time (unix seconds)
+  user_id  TEXT NOT NULL,
+  choice   TEXT NOT NULL,
+  voted_at TEXT NOT NULL,
+  PRIMARY KEY (day, stage, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS games (
+  name     TEXT PRIMARY KEY COLLATE NOCASE,
+  emoji    TEXT,
+  added_by TEXT,
+  added_at TEXT NOT NULL,
+  plays    INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO games (name, emoji, added_at) VALUES
+  ('World of Warcraft', '⚔️', '2026-11-03'),
+  ('R.E.P.O.', '📦', '2026-11-03'),
+  ('Phasmophobia', '👻', '2026-11-03'),
+  ('Demonologist', '😈', '2026-11-03'),
+  ('Palworld', '🐑', '2026-11-03'),
+  ('Enshrouded', '🌫️', '2026-11-03'),
+  ('RuneScape: Dragonwilds', '🐉', '2026-11-03'),
+  ('Counter-Strike 2', '🔫', '2026-11-03');
