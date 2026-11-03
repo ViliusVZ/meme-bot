@@ -58,6 +58,19 @@ needs the others' input sends one nudge ping, which is deleted when the next one
   `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`.
   `worker/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
 
+## 🔊 Lobby and game rooms (`src/voice.ts`)
+Hang out in **🛋️ Lobby**. When a locked-in game night starts, the bot opens a voice room for the
+game right under the Lobby (96 kbps), moves every player who's in the Lobby into it, and links it
+in the start ping. **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
+or type something else. One open room per game: asking again reuses it.
+
+Rooms tidy themselves on the 15-minute tick: empty for 20 min (or an hour if nobody ever joined)
+→ moved to **🗄️ Recent games** → deleted after 3 days. Joining an archived room brings it back.
+The archive category exists only while it has something in it; rooms deleted by hand are simply
+forgotten. The bot has no gateway, so occupancy comes from `GET /guilds/{id}/voice-states/{user}`
+for each player; if that lookup fails, the tick skips room maintenance rather than archive on a
+guess. QA: `scripts/qa_rooms.py`.
+
 ## Polls, help and the HQ panel
 - `/poll` (or 🗳️ on the panel) opens a form: question + answers (one per line; empty = Yes/No).
   Answers are buttons; one vote each, tap again to take it back. The first answer to a majority of

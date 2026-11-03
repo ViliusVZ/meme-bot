@@ -8,16 +8,10 @@ const text = (content: string) => ({ type: 10, content });
 const divider = { type: 14, divider: true, spacing: 1 };
 const button = (style: number, emoji: string, label: string, custom_id: string) => ({ type: 2, style, emoji: { name: emoji }, label, custom_id });
 
-export const actions = () => ({
-  type: 1,
-  components: [
-    button(3, "🎮", "Play today", "hub:play"),
-    button(1, "📅", "Plan a day", "hub:plan"),
-    button(1, "🗳️", "New poll", "hub:poll"),
-    button(2, "🕹️", "Games", "hub:games"),
-    button(2, "❓", "Help", "hub:help"),
-  ],
-});
+export const actions = () => [
+  { type: 1, components: [button(3, "🎮", "Play today", "hub:play"), button(1, "📅", "Plan a day", "hub:plan"), button(1, "🔊", "Game room", "hub:room")] },
+  { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "❓", "Help", "hub:help")] },
+];
 
 function guide(env: Env) {
   return [
@@ -29,6 +23,13 @@ function guide(env: Env) {
         "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
         "• **🚪 I'm out** on a card cancels that night for everyone",
+      ].join("\n"),
+    ),
+    divider,
+    text(
+      [
+        `### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`,
+        "Hang out in the **Lobby**. When a game night starts, the bot opens a room for the game and moves everyone in the Lobby into it. Want to play right now? **🔊 Game room** does the same instantly. Rooms tidy themselves: empty for ~20 min → 🗄️ Recent games, deleted after 3 days (rejoin one to bring it back).",
       ].join("\n"),
     ),
     divider,
@@ -54,9 +55,9 @@ function guide(env: Env) {
     ),
     divider,
     text(
-      "-# Commands, if you prefer typing: `/playtoday` · `/plan` · `/poll` · `/games` · `/meme` · `/top` · `/stats` · `/hall-of-fame` · `/help`",
+      "-# Commands, if you prefer typing: `/playtoday` · `/plan` · `/room` · `/poll` · `/games` · `/meme` · `/top` · `/stats` · `/hall-of-fame` · `/help`",
     ),
-    actions(),
+    ...actions(),
   ];
 }
 

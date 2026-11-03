@@ -11,6 +11,7 @@ import type { Env } from "./index";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
 import { now } from "./db";
 import * as tiebreak from "./tiebreak";
+import * as voice from "./voice";
 
 type Stage = "ask" | "game" | "time" | "set" | "off";
 export interface Night {
@@ -571,8 +572,17 @@ export async function maintain(env: Env) {
     const claimed = await env.DB.prepare("UPDATE game_nights SET reminded = 1 WHERE day = ? AND reminded = 0").bind(n.day).run();
     if (!claimed.meta.changes || n.start_at! < t - 1800) continue;
     const ps = players(env);
+    const emoji = await emojiFor(env, n.game!);
+    // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
+    let where = "Hop in 🔊";
+    try {
+      const room = await voice.openRoom(env, n.game!, emoji, { day: n.day });
+      where = `Room: <#${room.channelId}>${room.moved.length ? ` (moved ${room.moved.map(mention).join(" ")} from the Lobby)` : ""}`;
+    } catch (e) {
+      console.log("room failed", e);
+    }
     await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-      content: `⏰ ${ps.map(mention).join(" ")} ${await emojiFor(env, n.game!)} **${n.game}** starts now! Hop in 🔊`,
+      content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
       allowed_mentions: pings(env, ps),
       message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
     });

@@ -122,3 +122,13 @@ CREATE TABLE IF NOT EXISTS tiebreaks (
   created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_tiebreak_per_host ON tiebreaks(kind, ref);
+-- ---------------------------------------------------------------- game rooms (voice.ts)
+CREATE TABLE IF NOT EXISTS rooms (
+  channel_id  TEXT PRIMARY KEY,      -- the voice channel the bot opened
+  game        TEXT NOT NULL,
+  day         TEXT,                  -- game night that opened it, if any
+  created_by  TEXT,
+  created_at  INTEGER NOT NULL,      -- unix seconds
+  last_seen   INTEGER,               -- last tick someone was in it
+  archived_at INTEGER                -- moved to 🗄️ Recent games; deleted 3 days later
+);

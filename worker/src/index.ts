@@ -14,6 +14,7 @@ import * as gn from "./gamenight";
 import * as hub from "./hub";
 import * as polls from "./polls";
 import * as tiebreak from "./tiebreak";
+import * as voice from "./voice";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
 export interface Env {
@@ -30,6 +31,8 @@ export interface Env {
   PLAYERS: string;
   TIMEZONE: string;
   GAME_POLL_HOUR: string;
+  LOBBY_CHANNEL_ID: string;
+  VOICE_CATEGORY_ID: string;
   QUIET?: boolean;
 }
 
@@ -47,7 +50,8 @@ async function tick(env: Env) {
     ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
     ["close", gn.closeStale], // midnight: close yesterday's unfinished poll
     ["start", (e) => gn.startNight(e)], // 17:00 poll, unless /playtoday already started one
-    ["maintain", gn.maintain], // refresh time options, re-nudge, start-time reminders
+    ["maintain", gn.maintain], // refresh time options, re-nudge, start-time reminders (+ open rooms)
+    ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ];
   const out: Record<string, unknown> = {};
   for (const [name, job] of jobs) out[name] = await job(env).catch((e) => ({ error: String(e) }));
@@ -82,6 +86,7 @@ const COMMANDS = [
   { name: "plan", description: "Plan a game night for any day this week" },
   { name: "poll", description: "Ask the trio a question and let democracy decide" },
   { name: "games", description: "See, add or remove games in the game-night list" },
+  { name: "room", description: "Open a voice room for a game and bring everyone from the Lobby" },
   { name: "help", description: "How to use Meme Bot 3000" },
 ];
 
@@ -123,6 +128,8 @@ export default {
         if (input.action === "tick") return json(await tick(quiet));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
         if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
+        if (input.action === "room") return json(await voice.openRoom(env, input.game, input.emoji ?? null, { by: input.user }));
+        if (input.action === "rooms") return json(await voice.maintainRooms(env));
         if (input.action === "poll-vote") {
           // simulate a player's poll click, then refresh the poll message
           const r = await polls.pollAct(quiet, Number(input.poll), input.user, String(input.choice));
@@ -315,6 +322,29 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     if (what === "plan") return json({ type: R.Message, data: await gn.planPicker(env) });
     if (what === "poll") return json({ type: R.Modal, data: polls.pollModal() });
     if (what === "games") return json({ type: R.Message, data: await hub.gamesManager(env) });
+    if (what === "room") return json({ type: R.Message, data: await voice.roomPicker(env) });
+  }
+
+  // ---- 🔊 game rooms: room:open (game dropdown), room:other (button → form → submit)
+  if (cid === "room:other" && i.type === 3) return json({ type: R.Modal, data: voice.otherRoomModal() });
+  if ((cid === "room:open" && i.type === 3) || (cid === "room:other" && i.type === 5)) {
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    const game = (i.type === 5 ? modalValue("value") : i.data.values?.[0] ?? "").replace(/\s+/g, " ").trim();
+    if (!game) return ephemeral("Give the room a name 🙃");
+    // creating + moving takes a few API calls, so acknowledge first and fill the picker in after
+    ctx.waitUntil(
+      (async () => {
+        const emoji = (await gn.games(env)).find((g) => g.name.toLowerCase() === game.toLowerCase())?.emoji ?? null;
+        const r = await voice.openRoom(env, game, emoji, { by: user.id });
+        return voice.roomResult(env, r);
+      })()
+        .catch((e) => {
+          console.log("room failed", e);
+          return "😵 Couldn't open the room just now. Try again in a moment.";
+        })
+        .then((note) => editOriginal(env, i.token, { flags: IS_COMPONENTS_V2, components: [{ type: 17, accent_color: 0x5865f2, components: [{ type: 10, content: note }] }] })),
+    );
+    return json({ type: R.DeferredUpdate });
   }
 
   // ---- 📅 plan picker: plan:<day>
@@ -454,6 +484,9 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
       return json({ type: R.Message, data: await hub.gamesManager(env) });
     case "help":
       return json({ type: R.Message, data: hub.helpMessage(env) });
+    case "room":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
+      return json({ type: R.Message, data: await voice.roomPicker(env) });
   }
   return ephemeral("Unknown command 🤔");
 }

@@ -24,6 +24,8 @@ GAME_CHANNEL_ID = "1567132345213911240"  # #game-night
 PLAYERS = "306836805825593344,212567787896307713,747902984003780651"  # Vithis, Koral, Lionixity
 TIMEZONE = "Europe/Vilnius"
 GAME_POLL_HOUR = "17"                    # local time
+LOBBY_CHANNEL_ID = "1567166235655802923"  # 🛋️ Lobby: hang out here; game rooms pull people from it
+VOICE_CATEGORY_ID = "968922621662076990"  # 🔊 Voice: where game rooms are opened
 
 [observability]
 enabled = true
