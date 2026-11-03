@@ -5,10 +5,9 @@ compatibility_date = "2025-09-01"
 [triggers]
 # keep in sync with CRON_* in src/index.ts
 crons = [
-  "30 13 * * *",   # daily fallback, in case the GitHub fetcher was late
+  "*/15 * * * *",  # tick: daily meme (from 10:00 UTC), game-night poll/closing/reminders
   "0 18 * * SUN",  # Meme of the Week
   "0 9 1 * *",     # monthly Hall of Fame
-  "*/15 * * * *",  # game night: 17:00 Vilnius poll + start-time reminders
 ]
 
 [[d1_databases]]

@@ -2,6 +2,7 @@ import * as db from "./db";
 import {
   api,
   avatarUrl,
+  editOriginal,
   EPHEMERAL,
   followup,
   originalMessage,
@@ -29,12 +30,25 @@ export interface Env {
 }
 
 // keep in sync with wrangler.toml [triggers]
-const CRON_DAILY_FALLBACK = "30 13 * * *";
+const CRON_TICK = "*/15 * * * *";
 const CRON_WEEKLY = "0 18 * * SUN";
 const CRON_MONTHLY = "0 9 1 * *";
-const CRON_GAME_NIGHT = "*/15 * * * *";
 
-const gameNightTick = async (env: Env) => ({ start: await gn.startNight(env), remind: await gn.remind(env) });
+/**
+ * Every 15 minutes. Each job is idempotent and guarded by the database, so a tick can be
+ * repeated or skipped safely, and one failing job doesn't stop the others.
+ */
+async function tick(env: Env) {
+  const jobs: [string, (env: Env) => Promise<unknown>][] = [
+    ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
+    ["close", gn.closeStale], // midnight: close yesterday's unfinished poll
+    ["start", (e) => gn.startNight(e)], // 17:00 poll, unless /playtoday already started one
+    ["maintain", gn.maintain], // refresh time options, re-nudge, start-time reminders
+  ];
+  const out: Record<string, unknown> = {};
+  for (const [name, job] of jobs) out[name] = await job(env).catch((e) => ({ error: String(e) }));
+  return out;
+}
 
 const COMMANDS = [
   { name: "meme", description: "Summon a fresh top meme right now" },
@@ -60,7 +74,7 @@ const COMMANDS = [
     options: [{ type: 6, name: "user", description: "Whose stats (default: yours)" }],
   },
   { name: "hall-of-fame", description: "The 10 greatest memes this server has ever voted on" },
-  { name: "gamenight", description: "Start today's game-night poll now instead of waiting for 17:00" },
+  { name: "playtoday", description: "Start today's game-night poll right now (counts as your yes)" },
   {
     name: "games",
     description: "The game list used in game-night polls",
@@ -93,7 +107,14 @@ export default {
     if (pathname === "/interactions") {
       const body = await req.text();
       if (!(await verifySignature(req, body, env.DISCORD_PUBLIC_KEY))) return new Response("bad signature", { status: 401 });
-      return interaction(JSON.parse(body), env, ctx);
+      const i = JSON.parse(body);
+      try {
+        return await interaction(i, env, ctx);
+      } catch (e) {
+        // a private apology beats Discord's generic "This interaction failed"
+        console.log("interaction failed", i.data?.custom_id ?? i.data?.name, e);
+        return ephemeral("Something went wrong on my end 🤕 Try again in a moment.");
+      }
     }
 
     if (req.headers.get("Authorization") !== `Bearer ${env.INGEST_SECRET}`) return new Response("nope", { status: 401 });
@@ -106,18 +127,20 @@ export default {
       }
       case "/admin/discord": // raw bot-token passthrough for maintenance scripts
         return json(await api(env, input.method ?? "GET", input.path, input.body ?? undefined).catch((e) => ({ error: String(e) })));
-      case "/admin/gamenight": // testing: start | vote (as a player) | reset
-        if (input.action === "start") return json(await gn.startNight(env, true));
-        if (input.action === "tick") return json(await gameNightTick({ ...env, QUIET: true }));
+      case "/admin/gamenight": {
+        // testing without pinging anyone: start [as user] | tick | reset | vote (as a player)
+        const quiet = { ...env, QUIET: true };
+        if (input.action === "start") return json(await gn.startNight(quiet, input.user, true));
+        if (input.action === "tick") return json(await tick(quiet));
         if (input.action === "reset") return json(await gn.resetNight(env, input.day ?? gn.local(env).day));
         if (input.action === "vote") {
           const day = input.day ?? gn.local(env).day;
-          const quiet = { ...env, QUIET: true };
-          const err = await gn.act(quiet, day, input.user, input.choice, input.value, (p) => ctx.waitUntil(p));
-          if (!err) await gn.refresh(quiet, day);
-          return json({ err });
+          const r = await gn.act(quiet, day, input.user, input.choice, input.value, (p) => ctx.waitUntil(p));
+          if (r.update) await gn.refresh(quiet, day);
+          return json(r);
         }
         return json({ error: "action?" }, 400);
+      }
       case "/admin/register":
         return json(await api(env, "PUT", `/applications/${env.DISCORD_APP_ID}/guilds/${env.GUILD_ID}/commands`, COMMANDS));
       case "/admin/recap":
@@ -138,13 +161,15 @@ export default {
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    const job = {
-      [CRON_DAILY_FALLBACK]: postDaily,
-      [CRON_WEEKLY]: weeklyRecap,
-      [CRON_MONTHLY]: monthlyRecap,
-      [CRON_GAME_NIGHT]: gameNightTick,
-    }[event.cron];
-    if (job) ctx.waitUntil(job(env).then((r) => console.log(event.cron, JSON.stringify(r))));
+    const job = { [CRON_TICK]: tick, [CRON_WEEKLY]: weeklyRecap, [CRON_MONTHLY]: monthlyRecap }[event.cron];
+    if (job) {
+      ctx.waitUntil(
+        job(env).then(
+          (r) => console.log(event.cron, JSON.stringify(r)),
+          (e) => console.log(event.cron, "failed", e),
+        ),
+      );
+    }
   },
 };
 
@@ -245,17 +270,19 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     return json({ type: R.UpdateMessage, data: memeMessage(meme, await db.tally(env, memeId), env.SUBREDDIT) });
   }
 
-  // game night: buttons/selects (type 3) and the suggest-a-game modal (type 5)
+  // game night: buttons/selects (type 3) and the suggest/custom-time modals (type 5)
+  // custom_id is gn:<day>:<action>[:<value>], e.g. gn:2026-11-03:time:1793736000
   if ((i.type === 3 || i.type === 5) && i.data.custom_id.startsWith("gn:")) {
-    const [, day, action] = i.data.custom_id.split(":");
-    if (i.type === 3 && action === "suggest") {
+    const [, day, action, arg] = i.data.custom_id.split(":");
+    if (i.type === 3 && (action === "suggest" || action === "custom")) {
       if (!gn.players(env).includes(user.id)) return ephemeral("This one's for the trio 😅");
-      return json({ type: R.Modal, data: gn.suggestModal(day) });
+      return json({ type: R.Modal, data: action === "suggest" ? gn.suggestModal(day) : gn.customTimeModal(day) });
     }
     const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
-    const value: string | undefined = i.type === 5 ? field?.value : i.data.values?.[0];
-    const err = await gn.act(env, day, user.id, action, value, (p) => ctx.waitUntil(p.catch((e) => console.log("gn", e))));
-    if (err) return ephemeral(err);
+    const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
+    const r = await gn.act(env, day, user.id, action, value, (p) => ctx.waitUntil(p.catch((e) => console.log("gn", e))));
+    if (!r.update) return ephemeral(r.notice ?? "🤷");
+    if (r.notice) ctx.waitUntil(gn.notify(env, i.token, r.notice));
     return json({ type: R.UpdateMessage, data: await gn.render(env, day) });
   }
 
@@ -312,12 +339,26 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
         }),
       );
     }
-    case "gamenight": {
-      const r = await gn.startNight(env, true);
-      const night = "night" in r ? r.night : null;
-      const id = "message_id" in r ? r.message_id : night?.message_id;
-      const link = id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${id}` : `<#${env.GAME_CHANNEL_ID}>`;
-      return ephemeral("started" in r ? `🎮 Poll is up: ${link}` : `Today's poll is already running: ${link}`);
+    case "playtoday": {
+      if (!gn.players(env).includes(user.id)) return ephemeral("This one's for the trio 😅");
+      // posting can take a moment (retries), so answer "thinking…" now and fill it in after
+      ctx.waitUntil(
+        gn
+          .startNight(env, user.id)
+          .then((r) => {
+            if (!("day" in r)) return "🤔 Couldn't start a poll.";
+            const link = r.message_id ? `https://discord.com/channels/${env.GUILD_ID}/${env.GAME_CHANNEL_ID}/${r.message_id}` : `<#${env.GAME_CHANNEL_ID}>`;
+            if (r.started) return `🎮 Game night poll is up, with your ✅ already in: ${link}`;
+            const state = { ask: "still collecting yeses", game: "picking a game", time: "picking a time", set: "already locked in 🎉", off: "called off" }[r.stage];
+            return `Today's poll already exists (${state}): ${link}`;
+          })
+          .catch((e) => {
+            console.log("playtoday failed", e);
+            return "😵 Couldn't post the poll just now. I'll retry automatically within 15 minutes, or run /playtoday again.";
+          })
+          .then((content) => editOriginal(env, i.token, { content })),
+      );
+      return json({ type: R.DeferredMessage, data: { flags: EPHEMERAL } });
     }
     case "games": {
       const sub = i.data.options[0];
