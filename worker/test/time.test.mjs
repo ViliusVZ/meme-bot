@@ -95,6 +95,14 @@ test("custom time on a planned day", () => {
   assert.equal(gn.parseTime(env, "01:00", "2026-11-06"), Date.parse("2026-11-06T23:00:00Z") / 1000);
 });
 test("weekday names", () => assert.equal(gn.weekday(env, "2026-11-06"), "Friday"));
+test("every voted time keeps a button, even with many custom picks", () => {
+  at("2026-11-03T10:00:00Z");
+  const fri = (h, m = 0) => String(Date.parse(`2026-11-06T${String(h - 2).padStart(2, "0")}:${String(m).padStart(2, "0")}:00Z`) / 1000);
+  const votes = { a: fri(16, 45), b: fri(20, 15), c: fri(22, 30) }; // 3 customs + 6 presets = 9
+  const opts = gn.timeOptions(env, { day: "2026-11-06", stage_at: Date.now() / 1000 }, votes).map(String);
+  assert.ok(opts.length <= 8, `at most 8 buttons, got ${opts.length}`);
+  for (const v of Object.values(votes)) assert.ok(opts.includes(v), `voted ${v} missing`);
+});
 
 // ---- 🏁 leave-by: does everyone get at least an hour together?
 const H = 3600;
@@ -134,6 +142,30 @@ test("passed picks are bumped to `soonest`, and that can clash", () => {
   const f = gn.fit(ps, { a: T(17), b: T(17), c: T(17) }, { a: T(18.5) }, +T(18));
   assert.equal(f.start, +T(18));
   assert.equal(f.conflict.bumped, true);
+});
+
+// ---- when does an unfinished card close? (asking/game picking at midnight, time picking at 06:00)
+test("ask/game cards close at midnight", () => {
+  at("2026-11-03T22:05:00Z"); // 00:05 local on the 4th
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "ask" }), true);
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "game" }), true);
+});
+test("time cards stay open after midnight for 🌙 starts", () => {
+  at("2026-11-03T22:05:00Z"); // 00:05 local
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "time" }), false);
+  at("2026-11-04T03:59:00Z"); // 05:59 local
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "time" }), false);
+  at("2026-11-04T04:00:00Z"); // 06:00 local
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "time" }), true);
+});
+test("today's and future cards are never over", () => {
+  at("2026-11-03T21:59:00Z"); // 23:59 local
+  assert.equal(gn.isOver(env, { day: "2026-11-03", stage: "ask" }), false);
+  assert.equal(gn.isOver(env, { day: "2026-11-09", stage: "time" }), false);
+});
+test("after-midnight custom time on DST-end night stays a wall-clock time", () => {
+  at("2026-10-24T19:00:00Z"); // Sat 22:00 local, the night clocks go back
+  assert.equal(gn.local(env, new Date(gn.parseTime(env, "01:30", "2026-10-24") * 1000)).hm, "01:30");
 });
 
 console.log(`${passed} passed${process.exitCode ? ", some FAILED" : ""}`);

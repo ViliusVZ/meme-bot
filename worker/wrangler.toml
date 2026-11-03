@@ -5,7 +5,7 @@ compatibility_date = "2025-09-01"
 [triggers]
 # keep in sync with CRON_* in src/index.ts
 crons = [
-  "*/15 * * * *",  # tick: daily meme (from 10:00 UTC), game-night poll/closing/reminders
+  "*/5 * * * *",   # tick: daily meme, game-night poll/closing/reminders, rooms, latecomers
   "0 18 * * SUN",  # Meme of the Week
   "0 9 1 * *",     # monthly Hall of Fame
 ]
@@ -26,6 +26,10 @@ TIMEZONE = "Europe/Vilnius"
 GAME_POLL_HOUR = "17"                    # local time
 LOBBY_CHANNEL_ID = "1567166235655802923"  # 🛋️ Lobby: hang out here; game rooms pull people from it
 VOICE_CATEGORY_ID = "968922621662076990"  # 🔊 Voice: where game rooms are opened
+
+# run the Worker near its D1 database: interactions make several queries and must answer in 3 s
+[placement]
+mode = "smart"
 
 [observability]
 enabled = true

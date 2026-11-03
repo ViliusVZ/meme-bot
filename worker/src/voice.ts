@@ -6,7 +6,7 @@
 // The bot has no gateway connection, so occupancy is checked over REST, per player, on the
 // 15-minute tick. Rooms are only for the trio, which keeps that to three calls per room.
 import type { Env } from "./index";
-import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
+import { api, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord";
 import { games, players } from "./gamenight";
 
 export interface Room {
@@ -36,38 +36,83 @@ export async function voiceChannel(env: Env, user: string): Promise<string | nul
   }
 }
 
-const activeRoom = (env: Env, game: string) =>
-  env.DB.prepare("SELECT * FROM rooms WHERE game = ? AND archived_at IS NULL ORDER BY created_at DESC LIMIT 1").bind(game).first<Room>();
+/** While a room's channel is being created, its row holds a placeholder id ("pending:<game>"). */
+const PENDING = "pending:";
+const PENDING_TTL = 5 * 60; // a placeholder older than this is a crashed creation: drop it
+const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+/** The game's most recent room, open or archived (an archived one gets brought back). */
+const latestRoom = (env: Env, game: string) =>
+  env.DB.prepare(
+    `SELECT * FROM rooms WHERE game = ? COLLATE NOCASE AND channel_id NOT LIKE '${PENDING}%'
+     ORDER BY archived_at IS NOT NULL, created_at DESC LIMIT 1`,
+  )
+    .bind(game)
+    .first<Room>();
 
 /**
  * Opens (or reuses) the room for a game and moves everyone sitting in the Lobby into it.
  * Reusing means two "start a room" clicks, or a game night plus a manual room, never make two
- * Phasmophobia rooms.
+ * Phasmophobia rooms: creation is claimed with a placeholder row first, and whoever loses the
+ * claim waits for the winner's room instead of making its own.
  */
 export async function openRoom(env: Env, game: string, emoji: string | null, opts: { day?: string; by?: string } = {}) {
-  let room = await activeRoom(env, game);
+  let room = await latestRoom(env, game);
   let reused = !!room;
   if (room) {
-    // make sure it still exists (someone may have deleted it by hand)
-    const ch = await api(env, "GET", `/channels/${room.channel_id}`).catch(() => null);
+    // make sure it still exists (someone may have deleted it by hand); only a real 404 means gone
+    const ch = await api(env, "GET", `/channels/${room.channel_id}`).catch((e) => {
+      if (isNotFound(e)) return null;
+      throw e;
+    });
     if (!ch) {
       await env.DB.prepare("DELETE FROM rooms WHERE channel_id = ?").bind(room.channel_id).run();
       room = null;
       reused = false;
+    } else if (room.archived_at) {
+      // played this recently: bring the archived room back instead of making a twin
+      await api(env, "PATCH", `/channels/${room.channel_id}`, { parent_id: env.VOICE_CATEGORY_ID });
+      await placeAfterLobby(env, room.channel_id);
+      await env.DB.prepare("UPDATE rooms SET archived_at = NULL, last_seen = NULL, created_at = ?, day = COALESCE(?, day) WHERE channel_id = ?")
+        .bind(nowSec(), opts.day ?? null, room.channel_id)
+        .run();
+      room = { ...room, archived_at: null };
     }
   }
   if (!room) {
-    const ch = await api(env, "POST", `/guilds/${env.GUILD_ID}/channels`, {
-      name: `${emoji ?? "🎮"} ${game}`.slice(0, 100),
-      type: 2,
-      parent_id: env.VOICE_CATEGORY_ID,
-      bitrate: 96000,
-    });
-    await placeAfterLobby(env, ch.id);
-    await env.DB.prepare("INSERT INTO rooms (channel_id, game, day, created_by, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(ch.id, game, opts.day ?? null, opts.by ?? null, nowSec())
+    const placeholder = `${PENDING}${game.toLowerCase()}`;
+    const claim = await env.DB.prepare("INSERT OR IGNORE INTO rooms (channel_id, game, day, created_by, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(placeholder, game, opts.day ?? null, opts.by ?? null, nowSec())
       .run();
-    room = (await env.DB.prepare("SELECT * FROM rooms WHERE channel_id = ?").bind(ch.id).first<Room>())!;
+    if (!claim.meta.changes) {
+      // someone else is creating this game's room right now: use theirs
+      for (let i = 0; i < 6 && !room; i++) {
+        await sleep(700);
+        room = await latestRoom(env, game);
+      }
+      if (!room) throw new Error(`room for ${game} is still being created`);
+      reused = true;
+    } else {
+      try {
+        const ch = await api(env, "POST", `/guilds/${env.GUILD_ID}/channels`, {
+          name: `${emoji ?? "🎮"} ${game}`.slice(0, 100),
+          type: 2,
+          parent_id: env.VOICE_CATEGORY_ID,
+          bitrate: 96000,
+        });
+        await env.DB.prepare("UPDATE rooms SET channel_id = ? WHERE channel_id = ?").bind(ch.id, placeholder).run();
+        await placeAfterLobby(env, ch.id);
+        room = (await env.DB.prepare("SELECT * FROM rooms WHERE channel_id = ?").bind(ch.id).first<Room>())!;
+      } catch (e) {
+        await env.DB.prepare("DELETE FROM rooms WHERE channel_id = ?").bind(placeholder).run();
+        throw e;
+      }
+    }
+  }
+  // a room reused for a game night belongs to that night now (late handling looks it up by day),
+  // and its idle clock restarts so it isn't archived out from under the night
+  if (reused && opts.day) {
+    await env.DB.prepare("UPDATE rooms SET day = ?, last_seen = ? WHERE channel_id = ?").bind(opts.day, nowSec(), room.channel_id).run();
   }
   const moved = await moveFromLobby(env, room.channel_id);
   if (moved.length) await env.DB.prepare("UPDATE rooms SET last_seen = ? WHERE channel_id = ?").bind(nowSec(), room.channel_id).run();
@@ -115,6 +160,13 @@ export async function maintainRooms(env: Env) {
   const done: Record<string, string[]> = {};
   const note = (k: string, v: string) => (done[k] ??= []).push(v);
 
+  // placeholders belong to a creation in progress; a stale one is a crashed creation
+  const t0 = nowSec();
+  for (const r of rooms.filter((r) => r.channel_id.startsWith(PENDING) && t0 - r.created_at > PENDING_TTL)) {
+    await env.DB.prepare("DELETE FROM rooms WHERE channel_id = ?").bind(r.channel_id).run();
+  }
+  rooms = rooms.filter((r) => !r.channel_id.startsWith(PENDING));
+
   // rooms someone deleted by hand: forget them
   const live = new Set(all.map((c) => c.id));
   for (const r of rooms.filter((r) => !live.has(r.channel_id))) {
@@ -156,6 +208,11 @@ export async function maintainRooms(env: Env) {
         await api(env, "PATCH", `/channels/${r.channel_id}`, { parent_id: cat });
         await env.DB.prepare("UPDATE rooms SET archived_at = ? WHERE channel_id = ?").bind(t, r.channel_id).run();
         note("archived", r.game);
+        // the session's over: end its Discord event if it went live
+        if (r.day) {
+          const n = await env.DB.prepare("SELECT event_id FROM game_nights WHERE day = ? AND stage = 'set'").bind(r.day).first<{ event_id: string | null }>();
+          if (n?.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 }).catch(() => {});
+        }
       } else if (t - r.archived_at >= ARCHIVE_TTL) {
         await api(env, "DELETE", `/channels/${r.channel_id}`).catch((e) => {
           if (!String(e).includes(" 404 ")) throw e; // already gone is fine
@@ -191,7 +248,7 @@ async function tidyArchive(env: Env, all: { id: string; name: string; type: numb
 /** 🔊 Game room: pick a game, get a room, and everyone in the Lobby comes with you. */
 export async function roomPicker(env: Env) {
   const list = await games(env);
-  const active = (await env.DB.prepare("SELECT game, channel_id FROM rooms WHERE archived_at IS NULL").all<{ game: string; channel_id: string }>()).results;
+  const active = (await env.DB.prepare("SELECT game, channel_id FROM rooms WHERE archived_at IS NULL AND channel_id NOT LIKE 'pending:%'").all<{ game: string; channel_id: string }>()).results;
   return {
     flags: IS_COMPONENTS_V2 | EPHEMERAL,
     components: [
@@ -201,17 +258,22 @@ export async function roomPicker(env: Env) {
         components: [
           { type: 10, content: `## 🔊 Open a game room\nPick the game. I'll open its voice room and move everyone in <#${env.LOBBY_CHANNEL_ID}> into it.` },
           ...(active.length ? [{ type: 10, content: `-# Open now: ${active.map((r) => `<#${r.channel_id}>`).join(" · ")}` }] : []),
-          {
-            type: 1,
-            components: [
-              {
-                type: 3,
-                custom_id: "room:open",
-                placeholder: "🎮 Which game?",
-                options: list.slice(0, 24).map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
-              },
-            ],
-          },
+          // a dropdown needs at least one option
+          ...(list.length
+            ? [
+                {
+                  type: 1,
+                  components: [
+                    {
+                      type: 3,
+                      custom_id: "room:open",
+                      placeholder: "🎮 Which game?",
+                      options: list.slice(0, 25).map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
+                    },
+                  ],
+                },
+              ]
+            : []),
           { type: 1, components: [{ type: 2, style: 2, emoji: { name: "✏️" }, label: "Something else", custom_id: "room:other" }] },
           { type: 10, content: "-# Rooms tidy themselves: empty for ~20 min → 🗄️ Recent games, deleted after 3 days." },
         ],

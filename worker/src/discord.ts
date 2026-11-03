@@ -29,9 +29,14 @@ function hex(s: string) {
 
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
-/** Discord REST call with the bot token; retries rate limits, 5xx and network errors. */
+/**
+ * Discord REST call with the bot token. Rate limits are always retried. 5xx and network errors are
+ * retried too, except for POST: a POST that failed with a 5xx may still have gone through, and
+ * retrying would duplicate a message, channel or event. Callers of POST handle failure themselves.
+ */
 export async function api(env: Env, method: string, path: string, body?: unknown): Promise<any> {
   let last = "";
+  const idempotent = method !== "POST";
   for (let attempt = 0; attempt < 4; attempt++) {
     let r: globalThis.Response;
     try {
@@ -46,6 +51,7 @@ export async function api(env: Env, method: string, path: string, body?: unknown
       });
     } catch (e) {
       last = String(e);
+      if (!idempotent) break;
       await sleep(300 * 2 ** attempt);
       continue;
     }
@@ -57,6 +63,7 @@ export async function api(env: Env, method: string, path: string, body?: unknown
     }
     if (r.status >= 500) {
       last = `${r.status}`;
+      if (!idempotent) break;
       await sleep(300 * 2 ** attempt);
       continue;
     }
@@ -66,9 +73,27 @@ export async function api(env: Env, method: string, path: string, body?: unknown
   throw new Error(`${method} ${path} -> gave up: ${last}`);
 }
 
+/** True when an api() error is Discord's 404 (the thing is gone). */
+export const isNotFound = (e: unknown) => / -> 404 /.test(String(e));
+
+/**
+ * Webhook calls tied to an interaction (followups, @original). These run in waitUntil, which can
+ * start before Discord has processed our reply, so a 404 means "not yet": wait and try again.
+ */
+async function webhook(url: string, init: RequestInit) {
+  let r: globalThis.Response | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await sleep(400 * attempt);
+    r = await fetch(url, init).catch(() => null);
+    if (r && r.status !== 404 && r.status !== 429 && r.status < 500) return r;
+  }
+  if (r && !r.ok) console.log("webhook failed", init.method, url.split("/webhooks/")[1]?.slice(0, 30), r.status);
+  return r;
+}
+
 /** Interaction webhooks (followups, @original) don't need the bot token. */
 export function followup(env: Env, token: string, body: unknown) {
-  return fetch(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}`, {
+  return webhook(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -77,7 +102,7 @@ export function followup(env: Env, token: string, body: unknown) {
 
 /** Fill in a deferred ("thinking…") interaction response. */
 export function editOriginal(env: Env, token: string, body: unknown) {
-  return fetch(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}/messages/@original`, {
+  return webhook(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}/messages/@original`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -85,8 +110,8 @@ export function editOriginal(env: Env, token: string, body: unknown) {
 }
 
 export async function originalMessage(env: Env, token: string): Promise<{ id: string; channel_id: string }> {
-  const r = await fetch(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}/messages/@original`);
-  if (!r.ok) throw new Error(`@original -> ${r.status}`);
+  const r = await webhook(`${API}/webhooks/${env.DISCORD_APP_ID}/${token}/messages/@original`, { method: "GET" });
+  if (!r?.ok) throw new Error(`@original -> ${r?.status}`);
   return r.json();
 }
 

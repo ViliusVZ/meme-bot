@@ -2,7 +2,6 @@
 // guide and action buttons, so nobody has to remember a single command.
 import type { Env } from "./index";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
-import { games } from "./gamenight";
 
 const text = (content: string) => ({ type: 10, content });
 const divider = { type: 14, divider: true, spacing: 1 };
@@ -30,6 +29,7 @@ function guide(env: Env) {
       [
         `### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`,
         "Hang out in the **Lobby**. When a game night starts, the bot opens a room for the game and moves everyone in the Lobby into it. Want to play right now? **🔊 Game room** does the same instantly. Rooms tidy themselves: empty for ~20 min → 🗄️ Recent games, deleted after 3 days (rejoin one to bring it back).",
+        "**Running late?** Hop in the Lobby and you'll be pulled into the game. Not there 10 min after the start? You get one late slip to share your ETA (🏃) or bow out (😴), and the others carry on.",
       ].join("\n"),
     ),
     divider,
@@ -76,7 +76,8 @@ export const hubPanel = (env: Env) => ({
 
 /** 🕹️ Games: the list, an add button (form) and a remove dropdown. */
 export async function gamesManager(env: Env, notice?: string) {
-  const list = await games(env);
+  // the whole list here (dropdowns elsewhere show the top 25 by plays)
+  const list = (await env.DB.prepare("SELECT name, emoji, plays FROM games ORDER BY plays DESC, rowid").all<{ name: string; emoji: string | null; plays: number }>()).results;
   return {
     flags: IS_COMPONENTS_V2 | EPHEMERAL,
     components: [
@@ -97,7 +98,8 @@ export async function gamesManager(env: Env, notice?: string) {
                       type: 3,
                       custom_id: "games:remove",
                       placeholder: "🗑️ Remove a game…",
-                      options: list.map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
+                      // a dropdown holds 25: least-played (and newest) first, as those are the likely removals
+                      options: [...list].reverse().slice(0, 25).map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
                     },
                   ],
                 },

@@ -21,6 +21,7 @@ export interface Tiebreak {
   history: string; // JSON string[]: one line per finished round
   result: string | null;
   how: string | null;
+  created_at: string; // ISO
 }
 
 const HAND: Record<Hand, { emoji: string; name: string }> = {
@@ -93,10 +94,16 @@ export async function act(env: Env, id: number, user: string, action: string, va
     if (!alive.includes(user)) return { notice: "You're not in this duel. Grab popcorn 🍿", update: false };
     if (!value || !(value in HAND)) return { update: true };
     // json_set keeps simultaneous throws from overwriting each other
-    await env.DB.prepare("UPDATE tiebreaks SET hands = json_set(hands, ?, ?) WHERE id = ? AND round = ? AND result IS NULL")
+    const thrown = await env.DB.prepare("UPDATE tiebreaks SET hands = json_set(hands, ?, ?) WHERE id = ? AND round = ? AND result IS NULL")
       .bind(`$."${user}"`, value, id, tb.round)
       .run();
     const fresh = (await getById(env, id))!;
+    if (!thrown.meta.changes) {
+      // the round finished between our read and write: don't pretend the throw counted
+      if (fresh.result) return { update: true };
+      const stillIn = (JSON.parse(fresh.alive) as string[]).includes(user);
+      return { notice: stillIn ? `⏩ That round just finished. Throw again for round ${fresh.round}!` : "You're out of this duel. Grab popcorn 🍿", update: true };
+    }
     const hands: Record<string, Hand> = JSON.parse(fresh.hands);
     const notice = `You threw ${HAND[value as Hand].emoji} ${HAND[value as Hand].name}. Shh 🤫`;
     if (!alive.every((u) => hands[u])) return { notice, update: true };
@@ -120,9 +127,9 @@ async function finishRound(env: Env, tb: Tiebreak, alive: string[], hands: Recor
     result = survivingOptions[0];
     how = `✊ ${r.survivors.map(mention).join(" & ")} won rock-paper-scissors, so it's`;
   } else if (draws >= MAX_DRAWS) {
-    const options: string[] = JSON.parse(tb.options);
-    result = options[Math.floor(Math.random() * options.length)];
-    how = `🎰 ${MAX_DRAWS} draws in a row, so the wheel took over and picked`;
+    // only options still in the duel (someone knocked out earlier can't win by wheel)
+    result = survivingOptions[Math.floor(Math.random() * survivingOptions.length)];
+    how = `🎰 ${MAX_DRAWS} draws, so the wheel took over and picked`;
   }
   const upd = await env.DB.prepare(
     `UPDATE tiebreaks SET round = round + 1, hands = '{}', alive = ?, history = ?, result = ?, how = ?

@@ -132,3 +132,13 @@ CREATE TABLE IF NOT EXISTS rooms (
   last_seen   INTEGER,               -- last tick someone was in it
   archived_at INTEGER                -- moved to 🗄️ Recent games; deleted 3 days later
 );
+-- ---------------------------------------------------------------- latecomers (late.ts)
+CREATE TABLE IF NOT EXISTS night_attendance (
+  day        TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  state      TEXT NOT NULL,          -- arrived | late | eta | absent
+  eta        INTEGER,                -- unix seconds, from the 🏃 buttons
+  message_id TEXT,                   -- their late slip, if one was posted
+  arrived_at INTEGER,
+  PRIMARY KEY (day, user_id)
+);

@@ -15,6 +15,7 @@ import * as hub from "./hub";
 import * as polls from "./polls";
 import * as tiebreak from "./tiebreak";
 import * as voice from "./voice";
+import * as late from "./late";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui";
 
 export interface Env {
@@ -37,12 +38,12 @@ export interface Env {
 }
 
 // keep in sync with wrangler.toml [triggers]
-const CRON_TICK = "*/15 * * * *";
+const CRON_TICK = "*/5 * * * *";
 const CRON_WEEKLY = "0 18 * * SUN";
 const CRON_MONTHLY = "0 9 1 * *";
 
 /**
- * Every 15 minutes. Each job is idempotent and guarded by the database, so a tick can be
+ * Every 5 minutes. Each job is idempotent and guarded by the database, so a tick can be
  * repeated or skipped safely, and one failing job doesn't stop the others.
  */
 async function tick(env: Env) {
@@ -50,7 +51,9 @@ async function tick(env: Env) {
     ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
     ["close", gn.closeStale], // midnight: close yesterday's unfinished poll
     ["start", (e) => gn.startNight(e)], // 17:00 poll, unless /playtoday already started one
-    ["maintain", gn.maintain], // refresh time options, re-nudge, start-time reminders (+ open rooms)
+    ["retry", gn.retryUnposted], // planned days whose card failed to post
+    ["maintain", gn.maintain], // refresh time options, re-nudges, start-time reminders (+ open rooms)
+    ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
     ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ];
   const out: Record<string, unknown> = {};
@@ -130,6 +133,13 @@ export default {
         if (input.action === "plan") return json(await gn.startNight(quiet, input.user, true, input.day));
         if (input.action === "room") return json(await voice.openRoom(env, input.game, input.emoji ?? null, { by: input.user }));
         if (input.action === "rooms") return json(await voice.maintainRooms(env));
+        if (input.action === "late") {
+          // simulate a late-slip click by its owner, then update the slip
+          const r = await late.act(quiet, input.day, input.user, input.clicker ?? input.user, String(input.choice));
+          const row = await late.get(env, input.day, input.user);
+          if (!r.notice && row?.message_id) await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${row.message_id}`, await late.render(env, input.day, input.user));
+          return json({ ...r, row });
+        }
         if (input.action === "poll-vote") {
           // simulate a player's poll click, then refresh the poll message
           const r = await polls.pollAct(quiet, Number(input.poll), input.user, String(input.choice));
@@ -325,6 +335,14 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     if (what === "room") return json({ type: R.Message, data: await voice.roomPicker(env) });
   }
 
+  // ---- ⏰ late slips: late:<day>:<user>:<5|15|30|out>
+  if (i.type === 3 && cid.startsWith("late:")) {
+    const [, day, owner, choice] = cid.split(":");
+    const r = await late.act(env, day, owner, user.id, choice);
+    if (r.notice) return ephemeral(r.notice);
+    return json({ type: R.UpdateMessage, data: await late.render(env, day, owner) });
+  }
+
   // ---- 🔊 game rooms: room:open (game dropdown), room:other (button → form → submit)
   if (cid === "room:other" && i.type === 3) return json({ type: R.Modal, data: voice.otherRoomModal() });
   if ((cid === "room:open" && i.type === 3) || (cid === "room:other" && i.type === 5)) {
@@ -370,16 +388,17 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
   }
 
   // ---- 🕹️ games manager
+  if (cid.startsWith("games:") && !isPlayer) return ephemeral("This one's for the trio 😅");
   if (cid === "games:add" && i.type === 3) return json({ type: R.Modal, data: hub.addGameModal() });
   if (cid === "games:add" && i.type === 5) {
     const name = await gn.addGame(env, modalValue("value"), user.id);
-    ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+    ctx.waitUntil(gn.refreshOpen(env).catch(() => {}));
     return json({ type: R.UpdateMessage, data: await hub.gamesManager(env, name ? `➕ Added **${name}**` : "Give the game a name 🙃") });
   }
   if (cid === "games:remove" && i.type === 3) {
     const name: string = i.data.values?.[0] ?? "";
     await gn.removeGame(env, name);
-    ctx.waitUntil(gn.refresh(env, gn.local(env).day).catch(() => {}));
+    ctx.waitUntil(gn.refreshOpen(env).catch(() => {}));
     return json({ type: R.UpdateMessage, data: await hub.gamesManager(env, `🗑️ Removed **${name}**`) });
   }
 
@@ -420,6 +439,8 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
     return json({ type: R.Message, data: await polls.renderPoll(env, id) });
   }
   if (cid.startsWith("poll:") && i.type === 3) {
+    // trio-only, like tiebreakers: a non-player voter could otherwise end up in a duel they can't play
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
     const [, id, action] = cid.split(":");
     const r = await polls.pollAct(env, Number(id), user.id, action);
     if (!r.update) return ephemeral(r.notice ?? "🤷");
@@ -479,8 +500,10 @@ async function interaction(i: any, env: Env, ctx: ExecutionContext): Promise<Res
       if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return json({ type: R.Message, data: await gn.planPicker(env) });
     case "poll":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return json({ type: R.Modal, data: polls.pollModal() });
     case "games":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return json({ type: R.Message, data: await hub.gamesManager(env) });
     case "help":
       return json({ type: R.Message, data: hub.helpMessage(env) });

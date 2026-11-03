@@ -64,12 +64,39 @@ game right under the Lobby (96 kbps), moves every player who's in the Lobby into
 in the start ping. **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
 or type something else. One open room per game: asking again reuses it.
 
-Rooms tidy themselves on the 15-minute tick: empty for 20 min (or an hour if nobody ever joined)
+Rooms tidy themselves on the 5-minute tick: empty for 20 min (or an hour if nobody ever joined)
 → moved to **🗄️ Recent games** → deleted after 3 days. Joining an archived room brings it back.
 The archive category exists only while it has something in it; rooms deleted by hand are simply
 forgotten. The bot has no gateway, so occupancy comes from `GET /guilds/{id}/voice-states/{user}`
 for each player; if that lookup fails, the tick skips room maintenance rather than archive on a
 guess. QA: `scripts/qa_rooms.py`.
+
+## ⏰ Latecomers (`src/late.ts`)
+Once a night has started (its room is open), every tick checks where each player is:
+- **in the room** → here. A late slip, if they had one, becomes "✅ made it, 12 min late".
+- **in the Lobby** → pulled into the room, once. Anyone already marked as here is never dragged
+  back, so stepping out to the Lobby on purpose works.
+- **anywhere else, 10 min after the start** → one late slip pings them: 🏃 5 / 15 / 30 min (an ETA)
+  or 😴 can't make it. Only the late person can answer their slip.
+
+"Can't make it" after the start (or once the start ping has gone out) only marks that person
+absent: the others are already playing. Before the start it cancels the night as usual, and a
+cancelled card offers 🔄 **Reopen** for the rest of that day. The Discord event goes live at the
+start and is marked ended when the room is archived.
+
+## Reliability notes
+- One 5-minute tick runs every job; each job, each night and each player is isolated, so one
+  failure can't stall the rest. A start ping that fails is retried on the next tick.
+- Nothing is decided on a guess: if a voice lookup fails, rooms and latecomers wait a tick.
+- POSTs are never auto-retried on 5xx (they may have gone through); everything that must happen
+  once (cards, rooms, slips, reminders, tiebreak results) is claimed in the database first.
+- Interaction follow-ups retry when Discord hasn't registered the reply yet. Smart Placement
+  keeps the Worker near D1 so clicks answer well inside Discord's 3 seconds.
+- Re-nudges respect quiet hours (none between 00:00 and 09:00).
+- Time cards stay open after midnight for 🌙 starts (until 06:00); other cards close at midnight.
+
+QA: `node test/time.test.mjs`, `node test/tiebreak.test.mjs` (unit), then `python scripts/qa_all.py`
+(end-to-end against the live bot, quiet, cleans up), plus `qa_tiebreak.py` and `qa_rooms.py`.
 
 ## Polls, help and the HQ panel
 - `/poll` (or 🗳️ on the panel) opens a form: question + answers (one per line; empty = Yes/No).

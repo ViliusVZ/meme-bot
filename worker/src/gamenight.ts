@@ -1,17 +1,20 @@
 // Daily game-night planner: one card per day that walks through three stages.
 //   ask  → "Are we playing today?" (needs every player to say yes)
-//   game → pick a game (first to a majority wins; an all-different split is settled by dice)
-//   time → everyone picks the earliest time they can start; we start at the latest of those
-//   set  → locked in: Discord event + one ping now and one at start time
-//   off  → someone bailed, or the day ended before we agreed
+//   game → pick a game (first to a majority wins; a split goes to a ⚔️ tiebreaker, tiebreak.ts)
+//   time → everyone picks the earliest time they can start; we start at the latest of those, and
+//          only if everyone gets an hour together before the first 🏁 leave-by
+//   set  → locked in: Discord event + one ping now; at start a voice room opens (voice.ts) and
+//          latecomers are handled (late.ts)
+//   off  → someone bailed, or the day ended before we agreed (🔄 reopen works the same day)
 //
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 cron, /playtoday and retries can never produce two polls.
 import type { Env } from "./index";
-import { api, followup, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord";
+import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord";
 import { now } from "./db";
 import * as tiebreak from "./tiebreak";
 import * as voice from "./voice";
+import * as late from "./late";
 
 type Stage = "ask" | "game" | "time" | "set" | "off";
 export interface Night {
@@ -115,8 +118,11 @@ export function timeOptions(env: Env, n: Night, v: Votes) {
     presets = build(n.stage_at ?? t).filter((s) => s > t);
     if (presets.length < 3) presets = build(t);
   }
-  const voted = Object.values(v).map(Number).filter((s) => s > t);
-  return [...new Set([...presets, ...voted])].sort((a, b) => a - b).slice(0, 8);
+  // every time someone voted for keeps its button (so it can be joined, or tapped to take back);
+  // presets fill the rest, up to 8 buttons
+  const voted = [...new Set(Object.values(v).map(Number).filter((s) => s > t))];
+  const room = Math.max(0, 8 - voted.length);
+  return [...new Set([...voted, ...presets.filter((p) => !voted.includes(p)).slice(0, room)])].sort((a, b) => a - b);
 }
 
 /**
@@ -129,7 +135,11 @@ export function parseTime(env: Env, raw: string, day = local(env).day): number |
   const [y, mo, d] = day.split("-").map(Number);
   const today = day === local(env).day;
   let t = wallToUnix(env, y, mo, d, +m[1], +(m[2] ?? 0));
-  if (+m[1] < 6 && (!today || t < nowSec())) t += 86400;
+  if (+m[1] < 6 && (!today || t < nowSec())) {
+    // the small hours after the night: same wall time on the next calendar day (DST-safe)
+    const next = new Date(Date.UTC(y, mo - 1, d + 1));
+    t = wallToUnix(env, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), +m[1], +(m[2] ?? 0));
+  }
   if (t < nowSec() + 120) return `**${clock(env, t)}** has already passed ⏰`;
   if (today && t > nowSec() + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
   return t;
@@ -256,9 +266,10 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
     const ins = await env.DB.prepare("INSERT OR IGNORE INTO game_nights (day, stage, reminded, started_by, stage_at) VALUES (?, 'ask', 0, ?, ?)")
       .bind(day, by ?? null, nowSec())
       .run();
-    if (ins.meta.changes && by) await vote(env, day, "ask", by, "yes");
     n = (await getNight(env, day))!;
   }
+  // whoever starts or plans the night is in (also when retrying a claim whose post failed)
+  if (by && n.stage === "ask" && !n.message_id) await vote(env, day, "ask", by, "yes");
   // already posted, or someone else's card: just point at it
   if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
   // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
@@ -279,28 +290,70 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
   }
 }
 
-/** Polls left open from an earlier day get closed so their buttons stop working. */
+/** A planned day whose card failed to post: try again (today's is retried by the 17:00 job). */
+export async function retryUnposted(env: Env) {
+  const days = await env.DB.prepare("SELECT day FROM game_nights WHERE message_id IS NULL AND stage = 'ask' AND day > ?").bind(local(env).day).all<{ day: string }>();
+  for (const { day } of days.results) await startNight(env, undefined, true, day);
+  return days.results.map((d) => d.day);
+}
+
+/** Re-render every open card (after the game list changes, say). */
+export async function refreshOpen(env: Env) {
+  const open = await env.DB.prepare("SELECT day FROM game_nights WHERE day >= ? AND stage IN ('ask', 'game', 'time')").bind(local(env).day).all<{ day: string }>();
+  for (const { day } of open.results) await refresh(env, day);
+}
+
+/**
+ * Is an unfinished card past its time? Asking and game picking end at midnight, but time picking
+ * runs until the small hours, because 🌙 after-midnight starts (up to 06:00) are fair game.
+ */
+export function isOver(env: Env, n: { day: string; stage: Stage }) {
+  if (n.day >= local(env).day) return false;
+  if (n.stage !== "time") return true;
+  const [y, mo, d] = n.day.split("-").map(Number);
+  return nowSec() >= wallToUnix(env, y, mo, d, 0, 0) + 30 * 3600;
+}
+
+/** Cards left open past their time get closed so their buttons stop working. */
 export async function closeStale(env: Env) {
   const today = local(env).day;
-  const stale = await env.DB.prepare(`SELECT day FROM game_nights WHERE day < ? AND stage IN ('ask', 'game', 'time')`).bind(today).all<{ day: string }>();
-  for (const { day } of stale.results) await close(env, day);
-  return stale.results.map((s) => s.day);
+  const open = await env.DB.prepare(`SELECT day, stage FROM game_nights WHERE day < ? AND stage IN ('ask', 'game', 'time')`).bind(today).all<{ day: string; stage: Stage }>();
+  const stale = open.results.filter((n) => isOver(env, n));
+  for (const { day } of stale) await close(env, day);
+  return stale.map((s) => s.day);
 }
 
-async function close(env: Env, day: string) {
+const closeNote = (stage: Stage) => (stage === "ask" ? "Not everyone was in. Maybe tomorrow 🫡" : "The day ended before we agreed. Maybe tomorrow 🫡");
+
+/**
+ * Closes a card that's past its time. From a tick it re-renders the card itself; from a click
+ * (`rerender` false) the stage is already flipped and the reply shows the closed card, so this
+ * only tidies the nudge.
+ */
+async function close(env: Env, day: string, rerender = true) {
   const n = await getNight(env, day);
-  if (!n || !OPEN.includes(n.stage)) return;
-  const note = n.stage === "ask" ? "Not everyone was in. Maybe tomorrow 🫡" : "The day ended before we agreed. Maybe tomorrow 🫡";
-  if (await advance(env, day, n.stage, "off", { note })) {
-    await clearNudge(env, n);
+  if (!n) return;
+  if (rerender) {
+    if (!OPEN.includes(n.stage) || !(await advance(env, day, n.stage, "off", { note: closeNote(n.stage) }))) return;
     await refresh(env, day);
   }
+  await clearNudge(env, n);
 }
 
-/** Re-render a card in place (used outside interactions, where we can't reply with an update). */
+/**
+ * Re-render a card in place (used outside interactions, where we can't reply with an update).
+ * If someone deleted the card by hand, forget it: an "are we playing?" card then gets reposted by
+ * the next tick, and later stages simply stop trying to edit it.
+ */
 export async function refresh(env: Env, day: string) {
   const n = await getNight(env, day);
-  if (n?.message_id) await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`, await render(env, day));
+  if (!n?.message_id) return;
+  try {
+    await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`, await render(env, day));
+  } catch (e) {
+    if (!isNotFound(e)) throw e;
+    await env.DB.prepare("UPDATE game_nights SET message_id = NULL WHERE day = ? AND message_id = ?").bind(day, n.message_id).run();
+  }
 }
 
 /**
@@ -311,9 +364,11 @@ export async function act(env: Env, day: string, user: string, action: string, v
   const n = await getNight(env, day);
   if (!n) return say("This poll has vanished 🫥");
   if (!players(env).includes(user)) return say("This one's for the trio 😅");
-  if (OPEN.includes(n.stage) && day < local(env).day) {
-    await close(env, day);
-    return say("That poll closed at midnight. Start a new one with **/playtoday** 🎮", true);
+  if (OPEN.includes(n.stage) && isOver(env, n)) {
+    // close in the background; the reply below already shows the closed card
+    defer(close(env, day, false));
+    await advance(env, day, n.stage, "off", { note: closeNote(n.stage) });
+    return say("That poll has closed. Start a new one with **/playtoday** 🎮", true);
   }
 
   switch (action) {
@@ -380,11 +435,37 @@ export async function act(env: Env, day: string, user: string, action: string, v
     }
     case "out":
       if (n.stage === "set" && (n.start_at ?? 0) < nowSec() - 4 * 3600) return say("That game night is already history 🕰️");
+      if (n.stage === "set" && (n.reminded || n.start_at! <= nowSec())) {
+        // already under way (the start ping went out): the others play on, this person is absent
+        defer(late.markAbsent(env, day, user));
+        return say("Noted, you're out for tonight. The others carry on 🫡");
+      }
       if (n.stage === "off" || n.stage === "ask") return ok;
       if (await advance(env, day, n.stage, "off", { note: `${mention(user)} can't make it. Maybe tomorrow 🫡` })) {
         defer(n.stage === "set" ? cancelLocked(env, n, user) : clearNudge(env, n));
       }
       return ok;
+    case "reopen": {
+      // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
+      if (n.stage !== "off") return ok;
+      if (day < local(env).day) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
+      const r = await env.DB.prepare(
+        `UPDATE game_nights SET stage = 'ask', stage_at = ?, game = NULL, start_at = NULL, event_id = NULL, reminded = 0,
+           note = NULL, conflict = NULL, renudged = NULL, started_by = ? WHERE day = ? AND stage = 'off'`,
+      )
+        .bind(nowSec(), user, day)
+        .run();
+      if (!r.meta.changes) return ok; // someone else reopened it a moment ago
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM game_night_votes WHERE day = ?").bind(day),
+        env.DB.prepare("DELETE FROM tiebreaks WHERE kind = 'night' AND ref = ?").bind(day),
+        env.DB.prepare("DELETE FROM night_attendance WHERE day = ?").bind(day),
+      ]);
+      await vote(env, day, "ask", user, "yes");
+      const when = day === local(env).day ? "tonight" : `on ${weekday(env, day)}`;
+      defer(nudge(env, day, players(env).filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${when}? ⬆️`));
+      break;
+    }
     default:
       return say("That button is from an older version of me. Try **/playtoday** 🤖");
   }
@@ -544,17 +625,85 @@ export async function maintain(env: Env) {
     .bind(local(env).day)
     .all<Night>();
 
+  // reminders wait for daytime: nobody gets pinged about a poll between midnight and 09:00
+  const awake = local(env).hour >= 9;
   for (const n of open.results) {
-    if (n.stage === "game" && (await tiebreak.get(env, "night", n.day))?.result) {
-      // a tiebreak finished but the card never moved on (failed follow-up): finish the job
-      await applyTiebreak(env, n.day, "", (p) => p);
-      await refresh(env, n.day);
-      continue;
+    // one night's trouble (say, a card deleted by hand) must not hold up the others
+    try {
+      await maintainNight(env, n, t, awake, done);
+    } catch (e) {
+      console.log("maintain night failed", n.day, e);
+      done[`failed ${n.day}`] = String(e).slice(0, 120);
     }
-    if (n.stage === "time") await refresh(env, n.day);
+  }
+
+  const due = await env.DB.prepare("SELECT * FROM game_nights WHERE stage = 'set' AND reminded = 0 AND start_at <= ?").bind(t + 120).all<Night>();
+  for (const n of due.results) {
+    const claimed = await env.DB.prepare("UPDATE game_nights SET reminded = 1 WHERE day = ? AND stage = 'set' AND reminded = 0").bind(n.day).run();
+    if (!claimed.meta.changes || n.start_at! < t - 1800) continue;
+    try {
+      await startReminder(env, n);
+      done.reminded = n.day;
+    } catch (e) {
+      // the ping didn't go out: release the claim so the next tick tries again
+      console.log("start reminder failed", n.day, e);
+      await env.DB.prepare("UPDATE game_nights SET reminded = 0 WHERE day = ?").bind(n.day).run();
+    }
+  }
+  return done;
+}
+
+/** It's time: open the room (moving the Lobby in), make the event live, and ping the squad. */
+async function startReminder(env: Env, n: Night) {
+  const ps = players(env);
+  const emoji = await emojiFor(env, n.game!);
+  // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
+  let where = "Hop in 🔊";
+  try {
+    const room = await voice.openRoom(env, n.game!, emoji, { day: n.day });
+    await late.markArrived(env, n.day, room.moved);
+    where = `Room: <#${room.channelId}>${room.moved.length ? ` (moved ${room.moved.map(mention).join(" ")} from the Lobby)` : ""}`;
+  } catch (e) {
+    console.log("room failed", e);
+  }
+  // external events don't go live on their own
+  if (n.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 2 }).catch((e) => console.log("event start", e));
+  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+    content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
+    allowed_mentions: pings(env, ps),
+    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+  });
+}
+
+async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done: Record<string, unknown>) {
+  {
+    const tb = n.stage === "game" ? await tiebreak.get(env, "night", n.day) : null;
+    if (tb?.result) {
+      // a tiebreak finished but the card never moved on (failed follow-up): finish the job
+      const pending: Promise<unknown>[] = [];
+      await applyTiebreak(env, n.day, "", (p) => pending.push(p));
+      await Promise.all(pending);
+      await refresh(env, n.day);
+      return;
+    }
+    if (tb) {
+      // a tiebreak nobody has finished for an hour: one reminder to whoever it's waiting on
+      if (awake && n.renudged !== "tb" && t - Date.parse(tb.created_at) / 1000 >= RENUDGE_AFTER) {
+        const hands: Record<string, string> = JSON.parse(tb.hands);
+        const who = tb.mode === "rps" ? (JSON.parse(tb.alive) as string[]).filter((u) => !hands[u]) : players(env);
+        const claimed = await env.DB.prepare("UPDATE game_nights SET renudged = 'tb' WHERE day = ? AND (renudged IS NULL OR renudged != 'tb')").bind(n.day).run();
+        if (claimed.meta.changes && who.length) {
+          await nudge(env, n.day, who, tb.mode === "rps" ? "✊ Your rock-paper-scissors throw is still missing ⬆️" : "⚔️ The tiebreaker is still waiting. Spin it or duel it ⬆️");
+          done[`tiebreak nudged ${n.day}`] = who;
+        }
+      }
+      return;
+    }
+    // drop start times that just passed (every 15 min is plenty; the tick runs every 5)
+    if (n.stage === "time" && local(env).minute % 15 < 5) await refresh(env, n.day);
     const v = await votes(env, n.day, n.stage);
     const missing = players(env).filter((p) => !v[p]);
-    if (missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
+    if (awake && missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
       const claimed = await env.DB.prepare("UPDATE game_nights SET renudged = ? WHERE day = ? AND stage = ? AND (renudged IS NULL OR renudged != ?)")
         .bind(n.stage, n.day, n.stage, n.stage)
         .run();
@@ -566,29 +715,6 @@ export async function maintain(env: Env) {
       }
     }
   }
-
-  const due = await env.DB.prepare("SELECT * FROM game_nights WHERE stage = 'set' AND reminded = 0 AND start_at <= ?").bind(t + 120).all<Night>();
-  for (const n of due.results) {
-    const claimed = await env.DB.prepare("UPDATE game_nights SET reminded = 1 WHERE day = ? AND reminded = 0").bind(n.day).run();
-    if (!claimed.meta.changes || n.start_at! < t - 1800) continue;
-    const ps = players(env);
-    const emoji = await emojiFor(env, n.game!);
-    // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
-    let where = "Hop in 🔊";
-    try {
-      const room = await voice.openRoom(env, n.game!, emoji, { day: n.day });
-      where = `Room: <#${room.channelId}>${room.moved.length ? ` (moved ${room.moved.map(mention).join(" ")} from the Lobby)` : ""}`;
-    } catch (e) {
-      console.log("room failed", e);
-    }
-    await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-      content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
-      allowed_mentions: pings(env, ps),
-      message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-    });
-    done.reminded = n.day;
-  }
-  return done;
 }
 
 /** Private heads-up after a click, when we also re-render the card. */
@@ -664,17 +790,22 @@ export async function render(env: Env, day: string) {
         text(
           `-# First game to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker${waiting.length ? ` · waiting on ${waiting.map(mention).join(" ")}` : ""}`,
         ),
-        row({
-          type: 3,
-          custom_id: id("game"),
-          placeholder: "🎯 Pick a game…",
-          options: list.map((g) => ({
-            label: g.name,
-            value: g.name,
-            emoji: { name: g.emoji ?? "🎮" },
-            description: g.plays ? `Played ${g.plays}×` : undefined,
-          })),
-        }),
+        // a dropdown needs at least one option; with an empty game list, suggesting is the way in
+        ...(list.length
+          ? [
+              row({
+                type: 3,
+                custom_id: id("game"),
+                placeholder: "🎯 Pick a game…",
+                options: list.map((g) => ({
+                  label: g.name,
+                  value: g.name,
+                  emoji: { name: g.emoji ?? "🎮" },
+                  description: g.plays ? `Played ${g.plays}×` : undefined,
+                })),
+              }),
+            ]
+          : [text("*The game list is empty. ➕ Suggest one!*")]),
         row(button(1, "➕", "Suggest a game", id("suggest")), out),
       ];
       break;
@@ -750,7 +881,12 @@ export async function render(env: Env, day: string) {
       break;
     }
     case "off":
-      body = [text(`## 😴 No game night · ${date}`), text(n.note ?? "Maybe tomorrow 🫡")];
+      body = [
+        text(`## 😴 No game night · ${date}`),
+        text(n.note ?? "Maybe tomorrow 🫡"),
+        // still today (or a planned day ahead): let anyone who changed their mind start it over
+        ...(day >= local(env).day ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
+      ];
       break;
   }
   return {
@@ -825,6 +961,7 @@ export async function resetNight(env: Env, day: string) {
     env.DB.prepare("DELETE FROM game_night_votes WHERE day = ?").bind(day),
     env.DB.prepare("DELETE FROM game_nights WHERE day = ?").bind(day),
     env.DB.prepare("DELETE FROM tiebreaks WHERE kind = 'night' AND ref = ?").bind(day),
+    env.DB.prepare("DELETE FROM night_attendance WHERE day = ?").bind(day),
   ]);
   return { reset: true };
 }
