@@ -15,19 +15,23 @@ a discussion thread, voting streaks, weekly/monthly recaps and slash commands.
 - **Commands:** `/meme` (random recent banger), `/top [week|month|all]`, `/stats [user]`, `/hall-of-fame`.
 
 Reddit is fetched from GitHub Actions because Reddit's RSS works reliably from there. The Worker
-also has a 13:30 UTC fallback cron that posts from already-ingested memes.
+posts the daily meme itself on its 15-minute tick (from 10:00 UTC), from memes already ingested, so a
+late GitHub cron run doesn't delay it.
 
 ## Game night (`src/gamenight.ts`)
-Every day at 17:00 Lithuanian time a card appears in #game-night and walks through three stages,
-editing itself in place:
+Every day at 17:00 Lithuanian time (or earlier, when anyone runs `/playtoday`) a card appears in
+#game-night and walks through three stages, editing itself in place:
 
 1. **Are we playing today?** ✅/✖️ buttons. It moves on only when all three players say yes. Votes can
    change until midnight; an unfinished poll closes itself at midnight.
 2. **What are we playing?** A dropdown of games, sorted by how often they've been played, plus
    ➕ *Suggest a game*, which adds the game permanently. The first game to 2 votes wins; if all
    three pick different games, a die decides.
-3. **What time?** Everyone picks the *earliest* time they can start; the session starts at the latest
-   of those, so nobody has to negotiate.
+3. **What time?** Buttons with start times generated from when this stage began: three half-hour
+   steps from ~45 min out, then two hourly ones (stage at 14:00 → 15:00 15:30 16:00 17:00 18:00;
+   at 17:00 → 18:00 … 21:00). Passed times disappear; ✏️ *Other time* takes any HH:MM, and custom
+   picks become buttons for the others. Everyone taps the *earliest* time they can start (tap again
+   to take it back); the session starts at the latest of those, so there are no ties to break.
 
 Then it creates a Discord event and pings everyone once, and again at start time. Each stage that
 needs the others' input sends one nudge ping, which is deleted when the next one replaces it.
@@ -35,11 +39,15 @@ needs the others' input sends one nudge ping, which is deleted when the next one
 
 - One poll per day is guaranteed by `game_nights.day` being the primary key; stage changes are
   compare-and-set, so simultaneous clicks can't double-advance.
-- `/gamenight` starts today's poll early · `/games list|add|remove` edits the game list.
+- `/playtoday` starts today's poll early and counts as the starter's yes. If today already has a
+  poll (manual or scheduled), it links to it instead; the 17:00 job never posts a second one.
+- Anyone a stage has been waiting on for an hour gets one extra reminder ping.
+- `/games list|add|remove` edits the game list.
+- Time logic tests (DST, presets, parsing): `cd worker && node test/time.test.mjs`.
 - Players, channel, timezone and poll hour are in `wrangler.toml` (`PLAYERS`, `GAME_CHANNEL_ID`,
   `TIMEZONE`, `GAME_POLL_HOUR`). One `*/15` cron handles both the poll and the reminders.
 - Testing without pinging anyone: `/admin/gamenight` with `{"action": "start" | "tick" | "reset"}` or
-  `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|out", "value": "..."}`.
+  `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`.
   `worker/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
 
 ## Deploy (`worker/`)
