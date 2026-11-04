@@ -1,0 +1,1 @@
+ALTER TABLE "night_attendance" ADD COLUMN "roast" text;

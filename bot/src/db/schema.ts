@@ -214,6 +214,7 @@ export const nightAttendance = pgTable(
     eta: unix("eta"), // from the 🏃 buttons
     message_id: text(), // their late slip, if one was posted
     arrived_at: unix("arrived_at"),
+    roast: text(), // 🔥 the line they got for bailing after the start (kept, so re-renders don't reroll it)
   },
   (t) => [primaryKey({ columns: [t.day, t.user_id] })],
 );

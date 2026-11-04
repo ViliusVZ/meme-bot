@@ -5,11 +5,13 @@
 //                       them be)
 //   anywhere else    → 10 min after start they get one late slip: "Running late?" with 🏃 ETA
 //                       buttons and 😴 can't make it
-// "Can't make it" after the start only marks that person absent; the others are already playing.
+// "Can't make it" after the start marks that person absent (the others are already playing) and
+// gets them 🔥 roasted: their late slip turns into the roast, or a roast is posted if they had none.
 import { and, eq, gt, isNull, like, lte, not } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { gameNights, nightAttendance, rooms } from "./db/index.js";
 import { api, IS_COMPONENTS_V2 } from "./discord.js";
+import * as roasts from "./roasts.js";
 import { players } from "./gamenight.js";
 import * as voice from "./voice.js";
 
@@ -28,8 +30,8 @@ const real = not(like(rooms.channel_id, "pending:%"));
 
 async function put(env: Env, day: string, user: string, set: Partial<Omit<Attendance, "day" | "user_id">>) {
   const cur = await get(env, day, user);
-  const row = { day, user_id: user, state: "arrived", eta: null, message_id: null, arrived_at: null, ...cur, ...set } as Attendance;
-  const values = { state: row.state, eta: row.eta, message_id: row.message_id, arrived_at: row.arrived_at };
+  const row = { day, user_id: user, state: "arrived", eta: null, message_id: null, arrived_at: null, roast: null, ...cur, ...set } as Attendance;
+  const values = { state: row.state, eta: row.eta, message_id: row.message_id, arrived_at: row.arrived_at, roast: row.roast };
   await env.db
     .insert(nightAttendance)
     .values({ day, user_id: user, ...values })
@@ -43,11 +45,25 @@ export async function markArrived(env: Env, day: string, users: string[]) {
 }
 
 /** Card "Can't make it" after the start: mark absent (and update their slip if they had one). */
+/** Bailed after the start: absent, with a roast line picked once and kept. */
+async function bail(env: Env, day: string, user: string) {
+  const cur = await get(env, day, user);
+  return put(env, day, user, { state: "absent", roast: cur?.roast ?? (await roasts.next(env, [user])) });
+}
+
 export async function markAbsent(env: Env, day: string, user: string) {
-  const row = await put(env, day, user, { state: "absent" });
+  const row = await bail(env, day, user);
   if (row.message_id) {
     await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${row.message_id}`, await render(env, day, user)).catch(() => {});
+    return;
   }
+  // no late slip to turn into the roast: post it (no ping, they know what they did)
+  const [n] = await env.db.select({ game: gameNights.game, message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
+  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+    content: bailText(user, row, n?.game ?? ""),
+    allowed_mentions: { parse: [] },
+    message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+  });
 }
 
 type Night = { day: string; game: string | null; start_at: number | null; message_id: string | null };
@@ -120,7 +136,7 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
       .onConflictDoNothing()
       .returning({ day: nightAttendance.day });
     if (!claim.length) return;
-    const fresh: Attendance = { day: n.day, user_id: p, state: "late", eta: null, message_id: null, arrived_at: null };
+    const fresh: Attendance = { day: n.day, user_id: p, state: "late", eta: null, message_id: null, arrived_at: null, roast: null };
     try {
       const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
         ...slip(env, n.day, p, fresh, n.game!, n.start_at!, roomId),
@@ -145,7 +161,7 @@ export async function act(env: Env, day: string, owner: string, clicker: string,
   const row = await get(env, day, owner);
   if (!row) return { notice: "That slip has expired 🫥" };
   if (row.state === "arrived") return { notice: "You're already here 👋" };
-  if (choice === "out") await put(env, day, owner, { state: "absent" });
+  if (choice === "out") await bail(env, day, owner);
   else {
     const mins = Number(choice);
     if (![5, 15, 30].includes(mins)) return { notice: "🤷" };
@@ -160,6 +176,11 @@ export async function render(env: Env, day: string, user: string) {
   const [n] = await env.db.select({ game: gameNights.game, start_at: gameNights.start_at }).from(gameNights).where(eq(gameNights.day, day));
   const [room] = await env.db.select({ channel_id: rooms.channel_id }).from(rooms).where(and(eq(rooms.day, day), real));
   return slip(env, day, user, row, n.game!, n.start_at ?? undefined, room?.channel_id);
+}
+
+/** "🔥 **Tonight's R.E.P.O. lost a player** · @x 🚪 bailed" plus their roast line. */
+function bailText(user: string, row: Attendance, game: string) {
+  return `🔥 **Tonight's ${game || "game night"} lost a player** · ${mention(user)} 🚪 bailed, the rest of you carry on${row.roast ? `\n> ${row.roast}` : ""}`;
 }
 
 function slip(env: Env, day: string, user: string, row: Attendance, game: string, startAt?: number, roomId?: string) {
@@ -178,8 +199,8 @@ function slip(env: Env, day: string, user: string, row: Attendance, game: string
     accent = 0x57f287;
     body = [{ type: 10, content: `✅ ${mention(user)} made it${mins ? `, ${mins} min late` : ""}${onTime ? " (right on their ETA 👏)" : mins && mins >= 20 ? " 🐢" : ""}` }];
   } else if (row.state === "absent") {
-    accent = 0x4f545c;
-    body = [{ type: 10, content: `😴 ${mention(user)} can't make it tonight. Have fun without them!` }];
+    // same look as the roasts for a called-off night: plain text, no box
+    return { flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as string[] }, components: [{ type: 10, content: bailText(user, row, game) }] };
   } else if (row.state === "eta") {
     body = [
       { type: 10, content: `🏃 ${mention(user)} is on the way · ETA <t:${row.eta}:t> (<t:${row.eta}:R>)` },
