@@ -182,6 +182,11 @@ function shuffled(n: number, avoidFirst?: number) {
 /** The next line for these culprits, from their pool's shuffle-bag. */
 export async function next(env: Env, users: string[]) {
   const { key, lines } = poolFor(users);
+  return fill(await nextFrom(env, key, lines), users);
+}
+
+/** The next line from any pool's shuffle-bag (no repeats until the pool is used up). */
+export async function nextFrom(env: Env, key: string, lines: string[]) {
   const pick = await env.db.transaction(async (tx) => {
     // the row lock keeps two roasts at once from drawing the same line
     await tx.insert(roastBags).values({ pool: key, queue: [], last: null }).onConflictDoNothing();
@@ -192,7 +197,7 @@ export async function next(env: Env, users: string[]) {
     await tx.update(roastBags).set({ queue: rest, last: i, updated_at: sql`now()` }).where(eq(roastBags.pool, key));
     return i;
   });
-  return fill(lines[pick], users);
+  return lines[pick];
 }
 
 export const _pools = { SOLO, PERSONAL, DUO, PAIRS, TRIO };

@@ -12,6 +12,7 @@ import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as reddit from "./reddit.js";
 import * as cleanup from "./cleanup.js";
+import * as memeshame from "./memeshame.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const JOBS: [string, (env: Env) => Promise<unknown>][] = [
@@ -27,6 +28,7 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
   ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
+  ["meme-shame", memeshame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it
 ];
 
 /** Every minute. Returns what each job did (for logs and the admin test route). */

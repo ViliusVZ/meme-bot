@@ -310,3 +310,41 @@ test("a meme vote shows who voted what under the bar, without pinging", async ()
   expect(body).toContain("🔥 <@b> · 😂 <@a>");
   expect(r.data.allowed_mentions).toEqual({ parse: [] });
 });
+
+test("😐 meme slackers: called out at 19:00, once a day, at most every 3 days each", async () => {
+  const { evening, slackers } = await import("../src/memeshame.js");
+  // five daily memes, posted on the five days before Friday
+  for (let i = 0; i < 5; i++) {
+    const day = `2026-11-0${5 - i}`;
+    await t.db.insert(memeTable).values({ id: `t3_d${i}`, title: "d", image: "i", link: "l", author: "u", published: `${day}T08:00:00Z`, ingested_at: "x", post_kind: "daily", day, posted_at: `${day}T10:00:00.000Z`, channel_id: "memes", message_id: `msg${i}` });
+  }
+  for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, "a", "lol"); // a votes on everything
+  await memes.castVote(env, "t3_d4", "b", "fire"); // b only on the oldest
+  await memes.castVote(env, "t3_d0", "c", "fire"); // c voted on the latest only
+  await memes.castVote(env, "t3_d1", "c", "fire"); // …and the one before: 2 of 5, not 3 in a row
+  vi.setSystemTime(Date.parse("2026-11-06T16:30:00Z")); // 18:30: too early
+  expect(await evening(env)).toEqual({});
+  vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // 19:05
+  expect((await slackers(env)).who.map((s) => s.user)).toEqual(["b"]);
+  expect(await evening(env)).toEqual({ called: ["b"] });
+  const post = calls.find((c) => c.method === "POST" && c.path === "/channels/memes/messages")!;
+  expect(post.body.content).toMatch(/^😐 .*<@b>/);
+  expect(post.body.content).not.toMatch(/\{\w+\}/);
+  expect(post.body.allowed_mentions).toEqual({ users: ["b"] });
+  expect(await evening(env)).toEqual({}); // once a day
+  vi.setSystemTime(Date.parse("2026-11-07T17:05:00Z")); // next evening: b's still slacking, but cooling down
+  expect(await evening(env)).toEqual({});
+  vi.setSystemTime(Date.parse("2026-11-09T17:05:00Z")); // 3 days later: fair game again
+  expect(await evening(env)).toEqual({ called: ["b"] });
+});
+
+test("admin: redraw every posted meme with its voters", async () => {
+  await memes.ingest(env, [{ id: "t3_r", title: "R", image: "i", link: "l", author: "a", published: "2026-11-05T08:00:00Z", rank: 1 }]);
+  await memes.claim(env, "t3_r", "daily", { day: "2026-11-05" });
+  await memes.setMessage(env, "t3_r", "memes", "m1");
+  await memes.castVote(env, "t3_r", "c", "dead");
+  const app = build(env, { leader: () => true, shuttingDown: () => false });
+  const r = await app.inject({ method: "POST", url: "/admin/refresh-memes", headers: { authorization: "Bearer a" } });
+  expect(r.json()).toEqual({ updated: 1, failed: [] });
+  expect(JSON.stringify(calls.find((c) => c.method === "PATCH" && c.path === "/channels/memes/messages/m1")!.body)).toContain("💀 <@c>");
+});
