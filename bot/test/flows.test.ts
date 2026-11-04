@@ -11,6 +11,7 @@ import * as jobs from "../src/jobs.js";
 import * as presence from "../src/presence.js";
 import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
 import * as roasts from "../src/roasts.js";
+import * as memeshame from "../src/memeshame.js";
 import { testDb, testEnv } from "./pg.js";
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -347,6 +348,61 @@ test("roast lines rotate: no repeats until the pool is used up", async () => {
   const seen = new Set<string>();
   for (let i = 0; i < lines.length; i++) seen.add(await roasts.next(env, ["b"]));
   expect(seen.size).toBe(lines.length);
+});
+
+test("roast rotation is shared: a line used on one person doesn't come up for another in the same cycle", async () => {
+  const [V, K, L] = ["306836805825593344", "212567787896307713", "747902984003780651"];
+  const { SOLO, PERSONAL, DUO, PAIRS } = roasts._pools;
+  // whatever order people sink nights in, nothing repeats until a culprit runs out of fitting lines,
+  // which takes at least (generic lines + their own lines) draws
+  const drawn: string[] = [];
+  const minSolo = SOLO.length + Math.min(...Object.values(PERSONAL).map((x) => x.length));
+  for (let i = 0; i < minSolo; i++) {
+    const p = roasts.poolFor([[V, K, L][Math.floor(Math.random() * 3)]]);
+    drawn.push(await roasts.draw(env, p.key, p.all, p.lines));
+  }
+  expect(new Set(drawn).size).toBe(drawn.length);
+
+  const pairs = [[V, K], [V, L], [K, L]];
+  const duo: string[] = [];
+  for (let i = 0; i < DUO.length + Math.min(...Object.values(PAIRS).map((x) => x.length)); i++) {
+    const p = roasts.poolFor(pairs[i % 3]);
+    duo.push(await roasts.draw(env, p.key, p.all, p.lines));
+  }
+  expect(new Set(duo).size).toBe(duo.length);
+  // personal lines only ever land on their own person
+  for (const l of drawn) if (!SOLO.includes(l)) expect(Object.values(PERSONAL).filter((x) => x.includes(l)).length).toBe(1);
+});
+
+test("roast rotation: a full cycle, then a fresh one that doesn't open with the last line", async () => {
+  const K = "212567787896307713";
+  const p = roasts.poolFor([K]);
+  const cycle: string[] = [];
+  for (let i = 0; i < p.lines.length; i++) cycle.push(await roasts.draw(env, p.key, p.all, p.lines));
+  expect(new Set(cycle).size).toBe(p.lines.length); // every line that fits Koral, once
+  const first = await roasts.draw(env, p.key, p.all, p.lines);
+  expect(first).not.toBe(cycle[cycle.length - 1]);
+});
+
+test("roast rotation survives edits: stale queue entries (old indices, removed lines) are dropped", async () => {
+  await t.db.insert(roastBags).values({ pool: "trio", queue: [0, 3, "a line that was deleted"], last_line: null });
+  const line = await roasts.draw(env, "trio", roasts._pools.TRIO, roasts._pools.TRIO);
+  expect(roasts._pools.TRIO).toContain(line);
+});
+
+test("every line is unique within its family (rotation goes by the text)", () => {
+  const { SOLO_ALL, DUO_ALL, TRIO } = roasts._pools;
+  for (const fam of [SOLO_ALL, DUO_ALL, TRIO, memeshame.ALL]) expect(new Set(fam).size).toBe(fam.length);
+});
+
+test("meme call-outs share one bag too", async () => {
+  const [V, K, L] = ["306836805825593344", "212567787896307713", "747902984003780651"];
+  const drawn: string[] = [];
+  for (let i = 0; i < memeshame.LINES.length + 3; i++) {
+    const u = [V, K, L][i % 3];
+    drawn.push(await roasts.draw(env, "memes", memeshame.ALL, memeshame.fitsFor(u)));
+  }
+  expect(new Set(drawn).size).toBe(drawn.length);
 });
 
 test("roast pools: personal lines join the right pools", () => {

@@ -1,6 +1,6 @@
 // 😐 Meme slackers: every evening (19:00 Vilnius) the bot looks at the last few daily memes, and
 // whoever stopped voting on them (skipped the last 3 in a row, or voted on 1 or fewer of the last
-// 5) gets called out in #daily-memes. Lines rotate like the roasts (roasts.ts shuffle-bags), and
+// 5) gets called out in #daily-memes. Lines rotate like the roasts (roasts.ts shared bags), and
 // nobody gets it more than once every 3 days.
 import { and, desc, eq, gt, inArray, like, lte, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
@@ -67,6 +67,9 @@ const PERSONAL: Record<string, string[]> = {
   ],
 };
 
+export const ALL = [...LINES, ...Object.values(PERSONAL).flat()];
+export const fitsFor = (user: string) => [...LINES, ...(PERSONAL[user] ?? [])];
+
 const fmtDay = (iso: string) => `<t:${Math.floor(Date.parse(iso) / 1000)}:D>`;
 
 /** Who stopped voting on the daily memes, and how badly. */
@@ -111,7 +114,8 @@ export async function evening(env: Env) {
         .where(and(like(recaps.period, `meme-shamed:${s.user}:%`), gt(recaps.posted_at, cooldownSince)));
       if (recently) continue;
       if (!(await claimRecap(env, `meme-shamed:${s.user}:${l.day}`))) continue;
-      const line = (await roasts.nextFrom(env, `memes:${s.user}`, [...LINES, ...(PERSONAL[s.user] ?? [])]))
+      // one bag for everybody's call-outs: no line repeats in the channel until all have been used
+      const line = (await roasts.draw(env, "memes", ALL, fitsFor(s.user)))
         .replaceAll("{who}", `<@${s.user}>`)
         .replaceAll("{n}", String(s.missed))
         .replaceAll("{since}", s.since ? fmtDay(s.since) : "forever");

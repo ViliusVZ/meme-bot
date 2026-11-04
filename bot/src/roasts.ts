@@ -1,7 +1,11 @@
-// 🔥 Roasts for whoever sank a game night: said no, never voted in time, or bailed. One pool for a
-// single culprit (generic lines plus their personal ones), one per pair (generic plus pair-specific),
-// and one for when all three of us flaked, where the bot sulks on its own. Lines rotate through a
-// shuffle-bag kept in the database: nothing repeats until a pool is used up, restarts included.
+// 🔥 Roasts for whoever sank a game night: said no, never voted in time, or bailed. A single culprit
+// gets a generic line or one of their personal ones, a pair a generic duo line or one written for
+// that pair, and when all three of us flake the bot sulks on its own.
+//
+// Rotation: each family (solo, duo, trio, and the meme call-outs) is ONE shuffle-bag shared by
+// everybody and kept in the database, so restarts don't reset it. A draw takes the first line in
+// the bag that fits the culprit (generic, or their own), so no line shows up twice in the chat
+// until the whole family has had its turn, whoever it lands on.
 //
 // Placeholders: {who} the culprit, {a} {b} the two culprits, {V} {K} {L} a specific person.
 import { eq, sql } from "drizzle-orm";
@@ -148,12 +152,15 @@ const TRIO = [
 
 const mention = (id: string) => `<@${id}>`;
 
-/** Which pool a set of culprits draws from, and its lines. */
-export function poolFor(users: string[]): { key: string; lines: string[] } {
+const SOLO_ALL = [...SOLO, ...Object.values(PERSONAL).flat()];
+const DUO_ALL = [...DUO, ...Object.values(PAIRS).flat()];
+
+/** Which family a set of culprits draws from: `all` its whole bag, `lines` the ones that fit them. */
+export function poolFor(users: string[]): { key: string; all: string[]; lines: string[] } {
   const ids = [...new Set(users)].sort();
-  if (ids.length >= 3) return { key: "trio", lines: TRIO };
-  if (ids.length === 2) return { key: `duo:${ids.join("+")}`, lines: [...DUO, ...(PAIRS[ids.join("+")] ?? [])] };
-  return { key: `solo:${ids[0]}`, lines: [...SOLO, ...(PERSONAL[ids[0]] ?? [])] };
+  if (ids.length >= 3) return { key: "trio", all: TRIO, lines: TRIO };
+  if (ids.length === 2) return { key: "duo", all: DUO_ALL, lines: [...DUO, ...(PAIRS[ids.join("+")] ?? [])] };
+  return { key: "solo", all: SOLO_ALL, lines: [...SOLO, ...(PERSONAL[ids[0]] ?? [])] };
 }
 
 /** Fill in the mentions. */
@@ -168,36 +175,47 @@ export function fill(line: string, users: string[]) {
     .replaceAll("{L}", mention(L));
 }
 
-function shuffled(n: number, avoidFirst?: number) {
-  const out = Array.from({ length: n }, (_, i) => i);
-  for (let i = n - 1; i > 0; i--) {
+function shuffled<T>(xs: T[]) {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
   }
-  // a fresh bag never starts with the line the last one ended on
-  if (n > 1 && out[0] === avoidFirst) [out[0], out[1]] = [out[1], out[0]];
   return out;
 }
 
-/** The next line for these culprits, from their pool's shuffle-bag. */
+/** The next line for these culprits, from their family's shared shuffle-bag. */
 export async function next(env: Env, users: string[]) {
-  const { key, lines } = poolFor(users);
-  return fill(await nextFrom(env, key, lines), users);
+  const { key, all, lines } = poolFor(users);
+  return fill(await draw(env, key, all, lines), users);
 }
 
-/** The next line from any pool's shuffle-bag (no repeats until the pool is used up). */
-export async function nextFrom(env: Env, key: string, lines: string[]) {
-  const pick = await env.db.transaction(async (tx) => {
-    // the row lock keeps two roasts at once from drawing the same line
-    await tx.insert(roastBags).values({ pool: key, queue: [], last: null }).onConflictDoNothing();
-    const [bag] = await tx.select().from(roastBags).where(eq(roastBags.pool, key)).for("update");
-    let queue = bag.queue.filter((i) => i < lines.length); // lines may have been edited since
-    if (!queue.length) queue = shuffled(lines.length, bag.last ?? undefined);
-    const [i, ...rest] = queue;
-    await tx.update(roastBags).set({ queue: rest, last: i, updated_at: sql`now()` }).where(eq(roastBags.pool, key));
-    return i;
+/**
+ * Draw from a family's shared shuffle-bag: the first line still in the bag that's in `fits`. Once
+ * none of the lines that fit are left, the whole family starts a fresh cycle. Within a cycle no
+ * line comes up twice, for anyone. The bag holds the lines themselves, so editing a pool can't
+ * shift what's queued: removed lines drop out, new ones join at the next cycle.
+ */
+export async function draw(env: Env, family: string, all: string[], fits: string[]) {
+  if (!fits.length) throw new Error(`no lines fit in ${family}`);
+  const inFamily = new Set(all);
+  const ok = new Set(fits);
+  return env.db.transaction(async (tx) => {
+    // the row lock keeps two draws at once from taking the same line
+    await tx.insert(roastBags).values({ pool: family, queue: [], last_line: null }).onConflictDoNothing();
+    const [bag] = await tx.select().from(roastBags).where(eq(roastBags.pool, family)).for("update");
+    let queue = bag.queue.filter((l): l is string => typeof l === "string" && inFamily.has(l));
+    let at = queue.findIndex((l) => ok.has(l));
+    if (at === -1) {
+      // cycle done (for this culprit): refill, and don't open with the line the chat saw last
+      queue = shuffled(all);
+      at = queue.findIndex((l) => ok.has(l) && l !== bag.last_line);
+      if (at === -1) at = queue.findIndex((l) => ok.has(l));
+    }
+    const [line] = queue.splice(at, 1);
+    await tx.update(roastBags).set({ queue, last_line: line, updated_at: sql`now()` }).where(eq(roastBags.pool, family));
+    return line;
   });
-  return lines[pick];
 }
 
-export const _pools = { SOLO, PERSONAL, DUO, PAIRS, TRIO };
+export const _pools = { SOLO, PERSONAL, DUO, PAIRS, TRIO, SOLO_ALL, DUO_ALL };

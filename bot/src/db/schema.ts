@@ -130,9 +130,9 @@ export const games = pgTable("games", {
 
 /** 🔥 Shuffle-bags for roast lines (roasts.ts): what's left of each pool, so nothing repeats too soon. */
 export const roastBags = pgTable("roast_bags", {
-  pool: text().primaryKey(), // solo:<id> | duo:<id>+<id> | trio
-  queue: jsonb().notNull().$type<number[]>(), // line indices still to come
-  last: integer(), // the line used last (a fresh bag never starts with it)
+  pool: text().primaryKey(), // solo | duo | trio | memes: one shared bag per family
+  queue: jsonb().notNull().$type<unknown[]>(), // the lines still to come this cycle
+  last_line: text(), // the line drawn last (a fresh cycle never opens with it)
   updated_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
