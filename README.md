@@ -93,10 +93,11 @@ the bot checks where each player is:
 - **anywhere else, 10 min after the start** → one late slip pings them: 🏃 5 / 15 / 30 min (an ETA)
   or 😴 can't make it. Only the late person can answer their slip.
 
-"Can't make it" after the start (or once the start ping has gone out) only marks that person
-absent: the others are already playing. Before the start it cancels the night as usual, and a
-cancelled card offers 🔄 **Reopen** for the rest of that day. The Discord event goes live at the
-start and is marked ended when the room is archived.
+We play all together or not at all: "Can't make it" (on the card, or 😴 on a late slip) calls the
+night off for everyone, before or after the start. The bailer gets 🔥 roasted, the Discord event
+ends, and everyone's late slips say the night's off. A cancelled card offers 🔄 **Reopen** for the
+rest of that day. The Discord event goes live at the start and is marked ended when the room is
+archived.
 
 ## Reliability notes
 - A minute job runs every job; each job, each night and each player is isolated, so one
