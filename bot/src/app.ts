@@ -199,7 +199,10 @@ export function build(env: Env, status: Status) {
           return r;
         }
         case "poll-render":
-          return polls.renderPoll(env, Number(input.poll));
+          return polls.renderPoll(env, Number(input.poll), input.user);
+        case "copy":
+          // someone's private copy of a card (what they see after tapping it)
+          return gn.render(env, input.day ?? gn.local(env).day, input.user);
         case "tb": {
           // simulate a player's tiebreak click (no animation), then refresh the host card
           const t = await tiebreakTurn(quiet, Number(input.id), input.user, input.choice, input.value);
