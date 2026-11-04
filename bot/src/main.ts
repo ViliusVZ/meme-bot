@@ -24,7 +24,6 @@ console.log(`listening on :${config.PORT}`);
 
 // ---------------------------------------------------------------- leadership
 const stopLeading = new AbortController();
-let duties: { stop: () => Promise<void> } | null = null;
 
 async function lead() {
   while (!stopLeading.signal.aborted) {
@@ -34,29 +33,43 @@ async function lead() {
     if (!lock) return;
     leader = true;
     console.log("leader: took over");
-    try {
-      const watcher = live.start(env);
-      const clock = scheduler.start(env);
-      const gw = await gateway.connect(env, () => void watcher.resync());
-      duties = {
-        stop: async () => {
-          await gw.close().catch((e) => console.log("gateway close", e));
-          await Promise.all([clock.stop(), watcher.stop()]);
-        },
-      };
-      // lead until we lose the lock (connection died) or shut down
-      await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
-    } catch (e) {
-      console.log("leader: duties failed", e);
-    }
+    const done = new AbortController();
+    const watcher = live.start(env);
+    const clock = scheduler.start(env);
+    // the gateway connects in the background, retrying with back-off (say, Discord is down); until
+    // it's up, voice lookups fall back to REST and everything else carries on as normal
+    const gw = connectGateway(() => void watcher.resync(), done.signal);
+    // lead until we lose the lock (connection died) or shut down
+    await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
     leader = false;
-    const d = duties;
-    duties = null;
-    await d?.stop().catch((e) => console.log("leader: stop failed", e));
+    done.abort();
+    await (await gw)?.close().catch((e) => console.log("gateway close", e));
+    await Promise.all([clock.stop(), watcher.stop()]).catch((e) => console.log("leader: stop failed", e));
     await lock.release();
     console.log("leader: stepped down");
     if (!stopLeading.signal.aborted) await new Promise((ok) => setTimeout(ok, 2000));
   }
+}
+
+async function connectGateway(onSnapshot: () => void, signal: AbortSignal) {
+  for (let attempt = 0; !signal.aborted; attempt++) {
+    try {
+      const gw = await gateway.connect(env, onSnapshot);
+      if (signal.aborted) {
+        await gw.close();
+        return null;
+      }
+      return gw;
+    } catch (e) {
+      const wait = Math.min(60_000, 2000 * 2 ** attempt);
+      console.log(`gateway: connect failed, retrying in ${wait / 1000} s`, String(e));
+      await new Promise<void>((ok) => {
+        const t = setTimeout(ok, wait);
+        signal.addEventListener("abort", () => (clearTimeout(t), ok()), { once: true });
+      });
+    }
+  }
+  return null;
 }
 const leading = lead();
 
