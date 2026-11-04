@@ -114,6 +114,16 @@ test("the stats card reads right", async () => {
   expect(text).toMatch(/usually starting around \*\*19:00\*\*/);
 });
 
+test("voice time alone: no '0m together' headline; a shared card says who shared it", async () => {
+  await put(seg("a", LOBBY, 0, 1));
+  await t.db.insert(gameNights).values({ day: "2026-11-06", stage: "off", game: null, start_at: null, reminded: false });
+  const text = (await act.statsBody(env, "This week", await crunch())).join("\n");
+  expect(text).not.toMatch(/Together · /);
+  expect(text).toMatch(/No calls with two or more of you yet/);
+  vi.setSystemTime((T0 + 2 * H) * 1000); // same week
+  expect(JSON.stringify(await act.statsPanel(env, "week", 0, "a"))).toContain("Shared by <@a>");
+});
+
 test("a quiet period says so", async () => {
   const text = (await act.statsBody(env, "This week", await crunch())).join("\n");
   expect(text).toMatch(/Nothing yet/);

@@ -1002,7 +1002,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
         .returning({ day: gameNights.day });
       if (claimed.length) {
         const left = Math.max(1, Math.round((deadline - t) / 60));
-        await nudge(env, n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 Liko ${left} min ⬆️`);
+        await nudge(env, n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
         done[`warned ${n.day}`] = missing;
       }
       return;

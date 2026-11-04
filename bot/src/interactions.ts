@@ -85,7 +85,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const [, kind, off, share] = cid.split(":");
     const k = (["week", "month", "year", "all"].includes(kind) ? kind : "week") as activity.Kind;
     const offset = Math.min(0, Math.max(-520, Number(off) || 0));
-    if (share) return reply({ type: R.Message, data: await activity.statsPanel(env, k, offset, true) });
+    if (share) return reply({ type: R.Message, data: await activity.statsPanel(env, k, offset, user.id) });
     return reply({ type: R.UpdateMessage, data: await activity.statsPanel(env, k, offset) });
   }
 

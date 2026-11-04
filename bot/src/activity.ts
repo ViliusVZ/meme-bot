@@ -251,7 +251,7 @@ export async function statsBody(env: Env, title: string, s: Crunched, prev?: Cru
   }
 
   const longest = s.calls.reduce<Call | null>((a, c) => (!a || c.end - c.start > a.end - a.start ? c : a), null);
-  const together = [`### 📞 Together · **${dur(s.total)}**`];
+  const together = s.total ? [`### 📞 Together · **${dur(s.total)}**`] : ["### 📞 Together", "No calls with two or more of you yet."];
   if (s.calls.length) {
     together.push(
       `${s.calls.length} call${s.calls.length === 1 ? "" : "s"} · longest **${dur(longest!.end - longest!.start)}** (<t:${longest!.start}:f>)${s.calls.length > 1 ? ` · average ${dur(s.total / s.calls.length)}` : ""}`,
@@ -301,7 +301,8 @@ const KINDS: [Kind, string][] = [
 ];
 
 /** 📊 The interactive stats panel (private): pick week/month/year/all time, step back and forth, share. */
-export async function statsPanel(env: Env, kind: Kind = "week", offset = 0, shared = false) {
+export async function statsPanel(env: Env, kind: Kind = "week", offset = 0, sharedBy?: string) {
+  const shared = !!sharedBy;
   const { from, to } = period(env, kind, offset);
   const s = await crunch(env, from, to);
   const prevName = kind === "all" ? undefined : offset === 0 ? `last ${kind}` : `the ${kind} before`;
@@ -316,7 +317,8 @@ export async function statsPanel(env: Env, kind: Kind = "week", offset = 0, shar
     ...(emoji ? { emoji: { name: emoji } } : {}),
   });
   const components: unknown[] = [...body];
-  if (!shared) {
+  if (shared) components.push({ type: 10, content: `-# 📣 Shared by ${mention(sharedBy!)}` });
+  else {
     components.push(
       { type: 1, components: KINDS.map(([k, name]) => btn(k === kind ? 1 : 2, name, `st:${k}:0`)) },
       {
