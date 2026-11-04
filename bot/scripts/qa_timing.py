@@ -7,9 +7,9 @@ import subprocess
 import sys
 import time
 
-from target import BOT_ID, GAME_CHANNEL
+from target import GAME_CHANNEL
 from dc import admin, call
-from qa_guard import GAME_CHANNEL, TEST_DAYS, Snapshot, quiet_window, require_idle, vilnius
+from qa_guard import TEST_DAYS, Snapshot, require_idle, vilnius
 
 sys.stdout.reconfigure(encoding="utf-8")
 V, K, L = "306836805825593344", "212567787896307713", "747902984003780651"
@@ -51,36 +51,38 @@ print("\n▶ lock-in")
 ok(n["stage"] == "set" and n["event_id"] and n["event_end"] == int(vilnius(DAY, "21:00")), f"locked with an event ending 21:00 (event_end stored: {n['event_end']})")
 
 print("\n▶ a start on the dot")
-quiet_window()
-start = int(time.time()) + 25
+# the leader arms an exact timer for any night starting within 2 minutes, at the top of each minute
+start = (int(time.time()) // 60 + 1) * 60 + 30
 sql(f"UPDATE game_nights SET start_at = {start}, reminded = false WHERE day = '{DAY}'")
-r = admin("/admin/gamenight", {"action": "precise", "within": 40})
-done = time.time()
-ok(r == [DAY], f"the waiting start fired ({r})")
+print(f"    start set to {start - int(time.time())}s from now, waiting…")
+time.sleep(max(0, start - time.time() + 6))
 room = sql(f"SELECT channel_id, created_at FROM rooms WHERE day = '{DAY}'")
 ok(len(room) == 1, "a room was opened")
-room_ms = snowflake_ms(room[0]["channel_id"])
+room_ms = snowflake_ms(room[0]["channel_id"]) if room else 0
 ok(start * 1000 - 15000 <= room_ms < start * 1000, f"the room opened {start - room_ms / 1000:.1f}s before the start")
 pings = [m for m in call("GET", f"/channels/{GAME_CHANNEL}/messages?after={snap.marker}&limit=50") if "starts now" in (m.get("content") or "")]
 ok(len(pings) == 1, "one start ping")
 lag = snowflake_ms(pings[0]["id"]) / 1000 - start if pings else 99
-ok(0 <= lag < 2, f"the ping went out {lag:.2f}s after the start time (moves happen just before it)")
+ok(0 <= lag < 1.5, f"the ping went out {lag:.2f}s after the start time (moves happen just before it)")
 ev = call("GET", f"/guilds/{{guild}}/scheduled-events/{n['event_id']}")
 ok(ev.get("status") == 2, "the event went live")
-r = admin("/admin/gamenight", {"action": "precise", "within": 5})
-ok(r == [], "nothing fires twice")
-ok(sql(f"SELECT reminded FROM game_nights WHERE day = '{DAY}'")[0]["reminded"] is True, "the start is claimed once")
+ok(sql(f"SELECT reminded FROM game_nights WHERE day = '{DAY}'")[0]["reminded"] is True, "the start is claimed")
+print("    waiting for the next minute's jobs…")
+time.sleep(65)
+pings = [m for m in call("GET", f"/channels/{GAME_CHANNEL}/messages?after={snap.marker}&limit=50") if "starts now" in (m.get("content") or "")]
+ok(len(pings) == 1, "nothing fires twice (the minute job sees it's started)")
 
 print("\n▶ wrap-up 15 minutes after the last person leaves")
 now = int(time.time())
 other = admin("/admin/gamenight", {"action": "room", "game": QA_ROOM, "emoji": "🧪"})
-sql(f"UPDATE rooms SET last_seen = {now - 14 * 60 - 20} WHERE day = '{DAY}'")  # left 14m20s ago
+sql(f"UPDATE rooms SET last_seen = {now - 15 * 60 + 15} WHERE day = '{DAY}'")  # left 14m45s ago
 sql(f"UPDATE rooms SET last_seen = {now - 13 * 60} WHERE channel_id = '{other['channelId']}'")  # left 13 min ago
 before = time.time()
-r = admin("/admin/gamenight", {"action": "watch", "within": 70})
-# (the real tick's own minute sweep may get there first; either way it's the same 15-minute rule)
-archived = sql(f"SELECT archived_at FROM rooms WHERE day = '{DAY}'")[0]["archived_at"]
-ok(archived is not None and "QA Test Room" not in r, f"right at the 15-minute mark the empty room is archived ({r}, {time.time() - before:.0f}s)")
+archived = None
+while time.time() - before < 90 and archived is None:
+    time.sleep(3)
+    archived = sql(f"SELECT archived_at FROM rooms WHERE day = '{DAY}'")[0]["archived_at"]
+ok(archived is not None and archived >= now + 15, f"the empty room is archived once its 15 minutes are up ({archived and archived - now}s after setup)")
 ev = call("GET", f"/guilds/{{guild}}/scheduled-events/{n['event_id']}")
 ok(ev.get("status") == 3, f"and the night's event ended (status {ev.get('status')})")
 ok(sql(f"SELECT archived_at FROM rooms WHERE channel_id = '{other['channelId']}'")[0]["archived_at"] is None, "the other room is still open")

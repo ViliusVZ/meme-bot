@@ -78,11 +78,11 @@ def require_idle():
 
 
 def quiet_window():
-    """Wait until a scheduled tick has just run (15 s to 3 min past a 5-minute mark). A test night
-    whose start is moved to "now" in this window is only ever seen by the quiet admin route, never
-    by a real tick, which would ping everyone for real."""
-    while not 15 <= time.time() % 300 <= 180:
-        time.sleep(5)
+    """Wait until the leader's minute jobs have just run (3 to 25 s past the minute). A step that
+    moves a test night's start to "now" and then runs the quiet admin tick does it in this window,
+    so the admin tick gets there first and the result is deterministic."""
+    while not 3 <= time.time() % 60 <= 25:
+        time.sleep(1)
 
 
 class Snapshot:

@@ -261,6 +261,7 @@ ok(ev.get("status") == 2, f"the event went live (status {ev.get('status')})")
 tk = admin("/admin/gamenight", {"action": "tick"})
 ok("reminded" not in tk["maintain"], "the reminder doesn't fire twice")
 ok(not tk["late"], "no late slips before the 10-minute grace")
+quiet_window()
 sql(f"UPDATE game_nights SET start_at = {now - 660} WHERE day = '{D3}'")
 tk = admin("/admin/gamenight", {"action": "tick"})
 slipped = (tk["late"] or {}).get("slipped", [])
@@ -287,6 +288,7 @@ cs = [c for c in channels() if c["name"] == f"🧪 {QA_ROOM}"]
 ok(len(cs) == 1, f"exactly one channel exists ({len(cs)})")
 
 section("session over: room archived, event ended")
+quiet_window()
 for rm in sql(f"SELECT channel_id FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}'"):
     sql(f"UPDATE rooms SET last_seen = {now - 1500}, created_at = {now - 4000} WHERE channel_id = '{rm['channel_id']}'")
 tk = admin("/admin/gamenight", {"action": "rooms"})
