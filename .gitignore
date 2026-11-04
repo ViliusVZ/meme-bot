@@ -1,0 +1,2 @@
+# the retired Cloudflare Worker's local leftovers (node_modules, .dev.vars)
+worker/

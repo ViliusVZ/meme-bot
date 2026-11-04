@@ -12,8 +12,8 @@ Terrible Trio's game nights (polls, rooms, latecomers, tiebreakers, 📊 stats).
 
 **The bot lives in [`bot/`](bot/README.md)** (Node 24, Fastify, Drizzle/Postgres, `@discordjs/ws`),
 deployed by GitHub Actions to the VPS ([server config](https://github.com/ViliusVZ/server)).
-`worker/` is the retired Cloudflare Worker (moved to the VPS on 2026-11-04); the feature notes
-below still describe the behaviour, and file references like `src/gamenight.ts` now mean `bot/src/`.
+It moved off Cloudflare Workers on 2026-11-04 (the old Worker is in git history). File references
+below like `src/gamenight.ts` mean `bot/src/`.
 
 - **No duplicates, ever:** the database has a unique index allowing one daily meme per day, and a
   meme can only be claimed once (daily or `/meme`).
@@ -22,9 +22,8 @@ below still describe the behaviour, and file references like `src/gamenight.ts` 
 - **Recaps:** Meme of the Week (Sun 18:00 UTC), Meme of the Month (1st, 09:00 UTC).
 - **Commands:** `/meme` (random recent banger), `/top [week|month|all]`, `/stats [user]`, `/hall-of-fame`.
 
-Reddit is fetched from GitHub Actions because Reddit's RSS works reliably from there. The Worker
-posts the daily meme itself on its 5-minute tick (from 10:00 UTC), from memes already ingested, so a
-late GitHub cron run doesn't delay it.
+The bot refills the meme pool from Reddit's RSS every 6 hours (and right before the daily post),
+then posts the daily meme from 10:00 UTC, once per day.
 
 ## Game night (`src/gamenight.ts`)
 Every day at 17:00 Lithuanian time (or earlier, when anyone runs `/playtoday`) a card appears in
@@ -59,33 +58,35 @@ needs the others' input sends one nudge ping, which is deleted when the next one
   Future-day cards offer 16:00–21:00 start times; the 17:00 job skips any day that's already planned.
 - Anyone a stage has been waiting on for an hour gets one extra reminder ping.
 - `/games list|add|remove` edits the game list.
-- Time logic tests (DST, presets, parsing): `cd worker && node test/time.test.mjs`.
-- Players, channel, timezone and poll hour are in `wrangler.toml` (`PLAYERS`, `GAME_CHANNEL_ID`,
-  `TIMEZONE`, `GAME_POLL_HOUR`). One `*/5` cron handles the poll, reminders, starts and rooms.
+- 🔥 **Deadlines and roasts:** every vote closes 3 h after it opens (never between midnight and
+  09:30; days planned ahead get until noon on the day), with a ⏳ last call 30 min before. Votes
+  stay secret until everyone's in or time's up. Then a ❌ no, a missing vote or a 🚪 bail calls the
+  night off and the culprits get roasted (`src/roasts.ts`: LT/EN, pools for one person with
+  personal lines, each pair, and all three; a shuffle-bag in the database keeps lines from repeating).
+- Players, channels, timezone and poll hour are in `bot/deploy/prod.env`.
 - Testing without pinging anyone: `/admin/gamenight` with `{"action": "start" | "tick" | "reset"}` or
-  `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`.
-  `worker/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
+  `{"action": "vote", "user": "<id>", "choice": "yes|no|game|suggest|time|custom|out", "value": "..."}`,
+  on the test bot. `bot/scripts/dc.py` calls the Discord API as the bot (via `/admin/discord`).
 
 ## 🔊 Lobby and game rooms (`src/voice.ts`)
 Hang out in **🛋️ Lobby**. When a locked-in game night starts, the bot opens a voice room for the
 game right under the Lobby (96 kbps), moves every player who's in the Lobby into it, and links it
-in the start ping. Starts are on the dot: the tick before a start waits for it, opens the room
-~10 s early, and moves everyone and pings at the exact minute (the 5-minute tick is only the
-fallback). **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
+in the start ping. Starts are on the dot: a timer armed two minutes ahead opens the room ~10 s
+early, then moves everyone and pings at the exact second (the minute job is only the fallback). **🔊 Game room** on the panel (or `/room`) does the same on demand: pick a game
 or type something else. One open room per game: asking again reuses it.
 
 Rooms tidy themselves: 15 min after the last person leaves (an hour if nobody ever joined) →
-moved to **🗄️ Recent games**, and the night's Discord event ends → deleted after 3 days. While anyone is
-in voice, rooms are re-checked every minute (each scheduled tick lingers until the next one); an
-empty room is checked again exactly when its 15 minutes are up, and while people
-are still playing near the event's planned end, the end is pushed back so Discord doesn't end it early. Joining an archived room brings it back.
-The archive category exists only while it has something in it; rooms deleted by hand are simply
-forgotten. The bot has no gateway, so occupancy comes from `GET /guilds/{id}/voice-states/{user}`
-for each player; if that lookup fails, the tick skips room maintenance rather than archive on a
-guess. QA: `scripts/qa_rooms.py`.
+moved to **🗄️ Recent games**, and the night's Discord event ends → deleted after 3 days. The bot
+sees voice live through the Discord gateway: the moment the last person leaves, a timer is set for
+exactly 15 minutes later. While people are still playing near the event's planned end, the end is
+pushed back so Discord doesn't end it early. Joining an archived room brings it back. The archive
+category exists only while it has something in it; rooms deleted by hand are simply forgotten.
+While the gateway is reconnecting, voice lookups fall back to REST, and nothing is archived on a
+guess. QA: `bot/scripts/qa_rooms.py`, `qa_timing.py`.
 
 ## ⏰ Latecomers (`src/late.ts`)
-Once a night has started (its room is open), every tick checks where each player is:
+Once a night has started (its room is open), every minute and the moment anyone joins the Lobby,
+the bot checks where each player is:
 - **in the room** → here. A late slip, if they had one, becomes "✅ made it, 12 min late".
 - **in the Lobby** → pulled into the room, once. Anyone already marked as here is never dragged
   back, so stepping out to the Lobby on purpose works.
@@ -98,24 +99,23 @@ cancelled card offers 🔄 **Reopen** for the rest of that day. The Discord even
 start and is marked ended when the room is archived.
 
 ## Reliability notes
-- One 5-minute tick runs every job; each job, each night and each player is isolated, so one
-  failure can't stall the rest. A start ping that fails is retried on the next tick.
-- Nothing is decided on a guess: if a voice lookup fails, rooms and latecomers wait a tick.
+- A minute job runs every job; each job, each night and each player is isolated, so one
+  failure can't stall the rest. A start ping that fails is retried the next minute.
+- Nothing is decided on a guess: if a voice lookup fails, rooms and latecomers wait a minute.
 - POSTs are never auto-retried on 5xx (they may have gone through); everything that must happen
   once (cards, rooms, slips, reminders, tiebreak results) is claimed in the database first.
-- Interaction follow-ups retry when Discord hasn't registered the reply yet. Smart Placement
-  keeps the Worker near D1 so clicks answer well inside Discord's 3 seconds.
+- Interaction follow-ups retry when Discord hasn't registered the reply yet. The database sits next
+  to the bot, so clicks are answered in tens of milliseconds.
 - Re-nudges respect quiet hours (none between 00:00 and 09:00).
 - Time cards stay open after midnight for 🌙 starts (until 06:00); other cards close at midnight.
 
-QA: `node test/time.test.mjs`, `node test/tiebreak.test.mjs` (unit), then `python scripts/qa_all.py`
-(end-to-end against the live bot, quiet, cleans up), plus `qa_tiebreak.py` and `qa_rooms.py`.
+QA: `cd bot && npm test` (100 tests against a real Postgres, every query runs), then
+`python scripts/qa_all.py` (end-to-end on the test bot, cleans up), plus `qa_tiebreak.py`,
+`qa_rooms.py`, `qa_stats.py` and `qa_timing.py`.
 
 ## 📊 Voice time and game stats (`src/activity.ts`)
-The bot checks which voice channel each player is in (once a minute while anyone is in voice, once
-per 5-minute tick while nobody is) and records it as segments (who, which channel, which game
-room, first and last seen). Calls and game time are accurate to about a minute; only the first
-join after a quiet spell can be up to 5 minutes late, before anyone else is there. A **call** is a stretch with at least two of us in the same channel;
+The bot sees every voice join, leave and move live (Discord gateway) and records it as segments
+(who, which channel, which game room, from when to when), accurate to the second. A **call** is a stretch with at least two of us in the same channel;
 hopping from the Lobby into a game room together, or a gap under 3 minutes, doesn't end it. Game
 time is time together in that game's room; together time elsewhere counts as hanging out.
 
