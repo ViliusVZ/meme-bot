@@ -45,5 +45,6 @@ env = pathlib.Path(__file__).resolve().parent.parent / "deploy" / "dev.env"
 text = env.read_text()
 for key, value in {"GAME_CHANNEL_ID": game_night, "LOBBY_CHANNEL_ID": lobby, "VOICE_CATEGORY_ID": voice_cat, "CHANNEL_ID": daily}.items():
     text = re.sub(rf"^{key}=.*$", f"{key}={value}", text, flags=re.M)
-env.write_text(text)
+env.write_text(text, newline="
+")
 print(f"game-night {game_night} · lobby {lobby} · voice {voice_cat} · daily-memes {daily} → {env.name}")

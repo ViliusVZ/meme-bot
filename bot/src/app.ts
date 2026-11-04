@@ -71,6 +71,10 @@ export function build(env: Env, status: Status) {
     return503OnClosing: true,
   });
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => done(null, body));
+  app.setErrorHandler((e, req, res) => {
+    console.log("http error", req.method, req.url, e);
+    res.code(500).send({ error: String(e) });
+  });
 
   app.get("/health", async (_req, res) => {
     // ready to serve clicks: the database answers. (Leadership is separate: a follower serves too.)

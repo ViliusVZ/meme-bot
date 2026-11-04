@@ -96,7 +96,8 @@ export async function openRoom(env: Env, game: string, emoji: string | null, opt
       .returning({ id: rooms.channel_id });
     if (!claim.length) {
       // someone else is creating this game's room right now: use theirs
-      for (let i = 0; i < 6 && !room; i++) {
+      // (creating a channel and slotting it under the Lobby can take a few seconds under rate limits)
+      for (let i = 0; i < 20 && !room; i++) {
         await sleep(700);
         room = await latestRoom(env, game);
       }
