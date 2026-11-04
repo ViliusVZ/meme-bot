@@ -13,7 +13,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 
 from dc import call
-from target import BOT_ID, GAME_CHANNEL, PLAYERS
+from target import BOT_ID, GAME_CHANNEL, PLAYERS, PROD
 # Planning only reaches a week out, so anything past two weeks is never a real night. QA uses the
 # eight days from the first Monday at least 45 days ahead.
 REAL_UNTIL = str(date.today() + timedelta(days=14))
@@ -57,17 +57,19 @@ def wall(ts):
 def require_idle():
     now = int(time.time())
     problems = []
-    for n in sql(f"SELECT day, stage, start_at FROM game_nights WHERE day <= '{REAL_UNTIL}'"):
+    # on the test server nothing is real: its own 17:00 poll and rooms are fair game, QA uses
+    # far-future days anyway. Only voice matters (QA rooms pull people out of the Lobby).
+    for n in sql(f"SELECT day, stage, start_at FROM game_nights WHERE day <= '{REAL_UNTIL}'") if PROD else []:
         if n["stage"] in ("ask", "game", "time"):
             problems.append(f"real night {n['day']} is still voting ({n['stage']})")
         elif n["stage"] == "set" and (n["start_at"] or 0) > now - 3 * 3600:
             # coming up, or in its first 3 hours; a longer session still shows up as a room / voice below
             problems.append(f"real night {n['day']} is on or coming up")
-    for r in sql(f"SELECT game FROM rooms WHERE day IS NULL OR day <= '{REAL_UNTIL}'"):
+    for r in ([] if not PROD else sql(f"SELECT game FROM rooms WHERE archived_at IS NULL AND (day IS NULL OR day <= '{REAL_UNTIL}')")):
         problems.append(f"a real game room is open ({r['game']})")
     utc = time.gmtime(now)
     minutes = utc.tm_hour * 60 + utc.tm_min
-    if 13 * 60 + 50 <= minutes <= 15 * 60 + 10:  # 17:00 Vilnius is 14:00 or 15:00 UTC
+    if PROD and 13 * 60 + 50 <= minutes <= 15 * 60 + 10:  # 17:00 Vilnius is 14:00 or 15:00 UTC
         problems.append("it's around the 17:00 poll")
     for p in PLAYERS:
         if call("GET", f"/guilds/{{guild}}/voice-states/{p}").get("channel_id"):
