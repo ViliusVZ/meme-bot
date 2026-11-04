@@ -1,7 +1,10 @@
 // Import a D1 export (scripts/export_d1.py) into an empty Postgres database, in one transaction.
-//   DATABASE_URL=postgres://… npx tsx scripts/import-d1.ts d1-export.json [--replace]
-// --replace empties the tables first (for re-running a rehearsal). Converts SQLite's 0/1 flags
-// to booleans and JSON-in-text to jsonb, keeps ids, and moves the identity sequences past them.
+//   DATABASE_URL=postgres://… npx tsx scripts/import-d1.ts d1-export.json [--replace | --merge]
+// --replace empties the tables first (for re-running a rehearsal). --merge is for right after the
+// switchover: a second export picks up clicks that reached the old bot between the first export
+// and the switch; rows the new bot already has win (insert-if-missing, nothing is overwritten).
+// Converts SQLite's 0/1 flags to booleans and JSON-in-text to jsonb, keeps ids, and moves the
+// identity sequences past them.
 import { readFileSync } from "node:fs";
 import { sql } from "drizzle-orm";
 import { connect, runMigrations } from "../src/db/index.js";
@@ -23,12 +26,16 @@ const order = [
 
 await db.transaction(async (tx) => {
   const counts = await tx.execute<{ n: number }>(sql`SELECT (SELECT COUNT(*) FROM memes) + (SELECT COUNT(*) FROM game_nights) + (SELECT COUNT(*) FROM games) AS n`);
-  if (Number(counts.rows[0].n) > 0) {
-    if (flag !== "--replace") throw new Error("target isn't empty (use --replace to wipe it first)");
+  const merge = flag === "--merge";
+  if (Number(counts.rows[0].n) > 0 && !merge) {
+    if (flag !== "--replace") throw new Error("target isn't empty (use --replace to wipe it, or --merge to add what's missing)");
     for (const t of order) await tx.delete(t);
   }
   const insert = async (table: any, list: any[]) => {
-    for (let i = 0; i < list.length; i += 500) await tx.insert(table).values(list.slice(i, i + 500));
+    for (let i = 0; i < list.length; i += 500) {
+      const q = tx.insert(table).values(list.slice(i, i + 500));
+      await (merge ? q.onConflictDoNothing() : q);
+    }
   };
   await insert(s.memes, rows("memes"));
   await insert(s.votes, rows("votes"));
@@ -39,7 +46,7 @@ await db.transaction(async (tx) => {
   // games.seq is "generated always": insert in rowid order and let it number them
   for (const g of rows("games").sort((a, b) => a.seq - b.seq)) {
     const { seq: _, ...rest } = g;
-    await tx.insert(s.games).values(rest);
+    await tx.insert(s.games).values(rest as typeof s.games.$inferInsert).onConflictDoNothing();
   }
   await insert(s.polls, rows("polls").map((r) => ({ ...r, options: json(r.options) })));
   await insert(s.pollVotes, rows("poll_votes"));
@@ -66,7 +73,7 @@ const check = await db.execute<{ t: string; n: number }>(sql`
 let ok = true;
 for (const r of check.rows) {
   const want = rows(r.t).length;
-  if (want !== r.n) ok = false;
+  if (process.argv.includes("--merge") ? r.n < want : want !== r.n) ok = false;
   console.log(`${want === r.n ? "✓" : "✗"} ${r.t}: ${r.n}/${want}`);
 }
 await pool.end();
