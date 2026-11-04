@@ -8,6 +8,7 @@ import { api, EPHEMERAL, Response as R, verifySignature } from "./discord.js";
 import { inFlight } from "./background.js";
 import { interaction } from "./interactions.js";
 import * as db from "./memes.js";
+import { memeMessage } from "./ui.js";
 import * as jobs from "./jobs.js";
 import * as gn from "./gamenight.js";
 import * as hub from "./hub.js";
@@ -132,6 +133,21 @@ export function build(env: Env, status: Status) {
     });
 
     admin.post("/admin/register", async () => api(env, "PUT", `/applications/${env.DISCORD_APP_ID}/guilds/${env.GUILD_ID}/commands`, COMMANDS));
+
+    // redraw every posted meme with its current votes and who cast them (after a card change)
+    admin.post("/admin/refresh-memes", async () => {
+      const posted = await env.db.select().from(memes).where(sql`${memes.message_id} IS NOT NULL AND ${memes.channel_id} IS NOT NULL`);
+      const out = { updated: 0, failed: [] as string[] };
+      for (const m of posted) {
+        try {
+          await api(env, "PATCH", `/channels/${m.channel_id}/messages/${m.message_id}`, memeMessage(m, await db.tally(env, m.id), env.SUBREDDIT, await db.voters(env, m.id)));
+          out.updated++;
+        } catch (e) {
+          out.failed.push(`${m.id}: ${String(e).slice(0, 80)}`);
+        }
+      }
+      return out;
+    });
 
     admin.post("/admin/recap", async (req) => (parse(req.body).period === "month" ? jobs.monthlyRecap(env) : jobs.weeklyRecap(env)));
 
