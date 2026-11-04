@@ -21,6 +21,7 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["start", (e) => gn.startNight(e)], // 17:00 poll, unless /playtoday already started one
   ["retry", gn.retryUnposted], // planned days whose card failed to post
   ["maintain", gn.maintain], // refresh time options, re-nudges, starts the timer missed
+  ["roasts", gn.dueRoasts], // 🔥 roasts held overnight go out in the morning
   ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
   ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each

@@ -15,6 +15,7 @@ import {
   pgTable,
   primaryKey,
   text,
+  timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -97,7 +98,14 @@ export const gameNights = pgTable("game_nights", {
   renudged: text(), // stage whose one-off "still waiting on you" ping went out
   conflict: text(), // last start/leave-by clash we pinged about (one ping per clash)
   event_end: unix("event_end"), // the Discord event's current end, pushed back while people still play
+  warned: text(), // stage whose "30 min left to vote" warning went out
+  roast: jsonb().$type<Roast>(), // who sank the night and how (roasts.ts), set when it's called off
+  roast_due: unix("roast_due"), // when to post the roast (held until morning if it happened at night)
+  roasted_at: unix("roasted_at"), // posted (claimed) at
 });
+
+export type Reason = "no" | "ghost" | "out";
+export type Roast = { who: Record<string, Reason>; stage: Stage };
 
 export const gameNightVotes = pgTable(
   "game_night_votes",
@@ -118,6 +126,14 @@ export const games = pgTable("games", {
   added_at: text().notNull(),
   plays: integer().notNull().default(0),
   seq: integer().generatedAlwaysAsIdentity(), // insertion order, the tie-break after plays
+});
+
+/** 🔥 Shuffle-bags for roast lines (roasts.ts): what's left of each pool, so nothing repeats too soon. */
+export const roastBags = pgTable("roast_bags", {
+  pool: text().primaryKey(), // solo:<id> | duo:<id>+<id> | trio
+  queue: jsonb().notNull().$type<number[]>(), // line indices still to come
+  last: integer(), // the line used last (a fresh bag never starts with it)
+  updated_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------- polls

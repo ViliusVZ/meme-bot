@@ -7,12 +7,19 @@
 //          latecomers are handled (late.ts)
 //   off  → someone bailed, or the day ended before we agreed (🔄 reopen works the same day)
 //
+// 🔥 Every vote has a deadline (voteDeadline: 3 h, smart about nights and planned days). Votes stay
+// secret until everyone's in or the deadline hits; a ❌ no alone doesn't end anything early. If the
+// night falls through (someone said no, didn't vote in time, or bailed with 🚪), it's called off
+// and the culprits get roasted (roasts.ts), 30 min after a warning to anyone who hasn't voted.
+//
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, tiebreaks, type Stage, type Tx } from "./db/index.js";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
+import * as roasts from "./roasts.js";
+import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
 import * as tiebreak from "./tiebreak.js";
 import * as voice from "./voice.js";
@@ -34,6 +41,9 @@ const COLORS: Record<Stage, number> = { ask: 0x5865f2, game: 0x57f287, time: 0xf
 const HALF_HOUR = 1800;
 const LEAD = 45 * 60; // first suggested start is at least this far out
 const RENUDGE_AFTER = 3600;
+const VOTE_WINDOW = 3 * 3600; // a vote that isn't complete this long after it opened calls the night off
+const WARN_BEFORE = 30 * 60; // "last call" to whoever hasn't voted
+const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted between midnight and this
 
 export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);
 const majority = (env: Env) => Math.floor(players(env).length / 2) + 1;
@@ -434,8 +444,15 @@ async function close(env: Env, day: string, rerender = true) {
   const n = await getNight(env, day);
   if (!n) return;
   if (rerender) {
-    if (!OPEN.includes(n.stage) || !(await advance(env, day, n.stage, "off", { note: closeNote(n.stage) }))) return;
+    if (!OPEN.includes(n.stage)) return;
+    // the day ran out: anyone who had an hour to vote and didn't (or said no) still gets roasted,
+    // in the morning; a vote that only just opened closes quietly
+    const tb = n.stage === "game" ? await tiebreak.get(env, "night", day) : null;
+    const { who } = await culprits(env, n);
+    const fair = !tb && nowSec() - (n.stage_at ?? 0) >= RENUDGE_AFTER;
+    if (!(await callOff(env, n, fair ? who : {}, fair && Object.keys(who).length ? undefined : closeNote(n.stage)))) return;
     await refresh(env, day);
+    return;
   }
   await clearNudge(env, n);
 }
@@ -541,8 +558,11 @@ export async function act(env: Env, day: string, user: string, action: string, v
         return say("Noted, you're out for tonight. The others carry on 🫡");
       }
       if (n.stage === "off" || n.stage === "ask") return ok;
-      if (await advance(env, day, n.stage, "off", { note: `${mention(user)} can't make it. Maybe tomorrow 🫡` })) {
-        defer(n.stage === "set" ? cancelLocked(env, n, user) : clearNudge(env, n));
+      if (await callOff(env, n, { [user]: "out" })) {
+        defer((async () => {
+          if (n.stage === "set" && n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
+          await postRoast(env, day);
+        })());
       }
       return ok;
     case "reopen": {
@@ -551,7 +571,24 @@ export async function act(env: Env, day: string, user: string, action: string, v
       if (day < local(env).day) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
       const r = await env.db
         .update(gameNights)
-        .set({ stage: "ask", stage_at: nowSec(), game: null, start_at: null, event_id: null, event_end: null, reminded: false, note: null, conflict: null, renudged: null, started_by: user })
+        .set({
+          stage: "ask",
+          stage_at: nowSec(),
+          game: null,
+          start_at: null,
+          event_id: null,
+          event_end: null,
+          reminded: false,
+          note: null,
+          conflict: null,
+          renudged: null,
+          warned: null,
+          started_by: user,
+          // a roast still waiting for the morning is dropped: they made up
+          roast: null,
+          roast_due: null,
+          roasted_at: null,
+        })
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
         .returning({ day: gameNights.day });
       if (!r.length) return ok; // someone else reopened it a moment ago
@@ -577,6 +614,10 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     const v = await votes(env, day, "ask");
     if (ps.every((p) => v[p] === "yes") && (await advance(env, day, "ask", "game"))) {
       defer(nudge(env, day, ps.filter((p) => p !== actor), "✅ Everyone's in! Pick a game ⬆️"));
+    } else if (ps.every((p) => v[p])) {
+      // everyone answered and somebody said no: the votes come out, and so do the roasts
+      const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
+      if (await callOff(env, n, who)) defer(postRoast(env, day));
     }
     return;
   }
@@ -701,15 +742,109 @@ async function lockIn(env: Env, day: string) {
   });
 }
 
-async function cancelLocked(env: Env, n: Night, user: string) {
-  await clearNudge(env, n);
-  if (n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
-  const others = players(env).filter((p) => p !== user);
-  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: `😢 ${others.map(mention).join(" ")} ${mention(user)} can't make it, so ${n.day === local(env).day ? "tonight's" : `${weekday(env, n.day)}'s`} **${n.game}** is off.`,
-    allowed_mentions: pings(env, others),
-    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-  });
+// ---------------------------------------------------------------- 🔥 deadlines and roasts
+
+/** Unix seconds for MORNING on the local day of `t`. */
+function morningOf(env: Env, t: number) {
+  const l = local(env, new Date(t * 1000));
+  return wallToUnix(env, l.y, l.m, l.d, MORNING.hour, MORNING.minute);
+}
+
+/** Moves a time out of the small hours (00:00 until MORNING) to MORNING. */
+function awakeTime(env: Env, t: number) {
+  return t < morningOf(env, t) ? morningOf(env, t) : t;
+}
+
+/**
+ * When the current stage's vote closes: 3 h after it opened, but a night planned for a later day
+ * gets until at least noon on the day itself, and nothing closes in the small hours (it waits
+ * until 09:30, after the 09:00 last call).
+ */
+export function voteDeadline(env: Env, n: Pick<Night, "day" | "stage_at">) {
+  const opened = n.stage_at ?? nowSec();
+  let t = opened + VOTE_WINDOW;
+  if (n.day > local(env, new Date(opened * 1000)).day) {
+    const [y, m, d] = n.day.split("-").map(Number);
+    t = Math.max(t, wallToUnix(env, y, m, d, 12, 0));
+  }
+  return awakeTime(env, t);
+}
+
+const REASON: Record<Reason, string> = { no: "❌ said no", ghost: "👻 didn't vote in time", out: "🚪 bailed" };
+
+function blame(who: Record<string, Reason>) {
+  return Object.entries(who)
+    .map(([u, r]) => `${mention(u)} ${REASON[r]}`)
+    .join(" · ");
+}
+
+/**
+ * Call the night off (once: compare-and-set on the stage), with the culprits recorded for the roast.
+ * The roast posts right away, or at 09:30 if it happened in the small hours. With nobody to
+ * blame (say, the day simply ended) it just closes.
+ */
+async function callOff(env: Env, n: Night, who: Record<string, Reason>, note?: string) {
+  const anyone = Object.keys(who).length > 0;
+  const text = note ?? (anyone ? `🔥 Called off: ${blame(who)}.` : closeNote(n.stage));
+  if (!(await advance(env, n.day, n.stage, "off", { note: text }))) return false;
+  if (anyone) {
+    await env.db
+      .update(gameNights)
+      .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(env, nowSec()), roasted_at: null })
+      .where(eq(gameNights.day, n.day));
+  }
+  await clearNudge(env, (await getNight(env, n.day))!);
+  return true;
+}
+
+/** Post a night's roast if it's due (exactly once: claimed in the database first). */
+export async function postRoast(env: Env, day: string) {
+  const claimed = await env.db
+    .update(gameNights)
+    .set({ roasted_at: nowSec() })
+    .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, nowSec())))
+    .returning();
+  const n = claimed[0];
+  if (!n?.roast) return false;
+  const ps = players(env);
+  const culprits = Object.keys(n.roast.who);
+  const when = n.day === local(env).day ? "tonight's" : `${weekday(env, n.day)}'s`;
+  const what = n.roast.stage === "set" && n.game ? `${await emojiFor(env, n.game)} **${n.game}** ${n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`}` : `${when} game night`;
+  const head = culprits.length >= ps.length && ps.every((p) => n.roast!.who[p]) ? `🔥 **Nobody's in, so ${what} is off**` : `🔥 **${what[0].toUpperCase()}${what.slice(1)} is off** · ${blame(n.roast.who)}`;
+  try {
+    await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+      content: `${head}\n> ${await roasts.next(env, culprits)}`,
+      // everyone hears it's off; the culprits are named in it
+      allowed_mentions: pings(env, ps),
+      message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+    });
+    return true;
+  } catch (e) {
+    await env.db.update(gameNights).set({ roasted_at: null }).where(eq(gameNights.day, day)); // the next minute retries
+    throw e;
+  }
+}
+
+/** Every minute: roasts that were held for the morning. */
+export async function dueRoasts(env: Env) {
+  const due = await env.db
+    .select({ day: gameNights.day })
+    .from(gameNights)
+    .where(and(eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, nowSec())));
+  const posted: string[] = [];
+  for (const { day } of due) if (await postRoast(env, day)) posted.push(day);
+  return posted;
+}
+
+/** Who sinks the night if the vote closed now: no-votes (asking stage) plus anyone who hasn't voted. */
+async function culprits(env: Env, n: Night) {
+  const v = await votes(env, n.day, n.stage);
+  const who: Record<string, Reason> = {};
+  for (const p of players(env)) {
+    if (!v[p]) who[p] = "ghost";
+    else if (n.stage === "ask" && v[p] === "no") who[p] = "no";
+  }
+  return { who, missing: players(env).filter((p) => !v[p]) };
 }
 
 /**
@@ -849,8 +984,31 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
     }
     // drop start times that just passed (every 15 min is plenty; the tick runs every minute)
     if (n.stage === "time" && local(env).minute % 15 === 0) await refresh(env, n.day);
+    const { who, missing } = await culprits(env, n);
+    const deadline = voteDeadline(env, n);
+    if (missing.length && t >= deadline) {
+      // 🔥 time's up: the votes come out, the night's off, and whoever sank it gets roasted
+      if (await callOff(env, n, who)) {
+        await refresh(env, n.day);
+        await postRoast(env, n.day);
+        done[`called off ${n.day}`] = who;
+      }
+      return;
+    }
+    if (awake && missing.length && t >= deadline - WARN_BEFORE && n.warned !== n.stage) {
+      const claimed = await env.db
+        .update(gameNights)
+        .set({ warned: n.stage })
+        .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
+        .returning({ day: gameNights.day });
+      if (claimed.length) {
+        const left = Math.max(1, Math.round((deadline - t) / 60));
+        await nudge(env, n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 Liko ${left} min ⬆️`);
+        done[`warned ${n.day}`] = missing;
+      }
+      return;
+    }
     const v = await votes(env, n.day, n.stage);
-    const missing = players(env).filter((p) => !v[p]);
     if (awake && missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
       const claimed = await env.db
         .update(gameNights)
@@ -895,6 +1053,8 @@ export async function render(env: Env, day: string) {
   const id = (action: string) => `gn:${day}:${action}`;
   const out = button(2, "🚪", "I'm out", id("out"));
   const starter = n.started_by ? ` · started by ${mention(n.started_by)}` : "";
+  const deadline = voteDeadline(env, n);
+  const closes = `-# ⏳ Vote by ${ts(deadline, day === local(env).day ? "t" : "f")} (${ts(deadline, "R")}). No vote by then = night's off and you get roasted 🔥`;
   let body: unknown[];
 
   switch (n.stage) {
@@ -910,7 +1070,8 @@ export async function render(env: Env, day: string) {
       body = [
         text(`## 🎮 Game night? · ${date}\n### ${today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`}`),
         text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
-        text(`-# ${status}${starter}`),
+        text(`-# ${status}${starter}${hidden ? `
+${closes}` : ""}`),
         row(button(3, "✅", "I'm in", id("yes")), button(4, "✖️", today ? "Not today" : "Can't", id("no"))),
       ];
       break;
@@ -931,7 +1092,8 @@ export async function render(env: Env, day: string) {
       body = [
         text(`## 🕹️ What are we playing? · ${date}\n✅ All ${ps.length} are in!`),
         text(ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
-        text(`-# 🤫 Votes stay secret until a game wins · first to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker`),
+        text(`-# 🤫 Votes stay secret until a game wins · first to ${majority(env)} votes wins · a split goes to a ⚔️ tiebreaker
+${closes}`),
         // a dropdown needs at least one option; with an empty game list, suggesting is the way in
         ...(list.length
           ? [
@@ -998,7 +1160,8 @@ export async function render(env: Env, day: string) {
       body = [
         text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
         text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
-        text(status),
+        text(`${status}${f.ready ? "" : `
+${closes}`}`),
         ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(2, "🏁", "Leave by", id("leaveby")), out]),
       ];
       break;

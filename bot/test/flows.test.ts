@@ -10,7 +10,8 @@ import * as late from "../src/late.js";
 import * as memes from "../src/memes.js";
 import * as jobs from "../src/jobs.js";
 import * as presence from "../src/presence.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, rooms, tiebreaks, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, tiebreaks, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
+import * as roasts from "../src/roasts.js";
 import { testDb, testEnv } from "./pg.js";
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -26,7 +27,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [gameNightVotes, tiebreaks, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games]) await t.db.delete(tbl);
+  for (const tbl of [gameNightVotes, tiebreaks, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags]) await t.db.delete(tbl);
   await t.db.insert(games).values([
     { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
     { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
@@ -198,12 +199,8 @@ test("polls: tapping your vote again takes it back; a three-way split goes to a 
 
 test("reopen starts the day over; reset wipes it", async () => {
   await gn.startNight(env, "a");
-  await act("b", "no");
+  await act("b", "yes");
   await act("c", "yes");
-  expect(text(await gn.render(env, DAY))).toContain("Not tonight");
-  await act("b", "out"); // ask stage: "out" does nothing
-  await gn.act(env, DAY, "b", "yes", undefined, defer);
-  await settle();
   expect((await night())!.stage).toBe("game");
   await act("c", "out");
   expect((await night())!.stage).toBe("off");
@@ -215,11 +212,127 @@ test("reopen starts the day over; reset wipes it", async () => {
   expect(await night()).toBeNull();
 });
 
-test("midnight closes an unfinished card", async () => {
-  await gn.startNight(env, "a");
-  vi.setSystemTime(Date.parse("2026-11-06T22:30:00Z")); // 00:30 Saturday
+test("midnight closes an unfinished card; the roast waits for the morning", async () => {
+  await gn.startNight(env, "a"); // 17:00
+  vi.setSystemTime(Date.parse("2026-11-06T22:30:00Z")); // 00:30 Saturday (17:00's 20:00 deadline was missed: no minute job ran)
   expect(await gn.closeStale(env)).toEqual([DAY]);
-  expect((await night())!.stage).toBe("off");
+  const n = (await night())!;
+  expect(n.stage).toBe("off");
+  expect(n.roast!.who).toEqual({ b: "ghost", c: "ghost" });
+  expect(n.roast_due).toBe(Date.parse("2026-11-07T07:30:00Z") / 1000); // 09:30 Saturday
+  expect(await gn.dueRoasts(env)).toEqual([]); // not at night
+  vi.setSystemTime(Date.parse("2026-11-07T07:31:00Z"));
+  expect(await gn.dueRoasts(env)).toEqual([DAY]);
+  expect(await gn.dueRoasts(env)).toEqual([]); // once
+});
+
+// ---------------------------------------------------------------- 🔥 deadlines and roasts
+
+const roastPosts = () => posts().filter((p) => p.body.content?.startsWith("🔥"));
+
+test("a no stays secret until everyone's answered, then the night's off and the no-sayer is roasted", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "no");
+  expect((await night())!.stage).toBe("ask"); // a no alone doesn't end it
+  expect(text(await gn.render(env, DAY))).toContain("🤫 Answers stay secret");
+  expect(text(await gn.render(env, DAY))).toContain("Vote by");
+  await act("c", "yes");
+  const n = (await night())!;
+  expect([n.stage, n.roast!.who]).toEqual(["off", { b: "no" }]);
+  const [r] = roastPosts();
+  expect(r.body.content).toMatch(/^🔥 \*\*Tonight's game night is off\*\* · <@b> ❌ said no\n> .*<@b>/);
+  expect(r.body.allowed_mentions.users.sort()).toEqual(["a", "b", "c"]);
+  const card = text(await gn.render(env, DAY));
+  expect(card).toContain("How everyone voted"); // revealed
+  expect(card).toContain("Reopen");
+});
+
+test("3 h after voting opens: last call at 2.5 h, then non-voters (and no-sayers) are roasted", async () => {
+  await gn.startNight(env, "a"); // 17:00
+  await act("b", "no");
+  vi.setSystemTime(Date.parse("2026-11-06T17:29:00Z")); // 19:29
+  await gn.maintain(env);
+  expect(posts().some((p) => p.body.content?.includes("Last call"))).toBe(false);
+  vi.setSystemTime(Date.parse("2026-11-06T17:31:00Z")); // 19:31
+  await gn.maintain(env);
+  const warn = posts().filter((p) => p.body.content?.includes("Last call"));
+  expect(warn.length).toBe(1);
+  expect(warn[0].body.content).toMatch(/^<@c> ⏳ Last call: 29 min/);
+  await gn.maintain(env);
+  expect(posts().filter((p) => p.body.content?.includes("Last call")).length).toBe(1); // once
+  vi.setSystemTime(Date.parse("2026-11-06T18:00:00Z")); // 20:00
+  await gn.maintain(env);
+  const n = (await night())!;
+  expect([n.stage, n.roast!.who]).toEqual(["off", { b: "no", c: "ghost" }]);
+  expect(roastPosts()[0].body.content).toContain("<@b> ❌ said no · <@c> 👻 didn't vote in time");
+});
+
+test("game and time picks have the same deadline", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "yes");
+  await act("a", "game", "Palworld");
+  vi.setSystemTime(Date.parse("2026-11-06T18:01:00Z")); // 3 h later, b and c never picked
+  await gn.maintain(env);
+  expect((await night())!.roast!.who).toEqual({ b: "ghost", c: "ghost" });
+});
+
+test("all three out: the bot sulks alone", async () => {
+  await gn.startNight(env); // the 17:00 schedule: nobody's in yet
+  vi.setSystemTime(Date.parse("2026-11-06T18:00:00Z"));
+  await gn.maintain(env);
+  const [r] = roastPosts();
+  expect(r.body.content).toMatch(/^🔥 \*\*Nobody's in, so tonight's game night is off\*\*\n> /);
+  expect(roasts._pools.TRIO.some((l) => r.body.content.endsWith(roasts.fill(l, ["a", "b", "c"])))).toBe(true);
+});
+
+test("bailing with 🚪 gets you roasted, also after the night was locked in", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "yes");
+  await act("b", "out");
+  expect((await night())!.roast!.who).toEqual({ b: "out" });
+  expect(roastPosts()[0].body.content).toContain("<@b> 🚪 bailed");
+});
+
+test("deadlines: never in the small hours, and planned days get until noon on the day", () => {
+  const at = (iso: string) => Date.parse(iso) / 1000;
+  // opened 23:00 today → 02:00 → moved to 09:30
+  expect(gn.voteDeadline(env, { day: DAY, stage_at: at("2026-11-06T21:00:00Z") })).toBe(at("2026-11-07T07:30:00Z"));
+  // opened 17:00 → 20:00
+  expect(gn.voteDeadline(env, { day: DAY, stage_at: at("2026-11-06T15:00:00Z") })).toBe(at("2026-11-06T18:00:00Z"));
+  // Friday planned on Monday 10:00 → noon Friday
+  expect(gn.voteDeadline(env, { day: DAY, stage_at: at("2026-11-02T08:00:00Z") })).toBe(at("2026-11-06T10:00:00Z"));
+  // tomorrow planned at 22:00 → 01:00 would be night, but noon tomorrow is later anyway
+  expect(gn.voteDeadline(env, { day: "2026-11-07", stage_at: at("2026-11-06T20:00:00Z") })).toBe(at("2026-11-07T10:00:00Z"));
+});
+
+test("reopening drops a roast still waiting for the morning", async () => {
+  await gn.startNight(env, "a");
+  vi.setSystemTime(Date.parse("2026-11-06T21:30:00Z")); // 23:30: deadline was 20:00
+  await gn.maintain(env);
+  // (23:30 is awake time, so it posted; force a held one to check reopen clears it)
+  await t.db.update(gameNights).set({ roasted_at: null, roast_due: Date.parse("2026-11-07T07:30:00Z") / 1000 });
+  await act("c", "reopen");
+  const n = (await night())!;
+  expect([n.stage, n.roast, n.roast_due]).toEqual(["ask", null, null]);
+});
+
+test("roast lines rotate: no repeats until the pool is used up", async () => {
+  const { lines } = roasts.poolFor(["b"]);
+  const seen = new Set<string>();
+  for (let i = 0; i < lines.length; i++) seen.add(await roasts.next(env, ["b"]));
+  expect(seen.size).toBe(lines.length);
+});
+
+test("roast pools: personal lines join the right pools", () => {
+  const [V, K, L] = ["306836805825593344", "212567787896307713", "747902984003780651"];
+  expect(roasts.poolFor([K]).lines.some((l) => l.includes("fap and nap"))).toBe(true);
+  expect(roasts.poolFor([L]).lines.some((l) => l.includes("Pūkis"))).toBe(true);
+  expect(roasts.poolFor([V]).lines.some((l) => l.includes("merge conflict"))).toBe(true);
+  expect(roasts.poolFor([K, L]).key).toBe(roasts.poolFor([L, K]).key);
+  expect(roasts.poolFor([V, K, L]).key).toBe("trio");
+  for (const l of roasts.poolFor([K, L]).lines) expect(roasts.fill(l, [K, L])).not.toMatch(/\{\w+\}/);
 });
 
 test("rooms: one room per game even when two open at once; archived after 15 empty minutes", async () => {
