@@ -7,6 +7,7 @@ import { WebSocketManager, WebSocketShardEvents } from "@discordjs/ws";
 import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload } from "discord-api-types/v10";
 import type { Env } from "./env.js";
 import * as presence from "./presence.js";
+import * as channels from "./channels.js";
 
 const CONNECT_TIMEOUT = 30_000;
 
@@ -25,15 +26,26 @@ export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSi
       // not "everyone left", so keep waiting for the real thing (lookups fall back to REST)
       if ((payload.d as { unavailable?: boolean }).unavailable) {
         presence.invalidate();
+        channels.invalidate();
         console.log("gateway: guild unavailable (Discord outage)");
         return;
       }
-      // a fresh connection: the full picture of who's in voice right now
+      // a fresh connection: the full picture of who's in voice right now, and of the channels
+      channels.snapshot((payload.d.channels ?? []) as channels.Channel[]);
       presence.snapshot(payload.d.voice_states ?? []);
       console.log("gateway: voice snapshot", (payload.d.voice_states ?? []).length, "in voice");
       onSnapshot();
+    } else if (
+      (payload.t === GatewayDispatchEvents.ChannelCreate || payload.t === GatewayDispatchEvents.ChannelUpdate) &&
+      "guild_id" in payload.d &&
+      payload.d.guild_id === env.GUILD_ID
+    ) {
+      channels.upsert(payload.d as channels.Channel);
+    } else if (payload.t === GatewayDispatchEvents.ChannelDelete && "guild_id" in payload.d && payload.d.guild_id === env.GUILD_ID) {
+      channels.remove(payload.d.id);
     } else if (payload.t === GatewayDispatchEvents.GuildDelete && payload.d.id === env.GUILD_ID) {
       presence.invalidate(); // outage (or we were removed): stop trusting what we had
+      channels.invalidate();
       console.log("gateway: guild gone", payload.d.unavailable ? "(outage)" : "");
     } else if (payload.t === GatewayDispatchEvents.VoiceStateUpdate && payload.d.guild_id === env.GUILD_ID) {
       presence.update(payload.d.user_id, payload.d.channel_id);
@@ -67,6 +79,7 @@ export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSi
   return {
     close: async () => {
       presence.invalidate();
+      channels.invalidate();
       await manager.destroy();
     },
   };

@@ -1,4 +1,5 @@
 import type { Env } from "./env.js";
+import * as channels from "./channels.js";
 
 const API = "https://discord.com/api/v10";
 
@@ -71,9 +72,24 @@ export async function api(env: Env, method: string, path: string, body?: unknown
       continue;
     }
     if (!r.ok) throw new Error(`${method} ${path} -> ${r.status} ${await r.text()}`);
-    return r.status === 204 ? null : r.json();
+    const data = r.status === 204 ? null : await r.json();
+    noteChannels(env, method, path, body, data);
+    return data;
   }
   throw new Error(`${method} ${path} -> gave up: ${last}`);
+}
+
+/** Our own channel changes go straight into the channel cache (their gateway events follow later). */
+function noteChannels(env: Env, method: string, path: string, body: unknown, data: any) {
+  if (path === `/guilds/${env.GUILD_ID}/channels`) {
+    if (method === "POST") channels.upsert(data);
+    if (method === "PATCH" && Array.isArray(body)) channels.reposition(body as { id: string; position: number }[]);
+    return;
+  }
+  const m = path.match(/^\/channels\/(\d+)$/);
+  if (!m) return;
+  if (method === "PATCH") channels.upsert(data);
+  if (method === "DELETE") channels.remove(m[1]);
 }
 
 /** True when an api() error is Discord's 404 (the thing is gone). */

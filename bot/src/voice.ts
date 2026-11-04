@@ -13,6 +13,7 @@ import { gameNights, rooms } from "./db/index.js";
 import { api, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import { games, players } from "./gamenight.js";
 import * as presence from "./presence.js";
+import * as channels from "./channels.js";
 
 export type Room = typeof rooms.$inferSelect;
 
@@ -231,7 +232,7 @@ export async function leftRoom(env: Env, channelId: string, t = nowSec()) {
 
 /** New rooms go right under the Lobby, newest first. */
 async function placeAfterLobby(env: Env, channelId: string) {
-  const all = (await api(env, "GET", `/guilds/${env.GUILD_ID}/channels`)) as { id: string; parent_id?: string; position: number; type: number }[];
+  const all = await channels.list(env);
   const voice = all.filter((c) => c.parent_id === env.VOICE_CATEGORY_ID && c.type === 2).sort((a, b) => a.position - b.position);
   const rest = voice.filter((c) => c.id !== env.LOBBY_CHANNEL_ID && c.id !== channelId);
   const order = [env.LOBBY_CHANNEL_ID, channelId, ...rest.map((c) => c.id)];
@@ -239,7 +240,7 @@ async function placeAfterLobby(env: Env, channelId: string) {
 }
 
 async function archiveCategory(env: Env, create: boolean): Promise<string | null> {
-  const all = (await api(env, "GET", `/guilds/${env.GUILD_ID}/channels`)) as { id: string; name: string; type: number; position: number }[];
+  const all = await channels.list(env);
   const found = all.find((c) => c.type === 4 && c.name === ARCHIVE_NAME);
   if (found || !create) return found?.id ?? null;
   const cat = await api(env, "POST", `/guilds/${env.GUILD_ID}/channels`, { name: ARCHIVE_NAME, type: 4, position: 99 });
@@ -253,7 +254,7 @@ async function archiveCategory(env: Env, create: boolean): Promise<string | null
  */
 export async function maintainRooms(env: Env) {
   let known = await env.db.select().from(rooms);
-  const all = (await api(env, "GET", `/guilds/${env.GUILD_ID}/channels`)) as { id: string; name: string; type: number; parent_id?: string }[];
+  const all = await channels.list(env);
   const done: Record<string, string[]> = {};
   const note = (k: string, v: string) => (done[k] ??= []).push(v);
 
@@ -313,14 +314,15 @@ export async function maintainRooms(env: Env) {
     }
   }
   // rooms may have just been deleted: tidy against a fresh channel list (best effort)
-  await api(env, "GET", `/guilds/${env.GUILD_ID}/channels`)
+  await channels
+    .list(env)
     .then((fresh) => tidyArchive(env, fresh))
     .catch((e) => console.log("archive tidy failed", e));
   return done;
 }
 
 /** Drop the 🗄️ Recent games category once nothing is left in it. */
-async function tidyArchive(env: Env, all: { id: string; name: string; type: number; parent_id?: string }[]) {
+async function tidyArchive(env: Env, all: channels.Channel[]) {
   const cat = all.find((c) => c.type === 4 && c.name === ARCHIVE_NAME);
   if (cat && !all.some((c) => c.parent_id === cat.id)) await api(env, "DELETE", `/channels/${cat.id}`).catch(() => {});
 }
