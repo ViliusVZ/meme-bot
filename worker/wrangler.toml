@@ -4,11 +4,7 @@ compatibility_date = "2025-09-01"
 
 [triggers]
 # keep in sync with CRON_* in src/index.ts
-crons = [
-  "*/5 * * * *",   # tick: daily meme, game-night poll/closing/reminders, rooms, latecomers
-  "0 18 * * SUN",  # Meme of the Week
-  "0 9 1 * *",     # monthly Hall of Fame
-]
+crons = []  # retired: the bot runs on the VPS now (bot/); kept deployable as a fallback
 
 [[d1_databases]]
 binding = "DB"

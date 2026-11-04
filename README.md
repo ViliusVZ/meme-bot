@@ -1,11 +1,19 @@
 # Meme Bot 3000
 
 Posts the top r/ProgrammerHumor image of the previous UTC day to Discord, with vote buttons,
-a discussion thread, voting streaks, weekly/monthly recaps and slash commands.
+a discussion thread, voting streaks, weekly/monthly recaps and slash commands, and runs the
+Terrible Trio's game nights (polls, rooms, latecomers, tiebreakers, 📊 stats).
 
-    GitHub Actions (cron, 4x/day)          Cloudflare Worker + D1 (free tier)
-    meme_bot.py: Reddit RSS  ── /ingest ──▶ stores memes, posts the daily one,
-                                            handles buttons + slash commands
+    Hostinger VPS (srv2127148.hstgr.cloud)                         Discord
+    Caddy ─▶ bot (Node, blue/green) ◀── gateway: live voice ──────  
+                │  Fastify: /interactions ◀── button clicks ───────
+                ▼
+             Postgres 18          Reddit RSS ◀── the bot fetches memes itself
+
+**The bot lives in [`bot/`](bot/README.md)** (Node 24, Fastify, Drizzle/Postgres, `@discordjs/ws`),
+deployed by GitHub Actions to the VPS ([server config](https://github.com/ViliusVZ/server)).
+`worker/` is the retired Cloudflare Worker (moved to the VPS on 2026-11-04); the feature notes
+below still describe the behaviour, and file references like `src/gamenight.ts` now mean `bot/src/`.
 
 - **No duplicates, ever:** the database has a unique index allowing one daily meme per day, and a
   meme can only be claimed once (daily or `/meme`).
@@ -153,24 +161,8 @@ One tiebreak per card (unique index), with compare-and-set updates, so double cl
 two winners. The tick heals a tiebreak whose card didn't move on. QA scripts: `scripts/qa_*.py`;
 unit tests: `node test/tiebreak.test.mjs`.
 
-## Deploy (`worker/`)
-    npm install
-    npx wrangler login
-    npx wrangler d1 create meme-bot          # put database_id in wrangler.toml
-    npm run db:init
-    npx wrangler deploy
-    npx wrangler secret put DISCORD_TOKEN      # also DISCORD_PUBLIC_KEY, DISCORD_APP_ID, INGEST_SECRET
-
-Discord Developer Portal → General Information → Interactions Endpoint URL =
-`https://<worker>.workers.dev/interactions`. Then register the slash commands:
-
-    curl -X POST -H "Authorization: Bearer $INGEST_SECRET" https://<worker>.workers.dev/admin/register
-
-GitHub repo secrets: `WORKER_URL`, `INGEST_SECRET`. Channel/guild/post hour are in `wrangler.toml`.
-
-## Local test
-    DRY_RUN=1 python meme_bot.py     # prints the first 3 parsed memes
-    cd worker && npm run check && npm run logs
+## Deploy
+Push to `main`: tests → image → the test bot → production. See [`bot/README.md`](bot/README.md).
 
 ## Why RSS instead of the Reddit API
 Reddit's `.json` endpoints return 403 without OAuth, and new API apps need manual approval

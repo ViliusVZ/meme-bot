@@ -76,8 +76,9 @@ const check = await db.execute<{ t: string; n: number }>(sql`
 let ok = true;
 for (const r of check.rows) {
   const want = rows(r.t).length;
-  if (process.argv.includes("--merge") ? r.n < want : want !== r.n) ok = false;
-  console.log(`${want === r.n ? "✓" : "✗"} ${r.t}: ${r.n}/${want}`);
+  const fine = process.argv.includes("--merge") ? r.n >= want : want === r.n; // merging: the new bot may have more
+  if (!fine) ok = false;
+  console.log(`${fine ? "✓" : "✗"} ${r.t}: ${r.n}/${want}`);
 }
 await pool.end();
 if (!ok) process.exit(1);
