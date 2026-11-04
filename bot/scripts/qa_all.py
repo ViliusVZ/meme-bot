@@ -147,7 +147,7 @@ gn(D1, L, "yes")
 ok(night(D1)["stage"] == "game", "everyone yes → game picking")
 ok(bool(night(D1)["nudge_id"]), "a nudge went out for the next stage")
 
-# ------------------------------------------------------------------ game stage + tiebreak
+# ------------------------------------------------------------------ game stage + split re-vote
 section("game picking")
 r = gn(D1, V, "game", "Phasmophobia")
 ok(r.get("update") is True and not r.get("notice"), "your vote counts (your private copy shows it, not a receipt)")
@@ -156,15 +156,11 @@ txt = card_text(D1)
 ok("Phasmophobia" not in txt and "Palworld" not in txt and f"🗳️ <@{K}>" in txt and f"⏳ <@{L}>" in txt, "game votes stay secret")
 gn(D1, L, "game", "R.E.P.O.")
 txt = card_text(D1)
-ok(all(g in txt for g in ("Phasmophobia", "Palworld", "R.E.P.O.")) and all(f"<@{u}>" in txt for u in (V, K, L)), "the tie reveals who picked what")
-tb = sql(f"SELECT * FROM tiebreaks WHERE kind='night' AND ref='{D1}'")
-ok(len(tb) == 1 and night(D1)["stage"] == "game", "three-way split opens one tiebreak and waits")
-ok("tiebreaker" in (gn(D1, V, "game", "Palworld")["notice"] or "").lower(), "changing a game vote during a tiebreak is refused")
-ok("tiebreaker" in (gn(D1, V, "suggest", "Lethal Company")["notice"] or "").lower(), "suggesting during a tiebreak is refused")
-t = admin("/admin/gamenight", {"action": "tb", "id": tb[0]["id"], "user": V, "choice": "wheel"})["tiebreak"]
+ok(all(g in txt for g in ("Phasmophobia", "Palworld", "R.E.P.O.")) and all(f"<@{u}>" in txt for u in (V, K, L)), "a split reveals who picked what")
+ok(night(D1)["stage"] == "game" and "Split vote" in txt, "and stays open for a re-vote")
+gn(D1, L, "game", "Palworld")  # L comes round to K's pick
 n1 = night(D1)
-ok(t["result"] in ("Phasmophobia", "Palworld", "R.E.P.O.") and n1["stage"] == "time" and n1["game"] == t["result"], f"wheel picks {t['result']} → time stage")
-ok("spun the wheel" in (n1["note"] or ""), "the card keeps the tiebreak story")
+ok(n1["stage"] == "time" and n1["game"] == "Palworld", "two agreeing settles it → time stage")
 
 section("most votes wins, once everyone's voted")
 admin("/admin/gamenight", {"action": "plan", "user": V, "day": D4})
@@ -174,7 +170,7 @@ gn(D4, V, "game", "Enshrouded")
 gn(D4, K, "game", "Enshrouded")
 ok(night(D4)["stage"] == "game", "two votes for the same game still wait for the third")
 gn(D4, L, "game", "Palworld")
-ok(night(D4)["stage"] == "time" and night(D4)["game"] == "Enshrouded" and not sql(f"SELECT 1 FROM tiebreaks WHERE ref='{D4}'"), "2–1 → time stage, no tiebreak")
+ok(night(D4)["stage"] == "time" and night(D4)["game"] == "Enshrouded", "2–1 → time stage")
 ok(f"Enshrouded** ← <@{V}> <@{K}>" in card_text(D4), "the decided game vote is revealed")
 
 # ------------------------------------------------------------------ time stage
@@ -317,9 +313,9 @@ admin("/admin/gamenight", {"action": "rooms"})
 snap.cleanup()
 left = sql(
     f"SELECT (SELECT count(*) FROM game_nights WHERE day IN ({DAYS})) n, (SELECT count(*) FROM rooms WHERE day IN ({DAYS}) OR game = '{QA_ROOM}') r,"
-    f" (SELECT count(*) FROM night_attendance WHERE day IN ({DAYS})) a, (SELECT count(*) FROM tiebreaks WHERE kind = 'night' AND ref IN ({DAYS})) t"
+    f" (SELECT count(*) FROM night_attendance WHERE day IN ({DAYS})) a"
 )[0]
-ok(left == {"n": 0, "r": 0, "a": 0, "t": 0}, f"test data gone {left}")
+ok(left == {"n": 0, "r": 0, "a": 0}, f"test data gone {left}")
 ok(not [m for m in call("GET", f"/channels/{CH}/messages?after={snap.marker}&limit=100") if m["author"]["id"] == BOT_ID], "no QA messages left in #game-night")
 ok("🗄️ Recent games" not in [c["name"] for c in channels()], "no leftover archive category")
 

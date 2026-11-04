@@ -2,7 +2,7 @@
 
 Posts the top r/ProgrammerHumor image of the previous UTC day to Discord, with vote buttons,
 a discussion thread, voting streaks, weekly/monthly recaps and slash commands, and runs the
-Terrible Trio's game nights (polls, rooms, latecomers, tiebreakers, 📊 stats).
+Terrible Trio's game nights (polls, rooms, latecomers, roasts, 📊 stats).
 
     Hostinger VPS (srv2127148.hstgr.cloud)                         Discord
     Caddy ─▶ bot (Node, blue/green) ◀── gateway: live voice ──────  
@@ -32,8 +32,8 @@ Every day at 17:00 Lithuanian time (or earlier, when anyone runs `/playtoday`) a
 1. **Are we playing today?** ✅/✖️ buttons. It moves on only when all three players say yes. Votes can
    change until midnight; an unfinished poll closes itself at midnight.
 2. **What are we playing?** A dropdown of games, sorted by how often they've been played, plus
-   ➕ *Suggest a game*, which adds the game permanently. The first game to 2 votes wins; if all
-   three pick different games, it's a ⚔️ tiebreaker (see below).
+   ➕ *Suggest a game*, which adds the game permanently. Once everyone's voted, most votes wins;
+   if all three pick different games, the picks are revealed and you re-vote until two agree.
 3. **What time?** Buttons with start times generated from when this stage began: three half-hour
    steps from ~45 min out, then two hourly ones (stage at 14:00 → 15:00 15:30 16:00 17:00 18:00;
    at 17:00 → 18:00 … 21:00). Passed times disappear; ✏️ *Other time* takes any HH:MM, and custom
@@ -104,14 +104,14 @@ archived.
   failure can't stall the rest. A start ping that fails is retried the next minute.
 - Nothing is decided on a guess: if a voice lookup fails, rooms and latecomers wait a minute.
 - POSTs are never auto-retried on 5xx (they may have gone through); everything that must happen
-  once (cards, rooms, slips, reminders, tiebreak results) is claimed in the database first.
+  once (cards, rooms, slips, reminders, roasts) is claimed in the database first.
 - Interaction follow-ups retry when Discord hasn't registered the reply yet. The database sits next
   to the bot, so clicks are answered in tens of milliseconds.
 - Re-nudges respect quiet hours (none between 00:00 and 09:00).
 - Time cards stay open after midnight for 🌙 starts (until 06:00); other cards close at midnight.
 
 QA: `cd bot && npm test` (100 tests against a real Postgres, every query runs), then
-`python scripts/qa_all.py` (end-to-end on the test bot, cleans up), plus `qa_tiebreak.py`,
+`python scripts/qa_all.py` (end-to-end on the test bot, cleans up), plus
 `qa_rooms.py`, `qa_stats.py` and `qa_timing.py`.
 
 ## 📊 Voice time and game stats (`src/activity.ts`)
@@ -133,34 +133,21 @@ only the three players are tracked. QA: `bot/scripts/qa_stats.py` (stand-in play
 ## 🤫 Secret ballots
 Every vote (are we playing, game, start time + leave-by, polls) is secret while it runs: the card
 shows only who has voted (🗳️ / ⏳), never what, and no counts (in a group of three they'd give picks
-away). Each voter gets an ephemeral receipt of their own ballot. A vote is revealed once it's
-decided: everyone answered, a game won or tied into a tiebreaker, every start time is in (a clash
-is shown with names so it can be fixed), or a poll closed. Locked and cancelled cards show how
-everyone voted. A leave-by shows without its owner ("someone has to leave by 22:00") so nobody
-picks a start that's too late. Rock-paper-scissors throws were already secret until each round ends.
+away). Tapping a card gives you your own private copy with your picks highlighted. A vote is
+revealed once everyone's answered (a split game or poll stays revealed while you re-vote), every
+start time is in (a clash is shown with names so it can be fixed), or a poll closed. Locked and
+cancelled cards show how everyone voted. A leave-by shows without its owner ("someone has to leave
+by 22:00") so nobody picks a start that's too late.
 
 ## Polls, help and the HQ panel
 - `/poll` (or 🗳️ on the panel) opens a form: question + answers (one per line; empty = Yes/No).
-  Answers are buttons; one vote each, tap again to take it back. The first answer to a majority of
-  the trio (2) wins automatically; 🔒 Close settles it early, and a tie gets a 🎲 button. (`src/polls.ts`)
+  Answers are buttons; one vote each, tap again to take it back. Once everyone's voted, most votes
+  wins; a split is revealed and stays open for a re-vote. 🔒 Close settles it early once one answer
+  leads. (`src/polls.ts`)
 - `/help` shows the guide privately. The same guide with action buttons (🎮 Play today · 📅 Plan a
   day · 🗳️ New poll · 🕹️ Games · ❓ Help) is pinned in #game-night, so nothing needs typing.
   Repost it with `/admin/gamenight {"action": "hub"}`. (`src/hub.ts`)
 - `/games` opens the game list with ➕ Add (form) and a 🗑️ remove dropdown.
-
-## ⚔️ Tiebreakers (`src/tiebreak.ts`)
-A three-way game split, a poll where everyone voted without a majority, or a tied poll someone
-🔒 closed all get a tiebreaker section on the card:
-- **🎰 Spin the wheel:** anyone taps it; the card becomes a slot reel that spins (a few message
-  edits) and lands on the winner, then returns to the card with the story.
-- **✊✋✌️ Rock Paper Scissors** between the tied voters: throws are secret (ephemeral
-  confirmation) until everyone's in, rounds are revealed on the card, draws replay, and with three
-  players two can survive into a final. After 5 draws, or whenever anyone taps 🎰 *Just spin it*,
-  the wheel decides.
-
-One tiebreak per card (unique index), with compare-and-set updates, so double clicks can't produce
-two winners. The minute job heals a tiebreak whose card didn't move on. QA: `bot/scripts/qa_tiebreak.py`;
-unit tests: `bot/test/tiebreak.test.ts`.
 
 ## Deploy
 Push to `main`: tests → image → the test bot → production. See [`bot/README.md`](bot/README.md).

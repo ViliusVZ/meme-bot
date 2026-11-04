@@ -163,34 +163,6 @@ export const pollVotes = pgTable(
   (t) => [primaryKey({ columns: [t.poll_id, t.user_id] })],
 );
 
-// ---------------------------------------------------------------- tiebreakers (tiebreak.ts)
-
-export const tiebreaks = pgTable(
-  "tiebreaks",
-  {
-    id: integer().primaryKey().generatedByDefaultAsIdentity(),
-    kind: text().notNull().$type<"night" | "poll">(),
-    ref: text().notNull(), // night day, or poll id
-    options: jsonb().notNull().$type<string[]>(), // the tied options
-    contenders: jsonb().notNull().$type<Record<string, string>>(), // user → option they backed
-    alive: jsonb().notNull().$type<string[]>(), // users still in the rock-paper-scissors
-    mode: text().$type<"wheel" | "rps">(), // null while choosing
-    round: integer().notNull().default(1),
-    hands: jsonb()
-      .notNull()
-      .$type<Record<string, "r" | "p" | "s">>()
-      .default(sql`'{}'::jsonb`), // current round, secret
-    history: jsonb()
-      .notNull()
-      .$type<string[]>()
-      .default(sql`'[]'::jsonb`), // one line per finished round
-    result: text(),
-    how: text(),
-    created_at: text().notNull(),
-  },
-  (t) => [uniqueIndex("one_tiebreak_per_host").on(t.kind, t.ref)],
-);
-
 // ---------------------------------------------------------------- game rooms (voice.ts)
 
 export const rooms = pgTable("rooms", {

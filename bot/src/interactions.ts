@@ -9,7 +9,6 @@ import * as db from "./memes.js";
 import * as gn from "./gamenight.js";
 import * as hub from "./hub.js";
 import * as polls from "./polls.js";
-import * as tiebreak from "./tiebreak.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as late from "./late.js";
@@ -151,31 +150,8 @@ export async function interaction(i: any, env: Env): Promise<object> {
     return reply({ type: R.UpdateMessage, data: await hub.gamesManager(env, `🗑️ Removed **${name}**`) });
   }
 
-  // ---- ⚔️ tiebreakers: tb:<id>:<wheel|rps|hand>[:<r|p|s>]
-  if (cid.startsWith("tb:") && i.type === 3) {
-    if (!isPlayer) return ephemeral("This one's for the trio 😅");
-    const [, idStr, action, hand] = cid.split(":");
-    const r = await tiebreakTurn(env, Number(idStr), user.id, action, hand);
-    if (!r) return ephemeral("That tiebreak has vanished 🫥");
-    if (!r.update) return ephemeral(r.notice ?? "🤷");
-    if (r.notice) defer(gn.notify(env, i.token, r.notice));
-    if (r.frames) {
-      // 🎰 animate: answer with the first reel frame, then edit through the rest and land on the card
-      const [first, ...rest] = r.frames;
-      defer(
-        (async () => {
-          for (const frame of rest) {
-            await sleep(850);
-            await editOriginal(env, i.token, frame);
-          }
-          await sleep(1400);
-          await editOriginal(env, i.token, await r.render());
-        })().catch((e) => console.log("spin failed", e)),
-      );
-      return reply({ type: R.UpdateMessage, data: first });
-    }
-    return reply({ type: R.UpdateMessage, data: await r.render() });
-  }
+  // ---- ⚔️ old tiebreaker buttons (retired: a split is a re-vote now)
+  if (cid.startsWith("tb:") && i.type === 3) return ephemeral("Tiebreakers are retired 🔁 A split means a re-vote now: pick again on the card.");
 
   // ---- 🗳️ polls: poll:new (modal) and poll:<id>:<choice|close>
   if (cid === "poll:new" && i.type === 5) {
@@ -188,7 +164,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
     return reply({ type: R.Message, data: await polls.renderPoll(env, id) });
   }
   if (cid.startsWith("poll:") && i.type === 3) {
-    // trio-only, like tiebreakers: a non-player voter could otherwise end up in a duel they can't play
+    // trio-only: polls decide things for the three of us
     if (!isPlayer) return ephemeral("This one's for the trio 😅");
     const [, id, action] = cid.split(":");
     const r = await polls.pollAct(env, Number(id), user.id, action);
@@ -269,33 +245,6 @@ export async function interaction(i: any, env: Env): Promise<object> {
 }
 
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
-
-/**
- * A tiebreak click, wired to its host (a game-night card or a poll): when the tiebreak resolves,
- * the host moves on. Returns how to re-render the host, plus wheel frames when one was spun.
- */
-export async function tiebreakTurn(env: Env, id: number, userId: string, action: string, hand: string | undefined) {
-  const tb = await tiebreak.getById(env, id);
-  if (!tb) return null;
-  const r = await tiebreak.act(env, id, userId, action, hand);
-    // apply whenever a result exists (idempotent), so a lost follow-up heals on the next click
-  if ((await tiebreak.getById(env, id))?.result) {
-    if (tb.kind === "night") await gn.applyTiebreak(env, tb.ref, userId, defer);
-    else await polls.applyTiebreak(env, Number(tb.ref));
-  }
-  const render = () => (tb.kind === "night" ? gn.render(env, tb.ref) : polls.renderPoll(env, Number(tb.ref)));
-  let frames: object[] | undefined;
-  if (r.spin) {
-    const options = tb.options;
-    const label = tb.kind === "night" ? await gn.gameLabel(env) : (o: string) => o;
-    frames = r.spin.map((at, k) => ({
-      flags: IS_COMPONENTS_V2,
-      allowed_mentions: { parse: [] },
-      components: [tiebreak.spinFrame(options, at, label, k === r.spin!.length - 1)],
-    }));
-  }
-  return { ...r, render, frames };
-}
 
 /** /playtoday and the 🎮 button. Posting can take a moment (retries), so answer "thinking…" first. */
 function playToday(env: Env, i: any, userId: string) {

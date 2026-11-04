@@ -1,16 +1,15 @@
 // End-to-end flows against a real Postgres, with Discord stubbed: game night from "are we
-// playing?" to the start ping, secret ballots, reopen, tiebreakers, polls, rooms, latecomers,
+// playing?" to the start ping, secret ballots, reopen, split re-votes, polls, rooms, latecomers,
 // memes. Catches query mistakes long before the live QA suite does.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import * as gn from "../src/gamenight.js";
 import * as polls from "../src/polls.js";
-import * as tiebreak from "../src/tiebreak.js";
 import * as voice from "../src/voice.js";
 import * as late from "../src/late.js";
 import * as memes from "../src/memes.js";
 import * as jobs from "../src/jobs.js";
 import * as presence from "../src/presence.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, tiebreaks, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
 import * as roasts from "../src/roasts.js";
 import { testDb, testEnv } from "./pg.js";
 
@@ -27,7 +26,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [gameNightVotes, tiebreaks, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags]) await t.db.delete(tbl);
+  for (const tbl of [gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags]) await t.db.delete(tbl);
   await t.db.insert(games).values([
     { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
     { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
@@ -154,37 +153,39 @@ test("a clash pings once, and never locks", async () => {
   expect(text(await gn.render(env, DAY))).toContain("Doesn't fit yet");
 });
 
-test("a three-way split goes to a tiebreaker; the wheel picks; time picking starts", async () => {
+test("a three-way split reveals the picks and stays open for a re-vote; two agreeing settles it", async () => {
   await gn.startNight(env, "a");
   await act("b", "yes");
   await act("c", "yes");
   await act("a", "game", "R.E.P.O.");
   await act("b", "game", "Phasmophobia");
   await act("c", "game", "Palworld");
-  const tb = (await tiebreak.get(env, "night", DAY))!;
-  expect(tb.options.sort()).toEqual(["Palworld", "Phasmophobia", "R.E.P.O."]);
-  expect(tb.contenders).toEqual({ a: "R.E.P.O.", b: "Phasmophobia", c: "Palworld" });
-  const r = await tiebreak.act(env, tb.id, "a", "wheel");
-  expect(r.resolved).toBe(true);
-  expect(r.spin!.length).toBe(5);
-  await gn.applyTiebreak(env, DAY, "a", defer);
-  await settle();
+  expect((await night())!.stage).toBe("game");
+  const card = text(await gn.render(env, DAY));
+  expect(card).toContain("Split vote");
+  expect(card).toContain("R.E.P.O.** ← <@a>"); // revealed so you can talk it out
+  expect(posts().filter((p) => p.body.content?.includes("Split vote")).length).toBe(1);
+  await act("c", "game", "Phasmophobia"); // c gives in
   const n = (await night())!;
-  expect(n.stage).toBe("time");
-  expect(tb.options).toContain(n.game);
+  expect([n.stage, n.game]).toEqual(["time", "Phasmophobia"]);
 });
 
-test("rock-paper-scissors: simultaneous throws all count; a draw replays", async () => {
-  const tb = await tiebreak.open(env, "poll", "77", ["X", "Y"], { a: "X", b: "Y" });
-  await tiebreak.act(env, tb.id, "a", "rps");
-  await Promise.all([tiebreak.act(env, tb.id, "a", "hand", "r"), tiebreak.act(env, tb.id, "b", "hand", "r")]);
-  let fresh = (await tiebreak.getById(env, tb.id))!;
-  expect([fresh.round, fresh.result, fresh.history.length]).toEqual([2, null, 1]); // draw
-  await tiebreak.act(env, tb.id, "a", "hand", "p");
-  await tiebreak.act(env, tb.id, "b", "hand", "r");
-  fresh = (await tiebreak.getById(env, tb.id))!;
-  expect(fresh.result).toBe("X");
-  expect(tiebreak.story(fresh, (o) => o)).toContain("won rock-paper-scissors");
+test("a split that never resolves: last call for everyone, then the night's off (nobody roasted)", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "yes");
+  await act("a", "game", "R.E.P.O.");
+  await act("b", "game", "Phasmophobia");
+  await act("c", "game", "Palworld");
+  const opened = (await night())!.stage_at!;
+  vi.setSystemTime((opened + 3 * 3600 - 20 * 60) * 1000);
+  await gn.maintain(env);
+  expect(posts().some((p) => p.body.content?.includes("Still split"))).toBe(true);
+  vi.setSystemTime((opened + 3 * 3600 + 60) * 1000);
+  await gn.maintain(env);
+  const n = (await night())!;
+  expect([n.stage, n.roast]).toEqual(["off", null]);
+  expect(n.note).toContain("couldn't agree");
 });
 
 test("polls: secret until everyone's voted, then most votes wins; your answer is highlighted on your copy", async () => {
@@ -203,14 +204,20 @@ test("polls: secret until everyone's voted, then most votes wins; your answer is
   expect((await polls.pollAct(env, id, "c", "0")).notice).toContain("already decided");
 });
 
-test("polls: tapping your vote again takes it back; a three-way split goes to a tiebreaker", async () => {
+test("polls: tapping your vote again takes it back; a split stays open until one answer leads", async () => {
   const id = await polls.createPoll(env, "a", "Where?", "A\nB\nC");
   await polls.pollAct(env, id, "a", "0");
   expect((await polls.pollAct(env, id, "a", "0")).notice).toContain("Took your vote back");
   await polls.pollAct(env, id, "a", "0");
   await polls.pollAct(env, id, "b", "1");
   await polls.pollAct(env, id, "c", "2");
-  expect(await tiebreak.get(env, "poll", String(id))).toBeTruthy();
+  let card = text(await polls.renderPoll(env, id));
+  expect(card).toContain("Split vote");
+  expect(card).toContain("█"); // revealed
+  expect((await polls.pollAct(env, id, "a", "close")).notice).toContain("Still split");
+  await polls.pollAct(env, id, "c", "1");
+  card = text(await polls.renderPoll(env, id));
+  expect(card).toContain("Decided: B");
 });
 
 test("reopen starts the day over; reset wipes it", async () => {

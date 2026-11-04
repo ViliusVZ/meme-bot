@@ -233,20 +233,6 @@ test("room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day delet
   expect((await t.db.select().from(rooms)).map((r) => [r.channel_id, r.archived_at])).toEqual([["busy", null]]);
 });
 
-test("a tiebreak nobody finishes gets one nudge after an hour", async () => {
-  await gn.startNight(env, "a");
-  const pending: Promise<unknown>[] = [];
-  const act = async (u: string, a: string, v?: string) => (await gn.act(env, DAY, u, a, v, (p) => pending.push(p)), await Promise.all(pending.splice(0)));
-  await act("b", "yes");
-  await act("c", "yes");
-  await act("a", "game", "R.E.P.O.");
-  await act("b", "game", "Phasmophobia");
-  await act("c", "game", "Palworld");
-  vi.setSystemTime((now() + 3601) * 1000);
-  expect((await gn.maintain(env))[`tiebreak nudged ${DAY}`]).toEqual(["a", "b", "c"]);
-  expect((await gn.maintain(env))[`tiebreak nudged ${DAY}`]).toBeUndefined();
-});
-
 test("rooms: another click finishing the same room between our look and our claim", async () => {
   // simulate the other click: the moment our placeholder goes in, its finished room appears
   await t.pool.query(`CREATE OR REPLACE FUNCTION qa_racer() RETURNS trigger AS $$

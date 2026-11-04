@@ -6,13 +6,12 @@ import type { Env } from "./env.js";
 import { memes } from "./db/index.js";
 import { api, EPHEMERAL, Response as R, verifySignature } from "./discord.js";
 import { inFlight } from "./background.js";
-import { interaction, tiebreakTurn } from "./interactions.js";
+import { interaction } from "./interactions.js";
 import * as db from "./memes.js";
 import * as jobs from "./jobs.js";
 import * as gn from "./gamenight.js";
 import * as hub from "./hub.js";
 import * as polls from "./polls.js";
-import * as tiebreak from "./tiebreak.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as late from "./late.js";
@@ -203,14 +202,6 @@ export function build(env: Env, status: Status) {
         case "copy":
           // someone's private copy of a card (what they see after tapping it)
           return gn.render(env, input.day ?? gn.local(env).day, input.user);
-        case "tb": {
-          // simulate a player's tiebreak click (no animation), then refresh the host card
-          const t = await tiebreakTurn(quiet, Number(input.id), input.user, input.choice, input.value);
-          const tb = await tiebreak.getById(env, Number(input.id));
-          if (tb?.kind === "night") await gn.refresh(quiet, tb.ref);
-          if (tb?.kind === "poll") await polls.refreshPoll(quiet, Number(tb.ref));
-          return { notice: t?.notice, tiebreak: tb };
-        }
         case "hub": {
           // update the pinned panel in place, or post a new one and pin it
           if (input.message) return api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${input.message}`, hub.hubPanel(env));

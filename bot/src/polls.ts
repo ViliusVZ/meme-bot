@@ -1,8 +1,8 @@
 // Quick democratic polls: /poll (or the 🗳️ button) opens a form, the answers become buttons.
 // One vote each, changeable (tap again to take it back), and 🤫 secret: the card shows only who
 // has voted until the poll is decided, then reveals who picked what. Once everyone's voted the answer
-// with the most votes wins; a split, or a tied poll someone 🔒 closes, goes to a ⚔️ tiebreaker
-// (wheel or rock-paper-scissors, see tiebreak.ts). Clicking gives you a private copy with your
+// with the most votes wins; on a split the votes are revealed and stay open for a re-vote until
+// one answer leads (🔒 Close decides it then too). Clicking gives you a private copy with your
 // answer highlighted (see gamenight.ts).
 import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "./env.js";
@@ -10,7 +10,6 @@ import { polls, pollVotes } from "./db/index.js";
 import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { now } from "./memes.js";
 import { players } from "./gamenight.js";
-import * as tiebreak from "./tiebreak.js";
 
 type Poll = typeof polls.$inferSelect;
 type Outcome = { notice?: string; update: boolean };
@@ -70,28 +69,18 @@ async function close(env: Env, id: number, result: string) {
   return r.length > 0;
 }
 
-/** The tied leaders go to a ⚔️ tiebreaker; their voters are the contenders. */
-async function startTiebreak(env: Env, poll: Poll, c: Awaited<ReturnType<typeof counts>>) {
-  const top = Math.max(...c.voters.map((v) => v.length));
-  const leaders = c.options.map((_, i) => i).filter((i) => c.voters[i].length === top);
-  const contenders: Record<string, string> = {};
-  for (const i of leaders) for (const u of c.voters[i]) contenders[u] = c.options[i];
-  await tiebreak.open(env, "poll", String(poll.id), leaders.map((i) => c.options[i]), contenders);
-}
-
 export async function pollAct(env: Env, id: number, user: string, action: string): Promise<Outcome> {
   const poll = await getPoll(env, id);
   if (!poll) return { notice: "That poll has vanished 🫥", update: false };
   if (poll.closed_at) return { notice: "This poll is already decided 🔒", update: true };
-  if (await tiebreak.get(env, "poll", String(id))) return { notice: "It's tiebreaker time ⚔️ Settle it on the card.", update: true };
 
   const c = await counts(env, poll);
   if (action === "close") {
     const top = Math.max(...c.voters.map((v) => v.length));
     if (!top) return { notice: "Nobody has voted yet 🤷", update: false };
     const leaders = c.options.filter((_, i) => c.voters[i].length === top);
-    if (leaders.length === 1) await close(env, id, `win:${leaders[0]}`);
-    else await startTiebreak(env, poll, c);
+    if (leaders.length > 1) return { notice: `🔁 Still split (${leaders.join(" vs ")}). Someone has to change their vote first.`, update: false };
+    await close(env, id, `win:${leaders[0]}`);
     return { update: true };
   }
 
@@ -107,19 +96,13 @@ export async function pollAct(env: Env, id: number, user: string, action: string
     .values({ poll_id: id, user_id: user, choice, voted_at: at })
     .onConflictDoUpdate({ target: [pollVotes.poll_id, pollVotes.user_id], set: { choice, voted_at: at } });
   const after = await counts(env, poll);
-  // nothing is decided until everyone's voted: then most votes wins, a split goes to a tiebreaker
+  // nothing is decided until everyone's voted: then most votes wins; a split stays open (revealed)
+  // for a re-vote
   if (!players(env).every((p) => after.voters.some((v) => v.includes(p)))) return { update: true };
   const top = Math.max(...after.voters.map((v) => v.length));
   const leaders = after.options.filter((_, i) => after.voters[i].length === top);
   if (leaders.length === 1) await close(env, id, `win:${leaders[0]}`);
-  else await startTiebreak(env, poll, after);
   return { update: true };
-}
-
-/** A tiebreak on this poll finished: close it with the winner. */
-export async function applyTiebreak(env: Env, id: number) {
-  const tb = await tiebreak.get(env, "poll", String(id));
-  if (tb?.result) await close(env, id, `win:${tb.result}`);
 }
 
 export async function setMessage(env: Env, id: number, channelId: string, messageId: string) {
@@ -137,8 +120,9 @@ export async function renderPoll(env: Env, id: number, viewer?: string, notice?:
   const poll = (await getPoll(env, id))!;
   const me = viewer && players(env).includes(viewer) ? viewer : null;
   const c = await counts(env, poll);
-  const tb = await tiebreak.get(env, "poll", String(id));
-  const hidden = !poll.closed_at && !tb; // decided (or tied into a tiebreak) = revealed
+  const everyone = players(env).every((p) => c.voters.some((v) => v.includes(p)));
+  const split = !poll.closed_at && everyone; // everyone's voted and it's still open: a split
+  const hidden = !poll.closed_at && !split; // decided or split = revealed
   const top = Math.max(1, ...c.voters.map((v) => v.length));
   const lines = c.options.map((o, i) => {
     if (hidden) return `${LETTERS[i]} **${o}**`;
@@ -151,13 +135,12 @@ export async function renderPoll(env: Env, id: number, viewer?: string, notice?:
     .join("　");
 
   const body: unknown[] = [text(`## 🗳️ ${poll.question}`), text(hidden ? `${lines.join("\n")}\n\n${ballots}` : lines.join("\n"))];
-  const label = (o: string) => `${LETTERS[c.options.indexOf(o)] ?? ""} ${o}`;
-  if (!poll.closed_at && tb) {
-    body.push(...tiebreak.section(tb, label, undefined, me), text(`-# asked by <@${poll.created_by}>`));
-  } else if (!poll.closed_at) {
+  if (!poll.closed_at) {
     body.push(
       text(
-        `-# asked by <@${poll.created_by}> · 🤫 votes stay secret until everyone's voted · then most votes wins · tap again to take yours back · 🔒 Close decides it now`,
+        split
+          ? `### 🔁 Split vote! Re-vote until one answer leads\n-# asked by <@${poll.created_by}> · tap another answer to switch · 🔒 Close decides it once one leads`
+          : `-# asked by <@${poll.created_by}> · 🤫 votes stay secret until everyone's voted · then most votes wins · tap again to take yours back · 🔒 Close decides it now`,
       ),
     );
     const buttons = c.options.map((o, i) => ({
@@ -171,7 +154,6 @@ export async function renderPoll(env: Env, id: number, viewer?: string, notice?:
     for (let i = 0; i < buttons.length; i += 5) body.push({ type: 1, components: buttons.slice(i, i + 5) });
   } else {
     const value = poll.result!.slice(poll.result!.indexOf(":") + 1);
-    if (tb?.result) body.push(text(`### ⚔️ Tiebreaker\n${tiebreak.story(tb, label)}`));
     body.push(text(`### ✅ Decided: ${value}`));
     body.push(text(`-# asked by <@${poll.created_by}> · ${c.total} vote${c.total === 1 ? "" : "s"}`));
   }

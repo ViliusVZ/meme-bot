@@ -1,6 +1,7 @@
 // Daily game-night planner: one card per day that walks through three stages.
 //   ask  → "Are we playing today?" (needs every player to say yes)
-//   game → pick a game (once everyone's voted, most votes wins; a split goes to a ⚔️ tiebreaker)
+//   game → pick a game (once everyone's voted, most votes wins; on a split the picks are revealed
+//          and everyone re-votes until two agree)
 //   time → everyone picks the earliest time they can start; we start at the latest of those, and
 //          only if everyone gets an hour together before the first 🏁 leave-by
 //   set  → locked in: Discord event + one ping now; at start a voice room opens (voice.ts) and
@@ -17,12 +18,11 @@
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
-import { gameNights, gameNightVotes, games as gameTable, nightAttendance, tiebreaks, type Stage, type Tx } from "./db/index.js";
+import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import * as roasts from "./roasts.js";
 import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
-import * as tiebreak from "./tiebreak.js";
 import * as voice from "./voice.js";
 import * as late from "./late.js";
 
@@ -266,8 +266,8 @@ function tally(env: Env, v: Votes) {
 // on it update it in place while the public card follows along.
 // While a vote runs, the card shows only who has voted, never what. No counts either: in a group
 // of three they'd give picks away. Each voter gets a private receipt instead. Picks are revealed
-// once the vote is decided: everyone has answered, a game wins (or ties into a ⚔️ tiebreaker),
-// or every start time is in.
+// once everyone has answered (a split game vote stays revealed while you re-vote), or every start
+// time is in.
 
 /** Is this stage's vote still secret? Once revealed it stays revealed (a time clash sets `conflict`). */
 async function secret(env: Env, n: Night) {
@@ -276,7 +276,10 @@ async function secret(env: Env, n: Night) {
     const v = await votes(env, n.day, "ask");
     return !ps.every((p) => v[p]);
   }
-  if (n.stage === "game") return !(await tiebreak.get(env, "night", n.day));
+  if (n.stage === "game") {
+    const v = await votes(env, n.day, "game");
+    return !ps.every((p) => v[p]);
+  }
   if (n.stage === "time") {
     if (n.conflict) return false;
     const v = await votes(env, n.day, "time");
@@ -428,9 +431,8 @@ async function close(env: Env, day: string, rerender = true) {
     if (!OPEN.includes(n.stage)) return;
     // the day ran out: anyone who had an hour to vote and didn't (or said no) still gets roasted,
     // in the morning; a vote that only just opened closes quietly
-    const tb = n.stage === "game" ? await tiebreak.get(env, "night", day) : null;
     const { who } = await culprits(env, n);
-    const fair = !tb && nowSec() - (n.stage_at ?? 0) >= RENUDGE_AFTER;
+    const fair = nowSec() - (n.stage_at ?? 0) >= RENUDGE_AFTER;
     if (!(await callOff(env, n, fair ? who : {}, fair && Object.keys(who).length ? undefined : closeNote(n.stage)))) return;
     await refresh(env, day);
     return;
@@ -477,12 +479,10 @@ export async function act(env: Env, day: string, user: string, action: string, v
       break;
     case "game":
       if (n.stage !== "game" || !value) return ok;
-      if (await tiebreak.get(env, "night", day)) return say("It's tiebreaker time ⚔️ Settle it on the card.", true);
       await vote(env, day, "game", user, value);
       break;
     case "suggest": {
       if (n.stage !== "game") return say("Game picking is already over for today.", true);
-      if (await tiebreak.get(env, "night", day)) return say("It's tiebreaker time ⚔️ Settle it on the card.", true);
       const name = await addGame(env, value ?? "", user);
       if (!name) return say("Give the game a name 🙃");
       await vote(env, day, "game", user, name);
@@ -607,10 +607,14 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
         defer(nudge(env, day, ps.filter((p) => p !== actor), `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
       }
     } else {
-      // a split: ⚔️ tiebreaker between the most-voted games
-      const existed = await tiebreak.get(env, "night", day);
-      await tiebreak.open(env, "night", day, tied, Object.fromEntries(ps.filter((p) => tied.includes(v[p])).map((p) => [p, v[p]])));
-      if (!existed) defer(nudge(env, day, ps.filter((p) => p !== actor), "⚔️ It's a tie! Spin the wheel or settle it with rock-paper-scissors ⬆️"));
+      // a split: the picks are revealed (everyone's voted) and it stays open for a re-vote; one
+      // ping per night about it
+      const claimed = await env.db
+        .update(gameNights)
+        .set({ renudged: "split" })
+        .where(and(eq(gameNights.day, day), eq(gameNights.stage, "game"), or(isNull(gameNights.renudged), ne(gameNights.renudged, "split"))))
+        .returning({ day: gameNights.day });
+      if (claimed.length) defer(nudge(env, day, ps.filter((p) => p !== actor), "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
     }
     return;
   }
@@ -644,16 +648,6 @@ function onNightDay(env: Env, day: string, t: number) {
   const [y, mo, d] = day.split("-").map(Number);
   const dayStart = wallToUnix(env, y, mo, d, 0, 0);
   return t >= dayStart && t <= dayStart + 30 * 3600;
-}
-
-/** A game-pick tiebreak finished: the winner goes on to time picking, with the story as a note. */
-export async function applyTiebreak(env: Env, day: string, actor: string, defer: Defer) {
-  const tb = await tiebreak.get(env, "night", day);
-  if (!tb?.result) return;
-  const label = await gameLabel(env);
-  if (await advance(env, day, "game", "time", { game: tb.result, note: tiebreak.story(tb, label) })) {
-    defer(nudge(env, day, players(env).filter((p) => p !== actor), `${label(tb.result)} it is! When can you start? ⬆️`));
-  }
 }
 
 /** "👻 Phasmophobia", using each game's emoji. */
@@ -959,35 +953,32 @@ async function startReminder(env: Env, n: Night, at?: number) {
 
 async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done: Record<string, unknown>) {
   {
-    const tb = n.stage === "game" ? await tiebreak.get(env, "night", n.day) : null;
-    if (tb?.result) {
-      // a tiebreak finished but the card never moved on (failed follow-up): finish the job
-      const pending: Promise<unknown>[] = [];
-      await applyTiebreak(env, n.day, "", (p) => pending.push(p));
-      await Promise.all(pending);
-      await refresh(env, n.day);
-      return;
-    }
-    if (tb) {
-      // a tiebreak nobody has finished for an hour: one reminder to whoever it's waiting on
-      if (awake && n.renudged !== "tb" && t - Date.parse(tb.created_at) / 1000 >= RENUDGE_AFTER) {
-        const who = tb.mode === "rps" ? tb.alive.filter((u) => !tb.hands[u]) : players(env);
-        const claimed = await env.db
-          .update(gameNights)
-          .set({ renudged: "tb" })
-          .where(and(eq(gameNights.day, n.day), or(isNull(gameNights.renudged), ne(gameNights.renudged, "tb"))))
-          .returning({ day: gameNights.day });
-        if (claimed.length && who.length) {
-          await nudge(env, n.day, who, tb.mode === "rps" ? "✊ Your rock-paper-scissors throw is still missing ⬆️" : "⚔️ The tiebreaker is still waiting. Spin it or duel it ⬆️");
-          done[`tiebreak nudged ${n.day}`] = who;
-        }
-      }
-      return;
-    }
     // drop start times that just passed (every 15 min is plenty; the tick runs every minute)
     if (n.stage === "time" && local(env).minute % 15 === 0) await refresh(env, n.day);
     const { who, missing } = await culprits(env, n);
     const deadline = voteDeadline(env, n);
+    // everyone voted for a game but it's split: the clock still runs, for all three
+    const split = n.stage === "game" && !missing.length;
+    if (split && t >= deadline) {
+      if (await callOff(env, n, {}, "🤷 We couldn't agree on a game in time. Maybe tomorrow 🫡")) {
+        await refresh(env, n.day);
+        done[`split ran out ${n.day}`] = true;
+      }
+      return;
+    }
+    if (split && awake && t >= deadline - WARN_BEFORE && n.warned !== n.stage) {
+      const claimed = await env.db
+        .update(gameNights)
+        .set({ warned: n.stage })
+        .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
+        .returning({ day: gameNights.day });
+      if (claimed.length) {
+        const left = Math.max(1, Math.round((deadline - t) / 60));
+        await nudge(env, n.day, players(env), `⏳ Still split: ${left} min for two of you to agree on a game, or the night's off ⬆️`);
+        done[`warned ${n.day}`] = "split";
+      }
+      return;
+    }
     if (missing.length && t >= deadline) {
       // 🔥 time's up: the votes come out, the night's off, and whoever sank it gets roasted
       if (await callOff(env, n, who)) {
@@ -1089,27 +1080,24 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
     case "game": {
       const v = await votes(env, day, "game");
       const list = await games(env);
-      const tb = await tiebreak.get(env, "night", day);
-      if (tb) {
-        // a tie: the votes are revealed and the dropdown makes way for the ⚔️ tiebreaker
-        body = [
-          text(`## 🕹️ What are we playing? · ${date}`),
-          ...tiebreak.section(tb, await gameLabel(env), ps.every((p) => v[p]) && tally(env, v).size === ps.length ? "Everyone picked something different!" : "It's a tie!", me),
-          row(out),
-        ];
-        break;
-      }
+      // everyone's voted and we're still here: it's split, so the picks are out and you re-vote
+      const split = ps.every((p) => v[p]);
+      const picks = split ? await gameVotesLine(env, day) : null;
       body = [
-        text(`## 🕹️ What are we playing? · ${date}\n✅ All ${ps.length} are in!`),
-        text(ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
-        text(`-# 🤫 Votes stay secret until everyone's voted · then most votes wins · a split goes to a ⚔️ tiebreaker\n${closes}`),
+        text(`## 🕹️ What are we playing? · ${date}\n${split ? "### 🔁 Split vote! Re-vote until two of you agree" : `✅ All ${ps.length} are in!`}`),
+        text(split ? `🗳️ ${picks}` : ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
+        text(
+          split
+            ? `-# Everyone picked something different. Talk it out, then pick again: two of you on the same game and it's settled.\n${closes.replace("No vote by then = night's off and you get roasted 🔥", "Still split by then = night's off")}`
+            : `-# 🤫 Votes stay secret until everyone's voted · then most votes wins · a split means a re-vote\n${closes}`,
+        ),
         // a dropdown needs at least one option; with an empty game list, suggesting is the way in
         ...(list.length
           ? [
               row({
                 type: 3,
                 custom_id: id("game"),
-                placeholder: "🎯 Pick a game…",
+                placeholder: split ? "🔁 Change your pick…" : "🎯 Pick a game…",
                 options: list.map((g) => ({
                   label: g.name,
                   value: g.name,
@@ -1170,7 +1158,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
         return button(style, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
       });
       const myLeave = me && until[me] ? `Leave by ${timeLabel(env, Number(until[me]), day)}` : "Leave by";
-      // the game vote is decided, so it's revealed (a tiebreak's story already names everyone)
+      // the game vote is decided, so it's revealed
       const gameVotes = n.note ? null : await gameVotesLine(env, day);
       const notes = [...(gameVotes ? [`🗳️ ${gameVotes}`] : []), ...(n.note ? n.note.split("\n") : [])];
       body = [
@@ -1305,9 +1293,8 @@ export async function resetNight(env: Env, day: string) {
   return { reset: true };
 }
 
-/** A day's votes, tiebreak and attendance (reopen and reset start the day over). */
+/** A day's votes and attendance (reopen and reset start the day over). */
 async function clearDay(tx: Tx, day: string) {
   await tx.delete(gameNightVotes).where(eq(gameNightVotes.day, day));
-  await tx.delete(tiebreaks).where(and(eq(tiebreaks.kind, "night"), eq(tiebreaks.ref, day)));
   await tx.delete(nightAttendance).where(eq(nightAttendance.day, day));
 }

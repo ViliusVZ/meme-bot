@@ -52,8 +52,8 @@ function guide(env: Env) {
     divider,
     text(
       [
-        "### ⚔️ Ties",
-        "A three-way split on a game, or a tied poll, becomes a tiebreaker: **🎰 spin the wheel** (watch it spin), or the tied players duel at **✊✋✌️ rock-paper-scissors**. Throws stay secret, draws replay, and after 5 draws the wheel takes over.",
+        "### 🔁 Splits",
+        "Everyone picked something different? The picks are revealed and the vote stays open: talk it out and re-vote until two of you agree (same 3-hour clock). Polls work the same way.",
       ].join("\n"),
     ),
     divider,
