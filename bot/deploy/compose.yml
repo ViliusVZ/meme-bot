@@ -1,0 +1,32 @@
+# Blue/green pair for one deployment of the bot (prod "meme-bot", test bot "meme-bot-dev").
+# The deploy script (server repo: host/deploy-app.sh) starts the idle colour with the new image,
+# waits for it to be healthy, then stops the other. Caddy sends traffic to whichever is healthy.
+x-bot: &bot
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 40s
+  env_file: [db.env, config.env, secrets.env]
+  environment:
+    PORT: "3000"
+  networks: [web, db]
+  logging:
+    driver: local
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  blue:
+    <<: *bot
+    image: ${IMAGE_BLUE:-none}
+    container_name: ${APP:?}-blue
+    environment: { PORT: "3000", APP_NAME: "${APP}-blue" }
+  green:
+    <<: *bot
+    image: ${IMAGE_GREEN:-none}
+    container_name: ${APP:?}-green
+    environment: { PORT: "3000", APP_NAME: "${APP}-green" }
+
+networks:
+  web:
+    external: true
+  db:
+    external: true

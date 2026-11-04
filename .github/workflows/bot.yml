@@ -1,0 +1,109 @@
+name: Bot
+
+# Every push to main that touches the bot: test → build image → deploy to the test bot → deploy to
+# production. Deploys are blue/green on the VPS (server repo: host/deploy-app.sh), so a bad build
+# never replaces a working one, and nothing is dropped while switching.
+on:
+  push:
+    branches: [main]
+    paths: ["bot/**", ".github/workflows/bot.yml"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to deploy
+        type: choice
+        options: [both, dev, prod]
+        default: both
+
+concurrency:
+  group: bot-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/viliusvz/meme-bot
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults: { run: { working-directory: bot } }
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_PASSWORD: test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 2s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm, cache-dependency-path: bot/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: meta
+        run: echo "image=$IMAGE:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: docker/build-push-action@v6
+        with:
+          context: bot
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+          build-args: REVISION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-dev:
+    needs: build
+    # the test bot (on until production is the only deployment that matters: DEV_ENABLED)
+    if: vars.DEV_ENABLED == 'true' && (github.event_name == 'push' || inputs.target != 'prod')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: dev
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/deploy
+        with:
+          app: meme-bot-dev
+          config: bot/deploy/dev.env
+          image: ${{ needs.build.outputs.image }}
+          url: https://srv2127148.hstgr.cloud/bot-dev/health
+          ssh-key: ${{ secrets.VPS_DEPLOY_KEY }}
+          known-hosts: ${{ secrets.VPS_KNOWN_HOSTS }}
+          registry-token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-prod:
+    needs: [build, deploy-dev]
+    # production follows the test bot; until the switchover from Cloudflare it stays off (PROD_ENABLED)
+    if: always() && needs.build.result == 'success' && needs.deploy-dev.result != 'failure' && vars.PROD_ENABLED == 'true' && (github.event_name == 'push' || inputs.target != 'dev')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: prod
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/deploy
+        with:
+          app: meme-bot
+          config: bot/deploy/prod.env
+          image: ${{ needs.build.outputs.image }}
+          url: https://srv2127148.hstgr.cloud/bot/health
+          ssh-key: ${{ secrets.VPS_DEPLOY_KEY }}
+          known-hosts: ${{ secrets.VPS_KNOWN_HOSTS }}
+          registry-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,41 @@
+name: Deploy to the VPS
+description: Push config + compose for one app and run a blue/green deploy through the SSH gate
+inputs:
+  app: { required: true, description: "meme-bot | meme-bot-dev" }
+  config: { required: true, description: Non-secret config file for this app }
+  image: { required: true, description: Image to deploy }
+  url: { required: true, description: Public health URL to check afterwards }
+  ssh-key: { required: true, description: Deploy key (restricted to the deploy gate) }
+  known-hosts: { required: true, description: The VPS host key }
+  registry-token: { required: true, description: Token the VPS uses once to pull the image }
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        KEY: ${{ inputs.ssh-key }}
+        KNOWN: ${{ inputs.known-hosts }}
+      run: |
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+        printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+    - shell: bash
+      env:
+        APP: ${{ inputs.app }}
+        IMAGE: ${{ inputs.image }}
+        TOKEN: ${{ inputs.registry-token }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        gate() { ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes deploy@srv2127148.hstgr.cloud "$@"; }
+        gate config "$APP" < "$CONFIG"
+        gate compose "$APP" < bot/deploy/compose.yml
+        printf '%s' "$TOKEN" | gate deploy "$APP" "$IMAGE"
+    - shell: bash
+      env:
+        URL: ${{ inputs.url }}
+      run: |
+        for i in $(seq 1 20); do
+          if curl -fsS "$URL"; then echo; exit 0; fi
+          sleep 2
+        done
+        echo "health check failed: $URL"; exit 1
