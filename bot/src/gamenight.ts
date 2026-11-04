@@ -4,7 +4,8 @@
 //   time → everyone picks the earliest time they can start; we start at the latest of those, and
 //          only if everyone gets an hour together before the first 🏁 leave-by
 //   set  → locked in: Discord event + one ping now; at start a voice room opens (voice.ts) and
-//          latecomers are handled (late.ts)
+//          latecomers are handled (late.ts). We play all together or not at all: anyone bailing,
+//          even after the start, calls it off for everyone (and gets roasted)
 //   off  → someone bailed, or the day ended before we agreed (🔄 reopen works the same day)
 //
 // 🔥 Every vote has a deadline (voteDeadline: 3 h, smart about nights and planned days). Votes stay
@@ -532,18 +533,9 @@ export async function act(env: Env, day: string, user: string, action: string, v
     }
     case "out":
       if (n.stage === "set" && (n.start_at ?? 0) < nowSec() - 4 * 3600) return say("That game night is already history 🕰️");
-      if (n.stage === "set" && (n.reminded || n.start_at! <= nowSec())) {
-        // already under way (the start ping went out): the others play on, this person is absent
-        defer(late.markAbsent(env, day, user));
-        return say("Noted, you're out for tonight. The others carry on 🫡");
-      }
       if (n.stage === "off" || n.stage === "ask") return ok;
-      if (await callOff(env, n, { [user]: "out" })) {
-        defer((async () => {
-          if (n.stage === "set" && n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
-          await postRoast(env, day);
-        })());
-      }
+      // all of us or none of us: a bail calls it off for everyone, even after the start
+      if (await callOff(env, n, { [user]: "out" })) defer(afterBail(env, n));
       return ok;
     case "reopen": {
       // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
@@ -778,6 +770,32 @@ async function callOff(env: Env, n: Night, who: Record<string, Reason>, note?: s
       .where(eq(gameNights.day, n.day));
   }
   await clearNudge(env, (await getNight(env, n.day))!);
+  return true;
+}
+
+/**
+ * Someone bailed: ends the night's Discord event (deleted if it hadn't started, marked ended if it
+ * had), retires everyone's late slips, and posts the roast.
+ */
+async function afterBail(env: Env, n: Night) {
+  if (n.event_id) {
+    const live = n.reminded || (n.start_at ?? Infinity) <= nowSec();
+    await (live
+      ? api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 })
+      : api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`)
+    ).catch(() => {});
+  }
+  await late.retireSlips(env, n.day).catch((e) => console.log("retire slips failed", e));
+  await postRoast(env, n.day);
+}
+
+/** A late slip's 😴: same as 🚪, the whole night is off. */
+export async function bailFromSlip(env: Env, day: string, user: string) {
+  const n = await getNight(env, day);
+  if (n?.stage !== "set") return false;
+  if (!(await callOff(env, n, { [user]: "out" }))) return false;
+  await refresh(env, day);
+  await afterBail(env, n);
   return true;
 }
 

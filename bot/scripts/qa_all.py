@@ -282,11 +282,13 @@ ok("not your late slip" in (r.get("notice") or ""), "you can't answer someone el
 r = admin("/admin/gamenight", {"action": "late", "day": D3, "user": V, "choice": "15"})
 ok(r["row"]["state"] == "eta" and abs(r["row"]["eta"] - (int(time.time()) + 900)) < 30, "🏃 15 min sets an ETA")
 r = admin("/admin/gamenight", {"action": "late", "day": D3, "user": K, "choice": "out"})
-ok(r["row"]["state"] == "absent", "😴 marks absent")
-ok(night(D3)["stage"] == "set", "and the night carries on for the others")
-r = gn(D3, L, "out")
-ok("carry on" in (r.get("notice") or "") and night(D3)["stage"] == "set", "card 'Can't make it' after the start only marks absent")
-ok(sql(f"SELECT state FROM night_attendance WHERE day='{D3}' AND user_id='{L}'")[0]["state"] == "absent", "L is absent")
+n3 = night(D3)
+ok(r["row"]["state"] == "absent" and n3["stage"] == "off", "😴 after the start calls the night off for everyone (all or none)")
+ok((n3["roast"] or {}).get("who") == {K: "out"}, "and the bailer is the one roasted")
+roasts = [m for m in call("GET", f"/channels/{CH}/messages?limit=20") if (m.get("content") or "").startswith("🔥") and f"<@{K}> 🚪 bailed" in m["content"]]
+ok(len(roasts) == 1, "one roast in the channel")
+ok("off" in (admin("/admin/gamenight", {"action": "late", "day": D3, "user": V, "choice": "5"}).get("notice") or ""), "other slips just say the night's off")
+ok(gn(D3, L, "out").get("update") is True and night(D3)["roast"]["who"] == {K: "out"}, "a second bail changes nothing")
 
 section("rooms: concurrent opens make one room")
 with ThreadPoolExecutor(3) as ex:

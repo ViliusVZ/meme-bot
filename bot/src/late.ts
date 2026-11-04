@@ -5,14 +5,13 @@
 //                       them be)
 //   anywhere else    → 10 min after start they get one late slip: "Running late?" with 🏃 ETA
 //                       buttons and 😴 can't make it
-// "Can't make it" after the start marks that person absent (the others are already playing) and
-// gets them 🔥 roasted: their late slip turns into the roast, or a roast is posted if they had none.
-import { and, eq, gt, isNull, like, lte, not } from "drizzle-orm";
+// "Can't make it" (😴 on the slip, or on the card) calls the whole night off: we play all together
+// or not at all (gamenight.ts posts the roast). Everyone's slips then say so.
+import { and, eq, gt, isNull, like, lte, not, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { gameNights, nightAttendance, rooms } from "./db/index.js";
 import { api, IS_COMPONENTS_V2 } from "./discord.js";
-import * as roasts from "./roasts.js";
-import { players } from "./gamenight.js";
+import { bailFromSlip, players } from "./gamenight.js";
 import * as voice from "./voice.js";
 
 export type Attendance = typeof nightAttendance.$inferSelect;
@@ -45,25 +44,18 @@ export async function markArrived(env: Env, day: string, users: string[]) {
 }
 
 /** Card "Can't make it" after the start: mark absent (and update their slip if they had one). */
-/** Bailed after the start: absent, with a roast line picked once and kept. */
-async function bail(env: Env, day: string, user: string) {
-  const cur = await get(env, day, user);
-  return put(env, day, user, { state: "absent", roast: cur?.roast ?? (await roasts.next(env, [user])) });
-}
-
-export async function markAbsent(env: Env, day: string, user: string) {
-  const row = await bail(env, day, user);
-  if (row.message_id) {
-    await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${row.message_id}`, await render(env, day, user)).catch(() => {});
-    return;
+/** The night was called off: every slip still asking "running late?" says so instead. */
+export async function retireSlips(env: Env, day: string) {
+  const rows = await env.db.select().from(nightAttendance).where(and(eq(nightAttendance.day, day), sql`${nightAttendance.message_id} IS NOT NULL`));
+  for (const r of rows) {
+    if (r.state === "arrived") continue;
+    const content = r.state === "absent" ? `🚪 ${mention(r.user_id)} bailed, so game night's off. Roast below 🔥` : `~~⏰ Running late?~~ Never mind ${mention(r.user_id)}, game night's off 🫡`;
+    await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${r.message_id}`, {
+      flags: IS_COMPONENTS_V2,
+      allowed_mentions: { parse: [] },
+      components: [{ type: 10, content }],
+    }).catch(() => {});
   }
-  // no late slip to turn into the roast: post it (no ping, they know what they did)
-  const [n] = await env.db.select({ game: gameNights.game, message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
-  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: bailText(user, row, n?.game ?? ""),
-    allowed_mentions: { parse: [] },
-    message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-  });
 }
 
 type Night = { day: string; game: string | null; start_at: number | null; message_id: string | null };
@@ -160,9 +152,14 @@ export async function act(env: Env, day: string, owner: string, clicker: string,
   if (clicker !== owner) return { notice: "That's not your late slip 😄" };
   const row = await get(env, day, owner);
   if (!row) return { notice: "That slip has expired 🫥" };
+  const [night] = await env.db.select({ stage: gameNights.stage }).from(gameNights).where(eq(gameNights.day, day));
+  if (night?.stage !== "set") return { notice: "Game night's off, no need to hurry 🫡" };
   if (row.state === "arrived") return { notice: "You're already here 👋" };
-  if (choice === "out") await bail(env, day, owner);
-  else {
+  if (choice === "out") {
+    // all of us or none of us: the night's off (this also retires every slip, this one included)
+    await put(env, day, owner, { state: "absent" });
+    await bailFromSlip(env, day, owner);
+  } else {
     const mins = Number(choice);
     if (![5, 15, 30].includes(mins)) return { notice: "🤷" };
     await put(env, day, owner, { state: "eta", eta: nowSec() + mins * 60 });
@@ -176,11 +173,6 @@ export async function render(env: Env, day: string, user: string) {
   const [n] = await env.db.select({ game: gameNights.game, start_at: gameNights.start_at }).from(gameNights).where(eq(gameNights.day, day));
   const [room] = await env.db.select({ channel_id: rooms.channel_id }).from(rooms).where(and(eq(rooms.day, day), real));
   return slip(env, day, user, row, n.game!, n.start_at ?? undefined, room?.channel_id);
-}
-
-/** "🔥 **Tonight's R.E.P.O. lost a player** · @x 🚪 bailed" plus their roast line. */
-function bailText(user: string, row: Attendance, game: string) {
-  return `🔥 **Tonight's ${game || "game night"} lost a player** · ${mention(user)} 🚪 bailed, the rest of you carry on${row.roast ? `\n> ${row.roast}` : ""}`;
 }
 
 function slip(env: Env, day: string, user: string, row: Attendance, game: string, startAt?: number, roomId?: string) {
@@ -199,8 +191,7 @@ function slip(env: Env, day: string, user: string, row: Attendance, game: string
     accent = 0x57f287;
     body = [{ type: 10, content: `✅ ${mention(user)} made it${mins ? `, ${mins} min late` : ""}${onTime ? " (right on their ETA 👏)" : mins && mins >= 20 ? " 🐢" : ""}` }];
   } else if (row.state === "absent") {
-    // same look as the roasts for a called-off night: plain text, no box
-    return { flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as string[] }, components: [{ type: 10, content: bailText(user, row, game) }] };
+    return { flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as string[] }, components: [{ type: 10, content: `🚪 ${mention(user)} bailed, so game night's off. Roast below 🔥` }] };
   } else if (row.state === "eta") {
     body = [
       { type: 10, content: `🏃 ${mention(user)} is on the way · ETA <t:${row.eta}:t> (<t:${row.eta}:R>)` },

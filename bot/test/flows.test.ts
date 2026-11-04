@@ -418,26 +418,33 @@ test("games are case-insensitive, most played first", async () => {
   expect((await gn.games(env)).length).toBe(3);
 });
 
-test("bailing after the start: the late slip turns into a roast; no slip means a roast post", async () => {
+test("all of us or none of us: a bail after the start calls the night off for everyone", async () => {
   const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
-  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, reminded: true, message_id: "card" });
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, reminded: true, message_id: "card", event_id: "ev1" });
   await t.db.insert(rooms).values({ channel_id: "room1", game: "R.E.P.O.", day: DAY, created_at: start });
   presence.snapshot([]);
   vi.setSystemTime((start + 11 * 60) * 1000);
   await late.watch(env); // everyone gets a slip
-  await late.act(env, DAY, "b", "b", "out"); // 😴 on the slip
-  const slip = text(await late.render(env, DAY, "b"));
-  expect(slip).toContain("🔥 **Tonight's R.E.P.O. lost a player** · <@b> 🚪 bailed");
-  const kept = (await late.get(env, DAY, "b"))!.roast;
-  expect(kept).toBeTruthy();
-  expect(text(await late.render(env, DAY, "b"))).toContain(JSON.stringify(kept).slice(1, -1)); // same line on every re-render
-  // the card's "Can't make it" from someone whose slip is gone
-  await t.db.update(nightAttendance).set({ message_id: null }).where((await import("drizzle-orm")).eq(nightAttendance.user_id, "c"));
-  const before = posts().length;
-  const r = await gn.act(env, DAY, "c", "out", undefined, defer);
-  await settle();
-  expect(r.notice).toContain("carry on");
-  const roast = posts().slice(before).find((p) => text(p.body).includes("bailed"))!;
-  expect(roast.body.content).toMatch(/^🔥 \*\*Tonight's R\.E\.P\.O\. lost a player\*\* · <@c> 🚪 bailed, the rest of you carry on\n> /);
-  expect((await night())!.stage).toBe("set"); // the others still play
+  const slips = Object.fromEntries((await t.db.select().from(nightAttendance)).map((r) => [r.user_id, r.message_id]));
+  await late.act(env, DAY, "b", "b", "out"); // 😴 on b's slip
+  const n = (await night())!;
+  expect([n.stage, n.roast!.who]).toEqual(["off", { b: "out" }]);
+  expect(calls.some((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") && c.body.status === 3)).toBe(true); // live event ended
+  const roast = roastPosts()[0];
+  expect(roast.body.content).toMatch(/^🔥 \*\*📦 \*\*R\.E\.P\.O\.\*\* tonight is off\*\* · <@b> 🚪 bailed\n> /);
+  expect(roast.body.allowed_mentions.users.sort()).toEqual(["a", "b", "c"]); // everyone hears it's off
+  // everyone else's "running late?" slip now says it's off; b's says they bailed
+  const edited = (id: string) => calls.filter((c) => c.method === "PATCH" && c.path.endsWith(`/messages/${id}`)).pop()!.body.components[0].content;
+  expect(edited(slips.a!)).toContain("game night's off");
+  expect(edited(slips.b!)).toContain("<@b> bailed");
+  expect((await late.act(env, DAY, "c", "c", "15")).notice).toContain("Game night's off");
+});
+
+test("the card's 🚪 after the start does the same", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, reminded: true, message_id: "card" });
+  vi.setSystemTime((start + 5 * 60) * 1000);
+  await act("c", "out");
+  expect((await night())!.roast!.who).toEqual({ c: "out" });
+  expect(roastPosts().length).toBe(1);
 });
