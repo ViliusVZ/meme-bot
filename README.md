@@ -125,9 +125,9 @@ previous period), time per game and game nights played / called off / coming up,
 person and who's usually first in, and when we play (busiest weekday, usual start, latest finish).
 Weeks run Monday–Sunday in Vilnius time. A recap of last week is posted in #game-night on Monday
 from 10:00, last month's on the 1st, last year's on 1 January (quiet periods are skipped).
-Limits: no gateway means the game is only known from game rooms (playing in the Lobby counts as
-hanging out), and only the three players are tracked. QA: `scripts/qa_stats.py` (stand-in players),
-`test/activity.test.mjs`.
+Limits: the game is only known from game rooms (playing in the Lobby counts as hanging out), and
+only the three players are tracked. QA: `bot/scripts/qa_stats.py` (stand-in players),
+`bot/test/activity.test.ts`.
 
 ## 🤫 Secret ballots
 Every vote (are we playing, game, start time + leave-by, polls) is secret while it runs: the card
@@ -158,8 +158,8 @@ A three-way game split, a poll where everyone voted without a majority, or a tie
   the wheel decides.
 
 One tiebreak per card (unique index), with compare-and-set updates, so double clicks can't produce
-two winners. The tick heals a tiebreak whose card didn't move on. QA scripts: `scripts/qa_*.py`;
-unit tests: `node test/tiebreak.test.mjs`.
+two winners. The minute job heals a tiebreak whose card didn't move on. QA: `bot/scripts/qa_tiebreak.py`;
+unit tests: `bot/test/tiebreak.test.ts`.
 
 ## Deploy
 Push to `main`: tests → image → the test bot → production. See [`bot/README.md`](bot/README.md).
