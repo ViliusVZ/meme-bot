@@ -246,7 +246,7 @@ async function archiveCategory(env: Env, create: boolean): Promise<string | null
 }
 
 /**
- * Tick: who's in which room? Busy rooms stay (or come back from the archive), rooms empty past
+ * Every minute: who's in which room? Busy rooms stay (or come back from the archive), rooms empty past
  * their grace move to 🗄️ Recent games, and archived rooms past their TTL are deleted. The
  * archive category disappears when it's empty.
  */
@@ -274,7 +274,7 @@ export async function maintainRooms(env: Env) {
   await tidyArchive(env, all);
   if (!known.length) return done;
   const t = nowSec();
-  // never archive on a guess: if we can't see who's in voice, try again next tick
+  // never archive on a guess: if we can't see who's in voice, try again next minute
   const occupied = await occupancy(env);
   if (!occupied) return { ...done, skipped: ["voice lookup failed"] };
 

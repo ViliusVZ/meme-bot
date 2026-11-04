@@ -10,9 +10,11 @@ import * as gn from "./gamenight.js";
 import * as late from "./late.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
+import * as reddit from "./reddit.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const JOBS: [string, (env: Env) => Promise<unknown>][] = [
+  ["refill", reddit.maybeRefill], // the meme pool, from Reddit every 6 h (in the background)
   ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
   ["meme-recaps", memeRecaps], // 🏆 Meme of the Week (Sun 18:00 UTC), 👑 Hall of Fame (1st, 09:00 UTC)
   ["close", gn.closeStale], // midnight: close yesterday's unfinished poll

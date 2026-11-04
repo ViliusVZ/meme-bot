@@ -8,7 +8,7 @@
 //   off  → someone bailed, or the day ended before we agreed (🔄 reopen works the same day)
 //
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
-// a poll gets posted, so the 17:00 cron, /playtoday and retries can never produce two polls.
+// a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, tiebreaks, type Stage, type Tx } from "./db/index.js";
@@ -375,18 +375,18 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
     }
     return { started: true, day, message_id: msg.id as string, stage: "ask" };
   } catch (e) {
-    // keep the claim (so 17:00 can't post a second poll); the next tick or /playtoday retries
+    // keep the claim (so 17:00 can't post a second poll); the next minute (retryUnposted) or /playtoday retries
     console.log("startNight post failed", e);
     throw e;
   }
 }
 
-/** A planned day whose card failed to post: try again (today's is retried by the 17:00 job). */
+/** A claimed day whose card failed to post (today's or a planned one): try again. */
 export async function retryUnposted(env: Env) {
   const days = await env.db
     .select({ day: gameNights.day })
     .from(gameNights)
-    .where(and(isNull(gameNights.message_id), eq(gameNights.stage, "ask"), gt(gameNights.day, local(env).day)));
+    .where(and(isNull(gameNights.message_id), eq(gameNights.stage, "ask"), gte(gameNights.day, local(env).day)));
   for (const { day } of days) await startNight(env, undefined, true, day);
   return days.map((d) => d.day);
 }
@@ -426,7 +426,7 @@ export async function closeStale(env: Env) {
 const closeNote = (stage: Stage) => (stage === "ask" ? "Not everyone was in. Maybe tomorrow 🫡" : "The day ended before we agreed. Maybe tomorrow 🫡");
 
 /**
- * Closes a card that's past its time. From a tick it re-renders the card itself; from a click
+ * Closes a card that's past its time. From the minute job it re-renders the card itself; from a click
  * (`rerender` false) the stage is already flipped and the reply shows the closed card, so this
  * only tidies the nudge.
  */
@@ -443,7 +443,7 @@ async function close(env: Env, day: string, rerender = true) {
 /**
  * Re-render a card in place (used outside interactions, where we can't reply with an update).
  * If someone deleted the card by hand, forget it: an "are we playing?" card then gets reposted by
- * the next tick, and later stages simply stop trying to edit it.
+ * the next minute, and later stages simply stop trying to edit it.
  */
 export async function refresh(env: Env, day: string) {
   const n = await getNight(env, day);
@@ -785,7 +785,7 @@ async function claimStart(env: Env, n: Night, at?: number) {
     await startReminder(env, n, at);
     return true;
   } catch (e) {
-    // the ping didn't go out: release the claim so the next tick tries again
+    // the ping didn't go out: release the claim so the next minute tries again
     console.log("start reminder failed", n.day, e);
     await env.db.update(gameNights).set({ reminded: false }).where(eq(gameNights.day, n.day));
     return false;

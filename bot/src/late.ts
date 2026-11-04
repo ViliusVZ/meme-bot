@@ -52,7 +52,7 @@ export async function markAbsent(env: Env, day: string, user: string) {
 
 type Night = { day: string; game: string | null; start_at: number | null; message_id: string | null };
 
-/** Tick: handle everyone for every night that's under way. */
+/** Every minute (and on Lobby joins): handle everyone for every night that's under way. */
 export async function watch(env: Env) {
   const t = nowSec();
   const nights: Night[] = await env.db
@@ -113,7 +113,7 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
 
   if (!row && t - n.start_at! >= LATE_AFTER) {
     // not here, not in the Lobby, no word from them: one late slip. Claim the row first so two
-    // overlapping ticks can't both post one.
+    // overlapping runs can't both post one.
     const claim = await env.db
       .insert(nightAttendance)
       .values({ day: n.day, user_id: p, state: "late" })
@@ -130,7 +130,7 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
       await env.db.update(nightAttendance).set({ message_id: msg.id }).where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p)));
       note("slipped", p);
     } catch (e) {
-      // release the claim so the next tick can try again
+      // release the claim so the next minute can try again
       await env.db
         .delete(nightAttendance)
         .where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p), isNull(nightAttendance.message_id), eq(nightAttendance.state, "late")));

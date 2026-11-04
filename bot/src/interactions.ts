@@ -304,7 +304,7 @@ function playToday(env: Env, i: any, userId: string) {
       })
       .catch((e) => {
         console.log("playtoday failed", e);
-        return "😵 Couldn't post the poll just now. I'll retry automatically within 15 minutes, or try again.";
+        return "😵 Couldn't post the poll just now. I'll keep retrying every minute, or try again.";
       })
       .then((content) => editOriginal(env, i.token, { content })),
   );

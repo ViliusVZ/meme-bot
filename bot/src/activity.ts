@@ -339,7 +339,7 @@ export async function statsPanel(env: Env, kind: Kind = "week", offset = 0, shar
 // ---------------------------------------------------------------- recaps
 
 /**
- * Tick: after each week (Monday), month (the 1st) and year (1 January), from 10:00, post that
+ * Every minute: after each week (Monday), month (the 1st) and year (1 January), from 10:00, post that
  * period's stats in #game-night once. Quiet periods (no calls, no nights) are skipped.
  */
 export async function recaps(env: Env) {
