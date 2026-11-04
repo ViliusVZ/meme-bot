@@ -281,3 +281,35 @@ test("clicking the card opens your private copy; clicking your copy updates it i
   const fromCopy = (await interaction(click((1 << 15) | 64), env)) as any;
   expect(fromCopy.type).toBe(7); // edits b's copy
 });
+
+test("🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay", async () => {
+  const { snowflakeAt, nightly } = await import("../src/cleanup.js");
+  vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
+  const old = Date.parse("2026-11-05T15:00:00Z"); // yesterday 17:00
+  const fresh = Date.parse("2026-11-06T01:02:00Z"); // after 03:00 today
+  const msgs = [
+    { id: snowflakeAt(fresh), author: { id: "bot" } }, // after the cutoff
+    { id: snowflakeAt(old, 1), author: { id: "bot" } }, // yesterday's card
+    { id: snowflakeAt(old, 2), author: { id: "bot" } }, // yesterday's nudge
+    { id: snowflakeAt(old, 3), author: { id: "bot" }, pinned: true }, // the HQ panel
+    { id: snowflakeAt(old, 4), author: { id: "a" } }, // a person
+    { id: snowflakeAt(old, 5), author: { id: "bot" }, components: [{ content: "## 📊 Weekly recap · 2 Nov – 8 Nov" }] },
+    { id: snowflakeAt(old, 6), author: { id: "bot" } }, // the card of a night planned for Saturday
+    { id: snowflakeAt(Date.now() - 20 * 86400_000), author: { id: "bot" } }, // too old to bulk delete
+  ];
+  await t.db.insert(gameNights).values([
+    { day: "2026-11-05", stage: "off", message_id: msgs[1].id, nudge_id: msgs[2].id },
+    { day: "2026-11-07", stage: "ask", message_id: msgs[6].id },
+  ]);
+  override = (c) => {
+    if (c.path === "/users/@me") return json({ id: "bot" });
+    if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json(c.path.includes("before=") ? [] : msgs);
+    return undefined;
+  };
+  expect(await nightly(env)).toEqual({ deleted: 3, kept: 1 });
+  const bulk = calls.find((c) => c.path.endsWith("/bulk-delete"))!;
+  expect(bulk.body.messages.sort()).toEqual([msgs[1].id, msgs[2].id].sort());
+  expect(calls.some((c) => c.method === "DELETE" && c.path === `/channels/gn/messages/${msgs[7].id}`)).toBe(true);
+  expect((await t.db.select().from(gameNights).where(eq(gameNights.day, "2026-11-05")))[0]).toMatchObject({ message_id: null, nudge_id: null });
+  expect(await nightly(env)).toEqual({}); // once a day
+});

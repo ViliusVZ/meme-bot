@@ -11,6 +11,7 @@ import * as late from "./late.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as reddit from "./reddit.js";
+import * as cleanup from "./cleanup.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const JOBS: [string, (env: Env) => Promise<unknown>][] = [
@@ -25,6 +26,7 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
   ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
+  ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
 ];
 
 /** Every minute. Returns what each job did (for logs and the admin test route). */
