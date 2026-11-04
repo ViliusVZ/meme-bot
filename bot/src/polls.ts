@@ -1,12 +1,13 @@
 // Quick democratic polls: /poll (or the 🗳️ button) opens a form, the answers become buttons.
 // One vote each, changeable (tap again to take it back), and 🤫 secret: the card shows only who
-// has voted until the poll is decided, then reveals who picked what. The first answer to reach a
-// majority of the trio wins automatically. If everyone has voted without a majority, or someone 🔒 closes a
-// tied poll, it goes to a ⚔️ tiebreaker (wheel or rock-paper-scissors, see tiebreak.ts).
+// has voted until the poll is decided, then reveals who picked what. Once everyone's voted the answer
+// with the most votes wins; a split, or a tied poll someone 🔒 closes, goes to a ⚔️ tiebreaker
+// (wheel or rock-paper-scissors, see tiebreak.ts). Clicking gives you a private copy with your
+// answer highlighted (see gamenight.ts).
 import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { polls, pollVotes } from "./db/index.js";
-import { api, IS_COMPONENTS_V2 } from "./discord.js";
+import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { now } from "./memes.js";
 import { players } from "./gamenight.js";
 import * as tiebreak from "./tiebreak.js";
@@ -15,8 +16,7 @@ type Poll = typeof polls.$inferSelect;
 type Outcome = { notice?: string; update: boolean };
 
 const LETTERS = ["🇦", "🇧", "🇨", "🇩", "🇪", "🇫", "🇬", "🇭", "🇮", "🇯"];
-const majority = (env: Env) => Math.floor(players(env).length / 2) + 1;
-const SECRET = "\n-# 🤫 Only you can see this. Everyone's votes are revealed once the poll's decided.";
+
 
 export const pollModal = () => ({
   custom_id: "poll:new",
@@ -99,7 +99,7 @@ export async function pollAct(env: Env, id: number, user: string, action: string
   if (!Number.isInteger(choice) || choice < 0 || choice >= c.options.length) return { update: true };
   if (c.mine(user) === choice) {
     await env.db.delete(pollVotes).where(and(eq(pollVotes.poll_id, id), eq(pollVotes.user_id, user)));
-    return { notice: `🗳️ Took your vote back.${SECRET}`, update: true };
+    return { notice: "🗳️ Took your vote back.", update: true };
   }
   const at = now();
   await env.db
@@ -107,12 +107,12 @@ export async function pollAct(env: Env, id: number, user: string, action: string
     .values({ poll_id: id, user_id: user, choice, voted_at: at })
     .onConflictDoUpdate({ target: [pollVotes.poll_id, pollVotes.user_id], set: { choice, voted_at: at } });
   const after = await counts(env, poll);
-  const winner = after.options.findIndex((_, i) => after.voters[i].length >= majority(env));
-  if (winner >= 0) await close(env, id, `win:${after.options[winner]}`);
-  // everyone in the trio has voted and there's no majority: straight to the tiebreaker
-  else if (players(env).every((p) => after.voters.some((v) => v.includes(p)))) await startTiebreak(env, poll, after);
-  // still open: the card doesn't say what you picked, so tell you privately
-  else return { notice: `🗳️ Your vote: ${LETTERS[choice]} **${c.options[choice]}**. Tap another answer to change it.${SECRET}`, update: true };
+  // nothing is decided until everyone's voted: then most votes wins, a split goes to a tiebreaker
+  if (!players(env).every((p) => after.voters.some((v) => v.includes(p)))) return { update: true };
+  const top = Math.max(...after.voters.map((v) => v.length));
+  const leaders = after.options.filter((_, i) => after.voters[i].length === top);
+  if (leaders.length === 1) await close(env, id, `win:${leaders[0]}`);
+  else await startTiebreak(env, poll, after);
   return { update: true };
 }
 
@@ -132,8 +132,10 @@ export async function refreshPoll(env: Env, id: number) {
   if (p?.message_id) await api(env, "PATCH", `/channels/${p.channel_id}/messages/${p.message_id}`, await renderPoll(env, id));
 }
 
-export async function renderPoll(env: Env, id: number) {
+/** The poll card; with a `viewer`, their private copy (their answer highlighted, `notice` on top). */
+export async function renderPoll(env: Env, id: number, viewer?: string, notice?: string) {
   const poll = (await getPoll(env, id))!;
+  const me = viewer && players(env).includes(viewer) ? viewer : null;
   const c = await counts(env, poll);
   const tb = await tiebreak.get(env, "poll", String(id));
   const hidden = !poll.closed_at && !tb; // decided (or tied into a tiebreak) = revealed
@@ -151,16 +153,16 @@ export async function renderPoll(env: Env, id: number) {
   const body: unknown[] = [text(`## 🗳️ ${poll.question}`), text(hidden ? `${lines.join("\n")}\n\n${ballots}` : lines.join("\n"))];
   const label = (o: string) => `${LETTERS[c.options.indexOf(o)] ?? ""} ${o}`;
   if (!poll.closed_at && tb) {
-    body.push(...tiebreak.section(tb, label), text(`-# asked by <@${poll.created_by}>`));
+    body.push(...tiebreak.section(tb, label, undefined, me), text(`-# asked by <@${poll.created_by}>`));
   } else if (!poll.closed_at) {
     body.push(
       text(
-        `-# asked by <@${poll.created_by}> · 🤫 votes stay secret until it's decided · first to ${majority(env)} votes wins · tap again to take yours back · 🔒 Close decides it now`,
+        `-# asked by <@${poll.created_by}> · 🤫 votes stay secret until everyone's voted · then most votes wins · tap again to take yours back · 🔒 Close decides it now`,
       ),
     );
     const buttons = c.options.map((o, i) => ({
       type: 2,
-      style: 2,
+      style: me && c.mine(me) === i ? 3 : 2, // your answer, on your private copy
       emoji: { name: LETTERS[i] },
       label: o.slice(0, 80),
       custom_id: `poll:${id}:${i}`,
@@ -173,8 +175,12 @@ export async function renderPoll(env: Env, id: number) {
     body.push(text(`### ✅ Decided: ${value}`));
     body.push(text(`-# asked by <@${poll.created_by}> · ${c.total} vote${c.total === 1 ? "" : "s"}`));
   }
+  if (me) {
+    if (notice) body.unshift(text(notice));
+    body.push(text("-# 🔒 Your private copy: your answer is highlighted, and tapping here works just like the poll. Only you can see this."));
+  }
   return {
-    flags: IS_COMPONENTS_V2,
+    flags: IS_COMPONENTS_V2 | (me ? EPHEMERAL : 0),
     allowed_mentions: { parse: [] },
     components: [{ type: 17, accent_color: poll.closed_at ? 0x57f287 : 0x5865f2, components: body }],
   };

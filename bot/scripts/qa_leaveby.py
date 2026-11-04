@@ -37,7 +37,8 @@ if cmd == "setup":
     for w in ("K", "L"):
         vote(w, "yes")
     vote("V", "game", "Palworld")
-    print(vote("K", "game", "Palworld"))
+    vote("K", "game", "Palworld")
+    print(vote("L", "game", "Palworld"))
 elif cmd == "vote":
     who, kind, hhmm = sys.argv[2:5]
     if kind == "time":

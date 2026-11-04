@@ -271,3 +271,13 @@ test("room upkeep: reviving a room whose channel vanished just forgets it", asyn
   expect(await voice.maintainRooms(env)).toMatchObject({ forgotten: ["Ghost"] });
   expect(await t.db.select().from(rooms)).toEqual([]);
 });
+
+test("clicking the card opens your private copy; clicking your copy updates it in place", async () => {
+  await gn.startNight(env, "a");
+  const click = (flags: number) => ({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:yes`, component_type: 2 }, message: { flags }, member: { user: { id: "b", username: "b" } } });
+  const fromCard = (await interaction(click(1 << 15), env)) as any;
+  expect(fromCard.type).toBe(4); // a new message…
+  expect(fromCard.data.flags & 64).toBe(64); // …only b sees
+  const fromCopy = (await interaction(click((1 << 15) | 64), env)) as any;
+  expect(fromCopy.type).toBe(7); // edits b's copy
+});

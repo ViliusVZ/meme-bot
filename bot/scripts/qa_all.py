@@ -91,6 +91,7 @@ def to_time_stage(day, game="Palworld"):
     gn(day, L, "yes")
     gn(day, V, "game", game)
     gn(day, K, "game", game)
+    gn(day, L, "game", game)  # nothing's decided until everyone's voted
 
 
 require_idle()
@@ -147,7 +148,7 @@ ok(bool(night(D1)["nudge_id"]), "a nudge went out for the next stage")
 # ------------------------------------------------------------------ game stage + tiebreak
 section("game picking")
 r = gn(D1, V, "game", "Phasmophobia")
-ok("Phasmophobia" in (r.get("notice") or ""), "your receipt names your game")
+ok(r.get("update") is True and not r.get("notice"), "your vote counts (your private copy shows it, not a receipt)")
 gn(D1, K, "game", "Palworld")
 txt = card_text(D1)
 ok("Phasmophobia" not in txt and "Palworld" not in txt and f"🗳️ <@{K}>" in txt and f"⏳ <@{L}>" in txt, "game votes stay secret")
@@ -163,13 +164,15 @@ n1 = night(D1)
 ok(t["result"] in ("Phasmophobia", "Palworld", "R.E.P.O.") and n1["stage"] == "time" and n1["game"] == t["result"], f"wheel picks {t['result']} → time stage")
 ok("spun the wheel" in (n1["note"] or ""), "the card keeps the tiebreak story")
 
-section("majority wins straight away")
+section("most votes wins, once everyone's voted")
 admin("/admin/gamenight", {"action": "plan", "user": V, "day": D4})
 gn(D4, K, "yes")
 gn(D4, L, "yes")
 gn(D4, V, "game", "Enshrouded")
 gn(D4, K, "game", "Enshrouded")
-ok(night(D4)["stage"] == "time" and night(D4)["game"] == "Enshrouded" and not sql(f"SELECT 1 FROM tiebreaks WHERE ref='{D4}'"), "2 of 3 → time stage, no tiebreak")
+ok(night(D4)["stage"] == "game", "two votes for the same game still wait for the third")
+gn(D4, L, "game", "Palworld")
+ok(night(D4)["stage"] == "time" and night(D4)["game"] == "Enshrouded" and not sql(f"SELECT 1 FROM tiebreaks WHERE ref='{D4}'"), "2–1 → time stage, no tiebreak")
 ok(f"Enshrouded** ← <@{V}> <@{K}>" in card_text(D4), "the decided game vote is revealed")
 
 # ------------------------------------------------------------------ time stage
@@ -212,14 +215,16 @@ section("🤫 secret polls")
 pid = sql(f"INSERT INTO polls (question, options, created_by, created_at) VALUES ('qa secret', '[\"Pizza\", \"Kebab\"]', '{K}', 'qa') RETURNING id")[0]["id"]
 pv = lambda u, c: admin("/admin/gamenight", {"action": "poll-vote", "poll": pid, "user": u, "choice": c})
 render = lambda: flatten(admin("/admin/gamenight", {"action": "poll-render", "poll": pid}))
-ok("Pizza" in (pv(V, 0).get("notice") or ""), "the voter's receipt names their answer")
+ok(pv(V, 0).get("update") is True, "the vote counts")
 txt = render()
 ok("█" not in txt and "· 1" not in txt and f"🗳️ <@{V}>" in txt and f"⏳ <@{L}>" in txt, "the poll shows who voted, not what or how many")
 ok("Took your vote back" in (pv(V, 0).get("notice") or "") and f"⏳ <@{V}>" in render(), "tapping again takes it back")
 pv(V, 0)
 pv(L, 0)
+ok("Decided" not in render(), "2 of 3 isn't the end: everyone gets a say")
+pv(K, 1)
 txt = render()
-ok("Decided: Pizza" in txt and "█" in txt and f"<@{V}> <@{L}>" in txt, "decided → bars and voters revealed")
+ok("Decided: Pizza" in txt and "█" in txt and f"<@{V}> <@{L}>" in txt, "everyone's in → most votes wins, bars and voters revealed")
 sql(f"DELETE FROM poll_votes WHERE poll_id = {pid}; DELETE FROM polls WHERE id = {pid}")
 
 # ------------------------------------------------------------------ cancel + reopen

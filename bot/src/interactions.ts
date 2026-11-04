@@ -17,6 +17,9 @@ import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.
 
 type User = { id: string; username: string; global_name?: string | null; avatar?: string | null };
 
+/** The click came from someone's private copy of a card (an ephemeral message), not the card. */
+const fromPrivateCopy = (i: any) => ((i.message?.flags ?? 0) & EPHEMERAL) !== 0;
+
 export async function interaction(i: any, env: Env): Promise<object> {
   if (i.type === 1) return reply({ type: R.Pong });
   const user: User = i.member?.user ?? i.user;
@@ -46,8 +49,10 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
     const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "gn"));
     if (!r.update) return ephemeral(r.notice ?? "🤷");
-    if (r.notice) defer(gn.notify(env, i.token, r.notice));
-    return reply({ type: R.UpdateMessage, data: await gn.render(env, day) });
+    // the public card follows along; the clicker gets (or keeps) their private copy, picks highlighted
+    defer(gn.refresh(env, day), "card refresh");
+    const mine = await gn.render(env, day, user.id, r.notice);
+    return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });
   }
 
   const isPlayer = gn.players(env).includes(user.id);
@@ -188,8 +193,10 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const [, id, action] = cid.split(":");
     const r = await polls.pollAct(env, Number(id), user.id, action);
     if (!r.update) return ephemeral(r.notice ?? "🤷");
-    if (r.notice) defer(gn.notify(env, i.token, r.notice));
-    return reply({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id)) });
+    // like game-night cards: the poll follows along, the voter gets a private copy with their answer
+    defer(polls.refreshPoll(env, Number(id)), "poll refresh");
+    const mine = await polls.renderPoll(env, Number(id), user.id, r.notice);
+    return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });
   }
 
   if (i.type !== 2) return ephemeral("That button is from an older version of me. Try **/help** 🤖");

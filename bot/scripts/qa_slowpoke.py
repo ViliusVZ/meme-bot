@@ -19,6 +19,7 @@ if "--resume" not in sys.argv:
         vote(u, "yes")
     vote(V, "game", "Palworld")
     vote(K, "game", "Palworld")
+    vote(L, "game", "Palworld")
     print("wrong-day time:", vote(V, "time", str(int(time.time()) + 3600)))
 vote(V, "time", at(18))
 vote(L, "time", at(19))

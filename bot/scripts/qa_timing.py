@@ -44,6 +44,7 @@ for u in (K, L):
     gn(u, "yes")
 gn(V, "game", "Phasmophobia")
 gn(K, "game", "Phasmophobia")
+gn(L, "game", "Phasmophobia")
 for u in (V, K, L):
     gn(u, "time", vilnius(DAY, "18:00"))
 n = sql(f"SELECT stage, event_id, event_end FROM game_nights WHERE day = '{DAY}'")[0]

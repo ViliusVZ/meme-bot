@@ -50,11 +50,13 @@ with ThreadPoolExecutor(2) as ex:
 final = sql(f"SELECT result, how FROM tiebreaks WHERE id={t2}")[0]
 ok(all(r["result"] == final["result"] for r in results), f"double spin settles on one result: {final['result']} ({final['how'][:40]}…)")
 
-# 3) majority still wins without any tiebreak
+# 3) once everyone's voted, most votes wins without any tiebreak
 p3 = new_poll("qa majority", ["Yes", "No"])
 pv(p3, V, 0)
 pv(p3, K, 0)
-ok(sql(f"SELECT result FROM polls WHERE id={p3}")[0]["result"] == "win:Yes", "2 of 3 is an instant win")
+ok(sql(f"SELECT result FROM polls WHERE id={p3}")[0]["result"] is None, "2 of 3 waits for the third vote")
+pv(p3, L, 1)
+ok(sql(f"SELECT result FROM polls WHERE id={p3}")[0]["result"] == "win:Yes", "2–1 wins once everyone's voted")
 ok(not sql(f"SELECT id FROM tiebreaks WHERE kind='poll' AND ref='{p3}'"), "no tiebreak for a majority")
 
 sql(f"DELETE FROM poll_votes WHERE poll_id IN ({p},{p2},{p3}); DELETE FROM tiebreaks WHERE kind='poll' AND ref IN ('{p}','{p2}','{p3}'); DELETE FROM polls WHERE id IN ({p},{p2},{p3})")

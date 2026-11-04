@@ -86,19 +86,30 @@ test("the whole night: secret answers → game → time → locked in → starte
   await gn.startNight(env, "a"); // /playtoday: a is in
   let card = text(await gn.render(env, DAY));
   expect(card).toContain("🤫 Answers stay secret");
-  const r1 = await act("b", "yes");
-  expect(r1.notice).toContain("You answered"); // private receipt while it's secret
+  await act("b", "yes");
+  // b's private copy: their answer stays green, "Not today" greys out; only b sees it
+  const mine = (await gn.render(env, DAY, "b")) as any;
+  expect(mine.flags & 64).toBe(64);
+  expect(text(mine)).toContain("Your private copy");
+  const [yes, no] = mine.components[0].components.find((c: any) => c.type === 1).components;
+  expect([yes.style, no.style]).toEqual([3, 2]);
+  expect((await gn.render(env, DAY)).flags & 64).toBe(0); // the public card isn't
   await act("c", "yes");
   expect((await night())!.stage).toBe("game");
 
   await act("a", "game", "R.E.P.O.");
   card = text(await gn.render(env, DAY));
   expect(card).not.toContain("← <@a>"); // still secret
-  await act("b", "game", "R.E.P.O."); // majority
+  await act("b", "game", "R.E.P.O.");
+  expect((await night())!.stage).toBe("game"); // two votes aren't enough: everyone gets a say
+  const picked = ((await gn.render(env, DAY, "a")) as any).components[0].components.find((c: any) => c.type === 1 && c.components[0].type === 3).components[0];
+  expect(picked.options.filter((o: any) => o.default).map((o: any) => o.value)).toEqual(["R.E.P.O."]);
+  await act("c", "game", "Palworld");
   const n = (await night())!;
   expect([n.stage, n.game]).toEqual(["time", "R.E.P.O."]);
   card = text(await gn.render(env, DAY));
   expect(card).toContain("R.E.P.O.** ← <@a> <@b>"); // revealed once decided
+  expect(posts().some((p) => p.body.content?.includes("Everyone's voted"))).toBe(true);
 
   const at19 = gn.wallToUnix(env, 2026, 11, 6, 19, 0);
   const at20 = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
@@ -128,7 +139,7 @@ test("a clash pings once, and never locks", async () => {
   await gn.startNight(env, "a");
   await act("b", "yes");
   await act("c", "yes");
-  for (const u of ["a", "b"]) await act(u, "game", "Palworld");
+  for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
   await act("a", "until", "20:30");
   const at20 = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
   await act("a", "time", String(gn.wallToUnix(env, 2026, 11, 6, 19, 0)));
@@ -176,15 +187,20 @@ test("rock-paper-scissors: simultaneous throws all count; a draw replays", async
   expect(tiebreak.story(fresh, (o) => o)).toContain("won rock-paper-scissors");
 });
 
-test("polls: secret until a majority, then revealed and closed", async () => {
+test("polls: secret until everyone's voted, then most votes wins; your answer is highlighted on your copy", async () => {
   const id = await polls.createPoll(env, "a", "Pizza?", "Yes\nNo");
-  expect((await polls.pollAct(env, id, "a", "0")).notice).toContain("Your vote");
-  expect(text(await polls.renderPoll(env, id))).not.toContain("█");
+  await polls.pollAct(env, id, "a", "0");
   await polls.pollAct(env, id, "b", "0");
+  expect(text(await polls.renderPoll(env, id))).not.toContain("█"); // 2 of 3 isn't the end any more
+  const mine = (await polls.renderPoll(env, id, "a")) as any;
+  expect(mine.flags & 64).toBe(64);
+  const buttons = mine.components[0].components.find((c: any) => c.type === 1).components;
+  expect(buttons.map((b: any) => b.style)).toEqual([3, 2, 2]); // Yes (mine), No, Close
+  await polls.pollAct(env, id, "c", "1");
   const card = text(await polls.renderPoll(env, id));
   expect(card).toContain("Decided: Yes");
   expect(card).toContain("<@a> <@b>");
-  expect((await polls.pollAct(env, id, "c", "1")).notice).toContain("already decided");
+  expect((await polls.pollAct(env, id, "c", "0")).notice).toContain("already decided");
 });
 
 test("polls: tapping your vote again takes it back; a three-way split goes to a tiebreaker", async () => {

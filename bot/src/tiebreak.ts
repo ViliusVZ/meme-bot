@@ -157,7 +157,7 @@ export function spinFrame(options: string[], at: string, label: (o: string) => s
 }
 
 /** The ⚔️ tiebreak section for a host card (while unresolved). */
-export function section(tb: Tiebreak, label: (o: string) => string, title = "It's a tie!"): unknown[] {
+export function section(tb: Tiebreak, label: (o: string) => string, title = "It's a tie!", viewer?: string | null): unknown[] {
   const options = tb.options;
   const contenders = tb.contenders;
   const backers = (o: string) =>
@@ -185,9 +185,10 @@ export function section(tb: Tiebreak, label: (o: string) => string, title = "It'
     {
       type: 1,
       components: [
-        btn(2, "🪨", "Rock", "hand:r"),
-        btn(2, "✋", "Paper", "hand:p"),
-        btn(2, "✌️", "Scissors", "hand:s"),
+        // your throw this round is highlighted on your private copy
+        btn(viewer && hands[viewer] === "r" ? 3 : 2, "🪨", "Rock", "hand:r"),
+        btn(viewer && hands[viewer] === "p" ? 3 : 2, "✋", "Paper", "hand:p"),
+        btn(viewer && hands[viewer] === "s" ? 3 : 2, "✌️", "Scissors", "hand:s"),
         btn(2, "🎰", "Just spin it", "wheel"),
       ],
     },
