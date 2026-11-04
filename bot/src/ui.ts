@@ -34,7 +34,13 @@ function bar(t: Tally) {
   return `${lead.emoji} \`${"▰".repeat(filled)}${"▱".repeat(10 - filled)}\` ${Math.round(share * 100)}% · Score **${s > 0 ? "+" : ""}${s}** · ${total} vote${total === 1 ? "" : "s"}`;
 }
 
-export function memeMessage(m: Meme, t: Tally, subreddit: string) {
+/** "😂 @a @b · 🔥 @c": who voted what (mentions render as names, nobody gets pinged). */
+function whoVoted(by: Partial<Record<string, string[]>>) {
+  const parts = VOTES.filter((v) => by[v.key]?.length).map((v) => `${v.emoji} ${by[v.key]!.map((u) => `<@${u}>`).join(" ")}`);
+  return parts.length ? `\n-# ${parts.join(" · ")}` : "";
+}
+
+export function memeMessage(m: Meme, t: Tally, subreddit: string, by: Partial<Record<string, string[]>> = {}) {
   const lead = Math.max(0, ...VOTES.map((v) => t[v.key] ?? 0));
   return {
     flags: IS_COMPONENTS_V2,
@@ -45,7 +51,7 @@ export function memeMessage(m: Meme, t: Tally, subreddit: string) {
         gallery(m.image, m.title),
         text(`-# ${esc(m.author)} · r/${subreddit}${m.rank ? ` · #${m.rank} on Reddit this week` : ""}`),
         divider,
-        text(bar(t)),
+        text(`${bar(t)}${whoVoted(by)}`),
         {
           type: 1,
           components: [

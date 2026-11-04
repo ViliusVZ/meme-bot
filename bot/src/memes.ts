@@ -48,6 +48,14 @@ export async function tally(env: Env, memeId: string): Promise<Tally> {
   return Object.fromEntries(rows.map((r) => [r.kind, r.n]));
 }
 
+/** Who voted what on a meme, in voting order: { lol: ["id1", "id2"], … }. */
+export async function voters(env: Env, memeId: string): Promise<Partial<Record<VoteKind, string[]>>> {
+  const rows = await env.db.select({ kind: votes.kind, user: votes.user_id }).from(votes).where(eq(votes.meme_id, memeId)).orderBy(votes.voted_at);
+  const out: Partial<Record<VoteKind, string[]>> = {};
+  for (const r of rows) (out[r.kind] ??= []).push(r.user);
+  return out;
+}
+
 /**
  * Claim a pool meme for posting. The UPDATE only succeeds for an unclaimed meme, and the
  * one_daily_per_day index rejects a second daily for the same day, so two racing callers

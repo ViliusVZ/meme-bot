@@ -403,6 +403,7 @@ test("memes: one daily per day even when posted twice at once; votes toggle; str
   expect(await memes.castVote(env, "t3_b", "a", "fire")).toBe("new");
   expect(await memes.castVote(env, "t3_b", "a", "lol")).toBe("changed");
   expect(await memes.tally(env, "t3_b")).toEqual({ lol: 1 });
+  expect(await memes.voters(env, "t3_b")).toEqual({ lol: ["a"] });
   expect(await memes.castVote(env, "t3_b", "a", "lol")).toBe("removed");
   expect(await memes.bumpStreak(env, "a", "A")).toBe(1);
   expect(await memes.bumpStreak(env, "a", "A")).toBeNull();

@@ -31,7 +31,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const result = await db.castVote(env, memeId, user.id, kind);
     const streak = result === "new" && meme.post_kind === "daily" ? await db.bumpStreak(env, user.id, name) : null;
     if (streak) defer(followup(env, i.token, { content: streakNote(streak), flags: EPHEMERAL }));
-    return reply({ type: R.UpdateMessage, data: memeMessage(meme, await db.tally(env, memeId), env.SUBREDDIT) });
+    return reply({ type: R.UpdateMessage, data: memeMessage(meme, await db.tally(env, memeId), env.SUBREDDIT, await db.voters(env, memeId)) });
   }
 
   // game night: buttons/selects (type 3) and the suggest/custom-time modals (type 5)

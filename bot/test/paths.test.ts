@@ -299,3 +299,14 @@ test("🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people
   expect((await t.db.select().from(gameNights).where(eq(gameNights.day, "2026-11-05")))[0]).toMatchObject({ message_id: null, nudge_id: null });
   expect(await nightly(env)).toEqual({}); // once a day
 });
+
+test("a meme vote shows who voted what under the bar, without pinging", async () => {
+  await memes.ingest(env, [{ id: "t3_v", title: "V", image: "i", link: "l", author: "a", published: "2026-11-05T08:00:00Z", rank: 1 }]);
+  await memes.claim(env, "t3_v", "daily", { day: "2026-11-05" });
+  await memes.castVote(env, "t3_v", "b", "fire");
+  const click = { type: 3, token: "tok", data: { custom_id: "v:t3_v:lol", component_type: 2 }, member: { user: { id: "a", username: "a" } } };
+  const r = (await interaction(click, env)) as any;
+  const body = JSON.stringify(r.data);
+  expect(body).toContain("🔥 <@b> · 😂 <@a>");
+  expect(r.data.allowed_mentions).toEqual({ parse: [] });
+});
