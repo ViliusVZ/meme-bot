@@ -116,7 +116,7 @@ with ThreadPoolExecutor(3) as ex:
     rs = list(ex.map(lambda u: admin("/admin/gamenight", {"action": "plan", "user": u, "day": D2}), (V, K, L)))
 ok(sum(1 for r in rs if r.get("started")) == 1 and len({r["message_id"] for r in rs}) == 1, "three simultaneous plans → exactly one card")
 card_id = rs[0]["message_id"]
-day_cards = [m for m in call("GET", f"/channels/{CH}/messages?limit=30") if f"gn:{D2}:" in json.dumps(m)]
+day_cards = [m for m in call("GET", f"/channels/{CH}/messages?limit=30") if f"gn:{D2}:" in json.dumps(m.get("components") or [])]
 ok([m["id"] for m in day_cards] == [card_id], f"and exactly one {D2} card message in the channel ({len(day_cards)})")
 
 section("🤫 answers are secret until everyone has answered")
