@@ -18,8 +18,10 @@ export function connect(url: string) {
     connectionTimeoutMillis: 5_000,
     application_name: process.env.APP_NAME ?? "meme-bot",
   });
-  // a dropped idle connection is replaced on the next query; it must not crash the process
+  // a dropped connection must never crash the process: idle ones are handled by the pool, and every
+  // client gets its own listener for the times it's checked out (transactions, the leader lock)
   pool.on("error", (e) => console.log("pg pool error", e.message));
+  pool.on("connect", (client) => client.on("error", (e) => console.log("pg client error", e.message)));
   const db = drizzle(pool, { schema });
   return { pool, db };
 }

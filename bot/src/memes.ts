@@ -29,7 +29,9 @@ export function score(t: Tally) {
 
 export type Incoming = Pick<Meme, "id" | "title" | "image" | "link" | "author" | "published" | "rank">;
 
-export async function ingest(env: Env, list: Incoming[]) {
+export async function ingest(env: Env, incoming: Incoming[]) {
+  // one row per id (Postgres won't upsert the same row twice in one statement)
+  const list = [...new Map(incoming.map((m) => [m.id, m])).values()];
   if (!list.length) return 0;
   const at = now();
   await env.db

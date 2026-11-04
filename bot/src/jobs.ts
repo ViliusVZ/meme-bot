@@ -41,6 +41,7 @@ export async function minute(env: Env) {
  */
 export async function postDaily(env: Env) {
   if (new Date().getUTCHours() < Number(env.POST_HOUR_UTC)) return { skipped: "too early" };
+  if (reddit.refilling()) return { skipped: "waiting for the refill" };
   const day = db.utcDay(-1);
   const [existing] = await env.db
     .select({ id: memes.id })

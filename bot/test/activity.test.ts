@@ -16,7 +16,7 @@ let env: ReturnType<typeof testEnv>;
 beforeAll(async () => {
   t = await testDb();
   env = testEnv(t.db);
-  await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" });
+  await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" }).onConflictDoNothing(); // also seeded
 });
 afterAll(() => t.close());
 beforeEach(async () => {

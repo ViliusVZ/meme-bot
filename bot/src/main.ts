@@ -54,7 +54,7 @@ async function lead() {
 async function connectGateway(onSnapshot: () => void, signal: AbortSignal) {
   for (let attempt = 0; !signal.aborted; attempt++) {
     try {
-      const gw = await gateway.connect(env, onSnapshot);
+      const gw = await gateway.connect(env, onSnapshot, signal);
       if (signal.aborted) {
         await gw.close();
         return null;
@@ -81,7 +81,8 @@ async function shutdown(signal: string) {
   // 1. stop leading, so the other copy can take over the gateway and the clock right away; meanwhile
   //    /health says 503, and within one health check (2 s) Caddy sends new clicks to the other copy
   stopLeading.abort();
-  await Promise.all([leading, new Promise((ok) => setTimeout(ok, 3000))]);
+  const capped = Promise.race([leading, new Promise((ok) => setTimeout(ok, 15_000))]); // never hang here
+  await Promise.all([capped, new Promise((ok) => setTimeout(ok, 3000))]);
   // 2. stop taking requests and finish what's in flight
   await app.close();
   const left = await drain(20_000);
@@ -92,3 +93,8 @@ async function shutdown(signal: string) {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("unhandledRejection", (e) => console.log("unhandled rejection", e));
+// last resort: log it and exit, Docker restarts us within seconds (better than limping on)
+process.on("uncaughtException", (e) => {
+  console.log("uncaught exception", e);
+  process.exit(1);
+});

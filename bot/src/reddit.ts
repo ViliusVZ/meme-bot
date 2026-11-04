@@ -66,11 +66,14 @@ export async function refill(env: Env) {
 let lastOk = 0;
 let lastTry = 0;
 let running = false;
+
+/** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
+export const refilling = () => running;
 const RETRY = 10 * 60_000;
 
 /**
  * Minute job: refill the pool every 6 hours, and once more at the daily post hour so yesterday's
- * top posts are in before the daily meme is picked (the minute after, postDaily picks it). Runs in
+ * top posts are in before the daily meme is picked (postDaily waits a minute for it). Runs in
  * the background so a slow Reddit never holds up the other jobs; a failure is retried after 10 min.
  */
 export function maybeRefill(env: Env) {

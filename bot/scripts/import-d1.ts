@@ -25,7 +25,8 @@ const order = [
 ];
 
 await db.transaction(async (tx) => {
-  const counts = await tx.execute<{ n: number }>(sql`SELECT (SELECT COUNT(*) FROM memes) + (SELECT COUNT(*) FROM game_nights) + (SELECT COUNT(*) FROM games) AS n`);
+  // (games doesn't count: a fresh database already has the starter list from migration 0001)
+  const counts = await tx.execute<{ n: number }>(sql`SELECT (SELECT COUNT(*) FROM memes) + (SELECT COUNT(*) FROM game_nights) + (SELECT COUNT(*) FROM votes) AS n`);
   const merge = flag === "--merge";
   if (Number(counts.rows[0].n) > 0 && !merge) {
     if (flag !== "--replace") throw new Error("target isn't empty (use --replace to wipe it, or --merge to add what's missing)");
@@ -43,10 +44,12 @@ await db.transaction(async (tx) => {
   await insert(s.recaps, rows("recaps"));
   await insert(s.gameNights, rows("game_nights").map((r) => ({ ...r, reminded: bool(r.reminded) })));
   await insert(s.gameNightVotes, rows("game_night_votes"));
-  // games.seq is "generated always": insert in rowid order and let it number them
+  // games.seq is "generated always": insert in rowid order and let it number them. The starter games
+  // already exist (migration 0001, same order), so those take the imported plays and details.
   for (const g of rows("games").sort((a, b) => a.seq - b.seq)) {
     const { seq: _, ...rest } = g;
-    await tx.insert(s.games).values(rest as typeof s.games.$inferInsert).onConflictDoNothing();
+    const q = tx.insert(s.games).values(rest as typeof s.games.$inferInsert);
+    await (merge ? q.onConflictDoNothing() : q.onConflictDoUpdate({ target: s.games.name, set: { emoji: rest.emoji, added_by: rest.added_by, added_at: rest.added_at, plays: rest.plays } }));
   }
   await insert(s.polls, rows("polls").map((r) => ({ ...r, options: json(r.options) })));
   await insert(s.pollVotes, rows("poll_votes"));

@@ -36,7 +36,8 @@ export function start(env: Env) {
     if (wrapUp) clearTimeout(wrapUp);
     wrapUp = null;
     if (nextDue !== null && !stopped) {
-      const ms = Math.max(1000, nextDue * 1000 - Date.now() + 500);
+      // already due means the wrap-up just failed (Discord trouble): try again in a minute, not now
+      const ms = nextDue * 1000 <= Date.now() ? 60_000 : nextDue * 1000 - Date.now() + 500;
       wrapUp = setTimeout(() => void enqueue("wrap-up", checkRooms), Math.min(ms, 2 ** 31 - 1));
     }
   };

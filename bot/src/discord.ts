@@ -50,6 +50,7 @@ export async function api(env: Env, method: string, path: string, body?: unknown
           "User-Agent": "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)",
         },
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(10_000),
       });
     } catch (e) {
       last = String(e);
@@ -86,7 +87,7 @@ async function webhook(url: string, init: RequestInit) {
   let r: globalThis.Response | null = null;
   for (let attempt = 0; attempt < 4; attempt++) {
     if (attempt) await sleep(400 * attempt);
-    r = await fetch(url, init).catch(() => null);
+    r = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) }).catch(() => null);
     if (r && r.status !== 404 && r.status !== 429 && r.status < 500) return r;
   }
   if (r && !r.ok) console.log("webhook failed", init.method, url.split("/webhooks/")[1]?.slice(0, 30), r.status);

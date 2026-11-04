@@ -8,7 +8,9 @@ import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload }
 import type { Env } from "./env.js";
 import * as presence from "./presence.js";
 
-export async function connect(env: Env, onSnapshot: () => void) {
+const CONNECT_TIMEOUT = 30_000;
+
+export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSignal) {
   const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
   const manager = new WebSocketManager({
     token: env.DISCORD_TOKEN,
@@ -19,10 +21,20 @@ export async function connect(env: Env, onSnapshot: () => void) {
 
   manager.on(WebSocketShardEvents.Dispatch, (payload: GatewayDispatchPayload) => {
     if (payload.t === GatewayDispatchEvents.GuildCreate && payload.d.id === env.GUILD_ID) {
+      // during a Discord outage the guild arrives "unavailable", without voice states: that's
+      // not "everyone left", so keep waiting for the real thing (lookups fall back to REST)
+      if ((payload.d as { unavailable?: boolean }).unavailable) {
+        presence.invalidate();
+        console.log("gateway: guild unavailable (Discord outage)");
+        return;
+      }
       // a fresh connection: the full picture of who's in voice right now
       presence.snapshot(payload.d.voice_states ?? []);
       console.log("gateway: voice snapshot", (payload.d.voice_states ?? []).length, "in voice");
       onSnapshot();
+    } else if (payload.t === GatewayDispatchEvents.GuildDelete && payload.d.id === env.GUILD_ID) {
+      presence.invalidate(); // outage (or we were removed): stop trusting what we had
+      console.log("gateway: guild gone", payload.d.unavailable ? "(outage)" : "");
     } else if (payload.t === GatewayDispatchEvents.VoiceStateUpdate && payload.d.guild_id === env.GUILD_ID) {
       presence.update(payload.d.user_id, payload.d.channel_id);
     }
@@ -40,7 +52,18 @@ export async function connect(env: Env, onSnapshot: () => void) {
   });
   manager.on(WebSocketShardEvents.Error, (e: Error) => console.log("gateway: error", e.message));
 
-  await manager.connect();
+  // connect() waits for READY with no limit of its own (it keeps retrying inside), so bound it:
+  // on timeout or abort, tear the manager down and let the caller retry with back-off
+  try {
+    await new Promise<void>((ok, fail) => {
+      const t = setTimeout(() => fail(new Error("gateway connect timed out")), CONNECT_TIMEOUT);
+      signal?.addEventListener("abort", () => fail(new Error("aborted")), { once: true });
+      Promise.resolve(manager.connect()).then(ok, fail).finally(() => clearTimeout(t));
+    });
+  } catch (e) {
+    await Promise.resolve(manager.destroy()).catch(() => {});
+    throw e;
+  }
   return {
     close: async () => {
       presence.invalidate();
