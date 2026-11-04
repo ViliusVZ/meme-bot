@@ -367,6 +367,11 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
       const n = (await getNight(env, day))!;
       return { started: false, day, message_id: n.message_id, stage: n.stage };
     }
+    if (by) {
+      // someone kicked it off by hand: the other two hear about it (the 17:00 card is expected)
+      const when = day === today ? "tonight" : `on ${weekday(env, day)}`;
+      await nudge(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => console.log("start nudge failed", e));
+    }
     return { started: true, day, message_id: msg.id as string, stage: "ask" };
   } catch (e) {
     // keep the claim (so 17:00 can't post a second poll); the next minute (retryUnposted) or /playtoday retries
@@ -585,7 +590,7 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
   if (n.stage === "ask") {
     const v = await votes(env, day, "ask");
     if (ps.every((p) => v[p] === "yes") && (await advance(env, day, "ask", "game"))) {
-      defer(nudge(env, day, ps.filter((p) => p !== actor), "✅ Everyone's in! What are we playing? ⬆️"));
+      defer(nudge(env, day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
     } else if (ps.every((p) => v[p])) {
       // everyone answered and somebody said no: the votes come out, and so do the roasts
       const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
@@ -604,7 +609,7 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     if (tied.length === 1) {
       const winner = tied[0];
       if (await advance(env, day, "game", "time", { game: winner })) {
-        defer(nudge(env, day, ps.filter((p) => p !== actor), `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
+        defer(nudge(env, day, ps, `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
       }
     } else {
       // a split: the picks are revealed (everyone's voted) and it stays open for a re-vote; one
@@ -614,7 +619,7 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
         .set({ renudged: "split" })
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "game"), or(isNull(gameNights.renudged), ne(gameNights.renudged, "split"))))
         .returning({ day: gameNights.day });
-      if (claimed.length) defer(nudge(env, day, ps.filter((p) => p !== actor), "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
+      if (claimed.length) defer(nudge(env, day, ps, "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
     }
     return;
   }
@@ -684,7 +689,6 @@ async function lockIn(env: Env, day: string) {
   const n = (await getNight(env, day))!;
   const ps = players(env);
   await clearNudge(env, n);
-  await env.db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
   try {
     const start = n.start_at! * 1000;
     const until = Object.values(await votes(env, day, "until")).map(Number);
@@ -805,7 +809,7 @@ export async function postRoast(env: Env, day: string) {
   const ps = players(env);
   const culprits = Object.keys(n.roast.who);
   const when = n.day === local(env).day ? "tonight's" : `${weekday(env, n.day)}'s`;
-  const what = n.roast.stage === "set" && n.game ? `${await emojiFor(env, n.game)} **${n.game}** ${n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`}` : `${when} game night`;
+  const what = n.roast.stage === "set" && n.game ? `${await emojiFor(env, n.game)} ${n.game} ${n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`}` : `${when} game night`;
   const head = culprits.length >= ps.length && ps.every((p) => n.roast!.who[p]) ? `🔥 **Nobody's in, so ${what} is off**` : `🔥 **${what[0].toUpperCase()}${what.slice(1)} is off** · ${blame(n.roast.who)}`;
   try {
     await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
@@ -914,6 +918,8 @@ async function claimStart(env: Env, n: Night, at?: number) {
   if (!claimed.length) return false;
   try {
     await startReminder(env, n, at);
+    // a night counts as played once it actually starts (a locked-in night can still be called off)
+    await env.db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
     return true;
   } catch (e) {
     // the ping didn't go out: release the claim so the next minute tries again
@@ -1050,7 +1056,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
   const date = ts(Math.floor(Date.parse(`${day}T12:00:00Z`) / 1000), "D");
   const id = (action: string) => `gn:${day}:${action}`;
   const out = button(2, "🚪", "I'm out", id("out"));
-  const starter = n.started_by ? ` · started by ${mention(n.started_by)}` : "";
+  const starter = n.started_by ? ` · ${day > local(env).day ? "planned" : "started"} by ${mention(n.started_by)}` : "";
   const deadline = voteDeadline(env, n);
   const closes = `-# ⏳ Vote by ${ts(deadline, day === local(env).day ? "t" : "f")} (${ts(deadline, "R")}). No vote by then = night's off and you get roasted 🔥`;
   let body: unknown[];
@@ -1130,7 +1136,8 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       let status: string;
       if (hidden) {
         // a leave-by is shown without its owner, so nobody picks a start that's too late
-        const limit = f.end !== null ? `\n-# 🏁 Someone has to leave by ${at(f.end)}, so start by ${at(f.end - MIN_TOGETHER)} to get an hour together.` : "";
+        const who = me && Number(until[me]) === f.end ? "You have" : "Someone has";
+        const limit = f.end !== null ? `\n-# 🏁 ${who} to leave by ${at(f.end)}, so start by ${at(f.end - MIN_TOGETHER)} to get an hour together.` : "";
         status = `-# 🤫 Picks stay secret until everyone's chosen · tap the earliest time you can start (tap again to take it back) · have to leave early? Tap 🏁 Leave by${limit}`;
       } else if (f.conflict) {
         const c = f.conflict;
@@ -1155,7 +1162,10 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       const times = timeOptions(env, n, shown).map((t) => {
         const count = hidden ? 0 : ps.filter((p) => v[p] === String(t)).length;
         const style = me ? (t === mine ? 3 : 2) : t === lead ? 3 : 2;
-        return button(style, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
+        const b = button(style, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
+        // on your copy, starts that leave you under an hour before your own 🏁 leave-by are greyed out
+        const tooLate = me && until[me] && Number(until[me]) - t < MIN_TOGETHER && t !== mine;
+        return tooLate ? { ...b, disabled: true } : b;
       });
       const myLeave = me && until[me] ? `Leave by ${timeLabel(env, Number(until[me]), day)}` : "Leave by";
       // the game vote is decided, so it's revealed

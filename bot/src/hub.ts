@@ -65,7 +65,7 @@ function guide(env: Env) {
     ),
     divider,
     text(
-      "-# Commands, if you prefer typing: `/playtoday` · `/plan` · `/room` · `/poll` · `/games` · `/meme` · `/top` · `/stats` · `/hall-of-fame` · `/help`",
+      "-# Commands, if you prefer typing: `/playtoday` · `/plan` · `/room` · `/poll` · `/games` · `/gamestats` · `/meme` · `/top` · `/stats` · `/hall-of-fame` · `/help`",
     ),
     ...actions(),
   ];

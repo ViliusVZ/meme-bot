@@ -48,7 +48,13 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
     const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "gn"));
     if (!r.update) return ephemeral(r.notice ?? "🤷");
-    // the public card follows along; the clicker gets (or keeps) their private copy, picks highlighted
+    // still voting: the clicker gets (or keeps) their private copy with their picks highlighted, and
+    // the public card follows along. Nothing left to pick (locked in, called off): just the card.
+    const night = await gn.getNight(env, day);
+    if (!fromPrivateCopy(i) && !["ask", "game", "time"].includes(night?.stage ?? "")) {
+      if (r.notice) defer(gn.notify(env, i.token, r.notice));
+      return reply({ type: R.UpdateMessage, data: await gn.render(env, day) });
+    }
     defer(gn.refresh(env, day), "card refresh");
     const mine = await gn.render(env, day, user.id, r.notice);
     return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });
@@ -170,6 +176,11 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const r = await polls.pollAct(env, Number(id), user.id, action);
     if (!r.update) return ephemeral(r.notice ?? "🤷");
     // like game-night cards: the poll follows along, the voter gets a private copy with their answer
+    // (once it's decided there's nothing left to pick, so the poll itself just updates)
+    if (!fromPrivateCopy(i) && (await polls.isClosed(env, Number(id)))) {
+      if (r.notice) defer(gn.notify(env, i.token, r.notice));
+      return reply({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id)) });
+    }
     defer(polls.refreshPoll(env, Number(id)), "poll refresh");
     const mine = await polls.renderPoll(env, Number(id), user.id, r.notice);
     return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });

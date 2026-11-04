@@ -324,7 +324,8 @@ export async function statsPanel(env: Env, kind: Kind = "week", offset = 0, shar
         components: [
           btn(2, "Earlier", `st:${kind}:${offset - 1}`, kind === "all", "◀️"),
           btn(2, "Later", `st:${kind}:${offset + 1}`, kind === "all" || offset >= 0, "▶️"),
-          btn(3, "Share in chat", `st:${kind}:${offset}:share`, false, "📣"),
+          // nothing to show off in an empty period
+          btn(3, "Share in chat", `st:${kind}:${offset}:share`, !s.total && !s.nights.played && !s.nights.cancelled && !s.nights.upcoming, "📣"),
         ],
       },
     );

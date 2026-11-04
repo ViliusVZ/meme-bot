@@ -78,6 +78,7 @@ export async function pollAct(env: Env, id: number, user: string, action: string
   if (action === "close") {
     const top = Math.max(...c.voters.map((v) => v.length));
     if (!top) return { notice: "Nobody has voted yet 🤷", update: false };
+    if (c.total < 2) return { notice: "One vote isn't a decision 😅 Wait for at least one more.", update: false };
     const leaders = c.options.filter((_, i) => c.voters[i].length === top);
     if (leaders.length > 1) return { notice: `🔁 Still split (${leaders.join(" vs ")}). Someone has to change their vote first.`, update: false };
     await close(env, id, `win:${leaders[0]}`);
@@ -104,6 +105,8 @@ export async function pollAct(env: Env, id: number, user: string, action: string
   if (leaders.length === 1) await close(env, id, `win:${leaders[0]}`);
   return { update: true };
 }
+
+export const isClosed = async (env: Env, id: number) => !!(await getPoll(env, id))?.closed_at;
 
 export async function setMessage(env: Env, id: number, channelId: string, messageId: string) {
   await env.db.update(polls).set({ channel_id: channelId, message_id: messageId }).where(eq(polls.id, id));

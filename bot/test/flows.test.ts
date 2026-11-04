@@ -120,7 +120,7 @@ test("the whole night: secret answers → game → time → locked in → starte
   expect([set.stage, set.start_at]).toEqual(["set", at20]); // the latest pick wins
   expect(set.event_id).toBeTruthy();
   expect(set.event_end).toBe(gn.wallToUnix(env, 2026, 11, 6, 23, 0));
-  expect((await t.db.select().from(games)).find((g) => g.name === "R.E.P.O.")!.plays).toBe(1);
+  expect((await t.db.select().from(games)).find((g) => g.name === "R.E.P.O.")!.plays).toBe(0); // not played yet
   card = text(await gn.render(env, DAY));
   expect(card).toContain("Slowpoke of the night: <@b>");
 
@@ -132,6 +132,7 @@ test("the whole night: secret answers → game → time → locked in → starte
   const startPing = posts().slice(before).filter((p) => text(p.body).includes("starts now"));
   expect(startPing.length).toBe(1);
   expect((await t.db.select().from(rooms)).length).toBe(1); // the game room opened
+  expect((await t.db.select().from(games)).find((g) => g.name === "R.E.P.O.")!.plays).toBe(1); // now it counts
 });
 
 test("a clash pings once, and never locks", async () => {
@@ -439,7 +440,7 @@ test("all of us or none of us: a bail after the start calls the night off for ev
   expect([n.stage, n.roast!.who]).toEqual(["off", { b: "out" }]);
   expect(calls.some((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") && c.body.status === 3)).toBe(true); // live event ended
   const roast = roastPosts()[0];
-  expect(roast.body.content).toMatch(/^🔥 \*\*📦 \*\*R\.E\.P\.O\.\*\* tonight is off\*\* · <@b> 🚪 bailed\n> /);
+  expect(roast.body.content).toMatch(/^🔥 \*\*📦 R\.E\.P\.O\. tonight is off\*\* · <@b> 🚪 bailed\n> /);
   expect(roast.body.allowed_mentions.users.sort()).toEqual(["a", "b", "c"]); // everyone hears it's off
   // everyone else's "running late?" slip now says it's off; b's says they bailed
   const edited = (id: string) => calls.filter((c) => c.method === "PATCH" && c.path.endsWith(`/messages/${id}`)).pop()!.body.components[0].content;
@@ -455,4 +456,38 @@ test("the card's 🚪 after the start does the same", async () => {
   await act("c", "out");
   expect((await night())!.roast!.who).toEqual({ c: "out" });
   expect(roastPosts().length).toBe(1);
+});
+
+test("starting or planning by hand pings the other two; stage changes ping everyone", async () => {
+  await gn.startNight(env, "a"); // /playtoday
+  const start = posts().find((p) => p.body.content?.includes("wants to play"))!;
+  expect(start.body.content).toBe("<@b> <@c> 🎮 <@a> wants to play tonight! Are you in? ⬆️");
+  await act("b", "yes");
+  await act("c", "yes");
+  const next = posts().find((p) => p.body.content?.includes("Everyone's in"))!;
+  expect(next.body.content.startsWith("<@a> <@b> <@c>")).toBe(true); // c clicked last and still hears it
+});
+
+test("your copy: your own leave-by is 'You', and starts that clash with it are greyed out", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "yes");
+  for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
+  await act("a", "until", "20:30");
+  const mine = (await gn.render(env, DAY, "a")) as any;
+  expect(text(mine)).toContain("You have to leave by");
+  expect(text(await gn.render(env, DAY, "b"))).toContain("Someone has to leave by");
+  const buttons = mine.components[0].components.filter((c: any) => c.type === 1).flatMap((r: any) => r.components);
+  const t = (hm: string) => buttons.find((b: any) => b.label === hm);
+  expect(t("19:00").disabled).toBeUndefined();
+  expect(t("20:00").disabled).toBe(true); // 20:00 → 20:30 is under an hour
+});
+
+test("polls: one vote can't be closed into a decision", async () => {
+  const id = await polls.createPoll(env, "a", "Q?", "A\nB");
+  await polls.pollAct(env, id, "a", "0");
+  expect((await polls.pollAct(env, id, "a", "close")).notice).toContain("One vote isn't a decision");
+  await polls.pollAct(env, id, "b", "0");
+  await polls.pollAct(env, id, "a", "close");
+  expect(await polls.isClosed(env, id)).toBe(true);
 });
