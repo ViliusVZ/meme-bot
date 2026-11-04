@@ -104,6 +104,10 @@ export async function openRoom(env: Env, game: string, emoji: string | null, opt
       }
       if (!room) throw new Error(`room for ${game} is still being created`);
       reused = true;
+    } else if ((room = await latestRoom(env, game))) {
+      // another click finished creating this game's room between our first look and our claim
+      await env.db.delete(rooms).where(eq(rooms.channel_id, placeholder));
+      reused = true;
     } else {
       try {
         const ch = await api(env, "POST", `/guilds/${env.GUILD_ID}/channels`, {
