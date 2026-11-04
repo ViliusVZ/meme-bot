@@ -30,7 +30,7 @@ pv(p, V, 0)
 pv(p, K, 1)
 pv(p, p and V, "close")
 t = sql(f"SELECT * FROM tiebreaks WHERE kind='poll' AND ref='{p}'")[0]
-ok(json.loads(t["options"]) == ["A", "B"], f"close on a 1-1 tie opens a tiebreak between A and B ({t['options']})")
+ok(t["options"] == ["A", "B"], f"close on a 1-1 tie opens a tiebreak between A and B ({t['options']})")
 tb(t["id"], V, "rps")
 ok("popcorn" in (tb(t["id"], L, "hand", "r")["notice"] or ""), "non-contender can't throw")
 for i in range(5):
