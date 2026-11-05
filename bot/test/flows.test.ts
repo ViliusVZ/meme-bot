@@ -685,3 +685,45 @@ test("a tap on an out-of-date copy says what changed; the card follows the start
   const card = calls.filter((c) => c.method === "PATCH" && c.path.endsWith(`/messages/${cardId}`)).pop()!;
   expect(JSON.stringify(card.body)).toContain("Tap your ETA"); // refreshed at the start
 });
+
+test("⏰ edge cases: a take-back after the planned time starts it now; late-sayers get the usual grace", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, message_id: "card" });
+  vi.setSystemTime((start - 5 * 60) * 1000);
+  await act("a", "late", "60"); // 21:00
+  await act("b", "late", "5"); // 20:05, start stays 21:00
+  expect((await night())!.start_at).toBe(start + 3600);
+  vi.setSystemTime((start + 40 * 60) * 1000); // 20:40: a takes it back
+  await act("a", "late", "60");
+  const n = (await night())!;
+  expect(n.start_at).toBe(start + 41 * 60); // not 20:05 (35 min ago, never started): a minute from now
+  vi.setSystemTime(n.start_at! * 1000);
+  expect((await gn.maintain(env)).reminded).toBe(DAY);
+  // b said 20:05; the night started at 20:41: b gets the same 10 minutes as everyone
+  await t.db.insert(rooms).values({ channel_id: "room1", game: "R.E.P.O.", day: DAY, created_at: n.start_at! });
+  presence.snapshot([]);
+  vi.setSystemTime((n.start_at! + 5 * 60) * 1000);
+  expect((await late.watch(env)).slipped ?? []).not.toContain("b");
+  vi.setSystemTime((n.start_at! + 10 * 60) * 1000);
+  expect((await late.watch(env)).slipped).toContain("b");
+});
+
+test("⏰ a start moved after the timer looked doesn't get claimed at the old time", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, message_id: "card" });
+  const stale = (await night())!;
+  await t.db.update(gameNights).set({ start_at: start + 900 }); // someone tapped +15 meanwhile
+  vi.setSystemTime(start * 1000);
+  await gn.maintain(env); // the catch-up uses fresh rows, so nothing is due yet
+  expect((await night())!.reminded).toBe(false);
+  expect(await gn.startOnTime(env, stale)).toBe(false);
+  expect((await night())!.reminded).toBe(false);
+});
+
+test("😴 during the poll hour, a card not posted yet still counts as today's", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T15:20:00Z")); // Friday 17:20, no card yet
+  await snooze.snooze(env, "a", "3d");
+  expect((await snooze.current(env))!.until).toBe("2026-11-09"); // Fri, Sat, Sun: 3 days, not 4
+  await snooze.wake(env, "a");
+  expect(await snooze.nextCard(env)).toBe(Date.parse("2026-11-06T15:21:00Z") / 1000); // within the minute, not tomorrow
+});

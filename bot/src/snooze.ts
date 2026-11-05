@@ -35,10 +35,10 @@ export async function isSnoozed(env: Env, day: string) {
   return !!s && day < s.until;
 }
 
-/** The first day whose automatic card is still to come: today before its poll hour (and no card yet), else tomorrow. */
+/** The first day whose automatic card is still to come: today until its poll hour is over (and no card yet), else tomorrow. */
 async function nextCardDay(env: Env) {
   const l = local(env);
-  return l.hour < pollHour(env, l.day) && !(await getNight(env, l.day)) ? l.day : shift(l.day, 1);
+  return l.hour <= pollHour(env, l.day) && !(await getNight(env, l.day)) ? l.day : shift(l.day, 1);
 }
 
 /** When the next automatic card goes out (unix seconds), snooze included. */
@@ -47,7 +47,8 @@ export async function nextCard(env: Env) {
   const first = await nextCardDay(env);
   const day = s && s.until > first ? s.until : first;
   const [y, m, d] = day.split("-").map(Number);
-  return wallToUnix(env, y, m, d, pollHour(env, day), 0);
+  // in the middle of the poll hour, it's "within a minute"
+  return Math.max(wallToUnix(env, y, m, d, pollHour(env, day), 0), Math.floor(Date.now() / 1000) + 60);
 }
 
 /** 😴 Snooze the daily card for 3 days, a week or a month, counted from the next one due. */

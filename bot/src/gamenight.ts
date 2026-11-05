@@ -618,14 +618,16 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
   const mine = (await late.etas(env, n.day))[user];
   const undo = mine === eta;
   await late.expect(env, n.day, user, undo ? null : eta);
-  const etas = Object.values(await late.etas(env, n.day));
-  const start = Math.max(planned, ...etas);
+  // one statement over every ETA on record, so two taps at once can't leave the start too early;
+  // and never in the past (taking it back after the planned time means: start now)
+  const latest = sql`(SELECT MAX(${nightAttendance.eta}) FROM ${nightAttendance} WHERE ${nightAttendance.day} = ${n.day} AND ${nightAttendance.state} = 'eta')`;
   const moved = await env.db
     .update(gameNights)
-    .set({ start_at: start, planned_start: planned })
+    .set({ start_at: sql`GREATEST(${planned}::bigint, COALESCE(${latest}, 0), ${t + 60}::bigint)`, planned_start: planned })
     .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false)))
-    .returning({ day: gameNights.day });
+    .returning({ start: gameNights.start_at });
   if (!moved.length) return say(await late.declare(env, n.day, user, mins)); // it started a moment ago
+  const start = moved[0].start!;
   const at = (x: number) => timeLabel(env, x, n.day);
   if (start !== n.start_at) defer(startMoved(env, n, start, user, undo ? null : mins));
   if (undo) return say(`✅ Taken back: you'll be on time.${start !== n.start_at ? ` Start's back to **${at(start)}**.` : ""}`, true);
@@ -1000,7 +1002,7 @@ async function claimStart(env: Env, n: Night, at?: number) {
   const claimed = await env.db
     .update(gameNights)
     .set({ reminded: true })
-    .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false)))
+    .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false), eq(gameNights.start_at, n.start_at!)))
     .returning({ day: gameNights.day });
   if (!claimed.length) return false;
   try {

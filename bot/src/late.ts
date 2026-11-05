@@ -163,7 +163,7 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
   }
 
   // said ahead they'd be late, and 10 min past that ETA they're still not here
-  const overdue = row?.state === "eta" && !row.message_id && t - row.eta! >= LATE_AFTER;
+  const overdue = row?.state === "eta" && !row.message_id && t - Math.max(row.eta!, n.start_at!) >= LATE_AFTER;
   if ((!row && t - n.start_at! >= LATE_AFTER) || overdue) {
     // not here, not in the Lobby, no word from them: one late slip. Claim the row first so two
     // overlapping runs can't both post one.
