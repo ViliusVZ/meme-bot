@@ -32,7 +32,7 @@ function guide(env: Env) {
       [
         `### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`,
         "Hang out in the **Lobby**. When a game night starts, the bot opens a room for the game and moves everyone in the Lobby into it. Want to play right now? **🔊 Game room** does the same instantly. Rooms tidy themselves: 15 min after the last person leaves, the room moves to 🗄️ Recent games and the night's event ends; archived rooms are deleted after 3 days (rejoin one to bring it back).",
-        "**Running late?** Hop in the Lobby and you'll be pulled into the game. Not there 10 min after the start? You get one late slip to share your ETA (🏃), or bow out (😴), which calls the night off for everyone.",
+        "**Running late?** Say so on the locked-in card (⏰ +5 min … +1 h): before the start, we wait for you, so the start moves for everyone and the others get pinged. Hop in the Lobby and you'll be pulled into the game. Not there 10 min after the start (or after your ETA)? You get one late slip to share your ETA (🏃), or bow out (😴), which calls the night off for everyone.",
       ].join("\n"),
     ),
     divider,

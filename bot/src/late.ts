@@ -7,6 +7,9 @@
 //                       buttons and 😴 can't make it
 // "Can't make it" (😴 on the slip, or on the card) calls the whole night off: we play all together
 // or not at all (gamenight.ts posts the roast). Everyone's slips then say so.
+// Saying it ahead (⏰ on the locked-in card): before the start, gamenight.ts moves the start to the
+// latest ETA (we wait for everyone); after it, it's an ETA on your slip. Someone who said they'd be
+// late and still isn't here 10 min after their ETA gets a slip like everyone else.
 import { and, eq, gt, isNull, like, lte, not, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { gameNights, nightAttendance, rooms } from "./db/index.js";
@@ -36,6 +39,46 @@ async function put(env: Env, day: string, user: string, set: Partial<Omit<Attend
     .values({ day, user_id: user, ...values })
     .onConflictDoUpdate({ target: [nightAttendance.day, nightAttendance.user_id], set: values });
   return row;
+}
+
+/** ⏰ said ahead of the start: they'll be here at `eta` (null takes it back). */
+export async function expect(env: Env, day: string, user: string, eta: number | null) {
+  if (eta === null) {
+    await env.db.delete(nightAttendance).where(and(eq(nightAttendance.day, day), eq(nightAttendance.user_id, user), eq(nightAttendance.state, "eta")));
+    return;
+  }
+  await put(env, day, user, { state: "eta", eta });
+}
+
+/** Who said they'd be late, and when they'll be here: { user: eta }. */
+export async function etas(env: Env, day: string) {
+  const rows = await env.db
+    .select({ user: nightAttendance.user_id, eta: nightAttendance.eta })
+    .from(nightAttendance)
+    .where(and(eq(nightAttendance.day, day), eq(nightAttendance.state, "eta")));
+  return Object.fromEntries(rows.map((r) => [r.user, r.eta!])) as Record<string, number>;
+}
+
+/** ⏰ on the card after the start: an ETA from now, on their slip (posted now if they had none). */
+export async function declare(env: Env, day: string, user: string, mins: number) {
+  const row = await get(env, day, user);
+  const [room] = await env.db.select({ channel_id: rooms.channel_id }).from(rooms).where(and(eq(rooms.day, day), isNull(rooms.archived_at), real));
+  const inRoom = room && (await voice.voiceChannel(env, user).catch(() => null)) === room.channel_id;
+  if (row?.state === "arrived" || inRoom) return "You're already here 👋";
+  const r = await put(env, day, user, { state: "eta", eta: nowSec() + mins * 60 });
+  const body = await render(env, day, user);
+  if (r.message_id) {
+    await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${r.message_id}`, body).catch(() => {});
+  } else {
+    const [n] = await env.db.select({ message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
+    const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+      ...body,
+      allowed_mentions: { parse: [] },
+      message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+    });
+    await env.db.update(nightAttendance).set({ message_id: msg.id }).where(and(eq(nightAttendance.day, day), eq(nightAttendance.user_id, user)));
+  }
+  return `Got it 🏃 ETA <t:${r.eta}:t>. Everyone can see it on your slip.`;
 }
 
 /** People the start-time reminder already moved count as here (and won't be moved again). */
@@ -119,14 +162,22 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
     return;
   }
 
-  if (!row && t - n.start_at! >= LATE_AFTER) {
+  // said ahead they'd be late, and 10 min past that ETA they're still not here
+  const overdue = row?.state === "eta" && !row.message_id && t - row.eta! >= LATE_AFTER;
+  if ((!row && t - n.start_at! >= LATE_AFTER) || overdue) {
     // not here, not in the Lobby, no word from them: one late slip. Claim the row first so two
     // overlapping runs can't both post one.
-    const claim = await env.db
-      .insert(nightAttendance)
-      .values({ day: n.day, user_id: p, state: "late" })
-      .onConflictDoNothing()
-      .returning({ day: nightAttendance.day });
+    const claim = row
+      ? await env.db
+          .update(nightAttendance)
+          .set({ state: "late", eta: null })
+          .where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p), eq(nightAttendance.state, "eta"), isNull(nightAttendance.message_id)))
+          .returning({ day: nightAttendance.day })
+      : await env.db
+          .insert(nightAttendance)
+          .values({ day: n.day, user_id: p, state: "late" })
+          .onConflictDoNothing()
+          .returning({ day: nightAttendance.day });
     if (!claim.length) return;
     const fresh: Attendance = { day: n.day, user_id: p, state: "late", eta: null, message_id: null, arrived_at: null, roast: null };
     try {
@@ -139,9 +190,11 @@ async function watchPlayer(env: Env, n: Night, roomId: string, p: string, t: num
       note("slipped", p);
     } catch (e) {
       // release the claim so the next minute can try again
-      await env.db
-        .delete(nightAttendance)
-        .where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p), isNull(nightAttendance.message_id), eq(nightAttendance.state, "late")));
+      if (row) await put(env, n.day, p, { state: "eta", eta: row.eta });
+      else
+        await env.db
+          .delete(nightAttendance)
+          .where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p), isNull(nightAttendance.message_id), eq(nightAttendance.state, "late")));
       throw e;
     }
   }

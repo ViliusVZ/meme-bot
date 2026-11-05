@@ -547,3 +547,76 @@ test("polls: one vote can't be closed into a decision", async () => {
   await polls.pollAct(env, id, "a", "close");
   expect(await polls.isClosed(env, id)).toBe(true);
 });
+
+test("⏰ running late before the start: we wait, so the start moves to the latest ETA (and back)", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, message_id: "card", event_id: "ev1", event_end: start + 3 * 3600 });
+  await t.db.insert(gameNightVotes).values({ day: DAY, stage: "until", user_id: "c", choice: String(start + 75 * 60), voted_at: new Date().toISOString() }); // c leaves at 21:15
+  vi.setSystemTime((start - 15 * 60) * 1000); // 19:45: a and b realise they'll be late
+  const card = text(await gn.render(env, DAY));
+  expect(card).toContain("Running late?");
+  expect(card).toContain(`gn:${DAY}:late:15`);
+
+  let r = await act("a", "late", "15");
+  expect(r.notice).toContain("start moved to **20:15**");
+  let n = (await night())!;
+  expect([n.start_at, n.planned_start]).toEqual([start + 15 * 60, start]);
+  const moved = posts().pop()!;
+  expect(moved.body.content).toContain("<@a> is running 15 min late, so we start at **20:15**");
+  expect(moved.body.content).not.toContain("⚠️"); // exactly an hour with c: fine
+  expect(moved.body.allowed_mentions.users).toEqual(["b", "c"]); // the others hear it
+  const ev = calls.filter((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1")).pop()!;
+  expect(ev.body.scheduled_start_time).toBe(new Date((start + 15 * 60) * 1000).toISOString());
+
+  // b's later still: the start follows the last one; c's leave-by gets a heads-up
+  await act("b", "late", "30");
+  n = (await night())!;
+  expect(n.start_at).toBe(start + 30 * 60);
+  expect(posts().pop()!.body.content).toContain("⚠️ That leaves 45 min before <@c> has to leave");
+  expect(text(await gn.render(env, DAY))).toContain("⏰ Running late: <@a> +15 min · <@b> +30 min · start moved from 20:00");
+
+  // a shorter delay from someone else doesn't move it
+  const before = posts().length;
+  r = await act("c", "late", "5");
+  expect(r.notice).toContain("start stays at **20:30**");
+  expect(posts().length).toBe(before);
+
+  // tapping your delay again takes it back: start goes to the next latest
+  r = await act("b", "late", "30");
+  expect(r.notice).toContain("Taken back");
+  expect((await night())!.start_at).toBe(start + 15 * 60);
+  expect(posts().pop()!.body.content).toContain("<@b> will be on time after all");
+
+  // the start timer uses the moved start: nothing at 20:00, the start at 20:15
+  vi.setSystemTime(start * 1000);
+  expect((await gn.maintain(env)).reminded).toBeUndefined();
+  vi.setSystemTime((start + 15 * 60) * 1000);
+  expect((await gn.maintain(env)).reminded).toBe(DAY);
+});
+
+test("⏰ after the start it's an ETA on your slip; said-late people who still don't show get a slip", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, reminded: true, message_id: "card" });
+  await t.db.insert(rooms).values({ channel_id: "room1", game: "R.E.P.O.", day: DAY, created_at: start });
+  presence.snapshot([{ user_id: "a", channel_id: "room1" }]);
+  vi.setSystemTime((start + 3 * 60) * 1000);
+  const r = await act("b", "late", "15");
+  expect(r.notice).toContain("ETA");
+  const b = (await late.get(env, DAY, "b"))!;
+  expect([b.state, b.eta, !!b.message_id]).toEqual(["eta", start + 18 * 60, true]); // slip posted with the ETA
+  expect((await gn.render(env, DAY)) && text(await gn.render(env, DAY))).toContain("Tap your ETA");
+  expect((await act("a", "late", "5")).notice).toContain("already here");
+
+  // c said ahead (before the start) they'd be 5 min late, and still isn't here 10 min past that
+  await t.db.insert(nightAttendance).values({ day: DAY, user_id: "c", state: "eta", eta: start + 5 * 60 });
+  vi.setSystemTime((start + 14 * 60) * 1000);
+  expect(await late.watch(env)).toEqual({ arrived: ["a"] });
+  vi.setSystemTime((start + 15 * 60) * 1000);
+  expect(await late.watch(env)).toEqual({ slipped: ["c"] });
+  expect((await late.get(env, DAY, "c"))!.state).toBe("late");
+});
+
+test("⏰ late only makes sense on a locked-in night", async () => {
+  await gn.startNight(env, "a");
+  expect((await act("b", "late", "15")).notice).toContain("Nothing's locked in yet");
+});

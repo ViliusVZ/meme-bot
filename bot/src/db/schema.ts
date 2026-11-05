@@ -102,6 +102,7 @@ export const gameNights = pgTable("game_nights", {
   roast: jsonb().$type<Roast>(), // who sank the night and how (roasts.ts), set when it's called off
   roast_due: unix("roast_due"), // when to post the roast (held until morning if it happened at night)
   roasted_at: unix("roasted_at"), // posted (claimed) at
+  planned_start: unix("planned_start"), // the locked-in start, before anyone said they'd be late
 });
 
 export type Reason = "no" | "ghost" | "out";

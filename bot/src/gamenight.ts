@@ -542,6 +542,13 @@ export async function act(env: Env, day: string, user: string, action: string, v
       // all of us or none of us: a bail calls it off for everyone, even after the start
       if (await callOff(env, n, { [user]: "out" })) defer(afterBail(env, n));
       return ok;
+    case "late": {
+      // ⏰ "I'll be late by…" on the locked-in card
+      if (n.stage !== "set") return say(n.stage === "off" ? "Game night's off, no need to hurry 🫡" : "Nothing's locked in yet, so you can't be late 😄 Pick a later time instead.");
+      const mins = Number(value);
+      if (![5, 15, 30, 60].includes(mins)) return ok;
+      return runningLate(env, n, user, mins, defer);
+    }
     case "reopen": {
       // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
       if (n.stage !== "off") return ok;
@@ -565,6 +572,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
           roast: null,
           roast_due: null,
           roasted_at: null,
+          planned_start: null,
         })
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
         .returning({ day: gameNights.day });
@@ -580,6 +588,71 @@ export async function act(env: Env, day: string, user: string, action: string, v
   }
   await settle(env, day, user, defer);
   return { update: true };
+}
+
+/**
+ * ⏰ Running late. Before the start we wait for everyone (all together or not at all), so the start
+ * moves to whoever arrives last: the planned start plus the biggest delay. Tapping your delay again
+ * takes it back (and the start moves back). Once the night has started it's an ETA on your slip.
+ */
+async function runningLate(env: Env, n: Night, user: string, mins: number, defer: Defer): Promise<Outcome> {
+  const t = nowSec();
+  if (n.start_at! < t - 3 * 3600) return say("That game night is already history 🕰️");
+  if (n.reminded) return say(await late.declare(env, n.day, user, mins));
+  const planned = n.planned_start ?? n.start_at!;
+  const eta = planned + mins * 60;
+  const mine = (await late.etas(env, n.day))[user];
+  const undo = mine === eta;
+  await late.expect(env, n.day, user, undo ? null : eta);
+  const etas = Object.values(await late.etas(env, n.day));
+  const start = Math.max(planned, ...etas);
+  const moved = await env.db
+    .update(gameNights)
+    .set({ start_at: start, planned_start: planned })
+    .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false)))
+    .returning({ day: gameNights.day });
+  if (!moved.length) return say(await late.declare(env, n.day, user, mins)); // it started a moment ago
+  const at = (x: number) => timeLabel(env, x, n.day);
+  if (start !== n.start_at) defer(startMoved(env, n, start, user, undo ? null : mins));
+  if (undo) return say(`✅ Taken back: you'll be on time.${start !== n.start_at ? ` Start's back to **${at(start)}**.` : ""}`, true);
+  return say(
+    start !== n.start_at
+      ? `⏰ Got it. We wait for you: the start moved to **${at(start)}** and the others know.`
+      : `⏰ Got it, you'll be there at **${at(eta)}**. The start stays at **${at(start)}** (someone's even later).`,
+    true,
+  );
+}
+
+/** The start moved because someone's late (or isn't any more): the event follows, the others hear. */
+async function startMoved(env: Env, n: Night, start: number, user: string, mins: number | null) {
+  const at = (x: number) => timeLabel(env, x, n.day);
+  if (n.event_id) {
+    const evStart = Math.max(start, nowSec() + 60);
+    const evEnd = Math.max(n.event_end ?? 0, evStart + 15 * 60);
+    await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, {
+      scheduled_start_time: new Date(evStart * 1000).toISOString(),
+      scheduled_end_time: new Date(evEnd * 1000).toISOString(),
+    }).catch((e) => console.log("event move failed", e));
+    await env.db.update(gameNights).set({ event_end: evEnd }).where(eq(gameNights.day, n.day));
+  }
+  // a leave-by that now leaves under an hour together is worth a heads-up
+  const until = await votes(env, n.day, "until");
+  const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
+  const leavers = end === null ? [] : players(env).filter((p) => Number(until[p]) === end);
+  const tight =
+    end !== null && end - start < MIN_TOGETHER
+      ? `\n-# ⚠️ That leaves ${Math.max(0, Math.round((end - start) / 60))} min before ${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave (${at(end)}).`
+      : "";
+  const others = players(env).filter((p) => p !== user);
+  const content =
+    mins === null
+      ? `✅ ${mention(user)} will be on time after all: we start at **${at(start)}** ${ts(start, "R")}${tight}`
+      : `⏰ ${mention(user)} is running ${mins === 60 ? "an hour" : `${mins} min`} late, so we start at **${at(start)}** ${ts(start, "R")} instead of ${at(n.start_at!)}${tight}`;
+  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+    content,
+    allowed_mentions: pings(env, others),
+    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+  });
 }
 
 /** Moves the night forward if the votes allow it. */
@@ -1195,12 +1268,28 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       const timeVotes = await timeVotesLine(env, day);
       const gameVotes = await gameVotesLine(env, day);
       const endLine = end === null ? "" : `\n🏁 until **${timeLabel(env, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
+      // ⏰ who said they'd be late (before the start; after it, their slips say it)
+      const lateBy = n.reminded ? {} : await late.etas(env, day);
+      const planned = n.planned_start ?? n.start_at!;
+      const lateLine = Object.keys(lateBy).length
+        ? `\n⏰ Running late: ${ps
+            .filter((p) => lateBy[p])
+            .map((p) => `${mention(p)} +${Math.round((lateBy[p] - planned) / 60)} min`)
+            .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(env, planned, day)}` : ""}`
+        : "";
+      const history = n.start_at! < nowSec() - 3 * 3600;
       body = [
         text(`## 🎉 Game night is ON · ${date}`),
         text(
-          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
+          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
         ),
         ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
+        ...(history
+          ? []
+          : [
+              text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late. We'll wait for you, so the start moves for everyone (tap again to take it back):"),
+              row(...[5, 15, 30, 60].map((m) => button(2, "🏃", m === 60 ? "+1 h" : `+${m} min`, id(`late:${m}`)))),
+            ]),
         row(
           ...(n.event_id
             ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${env.GUILD_ID}/${n.event_id}` }]
