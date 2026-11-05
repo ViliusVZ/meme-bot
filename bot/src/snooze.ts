@@ -9,7 +9,7 @@ import { getNight, local, players, pollHour, wallToUnix } from "./gamenight.js";
 
 const KEY = "snooze";
 /** `until` is the first local day the daily card is back. */
-type Snooze = { until: string; by: string };
+type Snooze = { until: string; by: string; span?: Span };
 export type Span = "3d" | "week" | "month";
 const SPANS: Record<Span, string> = { "3d": "3 days", week: "a week", month: "a month" };
 
@@ -54,7 +54,7 @@ export async function nextCard(env: Env) {
 export async function snooze(env: Env, user: string, span: Span) {
   const from = await nextCardDay(env);
   const until = span === "month" ? shift(from, 0, 1) : shift(from, span === "3d" ? 3 : 7);
-  const value: Snooze = { until, by: user };
+  const value: Snooze = { until, by: user, span };
   await env.db.insert(settings).values({ key: KEY, value }).onConflictDoUpdate({ target: settings.key, set: { value, updated_at: new Date() } });
   const next = await nextCard(env);
   await announce(
@@ -62,7 +62,7 @@ export async function snooze(env: Env, user: string, span: Span) {
     user,
     `😴 ${mention(user)} snoozed game night planning for ${SPANS[span]}: no daily poll until <t:${next}:f> (<t:${next}:R>). 🎮 Play today and 📅 Plan a day still work.`,
   );
-  return `😴 Snoozed for ${SPANS[span]}. The next daily poll is <t:${next}:f>.`;
+  return `✅ Snoozed for ${SPANS[span]}.`;
 }
 
 /** ⏰ Wake planning back up. */
@@ -71,7 +71,7 @@ export async function wake(env: Env, user: string) {
   await env.db.delete(settings).where(eq(settings.key, KEY));
   const next = await nextCard(env);
   await announce(env, user, `⏰ ${mention(user)} woke game night planning back up: the next daily poll is <t:${next}:f> (<t:${next}:R>).`);
-  return `⏰ Back on. The next daily poll is <t:${next}:f>.`;
+  return "✅ Back on.";
 }
 
 async function announce(env: Env, user: string, content: string) {
@@ -105,9 +105,9 @@ export async function panel(env: Env, notice?: string) {
           {
             type: 1,
             components: [
-              button(2, "😴", "3 days", "snz:3d"),
-              button(2, "😴", "1 week", "snz:week"),
-              button(2, "😴", "1 month", "snz:month"),
+              button(s?.span === "3d" ? 1 : 2, "😴", "3 days", "snz:3d"),
+              button(s?.span === "week" ? 1 : 2, "😴", "1 week", "snz:week"),
+              button(s?.span === "month" ? 1 : 2, "😴", "1 month", "snz:month"),
               ...(s ? [button(3, "⏰", "Wake it up", "snz:wake")] : []),
             ],
           },

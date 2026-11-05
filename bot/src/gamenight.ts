@@ -495,7 +495,8 @@ export async function act(env: Env, day: string, user: string, action: string, v
       await vote(env, day, "ask", user, action);
       break;
     case "game":
-      if (n.stage !== "game" || !value) return ok;
+      if (n.stage !== "game") return say(n.stage === "off" ? "Game night's off 🫡" : n.game ? `The game's already picked: **${n.game}** 🎮` : "We're not picking games yet 🙂", true);
+      if (!value) return ok;
       await vote(env, day, "game", user, value);
       break;
     case "suggest": {
@@ -507,7 +508,8 @@ export async function act(env: Env, day: string, user: string, action: string, v
     }
     case "time":
     case "custom": {
-      if (n.stage !== "time") return action === "custom" ? say("Time picking is already over for this night.", true) : ok;
+      if (n.stage !== "time")
+        return say(n.stage === "set" ? `The time's already set: **${timeLabel(env, n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
       const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
@@ -1003,6 +1005,7 @@ async function claimStart(env: Env, n: Night, at?: number) {
   if (!claimed.length) return false;
   try {
     await startReminder(env, n, at);
+    await refresh(env, n.day).catch((e) => console.log("card refresh at start", e));
     // a night counts as played once it actually starts (a locked-in night can still be called off)
     await env.db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
     return true;
@@ -1299,7 +1302,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
         ...(history
           ? []
           : [
-              text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late. We'll wait for you, so the start moves for everyone (tap again to take it back):"),
+              text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late: we wait for you, so the start moves for everyone (tap again to undo)"),
               row(...[5, 15, 30, 60].map((m) => button(2, "🏃", m === 60 ? "+1 h" : `+${m} min`, id(`late:${m}`)))),
             ]),
         row(

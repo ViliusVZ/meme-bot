@@ -654,6 +654,8 @@ test("😴 snooze: no automatic cards until it runs out; starting by hand still 
   expect((await snooze.current(env))!.until).toBe("2026-12-10");
   expect(text(await snooze.panel(env))).toContain("Planning is snoozed");
   expect(text(await snooze.panel(env))).toContain("snz:wake");
+  const active = ((await snooze.panel(env)) as any).components[0].components.find((c: any) => c.type === 1).components;
+  expect(active.map((b: any) => b.style)).toEqual([2, 2, 1, 3]); // the month you chose is highlighted
   expect(await snooze.wake(env, "a")).toContain("Back on");
   expect(posts().pop()!.body.content).toContain("<@a> woke game night planning back up");
   expect(await snooze.current(env)).toBeNull();
@@ -666,4 +668,20 @@ test("😴 a week, counted from the next card due", async () => {
   await snooze.snooze(env, "a", "week");
   expect((await snooze.current(env))!.until).toBe("2026-11-14"); // Sat 7th … Fri 13th skipped
   expect(await snooze.nextCard(env)).toBe(gn.wallToUnix(env, 2026, 11, 14, 14, 0)); // Saturday: 14:00
+});
+
+test("a tap on an out-of-date copy says what changed; the card follows the start", async () => {
+  await gn.startNight(env, "a");
+  for (const u of ["b", "c"]) await act(u, "yes");
+  for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
+  expect((await act("a", "game", "R.E.P.O.")).notice).toBe("The game's already picked: **Palworld** 🎮");
+  const at20 = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  for (const u of ["a", "b", "c"]) await act(u, "time", String(at20));
+  expect((await act("a", "time", String(at20))).notice).toContain("The time's already set: **20:00**");
+  expect(text(await gn.render(env, DAY))).toContain("we wait for you");
+  vi.setSystemTime(at20 * 1000);
+  await gn.maintain(env);
+  const cardId = (await night())!.message_id;
+  const card = calls.filter((c) => c.method === "PATCH" && c.path.endsWith(`/messages/${cardId}`)).pop()!;
+  expect(JSON.stringify(card.body)).toContain("Tap your ETA"); // refreshed at the start
 });
