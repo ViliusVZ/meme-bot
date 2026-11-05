@@ -12,6 +12,7 @@ import * as polls from "./polls.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as late from "./late.js";
+import * as snooze from "./snooze.js";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.js";
 
 type User = { id: string; username: string; global_name?: string | null; avatar?: string | null };
@@ -78,6 +79,15 @@ export async function interaction(i: any, env: Env): Promise<object> {
     if (what === "poll") return reply({ type: R.Modal, data: polls.pollModal() });
     if (what === "games") return reply({ type: R.Message, data: await hub.gamesManager(env) });
     if (what === "room") return reply({ type: R.Message, data: await voice.roomPicker(env) });
+    if (what === "snooze") return reply({ type: R.Message, data: await snooze.panel(env) });
+  }
+
+  // ---- 😴 snooze panel: snz:<3d|week|month|wake>
+  if (i.type === 3 && cid.startsWith("snz:")) {
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    const what = cid.slice(4);
+    const notice = what === "wake" ? await snooze.wake(env, user.id) : ["3d", "week", "month"].includes(what) ? await snooze.snooze(env, user.id, what as snooze.Span) : "🤷";
+    return reply({ type: R.UpdateMessage, data: await snooze.panel(env, notice) });
   }
 
   // ---- 📊 stats panel: st:<week|month|year|all>:<offset>[:share]
@@ -238,6 +248,9 @@ export async function interaction(i: any, env: Env): Promise<object> {
     case "plan":
       if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return reply({ type: R.Message, data: await gn.planPicker(env) });
+    case "snooze":
+      if (!isPlayer) return ephemeral("This one's for the trio 😅");
+      return reply({ type: R.Message, data: await snooze.panel(env) });
     case "poll":
       if (!isPlayer) return ephemeral("This one's for the trio 😅");
       return reply({ type: R.Modal, data: polls.pollModal() });

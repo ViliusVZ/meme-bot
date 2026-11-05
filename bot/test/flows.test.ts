@@ -9,9 +9,10 @@ import * as late from "../src/late.js";
 import * as memes from "../src/memes.js";
 import * as jobs from "../src/jobs.js";
 import * as presence from "../src/presence.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, polls as pollTable, pollVotes, votes } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
 import * as roasts from "../src/roasts.js";
 import * as memeshame from "../src/memeshame.js";
+import * as snooze from "../src/snooze.js";
 import { testDb, testEnv } from "./pg.js";
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -27,7 +28,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags]) await t.db.delete(tbl);
+  for (const tbl of [gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings]) await t.db.delete(tbl);
   await t.db.insert(games).values([
     { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
     { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
@@ -619,4 +620,50 @@ test("⏰ after the start it's an ETA on your slip; said-late people who still d
 test("⏰ late only makes sense on a locked-in night", async () => {
   await gn.startNight(env, "a");
   expect((await act("b", "late", "15")).notice).toContain("Nothing's locked in yet");
+});
+
+test("weekends: the daily card goes out at 14:00 on Saturday and Sunday, 17:00 on weekdays", async () => {
+  expect([gn.pollHour(env, "2026-11-06"), gn.pollHour(env, "2026-11-07"), gn.pollHour(env, "2026-11-08"), gn.pollHour(env, "2026-11-09")]).toEqual([17, 14, 14, 17]);
+  vi.setSystemTime(Date.parse("2026-11-07T12:00:00Z")); // Saturday 14:00 in Vilnius
+  expect(await gn.startNight(env)).toMatchObject({ started: true, day: "2026-11-07" });
+  vi.setSystemTime(Date.parse("2026-11-09T12:00:00Z")); // Monday 14:00: not yet
+  expect(await gn.startNight(env)).toEqual({ skipped: "not poll hour" });
+});
+
+test("😴 snooze: no automatic cards until it runs out; starting by hand still works; wake ends it early", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T10:00:00Z")); // Friday 12:00, before today's 17:00 card
+  expect(await snooze.snooze(env, "a", "3d")).toContain("Snoozed for 3 days");
+  expect((await snooze.current(env))!.until).toBe("2026-11-09"); // Fri, Sat, Sun skipped
+  const note = posts().pop()!;
+  expect(note.body.content).toContain("<@a> snoozed game night planning for 3 days");
+  expect(note.body.allowed_mentions.users).toEqual(["b", "c"]);
+  // the next card: Monday at 17:00
+  expect(await snooze.nextCard(env)).toBe(gn.wallToUnix(env, 2026, 11, 9, 17, 0));
+
+  vi.setSystemTime(Date.parse("2026-11-06T15:00:00Z")); // Friday 17:00
+  expect(await gn.startNight(env)).toEqual({ skipped: "snoozed" });
+  vi.setSystemTime(Date.parse("2026-11-08T12:00:00Z")); // Sunday 14:00
+  expect(await gn.startNight(env)).toEqual({ skipped: "snoozed" });
+  expect(await gn.startNight(env, "b")).toMatchObject({ started: true }); // 🎮 Play today still works
+  vi.setSystemTime(Date.parse("2026-11-09T15:00:00Z")); // Monday 17:00: back
+  expect(await gn.startNight(env)).toMatchObject({ started: true, day: "2026-11-09" });
+  expect(await snooze.current(env)).toBeNull();
+
+  // after today's card, a snooze counts from tomorrow; a month is a calendar month; wake ends it
+  await snooze.snooze(env, "c", "month");
+  expect((await snooze.current(env))!.until).toBe("2026-12-10");
+  expect(text(await snooze.panel(env))).toContain("Planning is snoozed");
+  expect(text(await snooze.panel(env))).toContain("snz:wake");
+  expect(await snooze.wake(env, "a")).toContain("Back on");
+  expect(posts().pop()!.body.content).toContain("<@a> woke game night planning back up");
+  expect(await snooze.current(env)).toBeNull();
+  expect(text(await snooze.panel(env))).not.toContain("snz:wake");
+  expect(await snooze.wake(env, "a")).toContain("isn't snoozed");
+});
+
+test("😴 a week, counted from the next card due", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T18:00:00Z")); // Friday 20:00: today's 17:00 card time has passed
+  await snooze.snooze(env, "a", "week");
+  expect((await snooze.current(env))!.until).toBe("2026-11-14"); // Sat 7th … Fri 13th skipped
+  expect(await snooze.nextCard(env)).toBe(gn.wallToUnix(env, 2026, 11, 14, 14, 0)); // Saturday: 14:00
 });

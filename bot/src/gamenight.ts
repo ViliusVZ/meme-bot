@@ -25,6 +25,7 @@ import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
 import * as voice from "./voice.js";
 import * as late from "./late.js";
+import * as snooze from "./snooze.js";
 
 export type Night = typeof gameNights.$inferSelect;
 interface Game {
@@ -93,6 +94,13 @@ export function wallToUnix(env: Env, y: number, m: number, d: number, hour: numb
 }
 
 const clock = (env: Env, sec: number) => local(env, new Date(sec * 1000)).hm;
+
+/** Local hour of the automatic daily card on `day`: 17:00, but 14:00 on Saturdays and Sundays. */
+export function pollHour(env: Env, day: string) {
+  const [y, m, d] = day.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return Number(dow === 0 || dow === 6 ? env.GAME_POLL_HOUR_WEEKEND : env.GAME_POLL_HOUR);
+}
 
 /** "18:30", or "🌙 00:30" for after midnight. */
 function timeLabel(env: Env, sec: number, day: string) {
@@ -345,7 +353,11 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
   if (day < today) return { skipped: "that day is over" };
   let n = await getNight(env, day);
   if (!n) {
-    if (!by && !anyHour && hour !== Number(env.GAME_POLL_HOUR)) return { skipped: "not poll hour" };
+    if (!by && !anyHour) {
+      if (hour !== pollHour(env, day)) return { skipped: "not poll hour" };
+      // 😴 someone snoozed planning: no automatic card (starting one by hand still works)
+      if (await snooze.isSnoozed(env, day)) return { skipped: "snoozed" };
+    }
     await env.db.insert(gameNights).values({ day, stage: "ask", reminded: false, started_by: by ?? null, stage_at: nowSec() }).onConflictDoNothing();
     n = (await getNight(env, day))!;
   }
@@ -368,13 +380,13 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
       return { started: false, day, message_id: n.message_id, stage: n.stage };
     }
     if (by) {
-      // someone kicked it off by hand: the other two hear about it (the 17:00 card is expected)
+      // someone kicked it off by hand: the other two hear about it (the daily card is expected)
       const when = day === today ? "tonight" : `on ${weekday(env, day)}`;
       await nudge(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => console.log("start nudge failed", e));
     }
     return { started: true, day, message_id: msg.id as string, stage: "ask" };
   } catch (e) {
-    // keep the claim (so 17:00 can't post a second poll); the next minute (retryUnposted) or /playtoday retries
+    // keep the claim (so the daily job can't post a second poll); the next minute (retryUnposted) or /playtoday retries
     console.log("startNight post failed", e);
     throw e;
   }

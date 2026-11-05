@@ -20,7 +20,7 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
   ["meme-recaps", memeRecaps], // 🏆 Meme of the Week (Sun 18:00 UTC), 👑 Hall of Fame (1st, 09:00 UTC)
   ["close", gn.closeStale], // midnight: close yesterday's unfinished poll
-  ["start", (e) => gn.startNight(e)], // 17:00 poll, unless /playtoday already started one
+  ["start", (e) => gn.startNight(e)], // the daily poll (17:00, 14:00 on weekends), unless started by hand or 😴 snoozed
   ["retry", gn.retryUnposted], // planned days whose card failed to post
   ["maintain", gn.maintain], // refresh time options, re-nudges, starts the timer missed
   ["roasts", gn.dueRoasts], // 🔥 roasts held overnight go out in the morning

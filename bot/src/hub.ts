@@ -9,7 +9,7 @@ const divider = { type: 14, divider: true, spacing: 1 };
 const button = (style: number, emoji: string, label: string, custom_id: string) => ({ type: 2, style, emoji: { name: emoji }, label, custom_id });
 
 export const actions = () => [
-  { type: 1, components: [button(3, "🎮", "Play today", "hub:play"), button(1, "📅", "Plan a day", "hub:plan"), button(1, "🔊", "Game room", "hub:room")] },
+  { type: 1, components: [button(3, "🎮", "Play today", "hub:play"), button(1, "📅", "Plan a day", "hub:plan"), button(1, "🔊", "Game room", "hub:room"), button(2, "😴", "Snooze", "hub:snooze")] },
   { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "📊", "Stats", "hub:stats"), button(2, "❓", "Help", "hub:help")] },
 ];
 
@@ -19,9 +19,10 @@ function guide(env: Env) {
     text(
       [
         `### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`,
-        "Every day at **17:00** a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (once everyone's voted, most votes wins), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Have to leave early? Tap **🏁 Leave by**. The bot only locks a time that gives everyone at least an hour together, and tells you who clashes if it doesn't. Then you get a Discord event and a ping at start time.",
-        "• **🎮 Play today** starts today's poll now (the 17:00 one then won't happen)",
+        "Every day at **17:00** (**14:00** on Saturdays and Sundays) a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (once everyone's voted, most votes wins), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Have to leave early? Tap **🏁 Leave by**. The bot only locks a time that gives everyone at least an hour together, and tells you who clashes if it doesn't. Then you get a Discord event and a ping at start time.",
+        "• **🎮 Play today** starts today's poll now (the scheduled one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
+        "• **😴 Snooze** pauses the daily poll for 3 days, a week or a month (or wake it back up early). Play today and Plan a day still work while it sleeps.",
         "• **🚪 I'm out / Can't make it** cancels that night for everyone, even after the start: we play all together or not at all (and you get 🔥 roasted)",
         "• **⏳ Vote within 3 hours.** The card shows when voting closes (never in the middle of the night; days planned ahead get until noon on the day). There's a last call 30 min before. If anyone said no or didn't vote by then, the night's off and they get 🔥 roasted in the channel.",
         "• **🤫 Votes are secret** while they run: the card shows who has voted, never what. Tapping it gives you your own private copy with your picks highlighted. Once it's decided, everyone's picks are revealed.",

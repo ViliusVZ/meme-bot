@@ -44,6 +44,7 @@ export const COMMANDS = [
   { name: "hall-of-fame", description: "The 10 greatest memes this server has ever voted on" },
   { name: "playtoday", description: "Start today's game-night poll right now (counts as your yes)" },
   { name: "plan", description: "Plan a game night for any day this week" },
+  { name: "snooze", description: "Pause the daily game-night poll for 3 days, a week or a month" },
   { name: "poll", description: "Ask the trio a question and let democracy decide" },
   { name: "games", description: "See, add or remove games in the game-night list" },
   { name: "room", description: "Open a voice room for a game and bring everyone from the Lobby" },

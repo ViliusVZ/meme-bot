@@ -63,6 +63,7 @@ export function testEnv(db: Env["db"], over: Partial<Env> = {}): Env {
     PLAYERS: "a,b,c",
     TIMEZONE: "Europe/Vilnius",
     GAME_POLL_HOUR: "17",
+    GAME_POLL_HOUR_WEEKEND: "14",
     LOBBY_CHANNEL_ID: "lobby",
     VOICE_CATEGORY_ID: "voice",
     ...over,

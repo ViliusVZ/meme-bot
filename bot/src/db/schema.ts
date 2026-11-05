@@ -93,7 +93,7 @@ export const gameNights = pgTable("game_nights", {
   reminded: boolean().notNull().default(false), // the start (room, moves, ping) has been claimed
   note: text(),
   nudge_id: text(), // latest "your turn" ping, deleted when superseded
-  started_by: text(), // player who ran /playtoday; null = the 17:00 schedule
+  started_by: text(), // player who ran /playtoday; null = the daily schedule (17:00, 14:00 on weekends)
   stage_at: unix("stage_at"), // when the current stage began (time presets, re-nudges)
   renudged: text(), // stage whose one-off "still waiting on you" ping went out
   conflict: text(), // last start/leave-by clash we pinged about (one ping per clash)
@@ -134,6 +134,13 @@ export const roastBags = pgTable("roast_bags", {
   pool: text().primaryKey(), // solo | duo | trio | memes: one shared bag per family
   queue: jsonb().notNull().$type<unknown[]>(), // the lines still to come this cycle
   last_line: text(), // the line drawn last (a fresh cycle never opens with it)
+  updated_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Small app-wide settings, key → JSON (😴 the planning snooze, say). */
+export const settings = pgTable("settings", {
+  key: text().primaryKey(),
+  value: jsonb().notNull().$type<unknown>(),
   updated_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
