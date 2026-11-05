@@ -124,8 +124,8 @@ sql(f"DELETE FROM game_night_votes WHERE day = '{D2}'")  # whoever won the race 
 gn(D2, V, "yes")
 r = gn(D2, K, "no")
 copy = admin("/admin/gamenight", {"action": "copy", "day": D2, "user": K})
-yes_btn, no_btn = [b for row in copy["components"][0]["components"] if row.get("type") == 1 for b in row["components"]][:2]
-ok(copy["flags"] & 64 and (yes_btn["style"], no_btn["style"]) == (2, 4), "the voter's private copy keeps their ❌ coloured and greys out ✅")
+copy_btns = [b for row in copy["components"][0]["components"] if row.get("type") == 1 for b in row["components"]]
+ok(copy["flags"] & 64 and [b["label"] for b in copy_btns] == ["Change to I'm in"], "the voter's private panel says their answer and offers only the switch")
 txt = card_text(D2)
 ok("❌" not in txt and "✅ <@" not in txt and f"🗳️ <@{K}>" in txt and f"⏳ <@{L}>" in txt, "the card shows who answered, not what")
 gn(D2, L, "yes")

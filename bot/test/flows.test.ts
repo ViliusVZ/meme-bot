@@ -88,12 +88,13 @@ test("the whole night: secret answers → game → time → locked in → starte
   let card = text(await gn.render(env, DAY));
   expect(card).toContain("🤫 Answers stay secret");
   await act("b", "yes");
-  // b's private copy: their answer stays green, "Not today" greys out; only b sees it
+  // b's private panel: their answer, and one button to switch; only b sees it
   const mine = (await gn.render(env, DAY, "b")) as any;
   expect(mine.flags & 64).toBe(64);
-  expect(text(mine)).toContain("Your private copy");
-  const [yes, no] = mine.components[0].components.find((c: any) => c.type === 1).components;
-  expect([yes.style, no.style]).toEqual([3, 2]);
+  expect(text(mine)).toContain("You're **in**");
+  expect(text(mine)).not.toContain("Are we playing"); // not a second copy of the card
+  const buttons = mine.components[0].components.find((c: any) => c.type === 1).components;
+  expect(buttons.map((b: any) => [b.label, b.style])).toEqual([["Change to Not today", 4]]);
   expect((await gn.render(env, DAY)).flags & 64).toBe(0); // the public card isn't
   await act("c", "yes");
   expect((await night())!.stage).toBe("game");
@@ -532,7 +533,7 @@ test("your copy: your own leave-by is 'You', and starts that clash with it are g
   for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
   await act("a", "until", "20:30");
   const mine = (await gn.render(env, DAY, "a")) as any;
-  expect(text(mine)).toContain("You have to leave by");
+  expect(text(mine)).toContain("You have to leave by **20:30**");
   expect(text(await gn.render(env, DAY, "b"))).toContain("Someone has to leave by");
   const buttons = mine.components[0].components.filter((c: any) => c.type === 1).flatMap((r: any) => r.components);
   const t = (hm: string) => buttons.find((b: any) => b.label === hm);

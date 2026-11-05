@@ -1327,10 +1327,26 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       break;
   }
   if (me) {
+    // your private panel: just your answer and the buttons to change it. The card above already
+    // shows everyone's progress, so it isn't repeated here.
+    let controls = (body as any[]).filter((c) => c.type === 1);
+    if (n.stage === "ask") {
+      const mine = (await votes(env, day, "ask"))[me];
+      // you've answered: the only thing left to do is switch
+      if (mine)
+        controls = [
+          row(
+            ...controls[0].components
+              .filter((b: any) => !b.custom_id.endsWith(`:${mine}`))
+              .map((b: any) => ({ ...b, style: b.custom_id.endsWith(":yes") ? 3 : 4, label: `Change to ${b.label}` })),
+          ),
+        ];
+    }
     body = [
       ...(notice ? [text(notice)] : []),
-      ...body,
-      text("-# 🔒 Your private copy: your picks are highlighted, and tapping here works just like the card. Only you can see this."),
+      text(await yourVote(env, n, me)),
+      ...controls,
+      text("-# 🔒 Only you can see this. Tap here to change your answer; the card shows everyone's progress."),
     ];
   }
   return {
@@ -1338,6 +1354,41 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
     allowed_mentions: { parse: [] },
     components: [{ type: 17, accent_color: COLORS[n.stage], components: body }],
   };
+}
+
+/** The top of your private panel: what you've answered for the night's current step. */
+async function yourVote(env: Env, n: Night, me: string) {
+  const today = n.day === local(env).day;
+  const when = today ? "tonight" : `on ${weekday(env, n.day)}`;
+  const title = `### 🔒 Your vote · ${today ? "today" : weekday(env, n.day)}`;
+  switch (n.stage) {
+    case "ask": {
+      const v = (await votes(env, n.day, "ask"))[me];
+      const line = v === "yes" ? `✅ You're **in** ${when}.` : v === "no" ? `✖️ You said **${today ? "not today" : "you can't"}**.` : `Are you in ${when}?`;
+      return `${title}\n${line}`;
+    }
+    case "game": {
+      const v = (await votes(env, n.day, "game"))[me];
+      return `${title}\n${v ? `🗳️ You picked ${await emojiFor(env, v)} **${v}**.` : "🎯 Pick a game:"}`;
+    }
+    case "time": {
+      const v = (await votes(env, n.day, "time"))[me];
+      const leaves = await votes(env, n.day, "until");
+      const until = leaves[me];
+      const start = v ? `🕐 You can start from **${timeLabel(env, Number(v), n.day)}**.` : "🕐 When can you start? Tap the earliest time:";
+      // someone else's leave-by limits your start too (who it is stays secret)
+      const end = Object.values(leaves).length ? Math.min(...Object.values(leaves).map(Number)) : null;
+      const theirs =
+        end !== null && Number(until) !== end
+          ? `\n-# 🏁 Someone has to leave by ${timeLabel(env, end, n.day)}, so start by ${timeLabel(env, end - MIN_TOGETHER, n.day)} to get an hour together.`
+          : "";
+      return `${title}\n${start}${until ? `\n🏁 You have to leave by **${timeLabel(env, Number(until), n.day)}**.` : ""}${theirs}`;
+    }
+    case "set":
+      return `${title}\n🎉 It's on: ${await emojiFor(env, n.game!)} **${n.game}** at **${timeLabel(env, n.start_at!, n.day)}**.${n.reminded ? "" : "\n-# ⏰ Running late? Tap how late:"}`;
+    default:
+      return `${title}\n😴 Game night's off.`;
+  }
 }
 
 /** Ephemeral "which day?" picker for planning ahead: today plus the next 6 days. */

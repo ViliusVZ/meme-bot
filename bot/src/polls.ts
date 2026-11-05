@@ -161,8 +161,13 @@ export async function renderPoll(env: Env, id: number, viewer?: string, notice?:
     body.push(text(`-# asked by <@${poll.created_by}> · ${c.total} vote${c.total === 1 ? "" : "s"}`));
   }
   if (me) {
-    if (notice) body.unshift(text(notice));
-    body.push(text("-# 🔒 Your private copy: your answer is highlighted, and tapping here works just like the poll. Only you can see this."));
+    // your private panel: your answer and the buttons to change it, not a second copy of the poll
+    const mine = c.mine(me);
+    const controls = (body as any[]).filter((x) => x.type === 1);
+    const head = poll.closed_at
+      ? `### 🔒 ${poll.question}\n✅ Decided: ${poll.result!.slice(poll.result!.indexOf(":") + 1)}`
+      : `### 🔒 ${poll.question}\n${mine === undefined || mine === null ? "Tap your answer:" : `🗳️ You voted ${LETTERS[mine]} **${c.options[mine]}**. Tap another answer to switch, or yours again to take it back.`}`;
+    body.splice(0, body.length, ...(notice ? [text(notice)] : []), text(head), ...controls, text("-# Only you can see this; the poll shows everyone's progress."));
   }
   return {
     flags: IS_COMPONENTS_V2 | (me ? EPHEMERAL : 0),
