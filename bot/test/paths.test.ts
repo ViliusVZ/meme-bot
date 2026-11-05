@@ -266,6 +266,11 @@ test("clicking the card opens your private copy; clicking your copy updates it i
   expect(fromCard.data.flags & 64).toBe(64); // …only b sees
   const fromCopy = (await interaction(click((1 << 15) | 64), env)) as any;
   expect(fromCopy.type).toBe(7); // edits b's copy
+  // a refusal on your panel shows in the panel, not as one more message
+  const late = { ...click((1 << 15) | 64), data: { custom_id: `gn:${DAY}:late:15`, component_type: 2 } };
+  const refused = (await interaction(late, env)) as any;
+  expect(refused.type).toBe(7);
+  expect(JSON.stringify(refused.data)).toContain("⚠️ Nothing's locked in yet");
 });
 
 test("🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay", async () => {

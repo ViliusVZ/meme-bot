@@ -48,6 +48,9 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
     const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "gn"));
+    // a refusal on your private panel shows up in the panel itself, not as another message
+    if (!r.update && fromPrivateCopy(i) && gn.players(env).includes(user.id))
+      return reply({ type: R.UpdateMessage, data: await gn.render(env, day, user.id, `⚠️ ${r.notice ?? "🤷"}`) });
     if (!r.update) return ephemeral(r.notice ?? "🤷");
     // still voting: the clicker gets (or keeps) their private copy with their picks highlighted, and
     // the public card follows along. Nothing left to pick (locked in, called off): just the card.
@@ -184,6 +187,8 @@ export async function interaction(i: any, env: Env): Promise<object> {
     if (!isPlayer) return ephemeral("This one's for the trio 😅");
     const [, id, action] = cid.split(":");
     const r = await polls.pollAct(env, Number(id), user.id, action);
+    if (!r.update && fromPrivateCopy(i) && gn.players(env).includes(user.id))
+      return reply({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id), user.id, `⚠️ ${r.notice ?? "🤷"}`) });
     if (!r.update) return ephemeral(r.notice ?? "🤷");
     // like game-night cards: the poll follows along, the voter gets a private copy with their answer
     // (once it's decided there's nothing left to pick, so the poll itself just updates)
