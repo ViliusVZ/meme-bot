@@ -491,7 +491,9 @@ export async function act(env: Env, day: string, user: string, action: string, v
   switch (action) {
     case "yes":
     case "no":
-      if (n.stage !== "ask") return ok;
+      // an out-of-date panel: say where things stand instead of silently jumping ahead
+      if (n.stage !== "ask")
+        return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
       await vote(env, day, "ask", user, action);
       break;
     case "game":
@@ -1369,7 +1371,7 @@ async function yourVote(env: Env, n: Night, me: string) {
     }
     case "game": {
       const v = (await votes(env, n.day, "game"))[me];
-      return `${title}\n${v ? `🗳️ You picked ${await emojiFor(env, v)} **${v}**.` : "🎯 Pick a game:"}`;
+      return `${title}\n${v ? `🗳️ You picked ${await emojiFor(env, v)} **${v}**` : "🎯 Pick a game:"}`;
     }
     case "time": {
       const v = (await votes(env, n.day, "time"))[me];

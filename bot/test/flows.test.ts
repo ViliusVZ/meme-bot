@@ -676,6 +676,7 @@ test("a tap on an out-of-date copy says what changed; the card follows the start
   for (const u of ["b", "c"]) await act(u, "yes");
   for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
   expect((await act("a", "game", "R.E.P.O.")).notice).toBe("The game's already picked: **Palworld** 🎮");
+  expect((await act("b", "no")).notice).toContain("past that step");
   const at20 = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
   for (const u of ["a", "b", "c"]) await act(u, "time", String(at20));
   expect((await act("a", "time", String(at20))).notice).toContain("The time's already set: **20:00**");
