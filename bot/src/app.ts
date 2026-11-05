@@ -219,8 +219,15 @@ export function build(env: Env, status: Status) {
           // someone's private copy of a card (what they see after tapping it)
           return gn.render(env, input.day ?? gn.local(env).day, input.user);
         case "hub": {
-          // update the pinned panel in place, or post a new one and pin it
-          if (input.message) return api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${input.message}`, hub.hubPanel(env));
+          // update the pinned panel in place (the given one, or ours that's already pinned); only
+          // post and pin a new one when there's none
+          let existing: string | undefined = input.message;
+          if (!existing) {
+            const pins = await api(env, "GET", `/channels/${env.GAME_CHANNEL_ID}/pins`);
+            const list: any[] = Array.isArray(pins) ? pins : (pins?.items ?? []).map((p: any) => p.message);
+            existing = list.find((m) => m?.author?.id === env.DISCORD_APP_ID && m.components?.length)?.id;
+          }
+          if (existing) return api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${existing}`, hub.hubPanel(env));
           const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, hub.hubPanel(env));
           await api(env, "PUT", `/channels/${env.GAME_CHANNEL_ID}/pins/${msg.id}`);
           return { hub: msg.id };
