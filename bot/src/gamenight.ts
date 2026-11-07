@@ -785,7 +785,8 @@ async function resume(env: Env, n: Night) {
       .delete(gameNightVotes)
       .where(and(eq(gameNightVotes.day, n.day), eq(gameNightVotes.stage, "ask"), eq(gameNightVotes.choice, "maybe")))
       .returning({ user: gameNightVotes.user_id });
-    return gone.map((g) => g.user);
+    // in player order, like every other ping (the delete returns rows in any order)
+    return players(env).filter((p) => gone.some((g) => g.user === p));
   });
   if (!unsure) return false;
   await refresh(env, n.day);
