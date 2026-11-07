@@ -6,6 +6,7 @@
 // Real Postgres, Discord stubbed, the clock moved by hand. Friday 2026-11-06, 17:00 Vilnius.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import * as gn from "../src/gamenight.js";
+import { interaction } from "../src/interactions.js";
 import { gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
 import { testDb, testEnv } from "./pg.js";
 
@@ -323,6 +324,25 @@ test("midnight with the unsure still to answer after a hold: quiet if their hour
     await gn.closeStale(env);
     expect([(await night()).stage, (await night()).roast?.who ?? null]).toEqual(["off", who]);
   }
+});
+
+test("taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why", async () => {
+  await gn.startNight(env);
+  const tap = (user: string, action: string, panel: boolean) =>
+    interaction({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:${action}`, component_type: 2 }, message: { flags: (1 << 15) | (panel ? 64 : 0) }, member: { user: { id: user, username: user } } }, env) as Promise<any>;
+  const fromCard = await tap("a", "maybe", false);
+  expect([fromCard.type, fromCard.data.flags & 64]).toEqual([4, 64]); // a new message only a sees
+  expect(text(fromCard.data)).toContain("You said **maybe**");
+  expect(labels(fromCard.data)).toEqual(["Change to I'm in", "Change to Not today"]);
+  const fromPanel = await tap("a", "yes", true);
+  expect(fromPanel.type).toBe(7); // edits a's panel in place
+  expect(labels(fromPanel.data)).toEqual(["Change to Maybe", "Change to Not today"]);
+  // to the final call, then a's old panel still has a Maybe button
+  await t.db.update(gameNights).set({ maybes: 2 });
+  const stale = await tap("a", "maybe", true);
+  expect(stale.type).toBe(7);
+  expect(text(stale.data)).toContain("No more maybes: this is the final call.");
+  expect(labels(stale.data)).toEqual(["Change to Not today"]);
 });
 
 test("a maybe on any later step, from an outsider, or on a closed card is turned away", async () => {
