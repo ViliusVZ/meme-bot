@@ -1,5 +1,7 @@
 // Daily game-night planner: one card per day that walks through three stages.
-//   ask  → "Are we playing today?" (needs every player to say yes)
+//   ask  → "Are we playing today?" (needs every player to say yes). Not sure? 🤔 Maybe: once
+//          everyone's answered and nobody said no, it's on hold for 2 h and the unsure are asked
+//          again; one more maybe holds it 1 h more, then it's a final yes or no
 //   game → pick a game (once everyone's voted, most votes wins; on a split the picks are revealed
 //          and everyone re-votes until two agree)
 //   time → everyone picks the earliest time they can start; we start at the latest of those, and
@@ -45,6 +47,9 @@ const LEAD = 45 * 60; // first suggested start is at least this far out
 const RENUDGE_AFTER = 3600;
 const VOTE_WINDOW = 3 * 3600; // a vote that isn't complete this long after it opened calls the night off
 const WARN_BEFORE = 30 * 60; // "last call" to whoever hasn't voted
+const HOLDS = [2 * 3600, 3600]; // 🤔 how long each maybe puts "are we playing?" on hold; after the last, it's yes or no
+const AFTER_HOLD = 3600; // once a hold is up, the unsure get this long to answer
+const ANSWER: Record<string, string> = { yes: "✅", maybe: "🤔", no: "❌" };
 const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted between midnight and this
 
 export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);
@@ -94,6 +99,8 @@ export function wallToUnix(env: Env, y: number, m: number, d: number, hour: numb
 }
 
 const clock = (env: Env, sec: number) => local(env, new Date(sec * 1000)).hm;
+/** A Discord timestamp: just the time if it's today, else the date too. */
+const stamp = (env: Env, sec: number) => ts(sec, local(env, new Date(sec * 1000)).day === local(env).day ? "t" : "f");
 
 /** Local hour of the automatic daily card on `day`: 17:00, but 14:00 on Saturdays and Sundays. */
 export function pollHour(env: Env, day: string) {
@@ -256,6 +263,7 @@ async function advance(env: Env, day: string, from: Stage, to: Stage, set: { gam
       ...(set.game != null ? { game: set.game } : {}),
       ...(set.start_at != null ? { start_at: set.start_at } : {}),
       ...(set.note != null ? { note: set.note } : {}),
+      ...(from === "ask" ? { paused_until: null } : {}),
     })
     .where(and(eq(gameNights.day, day), eq(gameNights.stage, from)))
     .returning({ day: gameNights.day });
@@ -281,6 +289,7 @@ function tally(env: Env, v: Votes) {
 async function secret(env: Env, n: Night) {
   const ps = players(env);
   if (n.stage === "ask") {
+    if (n.maybes) return false; // a 🤔 hold only starts once everyone's answered
     const v = await votes(env, n.day, "ask");
     return !ps.every((p) => v[p]);
   }
@@ -332,7 +341,7 @@ async function revealOff(env: Env, day: string) {
     // it never got past "are we playing?": who was in, who wasn't, who never answered
     const v = await votes(env, day, "ask");
     const ps = players(env);
-    if (ps.some((p) => v[p])) lines.push(ps.map((p) => `${v[p] === "yes" ? "✅" : v[p] === "no" ? "❌" : "⏳"} ${mention(p)}`).join("　"));
+    if (ps.some((p) => v[p])) lines.push(ps.map((p) => `${ANSWER[v[p]] ?? "⏳"} ${mention(p)}`).join("　"));
   }
   return lines.length ? [text(`-# 🗳️ How everyone voted\n${lines.map((l) => `-# ${l}`).join("\n")}`)] : [];
 }
@@ -491,9 +500,11 @@ export async function act(env: Env, day: string, user: string, action: string, v
   switch (action) {
     case "yes":
     case "no":
+    case "maybe":
       // an out-of-date panel: say where things stand instead of silently jumping ahead
       if (n.stage !== "ask")
         return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
+      if (action === "maybe" && finalCall(n)) return say("No more maybes: this is the final call. ✅ In or ✖️ out?", true);
       await vote(env, day, "ask", user, action);
       break;
     case "game":
@@ -584,6 +595,8 @@ export async function act(env: Env, day: string, user: string, action: string, v
           renudged: null,
           warned: null,
           started_by: user,
+          maybes: 0,
+          paused_until: null,
           // a roast still waiting for the morning is dropped: they made up
           roast: null,
           roast_due: null,
@@ -682,10 +695,12 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     const v = await votes(env, day, "ask");
     if (ps.every((p) => v[p] === "yes") && (await advance(env, day, "ask", "game"))) {
       defer(nudge(env, day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
-    } else if (ps.every((p) => v[p])) {
-      // everyone answered and somebody said no: the votes come out, and so do the roasts
+    } else if (ps.every((p) => v[p]) && ps.some((p) => v[p] === "no")) {
+      // everyone answered and somebody said no (a maybe can't save it): the votes come out, and so do the roasts
       const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
       if (await callOff(env, n, who)) defer(postRoast(env, day));
+    } else if (ps.every((p) => v[p]) && !n.paused_until && n.maybes < HOLDS.length) {
+      await hold(env, n, ps.filter((p) => v[p] === "maybe"), defer);
     }
     return;
   }
@@ -734,6 +749,58 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     }
     if (await advance(env, day, "time", "set", { start_at: f.start! })) defer(lockIn(env, day));
   }
+}
+
+// ---------------------------------------------------------------- 🤔 maybe
+
+/** After the last hold it's yes or no: no more maybes. */
+const finalCall = (n: Night) => n.stage === "ask" && n.maybes >= HOLDS.length && !n.paused_until;
+
+/** Everyone's answered, nobody said no, but someone isn't sure: put the answer on hold (once per round). */
+async function hold(env: Env, n: Night, unsure: string[], defer: Defer) {
+  const until = awakeTime(env, nowSec() + HOLDS[n.maybes]);
+  const claimed = await env.db
+    .update(gameNights)
+    .set({ maybes: n.maybes + 1, paused_until: until })
+    .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "ask"), isNull(gameNights.paused_until), eq(gameNights.maybes, n.maybes)))
+    .returning({ day: gameNights.day });
+  if (!claimed.length) return;
+  // the sure ones hear why they're waiting; the unsure get their ping when it's up
+  const waiting = players(env).filter((p) => !unsure.includes(p));
+  defer(
+    nudge(env, n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(env, until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
+  );
+}
+
+/** A hold is up: the maybes are cleared and those players asked again, with an hour to answer. */
+async function resume(env: Env, n: Night) {
+  const unsure = await env.db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(gameNights)
+      .set({ paused_until: null, stage_at: nowSec(), warned: null, renudged: null })
+      .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "ask"), eq(gameNights.paused_until, n.paused_until!)))
+      .returning({ day: gameNights.day });
+    if (!claimed.length) return null;
+    const gone = await tx
+      .delete(gameNightVotes)
+      .where(and(eq(gameNightVotes.day, n.day), eq(gameNightVotes.stage, "ask"), eq(gameNightVotes.choice, "maybe")))
+      .returning({ user: gameNightVotes.user_id });
+    return gone.map((g) => g.user);
+  });
+  if (!unsure) return false;
+  await refresh(env, n.day);
+  const fresh = (await getNight(env, n.day))!;
+  const by = stamp(env, voteDeadline(env, fresh));
+  const when = n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`;
+  await nudge(
+    env,
+    n.day,
+    unsure,
+    finalCall(fresh)
+      ? `⏰ Final call: are you in ${when}? It's ✅ or ✖️ now, no more maybes. Answer by ${by} ⬆️`
+      : `⏰ Decision time: are you in ${when}? Still not sure? 🤔 Maybe once more gives you 1 more hour. Answer by ${by} ⬆️`,
+  );
+  return true;
 }
 
 /** If everyone's picks have already passed, start a few minutes from now instead. */
@@ -821,13 +888,13 @@ function awakeTime(env: Env, t: number) {
 }
 
 /**
- * When the current stage's vote closes: 3 h after it opened, but a night planned for a later day
- * gets until at least noon on the day itself, and nothing closes in the small hours (it waits
- * until 09:30, after the 09:00 last call).
+ * When the current stage's vote closes: 3 h after it opened (an hour after a 🤔 hold is up), but a
+ * night planned for a later day gets until at least noon on the day itself, and nothing closes in
+ * the small hours (it waits until 09:30, after the 09:00 last call).
  */
-export function voteDeadline(env: Env, n: Pick<Night, "day" | "stage_at">) {
+export function voteDeadline(env: Env, n: Pick<Night, "day" | "stage_at"> & Partial<Pick<Night, "stage" | "maybes">>) {
   const opened = n.stage_at ?? nowSec();
-  let t = opened + VOTE_WINDOW;
+  let t = opened + (n.stage === "ask" && n.maybes ? AFTER_HOLD : VOTE_WINDOW);
   if (n.day > local(env, new Date(opened * 1000)).day) {
     const [y, m, d] = n.day.split("-").map(Number);
     t = Math.max(t, wallToUnix(env, y, m, d, 12, 0));
@@ -932,10 +999,11 @@ async function culprits(env: Env, n: Night) {
   const v = await votes(env, n.day, n.stage);
   const who: Record<string, Reason> = {};
   for (const p of players(env)) {
-    if (!v[p]) who[p] = "ghost";
+    // on the final call a maybe that slipped in isn't an answer
+    if (!v[p] || (v[p] === "maybe" && finalCall(n))) who[p] = "ghost";
     else if (n.stage === "ask" && v[p] === "no") who[p] = "no";
   }
-  return { who, missing: players(env).filter((p) => !v[p]) };
+  return { who, missing: players(env).filter((p) => who[p] === "ghost") };
 }
 
 /**
@@ -1053,6 +1121,11 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
   {
     // drop start times that just passed (every 15 min is plenty; the tick runs every minute)
     if (n.stage === "time" && local(env).minute % 15 === 0) await refresh(env, n.day);
+    if (n.stage === "ask" && n.paused_until) {
+      // 🤔 on hold: no deadline meanwhile. When it's up, the unsure answer again
+      if (t >= n.paused_until && (await resume(env, n))) done[`resumed ${n.day}`] = true;
+      return;
+    }
     const { who, missing } = await culprits(env, n);
     const deadline = voteDeadline(env, n);
     // everyone voted for a game but it's split: the clock still runs, for all three
@@ -1158,19 +1231,34 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       const v = await votes(env, day, "ask");
       const today = day === local(env).day;
       const hidden = await secret(env, n);
-      // revealed means everyone answered and someone can't (all yes would have moved on)
-      const status = hidden
-        ? `🤫 Answers stay secret until everyone's answered · waiting on ${ps.filter((p) => !v[p]).length} more · it's on when all ${ps.length} say yes`
-        : `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${today ? "today" : weekday(env, day)}).`;
-      const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : v[p] === "yes" ? "✅" : "❌");
+      const last = finalCall(n);
+      const unsure = ps.filter((p) => v[p] === "maybe");
+      const waiting = ps.filter((p) => !v[p] || (last && v[p] === "maybe"));
+      const whom = waiting.length ? ` for ${waiting.map(mention).join(" ")}` : "";
+      let status: string;
+      if (hidden)
+        status = `🤫 Answers stay secret until everyone's answered · waiting on ${waiting.length} more · it's on when all ${ps.length} say yes · not sure yet? 🤔 Maybe puts it on hold for 2 h`;
+      else if (n.paused_until)
+        status = `Sure already? Change your answer any time: all ✅ and we're on. ${n.maybes < HOLDS.length ? "Still unsure after this? One more 🤔 holds it 1 more hour, then it's yes or no." : "This is the last hold: after it, it's ✅ or ✖️."}`;
+      else if (last) status = `⏰ Final call${whom}: it's ✅ or ✖️ now, no more maybes.`;
+      else if (n.maybes) status = `⏰ Decision time${whom}: in or out? Still not sure? 🤔 Maybe once more holds it 1 more hour (the last one).`;
+      // revealed with nobody unsure means everyone answered and someone can't (all yes would have moved on)
+      else status = `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${today ? "today" : weekday(env, day)}).`;
+      const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
+      const question = today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`;
+      // your answer stays coloured, the others grey out
+      const pick = (choice: string, style: number) => (me && v[me] && v[me] !== choice ? 2 : style);
       body = [
-        text(`## 🎮 Game night? · ${date}\n### ${today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`}`),
+        text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}`),
         text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
-        text(`-# ${status}${starter}${hidden ? `\n${closes}` : ""}`),
-        // your answer stays coloured, the other one greys out
+        ...(n.paused_until
+          ? [text(`⏸️ **On hold** until ${stamp(env, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
+          : []),
+        text(`-# ${status}${starter}${hidden || (n.maybes && !n.paused_until) ? `\n${closes}` : ""}`),
         row(
-          button(me && v[me] === "no" ? 2 : 3, "✅", "I'm in", id("yes")),
-          button(me && v[me] === "yes" ? 2 : 4, "✖️", today ? "Not today" : "Can't", id("no")),
+          button(pick("yes", 3), "✅", "I'm in", id("yes")),
+          ...(last ? [] : [button(pick("maybe", 1), "🤔", "Maybe", id("maybe"))]),
+          button(pick("no", 4), "✖️", today ? "Not today" : "Can't", id("no")),
         ),
       ];
       break;
@@ -1340,7 +1428,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
           row(
             ...controls[0].components
               .filter((b: any) => !b.custom_id.endsWith(`:${mine}`))
-              .map((b: any) => ({ ...b, style: b.custom_id.endsWith(":yes") ? 3 : 4, label: `Change to ${b.label}` })),
+              .map((b: any) => ({ ...b, style: ({ yes: 3, maybe: 1, no: 4 } as Record<string, number>)[b.custom_id.split(":").pop()], label: `Change to ${b.label}` })),
           ),
         ];
     }
@@ -1366,7 +1454,21 @@ async function yourVote(env: Env, n: Night, me: string) {
   switch (n.stage) {
     case "ask": {
       const v = (await votes(env, n.day, "ask"))[me];
-      const line = v === "yes" ? `✅ You're **in** ${when}.` : v === "no" ? `✖️ You said **${today ? "not today" : "you can't"}**.` : `Are you in ${when}?`;
+      const later = n.paused_until
+        ? `I'll ask you again at ${stamp(env, n.paused_until)}.`
+        : `Once everyone's answered (and nobody said no), it goes on hold for ${HOLDS[Math.min(n.maybes, HOLDS.length - 1)] / 3600} h and I'll ask you again.`;
+      const line =
+        v === "yes"
+          ? `✅ You're **in** ${when}.`
+          : v === "no"
+            ? `✖️ You said **${today ? "not today" : "you can't"}**.`
+            : v === "maybe" && !finalCall(n)
+              ? `🤔 You said **maybe**. ${later}`
+              : finalCall(n)
+                ? `⏰ Final call: are you in ${when}? No more maybes.`
+                : n.maybes
+                  ? `⏰ Decision time: are you in ${when}?`
+                  : `Are you in ${when}?`;
       return `${title}\n${line}`;
     }
     case "game": {

@@ -94,7 +94,10 @@ test("the whole night: secret answers → game → time → locked in → starte
   expect(text(mine)).toContain("You're **in**");
   expect(text(mine)).not.toContain("Are we playing"); // not a second copy of the card
   const buttons = mine.components[0].components.find((c: any) => c.type === 1).components;
-  expect(buttons.map((b: any) => [b.label, b.style])).toEqual([["Change to Not today", 4]]);
+  expect(buttons.map((b: any) => [b.label, b.style])).toEqual([
+    ["Change to Maybe", 1],
+    ["Change to Not today", 4],
+  ]);
   expect((await gn.render(env, DAY)).flags & 64).toBe(0); // the public card isn't
   await act("c", "yes");
   expect((await night())!.stage).toBe("game");
@@ -292,6 +295,113 @@ test("3 h after voting opens: last call at 2.5 h, then non-voters (and no-sayers
   const n = (await night())!;
   expect([n.stage, n.roast!.who]).toEqual(["off", { b: "no", c: "ghost" }]);
   expect(roastPosts()[0].body.content).toContain("<@b> ❌ said no · <@c> 👻 didn't vote in time");
+});
+
+// ---------------------------------------------------------------- 🤔 maybe
+
+const maybeButton = (m: any) => text(m).includes(`gn:${DAY}:maybe`);
+
+test("🤔 a maybe holds it for 2 h once everyone's answered, then the unsure get an hour to answer", async () => {
+  await gn.startNight(env, "a"); // 17:00
+  await act("c", "maybe");
+  expect((await night())!).toMatchObject({ stage: "ask", maybes: 0, paused_until: null }); // the others haven't answered
+  expect(text(await gn.render(env, DAY))).toContain("🤫 Answers stay secret");
+  expect(text(await gn.render(env, DAY, "c"))).toContain("You said **maybe**");
+  await act("b", "yes");
+  let n = (await night())!;
+  const at19 = gn.wallToUnix(env, 2026, 11, 6, 19, 0);
+  expect([n.stage, n.maybes, n.paused_until]).toEqual(["ask", 1, at19]);
+  let card = text(await gn.render(env, DAY));
+  expect(card).toContain("✅ <@a>　✅ <@b>　🤔 <@c>"); // everyone answered, so it's out
+  expect(card).toContain("**On hold**");
+  expect(card).not.toContain("Vote by"); // no deadline while it's on hold
+  const held = posts().find((p) => p.body.content?.includes("isn't sure yet"))!;
+  expect(held.body.content).toMatch(/^<@a> <@b> 🤔 <@c> isn't sure yet, so it's on hold until/);
+  expect(held.body.allowed_mentions.users).toEqual(["a", "b"]); // the sure ones hear why they wait
+
+  vi.setSystemTime(Date.parse("2026-11-06T16:59:00Z")); // 18:59: still on hold
+  await gn.maintain(env);
+  expect((await night())!.paused_until).toBe(at19);
+  vi.setSystemTime(Date.parse("2026-11-06T17:00:00Z")); // 19:00: the unsure are asked again
+  await gn.maintain(env);
+  await gn.maintain(env); // once
+  n = (await night())!;
+  expect([n.stage, n.maybes, n.paused_until, n.stage_at]).toEqual(["ask", 1, null, at19]);
+  const again = posts().filter((p) => p.body.content?.includes("Decision time"));
+  expect(again.length).toBe(1);
+  expect(again[0].body.content).toMatch(/^<@c> ⏰ Decision time: are you in tonight\?/);
+  expect(again[0].body.allowed_mentions.users).toEqual(["c"]);
+  card = text(await gn.render(env, DAY));
+  expect(card).toContain("✅ <@a>　✅ <@b>　⏳ <@c>"); // the yeses carry over
+  expect(card).toContain(`Vote by <t:${at19 + 3600}:t>`); // an hour to answer
+  expect(maybeButton(await gn.render(env, DAY))).toBe(true); // one more maybe is allowed
+  await act("c", "yes");
+  expect((await night())!.stage).toBe("game");
+});
+
+test("🤔 a second maybe holds it 1 h more; then it's yes or no, and no answer gets you roasted", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "maybe"); // on hold until 19:00
+  vi.setSystemTime(Date.parse("2026-11-06T17:00:00Z")); // 19:00
+  await gn.maintain(env);
+  await act("c", "maybe"); // the yeses are still in, so that's everyone again: on hold until 20:00
+  let n = (await night())!;
+  expect([n.maybes, n.paused_until]).toEqual([2, gn.wallToUnix(env, 2026, 11, 6, 20, 0)]);
+  expect(text(await gn.render(env, DAY))).toContain("This is the last hold");
+  vi.setSystemTime(Date.parse("2026-11-06T18:00:00Z")); // 20:00: final call
+  await gn.maintain(env);
+  expect(posts().some((p) => p.body.content?.startsWith("<@c> ⏰ Final call"))).toBe(true);
+  const card = await gn.render(env, DAY);
+  expect(text(card)).toContain("⏰ Final call! Are we playing today?");
+  expect(maybeButton(card)).toBe(false);
+  expect(maybeButton(await gn.render(env, DAY, "c"))).toBe(false);
+  const r = await act("c", "maybe"); // an old panel
+  expect(r.notice).toContain("No more maybes");
+  expect(text(await gn.render(env, DAY, "c"))).toContain("Final call: are you in tonight? No more maybes."); // not counted
+  vi.setSystemTime(Date.parse("2026-11-06T18:31:00Z")); // 20:31: last call
+  await gn.maintain(env);
+  expect(posts().filter((p) => p.body.content?.includes("Last call")).map((p) => p.body.content)).toEqual([expect.stringMatching(/^<@c> ⏳ Last call: 29 min/)]);
+  vi.setSystemTime(Date.parse("2026-11-06T19:00:00Z")); // 21:00
+  await gn.maintain(env);
+  n = (await night())!;
+  expect([n.stage, n.roast!.who]).toEqual(["off", { c: "ghost" }]);
+});
+
+test("🤔 a no beats a maybe, also during a hold; reopening starts the holds over", async () => {
+  await gn.startNight(env, "a");
+  await act("c", "maybe");
+  await act("b", "no"); // everyone's answered: no hold, the no wins
+  let n = (await night())!;
+  expect([n.stage, n.maybes, n.roast!.who]).toEqual(["off", 0, { b: "no" }]);
+  expect(text(await gn.render(env, DAY))).toContain("🤔 <@c>");
+
+  await act("a", "reopen");
+  await act("b", "yes");
+  await act("c", "maybe");
+  expect((await night())!.maybes).toBe(1);
+  await act("b", "no"); // changed their mind while on hold
+  n = (await night())!;
+  expect([n.stage, n.paused_until, n.roast!.who]).toEqual(["off", null, { b: "no" }]);
+  await act("a", "reopen");
+  expect((await night())!).toMatchObject({ stage: "ask", maybes: 0, paused_until: null });
+});
+
+test("🤔 a maybe who turns yes during the hold starts it right away; holds never end in the small hours", async () => {
+  await gn.startNight(env, "a");
+  await act("b", "yes");
+  await act("c", "maybe");
+  await act("c", "yes");
+  expect((await night())!).toMatchObject({ stage: "game", paused_until: null });
+
+  // tomorrow, planned at 22:00: 2 h later would be midnight, so it waits until 09:30
+  vi.setSystemTime(Date.parse("2026-11-06T20:00:00Z"));
+  const SAT = "2026-11-07";
+  await gn.startNight(env, "a", true, SAT);
+  await gn.act(env, SAT, "b", "yes", undefined, defer);
+  await gn.act(env, SAT, "c", "maybe", undefined, defer);
+  await settle();
+  expect((await gn.getNight(env, SAT))!.paused_until).toBe(gn.wallToUnix(env, 2026, 11, 7, 9, 30));
 });
 
 test("game and time picks have the same deadline", async () => {

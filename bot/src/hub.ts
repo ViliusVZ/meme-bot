@@ -24,6 +24,7 @@ function guide(env: Env) {
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
         "• **😴 Snooze** pauses the daily poll for 3 days, a week or a month (or wake it back up early). Play today and Plan a day still work while it sleeps.",
         "• **🚪 I'm out / Can't make it** cancels that night for everyone, even after the start: we play all together or not at all (and you get 🔥 roasted)",
+        "• **🤔 Maybe** if you're not sure yet: once everyone's answered and nobody said no, the poll goes on hold for 2 h and you're asked again. One more maybe holds it 1 h more, then it's a final ✅ or ✖️ (a ✖️ always beats a maybe).",
         "• **⏳ Vote within 3 hours.** The card shows when voting closes (never in the middle of the night; days planned ahead get until noon on the day). There's a last call 30 min before. If anyone said no or didn't vote by then, the night's off and they get 🔥 roasted in the channel.",
         "• **🤫 Votes are secret** while they run: the card shows who has voted, never what. Tapping it gives you your own private copy with your picks highlighted. Once it's decided, everyone's picks are revealed.",
       ].join("\n"),

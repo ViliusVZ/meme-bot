@@ -94,7 +94,7 @@ export const gameNights = pgTable("game_nights", {
   note: text(),
   nudge_id: text(), // latest "your turn" ping, deleted when superseded
   started_by: text(), // player who ran /playtoday; null = the daily schedule (17:00, 14:00 on weekends)
-  stage_at: unix("stage_at"), // when the current stage began (time presets, re-nudges)
+  stage_at: unix("stage_at"), // when the current stage began (time presets, re-nudges), or its round after a 🤔 hold
   renudged: text(), // stage whose one-off "still waiting on you" ping went out
   conflict: text(), // last start/leave-by clash we pinged about (one ping per clash)
   event_end: unix("event_end"), // the Discord event's current end, pushed back while people still play
@@ -103,6 +103,8 @@ export const gameNights = pgTable("game_nights", {
   roast_due: unix("roast_due"), // when to post the roast (held until morning if it happened at night)
   roasted_at: unix("roasted_at"), // posted (claimed) at
   planned_start: unix("planned_start"), // the locked-in start, before anyone said they'd be late
+  maybes: integer().notNull().default(0), // 🤔 how many times "are we playing?" was put on hold (max 2)
+  paused_until: unix("paused_until"), // on hold for a 🤔 maybe until then; the unsure answer again after
 });
 
 export type Reason = "no" | "ghost" | "out";
