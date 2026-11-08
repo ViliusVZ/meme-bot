@@ -84,7 +84,7 @@ jobs:
           app: meme-bot-dev
           config: bot/deploy/dev.env
           image: ${{ needs.build.outputs.image }}
-          url: https://srv2127148.hstgr.cloud/bot-dev/health
+          url: https://srv2140520.hstgr.cloud/bot-dev/health
           ssh-key: ${{ secrets.VPS_DEPLOY_KEY }}
           known-hosts: ${{ secrets.VPS_KNOWN_HOSTS }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}
@@ -103,7 +103,7 @@ jobs:
           app: meme-bot
           config: bot/deploy/prod.env
           image: ${{ needs.build.outputs.image }}
-          url: https://srv2127148.hstgr.cloud/bot/health
+          url: https://srv2140520.hstgr.cloud/bot/health
           ssh-key: ${{ secrets.VPS_DEPLOY_KEY }}
           known-hosts: ${{ secrets.VPS_KNOWN_HOSTS }}
           registry-token: ${{ secrets.GITHUB_TOKEN }}

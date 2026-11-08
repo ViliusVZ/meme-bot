@@ -26,7 +26,7 @@ runs:
         TOKEN: ${{ inputs.registry-token }}
         CONFIG: ${{ inputs.config }}
       run: |
-        gate() { ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes deploy@srv2127148.hstgr.cloud "$@"; }
+        gate() { ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o BatchMode=yes deploy@srv2140520.hstgr.cloud "$@"; }
         gate config "$APP" < "$CONFIG"
         gate compose "$APP" < bot/deploy/compose.yml
         printf '%s' "$TOKEN" | gate deploy "$APP" "$IMAGE"

@@ -1,7 +1,7 @@
 # Meme Bot 3000 · bot
 
 The Terrible Trio's Discord bot: daily memes, game-night planning, game rooms, polls, tiebreakers
-and 📊 stats. A long-running Node service on the VPS (`srv2127148.hstgr.cloud`, see the
+and 📊 stats. A long-running Node service on the VPS (`srv2140520.hstgr.cloud`, see the
 [server repo](https://github.com/ViliusVZ/server)).
 
 | | |

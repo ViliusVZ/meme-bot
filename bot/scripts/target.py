@@ -13,7 +13,7 @@ _config = dict(
 )
 
 PROD = os.environ.get("BOT") == "prod"
-URL = "https://srv2127148.hstgr.cloud/bot" if PROD else "https://srv2127148.hstgr.cloud/bot-dev"
+URL = "https://srv2140520.hstgr.cloud/bot" if PROD else "https://srv2140520.hstgr.cloud/bot-dev"
 ADMIN_SECRET = _secrets["ADMIN_SECRET_PROD" if PROD else "ADMIN_SECRET_DEV"]
 DATABASE = "meme_bot" if PROD else "meme_bot_dev"
 GUILD = _config["GUILD_ID"]

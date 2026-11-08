@@ -4,7 +4,7 @@ Posts the top r/ProgrammerHumor image of the previous UTC day to Discord, with v
 a discussion thread, voting streaks, weekly/monthly recaps and slash commands, and runs the
 Terrible Trio's game nights (polls, rooms, latecomers, roasts, 📊 stats).
 
-    Hostinger VPS (srv2127148.hstgr.cloud)                         Discord
+    Hostinger VPS (srv2140520.hstgr.cloud)                         Discord
     Caddy ─▶ bot (Node, blue/green) ◀── gateway: live voice ──────  
                 │  Fastify: /interactions ◀── button clicks ───────
                 ▼
