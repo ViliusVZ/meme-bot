@@ -10,6 +10,7 @@ import { polls, pollVotes } from "./db/index.js";
 import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { now } from "./memes.js";
 import { players } from "./gamenight.js";
+import * as panels from "./panels.js";
 
 type Poll = typeof polls.$inferSelect;
 type Outcome = { notice?: string; update: boolean };
@@ -112,11 +113,20 @@ export async function setMessage(env: Env, id: number, channelId: string, messag
   await env.db.update(polls).set({ channel_id: channelId, message_id: messageId }).where(eq(polls.id, id));
 }
 
-/** Re-render a poll in place (used outside interactions). */
-export async function refreshPoll(env: Env, id: number) {
+/**
+ * Re-render a poll in place (used outside interactions), and everyone's private copies of it.
+ * `mine` is the copy a tap just answered, so its notice survives the sync.
+ */
+export async function refreshPoll(env: Env, id: number, mine?: panels.Mine) {
   const p = await getPoll(env, id);
-  if (p?.message_id) await api(env, "PATCH", `/channels/${p.channel_id}/messages/${p.message_id}`, await renderPoll(env, id));
+  if (!p) return;
+  if (p.message_id) await api(env, "PATCH", `/channels/${p.channel_id}/messages/${p.message_id}`, await renderPoll(env, id));
+  await syncPollPanels(env, id, mine);
 }
+
+/** Bring everyone's private copies of a poll up to date (panels.ts). */
+export const syncPollPanels = (env: Env, id: number, mine?: panels.Mine) =>
+  panels.sync(env, `poll:${id}`, (user, notice) => renderPoll(env, id, user, notice), mine);
 
 /** The poll card; with a `viewer`, their private copy (their answer highlighted, `notice` on top). */
 export async function renderPoll(env: Env, id: number, viewer?: string, notice?: string) {

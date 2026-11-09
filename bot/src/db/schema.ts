@@ -123,19 +123,19 @@ export const gameNightVotes = pgTable(
 );
 
 /**
- * 🔒 The private copies of a card ("only you can see this" replies). Discord lets us edit one for
- * 15 minutes after the tap that made or last updated it, so they follow the card while that lasts.
+ * 🔒 Private copies of a card ("only you can see this" replies, panels.ts). Discord lets us edit one
+ * for 15 minutes after the tap that made or last updated it, so they follow the card while that lasts.
  */
 export const panels = pgTable(
   "panels",
   {
     message_id: text().primaryKey(), // the ephemeral message
-    day: text().notNull(),
+    card: text().notNull(), // what it's a copy of: gn:<day> | poll:<id>
     user_id: text().notNull(),
-    token: text().notNull(), // the latest tap's interaction token: edits the panel via @original
+    token: text().notNull(), // the latest tap's interaction token: edits the copy via @original
     tapped_at: unix("tapped_at").notNull(), // the token works for 15 minutes from here
   },
-  (t) => [index("panels_day").on(t.day)],
+  (t) => [index("panels_card").on(t.card)],
 );
 
 export const games = pgTable("games", {

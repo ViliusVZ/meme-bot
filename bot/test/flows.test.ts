@@ -929,3 +929,24 @@ test("panels past Discord's 15 minutes, or dismissed, are let go", async () => {
   await gn.refresh(env, DAY);
   expect(await t.db.select().from(panels)).toEqual([]);
 });
+
+test("private poll copies follow the poll too: once it's decided, everyone's copy shows the result", async () => {
+  const id = await polls.createPoll(env, "a", "Pizza?", "Yes\nNo");
+  await polls.setMessage(env, id, "gn", "poll-msg");
+  const vote = async (user: string, choice: string) => {
+    const out = (await interaction(
+      { type: 3, token: `ptok-${user}`, data: { custom_id: `poll:${id}:${choice}`, component_type: 2 }, message: { id: "poll-msg", flags: 1 << 15 }, member: { user: { id: user, username: user } } },
+      env,
+    )) as any;
+    await drain(10_000);
+    return out;
+  };
+  expect((await vote("a", "0")).type).toBe(4); // a's private copy
+  await vote("b", "0");
+  expect((await t.db.select().from(panels)).map((p) => p.card)).toEqual([`poll:${id}`, `poll:${id}`]);
+  calls = [];
+  await vote("c", "1"); // 2 of 3: Yes wins, and a's and b's copies say so without another tap
+  const edits = panelEdits().filter((e) => !e.path.includes("ptok-c"));
+  expect(edits.map((e) => e.path).sort()).toEqual(["/webhooks/app/ptok-a/messages/@original", "/webhooks/app/ptok-b/messages/@original"]);
+  for (const e of edits) expect(text(e.body)).toContain("✅ Decided: Yes"); // no stale answer buttons left
+});

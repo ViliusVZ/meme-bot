@@ -1,5 +1,5 @@
 {
-  "id": "24b0999a-f73e-4638-8e24-31662e2e6971",
+  "id": "f112cfb5-7b1f-4be1-86eb-4548718a9d62",
   "prevId": "0f868f9f-9420-4bf6-b037-b042c3ac9a18",
   "version": "7",
   "dialect": "postgresql",
@@ -477,8 +477,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "day": {
-          "name": "day",
+        "card": {
+          "name": "card",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -503,11 +503,11 @@
         }
       },
       "indexes": {
-        "panels_day": {
-          "name": "panels_day",
+        "panels_card": {
+          "name": "panels_card",
           "columns": [
             {
-              "expression": "day",
+              "expression": "card",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

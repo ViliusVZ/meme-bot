@@ -8,6 +8,7 @@ import { defer } from "./background.js";
 import * as db from "./memes.js";
 import * as gn from "./gamenight.js";
 import * as hub from "./hub.js";
+import * as panels from "./panels.js";
 import * as polls from "./polls.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
@@ -194,18 +195,26 @@ export async function interaction(i: any, env: Env): Promise<object> {
     if (!isPlayer) return ephemeral("This one's for the trio 😅");
     const [, id, action] = cid.split(":");
     const r = await polls.pollAct(env, Number(id), user.id, action);
-    if (!r.update && fromPrivateCopy(i) && gn.players(env).includes(user.id))
+    const own = fromPrivateCopy(i);
+    const panel: string | undefined = own ? i.message?.id : undefined;
+    const track = () => defer(panels.track(env, `poll:${id}`, user.id, i.token, panel), "panel");
+    if (!r.update && own && gn.players(env).includes(user.id)) {
+      track();
       return reply({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id), user.id, `⚠️ ${r.notice ?? "🤷"}`) });
+    }
     if (!r.update) return ephemeral(r.notice ?? "🤷");
     // like game-night cards: the poll follows along, the voter gets a private copy with their answer
     // (once it's decided there's nothing left to pick, so the poll itself just updates)
-    if (!fromPrivateCopy(i) && (await polls.isClosed(env, Number(id)))) {
+    if (!own && (await polls.isClosed(env, Number(id)))) {
       if (r.notice) defer(gn.notify(env, i.token, r.notice));
+      defer(polls.syncPollPanels(env, Number(id)), "panels");
       return reply({ type: R.UpdateMessage, data: await polls.renderPoll(env, Number(id)) });
     }
-    defer(polls.refreshPoll(env, Number(id)), "poll refresh");
+    // every other private copy follows too (each player's, for 15 min after their last tap)
+    defer(polls.refreshPoll(env, Number(id), panel ? { message_id: panel, notice: r.notice } : undefined), "poll refresh");
+    track();
     const mine = await polls.renderPoll(env, Number(id), user.id, r.notice);
-    return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });
+    return reply({ type: own ? R.UpdateMessage : R.Message, data: mine });
   }
 
   if (i.type !== 2) return ephemeral("That button is from an older version of me. Try **/help** 🤖");
