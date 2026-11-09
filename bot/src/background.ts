@@ -1,11 +1,12 @@
 // Work that continues after we've answered Discord (followups, wheel animations, pings). Tracked,
 // so a deploy or restart waits for it to finish before the process exits.
+import * as alerts from "./alerts.js";
 
 const pending = new Set<Promise<unknown>>();
 
 /** Run `p` in the background; failures are logged with `label`, never thrown. */
-export function defer(p: Promise<unknown>, label = "background") {
-  const tracked = p.catch((e) => console.log(`${label} failed`, e)).finally(() => pending.delete(tracked));
+export function defer(p: Promise<unknown>, label = "background work") {
+  const tracked = p.catch((e) => alerts.failed(label, e)).finally(() => pending.delete(tracked));
   pending.add(tracked);
 }
 

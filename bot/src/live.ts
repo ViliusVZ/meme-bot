@@ -9,6 +9,7 @@ import * as activity from "./activity.js";
 import * as voice from "./voice.js";
 import * as late from "./late.js";
 import { players } from "./gamenight.js";
+import * as alerts from "./alerts.js";
 
 const HEARTBEAT = 60_000;
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -21,7 +22,7 @@ export function start(env: Env) {
   // changes are handled one at a time, in order, so a quick leave-and-rejoin can't race itself
   let queue: Promise<unknown> = Promise.resolve();
   const enqueue = (label: string, fn: () => Promise<unknown>) => {
-    queue = queue.then(fn).catch((e) => console.log(`live ${label} failed`, e));
+    queue = queue.then(fn).catch((e) => alerts.failed(`live voice (${label})`, e));
     return queue;
   };
 

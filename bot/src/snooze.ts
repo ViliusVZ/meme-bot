@@ -6,6 +6,7 @@ import type { Env } from "./env.js";
 import { settings } from "./db/index.js";
 import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { getNight, local, players, pollHour, wallToUnix } from "./gamenight.js";
+import * as alerts from "./alerts.js";
 
 const KEY = "snooze";
 /** `until` is the first local day the daily card is back. */
@@ -82,7 +83,7 @@ async function announce(env: Env, user: string, content: string) {
       env,
       players(env).filter((p) => p !== user),
     ),
-  }).catch((e) => console.log("snooze announce failed", e));
+  }).catch((e) => alerts.failed("the snooze announcement", e));
 }
 
 /** The private 😴 panel: what's on, and the snooze buttons. */

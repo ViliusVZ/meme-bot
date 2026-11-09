@@ -3,6 +3,7 @@
 import type { Env } from "./env.js";
 import * as jobs from "./jobs.js";
 import * as gn from "./gamenight.js";
+import * as alerts from "./alerts.js";
 
 const LOOKAHEAD = 120; // seconds: nights starting this soon get their own timer
 
@@ -21,7 +22,7 @@ export function start(env: Env) {
       const p = gn
         .startOnTime(env, n, abort.signal)
         .then((ok) => ok && console.log("started on time", n.day, n.game))
-        .catch((e) => console.log("start failed", n.day, e))
+        .catch((e) => alerts.failed("starting the game night on time", e, n.day))
         .finally(() => setTimeout(() => waiting.delete(key), 5 * 60_000).unref());
       waiting.set(key, p);
     }
@@ -29,7 +30,7 @@ export function start(env: Env) {
 
   const tick = async () => {
     const t0 = Date.now();
-    await armStarts().catch((e) => console.log("arm starts failed", e));
+    await armStarts().catch((e) => alerts.failed("lining up the exact start", e));
     const out = await jobs.minute(env);
     const ms = Date.now() - t0;
     // quiet minutes aren't worth a log line; anything that did something (or failed) is
@@ -41,12 +42,12 @@ export function start(env: Env) {
     if (stopped) return;
     const ms = 60_000 - (Date.now() % 60_000) + 50; // just past the top of the next minute
     timer = setTimeout(() => {
-      running = tick().catch((e) => console.log("minute failed", e)).finally(schedule);
+      running = tick().catch((e) => alerts.failed("the minute jobs", e)).finally(schedule);
     }, ms);
   };
 
   // catch up straight away (a restart may have skipped a minute), then every minute
-  running = tick().catch((e) => console.log("minute failed", e)).finally(schedule);
+  running = tick().catch((e) => alerts.failed("the minute jobs", e)).finally(schedule);
 
   return {
     /**

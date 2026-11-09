@@ -16,6 +16,7 @@ import { gameNights, nightAttendance, rooms } from "./db/index.js";
 import { api, IS_COMPONENTS_V2 } from "./discord.js";
 import { bailFromSlip, players } from "./gamenight.js";
 import * as voice from "./voice.js";
+import * as alerts from "./alerts.js";
 
 export type Attendance = typeof nightAttendance.$inferSelect;
 
@@ -124,7 +125,7 @@ export async function watch(env: Env) {
       try {
         await watchPlayer(env, n, room.channel_id, p, t, note);
       } catch (e) {
-        console.log("late: player failed", n.day, p, e);
+        alerts.failed("latecomer upkeep", e, n.day, p);
       }
     }
   }

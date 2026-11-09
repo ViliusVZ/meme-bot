@@ -5,6 +5,7 @@ import type { Env } from "./env.js";
 import { memes } from "./db/index.js";
 import { avatarUrl, editOriginal, EPHEMERAL, IS_COMPONENTS_V2, followup, originalMessage, Response as R } from "./discord.js";
 import { defer } from "./background.js";
+import * as alerts from "./alerts.js";
 import * as db from "./memes.js";
 import * as gn from "./gamenight.js";
 import * as hub from "./hub.js";
@@ -48,7 +49,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
     }
     const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
-    const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "gn"));
+    const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "game-night follow-up (pings, event)"));
     const own = fromPrivateCopy(i);
     const panel: string | undefined = own ? i.message?.id : undefined;
     // a refusal on your private panel shows up in the panel itself, not as another message
@@ -132,7 +133,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
         return voice.roomResult(env, r);
       })()
         .catch((e) => {
-          console.log("room failed", e);
+          alerts.failed("opening a game room", e);
           return "😵 Couldn't open the room just now. Try again in a moment.";
         })
         .then((note) => editOriginal(env, i.token, { flags: IS_COMPONENTS_V2, components: [{ type: 17, accent_color: 0x5865f2, components: [{ type: 10, content: note }] }] })),
@@ -154,7 +155,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
           return r.started ? `🎮 Poll for **${when}** is up, with your ✅ already in: ${link}` : `**${when}** already has a poll: ${link}`;
         })
         .catch((e) => {
-          console.log("plan failed", e);
+          alerts.failed("posting a planned day's card", e);
           return "😵 Couldn't post that poll just now. Try again in a minute.";
         })
         .then((note) => editOriginal(env, i.token, { flags: IS_COMPONENTS_V2, components: [{ type: 17, accent_color: 0x5865f2, components: [{ type: 10, content: note }] }] })),
@@ -304,7 +305,7 @@ function playToday(env: Env, i: any, userId: string) {
         return `Today's poll already exists (${state}): ${link}`;
       })
       .catch((e) => {
-        console.log("playtoday failed", e);
+        alerts.failed("posting the /playtoday card", e);
         return "😵 Couldn't post the poll just now. I'll keep retrying every minute, or try again.";
       })
       .then((content) => editOriginal(env, i.token, { content })),

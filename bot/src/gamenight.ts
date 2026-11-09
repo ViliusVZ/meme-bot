@@ -23,6 +23,7 @@ import type { Env } from "./env.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import * as panels from "./panels.js";
+import * as alerts from "./alerts.js";
 import * as roasts from "./roasts.js";
 import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
@@ -393,12 +394,12 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
     if (by) {
       // someone kicked it off by hand: the other two hear about it (the daily card is expected)
       const when = day === today ? "tonight" : `on ${weekday(env, day)}`;
-      await nudge(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => console.log("start nudge failed", e));
+      await nudge(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => alerts.failed("the “wants to play” ping", e, day));
     }
     return { started: true, day, message_id: msg.id as string, stage: "ask" };
   } catch (e) {
     // keep the claim (so the daily job can't post a second poll); the next minute (retryUnposted) or /playtoday retries
-    console.log("startNight post failed", e);
+    alerts.failed("posting the game-night card", e, day);
     throw e;
   }
 }
@@ -677,7 +678,7 @@ async function startMoved(env: Env, n: Night, start: number, user: string, mins:
     await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, {
       scheduled_start_time: new Date(evStart * 1000).toISOString(),
       scheduled_end_time: new Date(evEnd * 1000).toISOString(),
-    }).catch((e) => console.log("event move failed", e));
+    }).catch((e) => alerts.failed("moving the Discord event", e, n.day));
     await env.db.update(gameNights).set({ event_end: evEnd }).where(eq(gameNights.day, n.day));
   }
   // a leave-by that now leaves under an hour together is worth a heads-up
@@ -880,7 +881,7 @@ async function lockIn(env: Env, day: string) {
     await env.db.update(gameNights).set({ event_id: ev.id, event_end: Math.floor(evEnd / 1000) }).where(eq(gameNights.day, day));
     await refresh(env, day);
   } catch (e) {
-    console.log("event failed", e); // the night still happens; the card just has no event link
+    alerts.failed("creating the Discord event", e, day); // the night still happens; the card just has no event link
   }
   await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
     content: `🎉 ${ps.map(mention).join(" ")} it's on! ${await emojiFor(env, n.game!)} **${n.game}** ${day === local(env).day ? "at" : "on"} ${ts(n.start_at!, day === local(env).day ? "t" : "f")} (${ts(n.start_at!, "R")})`,
@@ -956,7 +957,7 @@ async function afterBail(env: Env, n: Night) {
       : api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`)
     ).catch(() => {});
   }
-  await late.retireSlips(env, n.day).catch((e) => console.log("retire slips failed", e));
+  await late.retireSlips(env, n.day).catch((e) => alerts.failed("tidying the late slips", e, n.day));
   await postRoast(env, n.day);
 }
 
@@ -1041,7 +1042,7 @@ export async function maintain(env: Env) {
     try {
       await maintainNight(env, n, t, awake, done);
     } catch (e) {
-      console.log("maintain night failed", n.day, e);
+      alerts.failed("game-night upkeep", e, n.day);
       done[`failed ${n.day}`] = String(e).slice(0, 120);
     }
   }
@@ -1098,7 +1099,7 @@ async function claimStart(env: Env, n: Night, at?: number) {
     return true;
   } catch (e) {
     // the ping didn't go out: release the claim so the next minute tries again
-    console.log("start reminder failed", n.day, e);
+    alerts.failed("the start ping", e, n.day);
     await env.db.update(gameNights).set({ reminded: false }).where(eq(gameNights.day, n.day));
     return false;
   }
@@ -1113,14 +1114,14 @@ async function startReminder(env: Env, n: Night, at?: number) {
   const emoji = await emojiFor(env, n.game!);
   // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
   let where = "Hop in 🔊";
-  const room = await voice.openRoom(env, n.game!, emoji, { day: n.day, move: false }).catch((e) => (console.log("room failed", e), null));
+  const room = await voice.openRoom(env, n.game!, emoji, { day: n.day, move: false }).catch((e) => (alerts.failed("opening the game room", e, n.day), null));
   if (at) await sleepUntil(at);
   // external events don't go live on their own
   const live = n.event_id
     ? api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 2 }).catch((e) => console.log("event start", e))
     : null;
   if (room) {
-    const moved = await voice.moveFromLobby(env, room.channelId).catch((e) => (console.log("lobby move failed", e), [] as string[]));
+    const moved = await voice.moveFromLobby(env, room.channelId).catch((e) => (alerts.failed("moving people from the Lobby", e, n.day), [] as string[]));
     await late.markArrived(env, n.day, moved);
     where = `Room: <#${room.channelId}>${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`;
   }

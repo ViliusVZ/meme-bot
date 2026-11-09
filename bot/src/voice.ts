@@ -14,6 +14,7 @@ import { api, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import { games, players } from "./gamenight.js";
 import * as presence from "./presence.js";
 import * as channels from "./channels.js";
+import * as alerts from "./alerts.js";
 
 export type Room = typeof rooms.$inferSelect;
 
@@ -144,7 +145,7 @@ export async function moveFromLobby(env: Env, channelId: string) {
       if (at !== env.LOBBY_CHANNEL_ID) return;
       await api(env, "PATCH", `/guilds/${env.GUILD_ID}/members/${p}`, { channel_id: channelId })
         .then(() => moved.push(p))
-        .catch((e) => console.log("move failed", p, e));
+        .catch((e) => alerts.failed("moving someone into the game room", e, p));
     }),
   );
   if (moved.length) await env.db.update(rooms).set({ last_seen: nowSec() }).where(eq(rooms.channel_id, channelId));
@@ -202,7 +203,7 @@ async function keepEventAlive(env: Env, r: Room, t: number) {
   const end = t + EVENT_EXTEND;
   await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { scheduled_end_time: new Date(end * 1000).toISOString() })
     .then(() => env.db.update(gameNights).set({ event_end: end }).where(eq(gameNights.day, r.day!)))
-    .catch((e) => console.log("event extend failed", e));
+    .catch((e) => alerts.failed("extending the Discord event", e));
 }
 
 /**
@@ -313,7 +314,7 @@ export async function maintainRooms(env: Env) {
         await env.db.delete(rooms).where(eq(rooms.channel_id, r.channel_id));
         note("forgotten", r.game);
       } else {
-        console.log("room maintenance failed", r.channel_id, e);
+        alerts.failed("game room upkeep", e, r.channel_id);
       }
     }
   }
@@ -321,7 +322,7 @@ export async function maintainRooms(env: Env) {
   await channels
     .list(env)
     .then((fresh) => tidyArchive(env, fresh))
-    .catch((e) => console.log("archive tidy failed", e));
+    .catch((e) => alerts.failed("tidying 🗄️ Recent games", e));
   return done;
 }
 

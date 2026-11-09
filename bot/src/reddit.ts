@@ -4,6 +4,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Env } from "./env.js";
 import { ingest, type Incoming } from "./memes.js";
+import * as alerts from "./alerts.js";
 
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
@@ -89,7 +90,7 @@ export function maybeRefill(env: Env) {
       lastOk = Date.now();
       console.log("memes refilled", r);
     })
-    .catch((e) => console.log("meme refill failed", String(e)))
+    .catch((e) => alerts.failed("fetching memes from Reddit", String(e)))
     .finally(() => (running = false));
   return Promise.resolve({ refilling: true });
 }

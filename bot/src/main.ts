@@ -9,10 +9,12 @@ import { drain } from "./background.js";
 import * as gateway from "./gateway.js";
 import * as live from "./live.js";
 import * as scheduler from "./scheduler.js";
+import * as alerts from "./alerts.js";
 
 const config = loadConfig();
 const { pool, db } = connect(config.DATABASE_URL);
 const env: Env = { ...config, db };
+alerts.setup(env);
 
 await runMigrations(pool, fileURLToPath(new URL("../drizzle", import.meta.url)));
 
@@ -92,9 +94,10 @@ async function shutdown(signal: string) {
 }
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("unhandledRejection", (e) => console.log("unhandled rejection", e));
-// last resort: log it and exit, Docker restarts us within seconds (better than limping on)
+process.on("unhandledRejection", (e) => alerts.failed("something in the background (unhandled)", e));
+// last resort: log it and exit, Docker restarts us within seconds (better than limping on); the DM
+// gets a moment to go out first
 process.on("uncaughtException", (e) => {
-  console.log("uncaught exception", e);
-  process.exit(1);
+  alerts.failed("the bot itself (crashed; Docker restarts it)", e);
+  setTimeout(() => process.exit(1), 2000);
 });

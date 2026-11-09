@@ -17,6 +17,7 @@ import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as late from "./late.js";
 import * as presence from "./presence.js";
+import * as alerts from "./alerts.js";
 
 export const COMMANDS = [
   { name: "meme", description: "Summon a fresh top meme right now" },
@@ -74,6 +75,8 @@ export function build(env: Env, status: Status) {
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => done(null, body));
   app.setErrorHandler((e, req, res) => {
     console.log("http error", req.method, req.url, e);
+    // a malformed request is the sender's problem; anything else is ours
+    if (((e as { statusCode?: number }).statusCode ?? 500) >= 500) alerts.report(`${req.method} ${req.url.split("?")[0]}`, e);
     res.code(500).send({ error: String(e) });
   });
 
@@ -100,18 +103,21 @@ export function build(env: Env, status: Status) {
     );
     if (!ok) return res.code(401).send("bad signature");
     const i = JSON.parse(body);
+    const what = i.data?.custom_id ?? (i.data?.name ? `/${i.data.name}` : `type ${i.type}`);
+    const who = (i.member?.user ?? i.user)?.username;
     const t0 = performance.now();
     try {
       const out = await interaction(i, env);
-      const ms = performance.now() - t0;
+      const ms = Math.round(performance.now() - t0);
       // every tap/command with its handling time, who and where (three users: a few lines a day), slow ones flagged
-      const who = (i.member?.user ?? i.user)?.username;
       const where = (i.message?.flags ?? 0) & EPHEMERAL ? "panel" : i.message ? "public" : "";
-      console.log(ms > 1500 ? "slow interaction" : "interaction", Math.round(ms), "ms", i.data?.custom_id ?? i.data?.name, who, where);
+      console.log(ms > 1500 ? "slow interaction" : "interaction", ms, "ms", what, who, where);
+      // past 3 s Discord has already shown them "This interaction failed"
+      if (ms > 3000) alerts.report(`a tap (${what})`, `took ${ms} ms, past Discord's 3-second limit, so ${who} saw "This interaction failed"`);
       return out;
     } catch (e) {
       // a private apology beats Discord's generic "This interaction failed"
-      console.log("interaction failed", i.data?.custom_id ?? i.data?.name, e);
+      alerts.failed(`a tap (${what})`, e, who);
       return { type: R.Message, data: { content: "Something went wrong on my end 🤕 Try again in a moment.", flags: EPHEMERAL } };
     }
   });
@@ -217,6 +223,9 @@ export function build(env: Env, status: Status) {
           await polls.refreshPoll(quiet, Number(input.poll));
           return r;
         }
+        case "alert-test":
+          // 🚨 proves alert DMs arrive: to the owner, or to `user` (the test bot has no owner set)
+          return alerts.test(env, input.user);
         case "poll-render":
           return polls.renderPoll(env, Number(input.poll), input.user);
         case "copy":

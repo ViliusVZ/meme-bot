@@ -13,6 +13,7 @@ import * as activity from "./activity.js";
 import * as reddit from "./reddit.js";
 import * as cleanup from "./cleanup.js";
 import * as memeshame from "./memeshame.js";
+import * as alerts from "./alerts.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const JOBS: [string, (env: Env) => Promise<unknown>][] = [
@@ -29,12 +30,13 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
   ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
   ["meme-shame", memeshame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it
+  ["gateway", alerts.watchGateway], // 🚨 a DM if the live connection to Discord stays down
 ];
 
 /** Every minute. Returns what each job did (for logs and the admin test route). */
 export async function minute(env: Env) {
   const out: Record<string, unknown> = {};
-  for (const [name, job] of JOBS) out[name] = await job(env).catch((e) => ({ error: String(e) }));
+  for (const [name, job] of JOBS) out[name] = await job(env).catch((e) => (alerts.failed(`the “${name}” job`, e), { error: String(e) }));
   return out;
 }
 
@@ -74,7 +76,7 @@ export async function postDaily(env: Env) {
     await api(env, "POST", `/channels/${env.CHANNEL_ID}/messages/${msg.id}/threads`, {
       name: `💬 ${cand.title}`.slice(0, 100),
       auto_archive_duration: 1440,
-    }).catch((e) => console.log("thread failed", e));
+    }).catch((e) => alerts.failed("opening the meme's comment thread", e));
     return { posted: cand.id, day };
   }
   return { skipped: "no candidate", day };

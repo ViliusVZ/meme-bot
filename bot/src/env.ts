@@ -19,6 +19,7 @@ export interface Env {
   GAME_POLL_HOUR_WEEKEND: string; // the same on Saturdays and Sundays
   LOBBY_CHANNEL_ID: string; // 🛋️ Lobby: hang out here; game rooms pull people from it
   VOICE_CATEGORY_ID: string; // 🔊 Voice: where game rooms are opened
+  ALERT_USER_ID?: string; // 🚨 who gets a DM when something breaks (alerts.ts); unset on the test bot
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -62,5 +63,6 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
     GAME_POLL_HOUR_WEEKEND: e.GAME_POLL_HOUR_WEEKEND ?? "14",
     LOBBY_CHANNEL_ID: e.LOBBY_CHANNEL_ID!,
     VOICE_CATEGORY_ID: e.VOICE_CATEGORY_ID!,
+    ALERT_USER_ID: e.ALERT_USER_ID || undefined,
   };
 }
