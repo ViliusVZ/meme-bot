@@ -2,7 +2,9 @@
 // API needs an approved OAuth app; the feed doesn't, and it's already sorted by score). Fetched
 // every few hours by the minute job; storing is an upsert, so repeats are harmless.
 import { XMLParser } from "fast-xml-parser";
+import { eq } from "drizzle-orm";
 import type { Env } from "./env.js";
+import { settings } from "./db/index.js";
 import { ingest, type Incoming } from "./memes.js";
 import * as alerts from "./alerts.js";
 
@@ -64,9 +66,36 @@ export async function refill(env: Env) {
   return { fetched: memes.length, stored: await ingest(env, memes) };
 }
 
+const KEY = "reddit_refill"; // { ok, tried }: when the last refill worked, and the last attempt (unix ms)
+
 let lastOk = 0;
 let lastTry = 0;
+let restored = false;
 let running = false;
+
+/**
+ * The refill times outlive a restart: otherwise every deploy (or a crash loop) fetches straight
+ * away, and enough of those in a day get the server's address rate-limited by Reddit (429/403).
+ */
+async function restore(env: Env) {
+  if (restored) return;
+  const [row] = await env.db.select().from(settings).where(eq(settings.key, KEY));
+  const last = (row?.value ?? {}) as { ok?: number; tried?: number };
+  lastOk = Math.max(lastOk, last.ok ?? 0);
+  lastTry = Math.max(lastTry, last.tried ?? 0);
+  restored = true;
+}
+
+function remember(env: Env) {
+  const value = { ok: lastOk, tried: lastTry };
+  return env.db.insert(settings).values({ key: KEY, value }).onConflictDoUpdate({ target: settings.key, set: { value, updated_at: new Date() } });
+}
+
+/** Tests: forget everything in memory, as a restart would. */
+export function _reset() {
+  lastOk = lastTry = 0;
+  restored = running = false;
+}
 
 /** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
 export const refilling = () => running;
@@ -77,20 +106,24 @@ const RETRY = 10 * 60_000;
  * top posts are in before the daily meme is picked (postDaily waits a minute for it). Runs in
  * the background so a slow Reddit never holds up the other jobs; a failure is retried after 10 min.
  */
-export function maybeRefill(env: Env) {
+export async function maybeRefill(env: Env) {
+  await restore(env);
   const now = Date.now();
   const postHour = new Date(now);
   postHour.setUTCHours(Number(env.POST_HOUR_UTC), 0, 0, 0);
   const due = now - lastOk >= EVERY || (now >= postHour.getTime() && lastOk < postHour.getTime());
-  if (!due || running || (lastTry > lastOk && now - lastTry < RETRY)) return Promise.resolve({});
+  if (!due || running || (lastTry > lastOk && now - lastTry < RETRY)) return {};
   running = true;
   lastTry = now;
+  const tried = remember(env).catch(() => {}); // best effort: the refill goes ahead regardless
   refill(env)
-    .then((r) => {
+    .then(async (r) => {
       lastOk = Date.now();
       console.log("memes refilled", r);
+      await tried;
+      await remember(env).catch((e) => console.log("refill: couldn't note the time", String(e)));
     })
     .catch((e) => alerts.failed("fetching memes from Reddit", String(e)))
     .finally(() => (running = false));
-  return Promise.resolve({ refilling: true });
+  return { refilling: true };
 }
