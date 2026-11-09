@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { maybeRefill, parseFeed, refilling, _reset } from "../src/reddit.js";
 import { settings } from "../src/db/index.js";
+import * as alerts from "../src/alerts.js";
 import { testDb, testEnv } from "./pg.js";
 
 const FEED = readFileSync(new URL("./fixtures/feed.xml", import.meta.url), "utf8");
@@ -92,4 +93,34 @@ test("a failed refill waits 10 minutes before trying again, also across a restar
   expect(await maybeRefill(env)).toEqual({ refilling: true });
   await vi.waitFor(() => expect(refilling()).toBe(false));
   expect(fetches).toBe(2);
+});
+
+test("a failed refill DMs only once the pool has gone 12 hours without fresh memes", async () => {
+  const env = testEnv(t.db, { ALERT_USER_ID: "owner" });
+  alerts._reset();
+  alerts.setup(env);
+  const dms: string[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
+    if (String(url).includes("reddit.com")) return new Response("blocked", { status: 403 });
+    if (String(url).endsWith("/users/@me/channels")) return Response.json({ id: "dm" });
+    dms.push(JSON.parse(String(init.body)).content);
+    return Response.json({ id: "m" });
+  }) as typeof fetch;
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const ok = Date.parse("2026-11-11T01:00:00Z");
+  const refillFrom = async (now: string) => {
+    await t.db.insert(settings).values({ key: "reddit_refill", value: { ok, tried: ok } }).onConflictDoUpdate({ target: settings.key, set: { value: { ok, tried: ok } } });
+    vi.setSystemTime(Date.parse(now));
+    _reset();
+    expect(await maybeRefill(env)).toEqual({ refilling: true });
+    await vi.waitFor(() => expect(refilling()).toBe(false));
+    await alerts._settle();
+  };
+  await refillFrom("2026-11-11T08:00:00Z"); // 7 h since the last good one: only logged
+  expect(dms).toEqual([]);
+  await refillFrom("2026-11-11T13:00:01Z"); // 12 h: worth a DM
+  expect(dms).toHaveLength(1);
+  expect(dms[0]).toContain("**fetching memes from Reddit** failed");
+  expect(dms[0]).toContain(`no fresh memes since <t:${ok / 1000}:R>`);
+  alerts._reset();
 });

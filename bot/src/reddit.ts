@@ -11,6 +11,7 @@ import * as alerts from "./alerts.js";
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
 const EVERY = 6 * 3600_000;
+const STALE = 12 * 3600_000; // the pool holds a week of memes: only this long without a refill is worth a DM
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@", processEntities: true, htmlEntities: true });
@@ -123,7 +124,13 @@ export async function maybeRefill(env: Env) {
       await tried;
       await remember(env).catch((e) => console.log("refill: couldn't note the time", String(e)));
     })
-    .catch((e) => alerts.failed("fetching memes from Reddit", String(e)))
+    .catch((e) => {
+      // Reddit rate-limits the server's address now and then; the retry in 10 min usually works
+      if (Date.now() - lastOk < STALE) return console.log("refill failed, retrying in 10 min:", String(e));
+      const since = lastOk ? `<t:${Math.floor(lastOk / 1000)}:R>` : "ever";
+      alerts.failed("fetching memes from Reddit", `${e}
+no fresh memes since ${since}: the daily meme may run dry`);
+    })
     .finally(() => (running = false));
   return { refilling: true };
 }
