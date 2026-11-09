@@ -18,10 +18,10 @@
 //
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
-import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
-import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
+import { gameNights, gameNightVotes, games as gameTable, nightAttendance, panels, type Stage, type Tx } from "./db/index.js";
+import { api, editOriginal, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound, originalMessage } from "./discord.js";
 import * as roasts from "./roasts.js";
 import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
@@ -467,19 +467,73 @@ async function close(env: Env, day: string, rerender = true) {
 }
 
 /**
- * Re-render a card in place (used outside interactions, where we can't reply with an update).
- * If someone deleted the card by hand, forget it: an "are we playing?" card then gets reposted by
- * the next minute, and later stages simply stop trying to edit it.
+ * Re-render a card in place (used outside interactions, where we can't reply with an update), and
+ * everyone's private copies of it with it. If someone deleted the card by hand, forget it: an "are
+ * we playing?" card then gets reposted by the next minute, and later stages simply stop trying to
+ * edit it. `mine` is the panel a tap just answered, so its notice survives the sync.
  */
-export async function refresh(env: Env, day: string) {
+export async function refresh(env: Env, day: string, mine?: Mine) {
   const n = await getNight(env, day);
-  if (!n?.message_id) return;
-  try {
-    await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`, await render(env, day));
-  } catch (e) {
-    if (!isNotFound(e)) throw e;
-    await env.db.update(gameNights).set({ message_id: null }).where(and(eq(gameNights.day, day), eq(gameNights.message_id, n.message_id)));
+  if (!n) return;
+  if (n.message_id) {
+    try {
+      await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`, await render(env, day));
+    } catch (e) {
+      if (!isNotFound(e)) throw e;
+      await env.db.update(gameNights).set({ message_id: null }).where(and(eq(gameNights.day, day), eq(gameNights.message_id, n.message_id)));
+    }
   }
+  await syncPanels(env, day, mine);
+}
+
+// ---------------------------------------------------------------- private panels
+
+/** Discord takes edits to a tap's reply for 15 minutes; stop a little before that. */
+const PANEL_LIFE = 14 * 60;
+
+type Mine = { message_id: string; notice?: string };
+
+/**
+ * Remember a private copy someone got or tapped, so later changes reach it too. A tap on the panel
+ * names it; a fresh one from the card is looked up once Discord has posted it. Each tap renews the
+ * 15 minutes.
+ */
+export async function trackPanel(env: Env, day: string, user: string, token: string, messageId?: string) {
+  const id = messageId ?? (await originalMessage(env, token)).id;
+  const t = nowSec();
+  await env.db
+    .insert(panels)
+    .values({ message_id: id, day, user_id: user, token, tapped_at: t })
+    .onConflictDoUpdate({ target: panels.message_id, set: { token, tapped_at: t } });
+}
+
+const syncing = new Map<string, Promise<void>>();
+
+/**
+ * Bring every private copy of a day's card up to date. Without this, a panel stays on whatever it
+ * showed when you tapped (the game picker after the game's decided, say), so you pick again.
+ * Syncs for a day run one after another, so an older state never lands on top of a newer one.
+ */
+export function syncPanels(env: Env, day: string, mine?: Mine) {
+  const next = (syncing.get(day) ?? Promise.resolve()).catch(() => {}).then(() => pushPanels(env, day, mine));
+  syncing.set(day, next);
+  const done = () => void (syncing.get(day) === next && syncing.delete(day));
+  next.then(done, done);
+  return next;
+}
+
+async function pushPanels(env: Env, day: string, mine?: Mine) {
+  await env.db.delete(panels).where(lt(panels.tapped_at, nowSec() - PANEL_LIFE));
+  const live = await env.db.select().from(panels).where(eq(panels.day, day));
+  if (!live.length || !(await getNight(env, day))) return;
+  await Promise.all(
+    live.map(async (p) => {
+      const { flags, ...panel } = await render(env, day, p.user_id, p.message_id === mine?.message_id ? mine.notice : undefined);
+      const r = await editOriginal(env, p.token, { ...panel, flags: flags & ~EPHEMERAL });
+      // dismissed, or the token ran out: let it go (unless a newer tap renewed it meanwhile)
+      if (!r?.ok) await env.db.delete(panels).where(and(eq(panels.message_id, p.message_id), eq(panels.token, p.token)));
+    }),
+  );
 }
 
 /**

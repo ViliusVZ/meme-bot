@@ -9,10 +9,12 @@ import * as late from "../src/late.js";
 import * as memes from "../src/memes.js";
 import * as jobs from "../src/jobs.js";
 import * as presence from "../src/presence.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, panels, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
 import * as roasts from "../src/roasts.js";
 import * as memeshame from "../src/memeshame.js";
 import * as snooze from "../src/snooze.js";
+import { interaction } from "../src/interactions.js";
+import { drain } from "../src/background.js";
 import { testDb, testEnv } from "./pg.js";
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -28,7 +30,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings]) await t.db.delete(tbl);
+  for (const tbl of [panels, gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings]) await t.db.delete(tbl);
   await t.db.insert(games).values([
     { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
     { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
@@ -838,4 +840,92 @@ test("😴 during the poll hour, a card not posted yet still counts as today's",
   expect((await snooze.current(env))!.until).toBe("2026-11-09"); // Fri, Sat, Sun: 3 days, not 4
   await snooze.wake(env, "a");
   expect(await snooze.nextCard(env)).toBe(Date.parse("2026-11-06T15:21:00Z") / 1000); // within the minute, not tomorrow
+});
+
+// ---------------------------------------------------------------- 🔒 private panels stay live
+
+/** A real tap through the interaction handler: from the card, or from your panel (`panel` = its message id). */
+const tap = async (user: string, action: string, opts: { panel?: string; value?: string } = {}) => {
+  const out = (await interaction(
+    {
+      type: 3,
+      token: `tok-${user}-${opts.panel ?? "card"}`,
+      data: { custom_id: `gn:${DAY}:${action}`, component_type: opts.value ? 3 : 2, values: opts.value ? [opts.value] : undefined },
+      message: opts.panel ? { id: opts.panel, flags: (1 << 15) | 64 } : { id: "card", flags: 1 << 15 },
+      member: { user: { id: user, username: user } },
+    },
+    env,
+  )) as any;
+  await drain(10_000);
+  return out;
+};
+const panelEdits = () => calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/webhooks/app/"));
+
+test("private panels follow the card: one person's vote moves everyone's open panel on", async () => {
+  await gn.startNight(env);
+  // a and b answer from the card: each gets a new private panel, which the bot keeps track of
+  expect((await tap("a", "yes")).type).toBe(4);
+  expect((await tap("b", "yes")).type).toBe(4);
+  const tracked = await t.db.select().from(panels);
+  expect(tracked.map((p) => [p.user_id, p.token]).sort()).toEqual([
+    ["a", "tok-a-card"],
+    ["b", "tok-b-card"],
+  ]);
+  calls = [];
+  // c's yes moves the night to picking a game: a's and b's panels show the game picker, no tap needed
+  await tap("c", "yes");
+  expect((await night())!.stage).toBe("game");
+  const edits = panelEdits().filter((e) => !e.path.includes("tok-c-")); // c's own new panel may or may not be in this round
+  expect(edits.map((e) => e.path).sort()).toEqual(["/webhooks/app/tok-a-card/messages/@original", "/webhooks/app/tok-b-card/messages/@original"]);
+  for (const e of edits) {
+    expect(text(e.body)).toContain(`gn:${DAY}:game`); // the game dropdown
+    expect(e.body.flags & 64).toBe(0); // an edit can't (and needn't) set "ephemeral" again
+  }
+
+  // a picks in their panel, then b picks from the card: a's panel moves on to the time picker
+  const pa = tracked.find((p) => p.user_id === "a")!.message_id;
+  expect((await tap("a", "game", { panel: pa, value: "Palworld" })).type).toBe(7);
+  await tap("b", "game", { value: "Palworld" });
+  calls = [];
+  await tap("c", "game", { value: "Palworld" });
+  expect((await night())!.stage).toBe("time");
+  const aPanel = panelEdits().filter((e) => e.path.includes("tok-a-"));
+  expect(aPanel.length).toBeGreaterThan(0);
+  expect(text(aPanel.at(-1)!.body)).toContain(`gn:${DAY}:custom`); // ✏️ Other time: the time picker
+});
+
+test("a tap on your own panel keeps its note when the panels sync", async () => {
+  await gn.startNight(env);
+  await tap("a", "yes");
+  const pa = (await t.db.select().from(panels))[0].message_id;
+  await tap("b", "yes");
+  await tap("c", "yes");
+  await act("a", "game", "Palworld");
+  await act("b", "game", "Palworld");
+  await act("c", "game", "Palworld");
+  calls = [];
+  // a's panel still had the game picker open somewhere: picking again says why, on the time picker
+  const r = await tap("a", "game", { panel: pa, value: "R.E.P.O." });
+  expect(text(r.data)).toContain("already picked");
+  const synced = panelEdits().filter((e) => e.path.includes("tok-a-"));
+  expect(synced.length).toBeGreaterThan(0);
+  expect(text(synced.at(-1)!.body)).toContain("already picked"); // not wiped by the sync
+  expect((await t.db.select().from(panels)).find((p) => p.message_id === pa)!.token).toBe(`tok-a-${pa}`); // renewed
+});
+
+test("panels past Discord's 15 minutes, or dismissed, are let go", async () => {
+  await gn.startNight(env);
+  await tap("a", "yes");
+  await tap("b", "yes");
+  vi.setSystemTime(Date.parse("2026-11-06T15:15:00Z")); // 15 min on: a's and b's taps can't edit anymore
+  calls = [];
+  await tap("c", "maybe");
+  expect(panelEdits().filter((e) => !e.path.includes("tok-c-"))).toEqual([]);
+  expect((await t.db.select().from(panels)).map((p) => p.user_id)).toEqual(["c"]);
+  // c dismisses the panel: Discord says it's gone, so it's dropped
+  const realMock = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit = {}) =>
+    String(url).includes("/webhooks/app/tok-c-") && init.method === "PATCH" ? new Response("{}", { status: 404 }) : realMock(url, init)) as typeof fetch;
+  await gn.refresh(env, DAY);
+  expect(await t.db.select().from(panels)).toEqual([]);
 });

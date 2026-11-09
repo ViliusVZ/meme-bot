@@ -48,20 +48,27 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const field = i.data.components?.[0]?.components?.[0] ?? i.data.components?.[0]?.component;
     const value: string | undefined = i.type === 5 ? field?.value : (arg ?? i.data.values?.[0]);
     const r = await gn.act(env, day, user.id, action, value, (p) => defer(p, "gn"));
+    const own = fromPrivateCopy(i);
+    const panel: string | undefined = own ? i.message?.id : undefined;
     // a refusal on your private panel shows up in the panel itself, not as another message
-    if (!r.update && fromPrivateCopy(i) && gn.players(env).includes(user.id))
+    if (!r.update && own && gn.players(env).includes(user.id)) {
+      defer(gn.trackPanel(env, day, user.id, i.token, panel), "panel");
       return reply({ type: R.UpdateMessage, data: await gn.render(env, day, user.id, `⚠️ ${r.notice ?? "🤷"}`) });
+    }
     if (!r.update) return ephemeral(r.notice ?? "🤷");
     // still voting: the clicker gets (or keeps) their private copy with their picks highlighted, and
     // the public card follows along. Nothing left to pick (locked in, called off): just the card.
     const night = await gn.getNight(env, day);
-    if (!fromPrivateCopy(i) && !["ask", "game", "time"].includes(night?.stage ?? "")) {
+    if (!own && !["ask", "game", "time"].includes(night?.stage ?? "")) {
       if (r.notice) defer(gn.notify(env, i.token, r.notice));
+      defer(gn.syncPanels(env, day), "panels");
       return reply({ type: R.UpdateMessage, data: await gn.render(env, day) });
     }
-    defer(gn.refresh(env, day), "card refresh");
+    // every other private copy follows too (each player's, for 15 min after their last tap)
+    defer(gn.refresh(env, day, panel ? { message_id: panel, notice: r.notice } : undefined), "card refresh");
+    defer(gn.trackPanel(env, day, user.id, i.token, panel), "panel");
     const mine = await gn.render(env, day, user.id, r.notice);
-    return reply({ type: fromPrivateCopy(i) ? R.UpdateMessage : R.Message, data: mine });
+    return reply({ type: own ? R.UpdateMessage : R.Message, data: mine });
   }
 
   const isPlayer = gn.players(env).includes(user.id);

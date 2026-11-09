@@ -104,8 +104,10 @@ export function build(env: Env, status: Status) {
     try {
       const out = await interaction(i, env);
       const ms = performance.now() - t0;
-      // every tap/command with its handling time (three users: a few lines a day), slow ones flagged
-      console.log(ms > 1500 ? "slow interaction" : "interaction", Math.round(ms), "ms", i.data?.custom_id ?? i.data?.name);
+      // every tap/command with its handling time, who and where (three users: a few lines a day), slow ones flagged
+      const who = (i.member?.user ?? i.user)?.username;
+      const where = (i.message?.flags ?? 0) & EPHEMERAL ? "panel" : i.message ? "public" : "";
+      console.log(ms > 1500 ? "slow interaction" : "interaction", Math.round(ms), "ms", i.data?.custom_id ?? i.data?.name, who, where);
       return out;
     } catch (e) {
       // a private apology beats Discord's generic "This interaction failed"
