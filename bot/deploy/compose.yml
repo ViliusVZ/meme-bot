@@ -9,9 +9,19 @@ x-bot: &bot
   environment:
     PORT: "3000"
   networks: [web, db]
+  # locked down: nothing to write but /tmp, no Linux capabilities, can't gain privileges, and a leak
+  # can't starve Postgres or the other apps (it uses ~50 MB)
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 1g
+  pids_limit: 256
+  # into the server's journal, tagged with the container's name: logs outlive the container, so a
+  # deploy doesn't wipe them (read both colours with  ssh vps app-logs <app> [since])
   logging:
-    driver: local
-    options: { max-size: "20m", max-file: "5" }
+    driver: journald
+    options: { tag: "{{.Name}}" }
 
 services:
   blue:

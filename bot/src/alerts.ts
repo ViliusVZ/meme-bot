@@ -63,13 +63,14 @@ async function send(env: Env, what: string, error: unknown, context: unknown[]) 
 export function alertMessage(what: string, detail: string, context: unknown[] = [], again = "") {
   const where = context.length ? ` · ${context.map(String).join(" · ")}` : "";
   const app = process.env.APP_NAME ?? "meme-bot";
+  const logs = app.replace(/-(blue|green)$/, ""); // app-logs covers both colours, across deploys
   const lines = detail.split("\n").slice(0, 6).join("\n").slice(0, 1200);
   return [
     `🚨 **${what}** failed${where}${again}`,
     "```",
     lines,
     "```",
-    `-# ${app} · <t:${Math.floor(Date.now() / 1000)}:f> · logs: \`ssh vps docker logs --since 1h ${app}\``,
+    `-# ${app} · <t:${Math.floor(Date.now() / 1000)}:f> · logs: \`ssh vps app-logs ${logs} 1h\``,
   ].join("\n");
 }
 

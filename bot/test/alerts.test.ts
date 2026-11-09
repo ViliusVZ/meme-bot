@@ -39,7 +39,7 @@ test("a failure DMs the owner: what broke, where, the error, and how to read the
   const [dm] = dms();
   expect(dm).toContain("🚨 **posting the game-night card** failed · 2026-11-09");
   expect(dm).toContain("403 Missing Access");
-  expect(dm).toContain("ssh vps docker logs");
+  expect(dm).toContain("ssh vps app-logs meme-bot 1h");
   expect(calls.find((c) => c.path === "/channels/dm-owner/messages")!.body.allowed_mentions).toEqual({ parse: [] });
 });
 

@@ -16,6 +16,9 @@ export function connect(url: string) {
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
+    // nothing here takes more than a second: a query stuck on a lock fails instead of hanging its job
+    statement_timeout: 30_000,
+    idle_in_transaction_session_timeout: 60_000,
     application_name: process.env.APP_NAME ?? "meme-bot",
   });
   // a dropped connection must never crash the process: idle ones are handled by the pool, and every

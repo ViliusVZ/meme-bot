@@ -37,7 +37,12 @@ async function lead() {
     console.log("leader: took over");
     const done = new AbortController();
     const watcher = live.start(env);
-    const clock = scheduler.start(env);
+    const clock = scheduler.start(env, {
+      onStall: (mins) => {
+        alerts.failed("the clock (minute jobs)", `one minute's jobs have been stuck for ${mins} min, and no game-night or meme job runs while they are. Restarting myself to unstick it.`);
+        setTimeout(() => void shutdown("clock stuck"), 2000); // the DM goes out first; Docker starts us again
+      },
+    });
     // the gateway connects in the background, retrying with back-off (say, Discord is down); until
     // it's up, voice lookups fall back to REST and everything else carries on as normal
     const gw = connectGateway(() => void watcher.resync(), done.signal);
@@ -80,6 +85,8 @@ async function shutdown(signal: string) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal}: shutting down`);
+  // whatever hangs below, we're gone in 35 s (Docker would kill us at 40 anyway; a self-restart has no Docker to)
+  setTimeout(() => process.exit(1), 35_000).unref();
   // 1. stop leading, so the other copy can take over the gateway and the clock right away; meanwhile
   //    /health says 503, and within one health check (2 s) Caddy sends new clicks to the other copy
   stopLeading.abort();

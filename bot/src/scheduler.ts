@@ -6,8 +6,23 @@ import * as gn from "./gamenight.js";
 import * as alerts from "./alerts.js";
 
 const LOOKAHEAD = 120; // seconds: nights starting this soon get their own timer
+const STALL = 5 * 60_000; // one minute's jobs running this long are stuck (every call has a timeout, so it's a bug)
 
-export function start(env: Env) {
+let lastTick: number | null = null; // when this copy's clock last finished a minute (null: it has none)
+
+/** Seconds since this copy's clock last finished a minute; null when it isn't running one (a follower). */
+export const sinceTick = () => (lastTick === null ? null : Math.round((Date.now() - lastTick) / 1000));
+
+export interface ClockOptions {
+  /** One minute's jobs have been stuck this many minutes; everything after them waits meanwhile. */
+  onStall?: (mins: number) => void;
+  minute?: (env: Env) => Promise<Record<string, unknown>>;
+}
+
+export function start(env: Env, opts: ClockOptions = {}) {
+  const minute = opts.minute ?? jobs.minute;
+  lastTick = Date.now();
+  let tickStarted: number | null = null;
   let stopped = false;
   let timer: NodeJS.Timeout | null = null;
   let running: Promise<unknown> = Promise.resolve();
@@ -29,14 +44,28 @@ export function start(env: Env) {
   };
 
   const tick = async () => {
-    const t0 = Date.now();
-    await armStarts().catch((e) => alerts.failed("lining up the exact start", e));
-    const out = await jobs.minute(env);
-    const ms = Date.now() - t0;
-    // quiet minutes aren't worth a log line; anything that did something (or failed) is
-    const busy = Object.entries(out).filter(([, v]) => v && typeof v === "object" && Object.keys(v as object).length && !("skipped" in (v as object)));
-    if (busy.length || ms > 5000) console.log("minute", ms, "ms", JSON.stringify(Object.fromEntries(busy)));
+    const t0 = (tickStarted = Date.now());
+    try {
+      await armStarts().catch((e) => alerts.failed("lining up the exact start", e));
+      const out = await minute(env);
+      const ms = Date.now() - t0;
+      // quiet minutes aren't worth a log line; anything that did something (or failed) is
+      const busy = Object.entries(out).filter(([, v]) => isBusy(v));
+      if (busy.length || ms > 5000) console.log("minute", ms, "ms", JSON.stringify(Object.fromEntries(busy)));
+    } finally {
+      tickStarted = null;
+      lastTick = Date.now();
+    }
   };
+
+  // a stuck minute holds up every minute after it, silently: say so once, and let the owner act
+  let stalled = false;
+  const watchdog = setInterval(() => {
+    if (tickStarted === null || stalled || Date.now() - tickStarted < STALL) return;
+    stalled = true;
+    opts.onStall?.(Math.round((Date.now() - tickStarted) / 60_000));
+  }, 30_000);
+  watchdog.unref();
 
   const schedule = () => {
     if (stopped) return;
@@ -57,8 +86,16 @@ export function start(env: Env) {
     stop: async () => {
       stopped = true;
       if (timer) clearTimeout(timer);
+      clearInterval(watchdog);
+      lastTick = null;
       abort.abort();
       await Promise.all([running, ...waiting.values()]);
     },
   };
+}
+
+/** A job result worth a log line: it did something or failed (not skipped, not "already posted"). */
+function isBusy(v: unknown) {
+  if (!v || typeof v !== "object" || !Object.keys(v).length) return false;
+  return !("skipped" in v) && (v as { started?: boolean }).started !== false;
 }

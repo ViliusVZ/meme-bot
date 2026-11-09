@@ -10,7 +10,7 @@ import type { Env } from "../src/env.js";
 
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
 
-function url() {
+export function url() {
   if (process.env.TEST_DATABASE_URL) return process.env.TEST_DATABASE_URL;
   const file = fileURLToPath(new URL("../.env.test", import.meta.url));
   if (existsSync(file)) {

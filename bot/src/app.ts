@@ -18,6 +18,7 @@ import * as activity from "./activity.js";
 import * as late from "./late.js";
 import * as presence from "./presence.js";
 import * as alerts from "./alerts.js";
+import * as scheduler from "./scheduler.js";
 
 export const COMMANDS = [
   { name: "meme", description: "Summon a fresh top meme right now" },
@@ -88,7 +89,16 @@ export function build(env: Env, status: Status) {
     } catch (e) {
       return res.code(503).send({ ok: false, db: String(e) });
     }
-    return { ok: true, leader: status.leader(), gateway: presence.isReady(), background: inFlight(), uptime: Math.round(process.uptime()) };
+    // the server's watchdog reads the rest: one copy should lead, and its clock should keep ticking
+    return {
+      ok: true,
+      leader: status.leader(),
+      clock: scheduler.sinceTick(),
+      gateway: presence.isReady(),
+      background: inFlight(),
+      uptime: Math.round(process.uptime()),
+      version: process.env.REVISION ?? "dev",
+    };
   });
 
   app.get("/", async () => "Meme Bot 3000 🔥");
