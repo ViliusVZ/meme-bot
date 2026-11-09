@@ -85,6 +85,17 @@ test("17:00 posts one card per day, however many times it runs", async () => {
   expect(posts().length).toBe(before);
 });
 
+test("three people planning the same day at once: one card, and only whoever claimed it is in", async () => {
+  const day = "2026-11-10";
+  const rs = await Promise.all(["a", "b", "c"].map((u) => gn.startNight(env, u, true, day)));
+  expect(rs.filter((r) => "started" in r && r.started).length).toBe(1);
+  const n = (await gn.getNight(env, day))!;
+  const yes = await t.db.select().from(gameNightVotes);
+  // the others get pointed at the card like anyone planning it later; nobody is in by accident
+  expect(yes.map((v) => [v.user_id, v.choice])).toEqual([[n.started_by, "yes"]]);
+  expect(n.stage).toBe("ask");
+});
+
 test("the whole night: secret answers → game → time → locked in → started on the dot", async () => {
   await gn.startNight(env, "a"); // /playtoday: a is in
   let card = text(await gn.render(env, DAY));

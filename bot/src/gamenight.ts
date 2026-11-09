@@ -371,8 +371,9 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
     await env.db.insert(gameNights).values({ day, stage: "ask", reminded: false, started_by: by ?? null, stage_at: nowSec() }).onConflictDoNothing();
     n = (await getNight(env, day))!;
   }
-  // whoever starts or plans the night is in (also when retrying a claim whose post failed)
-  if (by && n.stage === "ask" && !n.message_id) await vote(env, day, "ask", by, "yes");
+  // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
+  // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
+  if (by && n.started_by === by && n.stage === "ask" && !n.message_id) await vote(env, day, "ask", by, "yes");
   // already posted, or someone else's card: just point at it
   if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
   // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it

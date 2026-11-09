@@ -115,12 +115,15 @@ ok(votes.get(V) == "yes" and K not in votes, "the planner's yes counts; the seco
 with ThreadPoolExecutor(3) as ex:
     rs = list(ex.map(lambda u: admin("/admin/gamenight", {"action": "plan", "user": u, "day": D2}), (V, K, L)))
 ok(sum(1 for r in rs if r.get("started")) == 1 and len({r["message_id"] for r in rs}) == 1, "three simultaneous plans → exactly one card")
+race_yes = sql(f"SELECT user_id FROM game_night_votes WHERE day='{D2}' AND stage='ask'")
+race_by = sql(f"SELECT started_by FROM game_nights WHERE day='{D2}'")[0]["started_by"]
+ok([v["user_id"] for v in race_yes] == [race_by], f"and only whoever claimed it is in ({len(race_yes)} yes)")
 card_id = rs[0]["message_id"]
 day_cards = [m for m in call("GET", f"/channels/{CH}/messages?limit=30") if f"gn:{D2}:" in json.dumps(m.get("components") or [])]
 ok([m["id"] for m in day_cards] == [card_id], f"and exactly one {D2} card message in the channel ({len(day_cards)})")
 
 section("🤫 answers are secret until everyone has answered")
-sql(f"DELETE FROM game_night_votes WHERE day = '{D2}'")  # whoever won the race above said yes; start from known answers
+sql(f"DELETE FROM game_night_votes WHERE day = '{D2}'")  # whoever claimed it above said yes; start from known answers
 gn(D2, V, "yes")
 r = gn(D2, K, "no")
 copy = admin("/admin/gamenight", {"action": "copy", "day": D2, "user": K})
