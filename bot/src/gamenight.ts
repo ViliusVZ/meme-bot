@@ -672,9 +672,10 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
 /** The start moved because someone's late (or isn't any more): the event follows, the others hear. */
 async function startMoved(env: Env, n: Night, start: number, user: string, mins: number | null) {
   const at = (x: number) => timeLabel(env, x, n.day);
-  if (n.event_id) {
+  if (n.event_id && n.event_end) {
+    // (no end: the event's already over, nothing to move)
     const evStart = Math.max(start, nowSec() + 60);
-    const evEnd = Math.max(n.event_end ?? 0, evStart + 15 * 60);
+    const evEnd = Math.max(n.event_end, evStart + 15 * 60);
     await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, {
       scheduled_start_time: new Date(evStart * 1000).toISOString(),
       scheduled_end_time: new Date(evEnd * 1000).toISOString(),

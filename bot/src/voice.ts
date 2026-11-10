@@ -184,13 +184,22 @@ async function archiveIfIdle(env: Env, r: Room, t: number) {
   // the session's over: end its Discord event if it went live
   if (r.day) {
     const [n] = await env.db
-      .select({ event_id: gameNights.event_id })
+      .select({ event_id: gameNights.event_id, event_end: gameNights.event_end })
       .from(gameNights)
       .where(and(eq(gameNights.day, r.day), eq(gameNights.stage, "set")));
-    if (n?.event_id) await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 }).catch(() => {});
+    if (n?.event_id && n.event_end) {
+      await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 }).catch(() => {});
+      await eventOver(env, r.day);
+    }
   }
   return true;
 }
+
+/** Discord's answer when an event was ended (by us, by hand, or by Discord) or deleted. */
+const isFinished = (e: unknown) => isNotFound(e) || String(e).includes("INVALID_END_BY_STATUS");
+
+/** An ended event can't come back: forget its end, so a revived room doesn't try to push it back. */
+const eventOver = (env: Env, day: string) => env.db.update(gameNights).set({ event_end: null }).where(eq(gameNights.day, day));
 
 /** Still playing near the event's planned end: push it back, so Discord doesn't end it under us. */
 async function keepEventAlive(env: Env, r: Room, t: number) {
@@ -203,7 +212,10 @@ async function keepEventAlive(env: Env, r: Room, t: number) {
   const end = t + EVENT_EXTEND;
   await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { scheduled_end_time: new Date(end * 1000).toISOString() })
     .then(() => env.db.update(gameNights).set({ event_end: end }).where(eq(gameNights.day, r.day!)))
-    .catch((e) => alerts.failed("extending the Discord event", e));
+    .catch(async (e) => {
+      if (isFinished(e)) await eventOver(env, r.day!);
+      else alerts.failed("extending the Discord event", e);
+    });
 }
 
 /**

@@ -97,7 +97,7 @@ export const gameNights = pgTable("game_nights", {
   stage_at: unix("stage_at"), // when the current stage began (time presets, re-nudges), or its round after a 🤔 hold
   renudged: text(), // stage whose one-off "still waiting on you" ping went out
   conflict: text(), // last start/leave-by clash we pinged about (one ping per clash)
-  event_end: unix("event_end"), // the Discord event's current end, pushed back while people still play
+  event_end: unix("event_end"), // the Discord event's current end, pushed back while people still play (null once it's over)
   warned: text(), // stage whose "30 min left to vote" warning went out
   roast: jsonb().$type<Roast>(), // who sank the night and how (roasts.ts), set when it's called off
   roast_due: unix("roast_due"), // when to post the roast (held until morning if it happened at night)

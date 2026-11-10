@@ -209,6 +209,39 @@ test("rooms: busy keeps the event alive, empty wraps it up and ends the event", 
   const r = await voice.checkRooms(env, new Set(), t0 + 901);
   expect(r.archived).toEqual(["R.E.P.O."]);
   expect(calls.some((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") && c.body.status === 3)).toBe(true);
+  expect((await night())!.event_end).toBeNull(); // ended for good
+  // back in the same room the next evening (it's revived): there's no event left to push back
+  await t.db.update(rooms).set({ archived_at: null }).where(eq(rooms.channel_id, "r1"));
+  calls = [];
+  await voice.checkRooms(env, new Set(["r1"]), t0 + 86400);
+  expect(calls.some((c) => c.path.includes("/scheduled-events/"))).toBe(false);
+});
+
+test("rooms: an event ended by hand (or deleted) is let go quietly; other refusals still alert", async () => {
+  const t0 = now();
+  const finished = { message: "Invalid Form Body", code: 50035, errors: { scheduled_end_time: { _errors: [{ code: "GUILD_SCHEDULED_EVENT_SCHEDULE_INVALID_END_BY_STATUS", message: "Cannot update end time of finished event." }] } } };
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  for (const [answer, status, alerted] of [
+    [finished, 400, false],
+    [{ message: "Unknown Guild Scheduled Event", code: 10070 }, 404, false],
+    [{ message: "Missing Permissions", code: 50013 }, 403, true],
+  ] as const) {
+    await t.db.delete(rooms);
+    await t.db.delete(gameNights);
+    await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 - 3600, reminded: true, event_id: "ev1", event_end: t0 + 300 });
+    await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: t0 - 3600, last_seen: t0 - 60 });
+    calls = [];
+    log.mockClear();
+    override = (c) => (c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") ? json(answer, status) : undefined);
+    await voice.checkRooms(env, new Set(["r1"]), t0);
+    await voice.checkRooms(env, new Set(["r1"]), t0 + 60);
+    const said = log.mock.calls.flat().map(String).join(" ");
+    expect(said.includes("extending the Discord event failed")).toBe(alerted);
+    // a finished event is tried once and forgotten; a real failure keeps its end and tries again
+    expect((await night())!.event_end).toBe(alerted ? t0 + 300 : null);
+    expect(calls.filter((c) => c.path.endsWith("/scheduled-events/ev1"))).toHaveLength(alerted ? 2 : 1);
+  }
+  log.mockRestore();
 });
 
 test("room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day deletion", async () => {
