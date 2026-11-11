@@ -72,8 +72,8 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 162 | 5 | 5 |
-| `await` | 608 | 18 | 7 |
+| `async` | 154 | 5 | 5 |
+| `await` | 592 | 18 | 7 |
 | `.then(` | 18 | 1 | 2 |
 | `.catch(` | 57 | 3 | 2 |
 | `try {` | 32 | 2 | 0 |
@@ -83,13 +83,13 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `AbortSignal` | 4 | 2 | 0 |
 | `fetch(` | 1 | 0 | 0 |
 | `console.` | 28 | 15 | 0 |
-| `Date.now/new Date` | 68 | 0 | 1 |
+| `Date.now/new Date` | 65 | 0 | 1 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
 | `: any` | 11 | 0 | 0 |
 | `as any` | 2 | 0 | 0 |
 | `_reset` | 1 | 0 | 3 |
-| `LEGACY-BRIDGE` | 225 | 15 | 0 |
+| `LEGACY-BRIDGE` | 232 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -97,10 +97,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **1239** | **78** | **24** |
+| **total** | **1219** | **78** | **24** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 87, interactions.ts 76, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, discord.ts 25, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, env.ts 12, channels.ts 10, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 87, interactions.ts 76, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, polls.ts 29, scheduler.ts 28, discord.ts 25, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, env.ts 12, channels.ts 10, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.

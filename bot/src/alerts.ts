@@ -28,7 +28,16 @@ export function alertMessage(what: string, detail: string, context: unknown[], a
   ].join("\n");
 }
 
-const detailOf = (error: unknown) => (error instanceof Error ? (error.stack ?? error.message) : String(error));
+/**
+ * The error as the DM quotes it: its stack, or its text. A typed error's first line starts with its
+ * tag ("DiscordUnavailable: POST … -> gave up: 500"); the DM keeps today's wording ("Error: …").
+ */
+const detailOf = (error: unknown) => {
+  if (!(error instanceof Error)) return String(error);
+  const text = error.stack ?? error.message;
+  const tag = (error as { _tag?: unknown })._tag;
+  return typeof tag === "string" && text.startsWith(`${tag}: `) ? `Error: ${text.slice(tag.length + 2)}` : text;
+};
 
 // `at`: when the problem was reported (the DM goes out a moment later, one at a time)
 type Job = { what: string; detail: string; context: unknown[]; at: number; done: Deferred.Deferred<void> };
