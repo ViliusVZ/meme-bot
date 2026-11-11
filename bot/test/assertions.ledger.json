@@ -1342,5 +1342,12 @@
    "expect.not.toBe(drawn[i - 1])",
    "expect.toEqual(new Set(lines))"
   ]
+ },
+ "panels.test.ts": {
+  "test \"two syncs of one card run one after the other; syncs of two cards run together\"": [
+   "expect.toBeLessThan(log.indexOf(\"card-2 start a\"))",
+   "expect.toEqual([\"card-1\", \"card-2\"])",
+   "expect.toBeLessThan(log.indexOf(\"card-1 end a\"))"
+  ]
  }
 }
