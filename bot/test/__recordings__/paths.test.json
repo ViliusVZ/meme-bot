@@ -532,5 +532,19 @@
    "memes": "8:9aa77a46c0fd",
    "votes": "15:8b17456357cd"
   }
+ },
+ "a start whose play count fails after the ping keeps its claim: the ping never goes twice": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+  ],
+  "db": {
+   "game_nights": "1:de3146d5e8ef",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:97ffae361dcd"
+  }
  }
 }

@@ -853,6 +853,12 @@
   ],
   "test \"😐 a meme up for less than 6 hours doesn't count yet\"": [
    "expect.toEqual([])"
+  ],
+  "test \"a start whose play count fails after the ping keeps its claim: the ping never goes twice\"": [
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"counting the night as played failed\")",
+   "expect.not.toContain(\"the start ping failed\")"
   ]
  },
  "reddit.test.ts": {
@@ -1573,6 +1579,39 @@
    "expect.toEqual([])",
    "expect.toEqual([])",
    "expect.toEqual([\"late\"])"
+  ],
+  "fn roomMade": [
+   "expect.toEqual([true, false])"
+  ],
+  "fn auditSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"games-week:2026-11-02\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"meme-shame:2026-11-06\", \"meme-shamed:b:2026-11-06\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"moved\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"a\"])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"open\")",
+   "expect.toEqual([])",
+   "expect.toBe(\"picked\")",
+   "expect.toBe(\"time\")",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ stage: \"set\", event_id: expect.any(String) })",
+   "expect.toHaveLength(1)",
+   "expect.toMatchObject({ renudged: null, nudge_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ renudged: \"ask\", nudge_id: expect.any(String) })"
   ]
  },
  "hub.test.ts": {

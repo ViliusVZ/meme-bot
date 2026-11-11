@@ -3,10 +3,10 @@
 // claim given back with its post sent, never a post without its record. Each sequence is run in a
 // fiber and interrupted before its claim, during the claim, while its post is out, and during the
 // record (a statement held in the database by a trigger, or the Discord call held by the stub).
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { Effect, Fiber } from "effect";
-import { gameNights, games, lobbyPrompts, nightAttendance, roastBags, rooms, sessions, voiceSegments } from "../src/db/schema.js";
+import { Duration, Effect, Fiber } from "effect";
+import { fleeting, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import type { DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -15,6 +15,10 @@ import { Spontaneous } from "../src/spontaneous.js";
 import { Attendances } from "../src/attendance.js";
 import { GameNight, type NightGone } from "../src/gamenight.js";
 import { LateSlips } from "../src/late.js";
+import { Activity } from "../src/activity.js";
+import { MemeShame } from "../src/memeshame.js";
+import { Cleanup, snowflakeAt } from "../src/cleanup.js";
+import { LegacyPresences } from "../src/legacy.js";
 import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
@@ -72,12 +76,14 @@ function holdPost(s: Sequence) {
   let release!: () => void;
   const inFlight = new Promise<void>((ok) => (arrived = ok));
   const gate = new Promise<void>((ok) => (release = ok));
+  // (a case's own answers, set in its setup, still answer everything else)
+  const theirs = h.override;
   h.override = (c) => {
-    if (c.method !== s.post.method || c.path !== s.post.path) return undefined;
+    if (c.method !== s.post.method || c.path !== s.post.path) return theirs?.(c);
     arrived();
     return gate.then(() => json({ id: "held-post" })) as unknown as Response;
   };
-  return { inFlight, release, done: async () => void (h.override = null) };
+  return { inFlight, release, done: async () => void (h.override = theirs) };
 }
 
 /** Run the sequence, interrupt it at `step`, let the step finish, and wait for the fiber to end. */
@@ -246,6 +252,213 @@ function lateSequences(): Record<string, Sequence> {
   };
 }
 Object.assign(sequences, lateSequences());
+
+/** The sequences the phase 4 audit found without an entry. */
+function auditSequences(): Record<string, Sequence> {
+  // (these tables aren't emptied between this file's tests: each case clears what it uses)
+  const fresh = async () => {
+    for (const tbl of [recaps, votes, memeTable, roastBags, readyRooms, fleeting, gameNightVotes]) await t.db.delete(tbl);
+  };
+  const aMoment = Effect.sleep(Duration.millis(1)); // the job's own start, before its claim
+  const quickOne = <A, E, R>(e: Effect.Effect<A, E, R>) => Effect.andThen(aMoment, e);
+  const twoPlaying = () => {
+    for (const u of ["b", "c"]) presence.setActivities(u, [{ type: 0, name: "World of Warcraft" }]);
+  };
+  const wow = () => t.db.insert(games).values({ name: "World of Warcraft", emoji: "🐉", added_at: "2026-11-03" }).onConflictDoNothing();
+  const roomMade = async () => {
+    const r = (await t.db.select().from(rooms)).find((x) => x.game === "World of Warcraft");
+    expect([!!r, r?.channel_id.startsWith("pending:")]).toEqual([true, false]);
+  };
+  return {
+    "the weekly recap (its claim → the recap)": {
+      setup: async () => {
+        await fresh();
+        vi.setSystemTime(Date.parse("2026-11-09T08:05:00Z")); // Monday 10:05
+        const at = Date.parse("2026-11-06T17:00:00Z") / 1000;
+        await t.db.insert(voiceSegments).values([
+          { user_id: "a", channel_id: "r1", game: "R.E.P.O.", started_at: at, last_seen: at + 7200, ended_at: at + 7200, open: false },
+          { user_id: "b", channel_id: "r1", game: "R.E.P.O.", started_at: at, last_seen: at + 7200, ended_at: at + 7200, open: false },
+        ]);
+      },
+      run: () => quickOne(Activity.use((a) => a.recaps)),
+      claim: { table: "recaps", op: "INSERT" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect(await t.db.select().from(recaps)).toEqual([]);
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(recaps)).map((r) => r.period)).toEqual(["games-week:2026-11-02"]);
+      },
+    },
+    "the meme call-out (the day's claim → the person's claim → the call-out)": {
+      setup: async () => {
+        await fresh();
+        for (let i = 0; i < 5; i++) {
+          const day = `2026-11-0${5 - i}`;
+          await t.db.insert(memeTable).values({ id: `t3_d${i}`, title: "d", image: "i", link: "l", author: "u", published: `${day}T08:00:00Z`, ingested_at: "x", post_kind: "daily", day, posted_at: `${day}T10:00:00.000Z`, channel_id: "memes", message_id: `msg${i}` });
+          for (const u of ["a", "c"]) await t.db.insert(votes).values({ meme_id: `t3_d${i}`, user_id: u, kind: "lol", voted_at: `${day}T11:00:00.000Z` });
+        }
+        vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // Friday 19:05: b hasn't voted on any
+      },
+      run: () => quickOne(MemeShame.use((m) => m.evening)),
+      claim: { table: "recaps", op: "INSERT", when: "NEW.period LIKE 'meme-shame:%'" },
+      post: { method: "POST", path: "/channels/memes/messages" },
+      nothing: async () => {
+        expect(await t.db.select().from(recaps)).toEqual([]);
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(recaps)).map((r) => r.period).sort()).toEqual(["meme-shame:2026-11-06", "meme-shamed:b:2026-11-06"]);
+      },
+    },
+    "the 03:00 sweep (its claim → the deletes → the cleared ids)": {
+      setup: async () => {
+        await fresh();
+        vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // Friday 03:05
+        const card = snowflakeAt(Date.parse("2026-11-05T15:00:00Z"), 1);
+        await t.db.insert(gameNights).values({ day: "2026-11-05", stage: "off", message_id: card });
+        h.override = (c) => {
+          if (c.path === "/users/@me") return json({ id: "bot" });
+          if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json([{ id: card, author: { id: "bot" } }]);
+          return undefined;
+        };
+      },
+      run: () => quickOne(Cleanup.use((c) => c.nightly)),
+      claim: { table: "recaps", op: "INSERT" },
+      record: { table: "game_nights", op: "UPDATE", when: "OLD.message_id IS NOT NULL AND NEW.message_id IS NULL" },
+      post: { method: "DELETE", path: `/channels/gn/messages/${snowflakeAt(Date.parse("2026-11-05T15:00:00Z"), 1)}` },
+      nothing: async () => {
+        expect(await t.db.select().from(recaps)).toEqual([]);
+        expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(gameNights))[0].message_id).toBeNull();
+      },
+    },
+    "a room got ready ahead (its claim → the room → its id)": {
+      setup: async () => {
+        await fresh();
+        await wow();
+        twoPlaying();
+      },
+      run: () => Spontaneous.use((s) => s.react(new Map(), now())).pipe(Effect.provideService(LegacyPresences, true)),
+      claim: { table: "ready_rooms", op: "INSERT" },
+      record: { table: "rooms", op: "UPDATE", when: "OLD.channel_id LIKE 'pending:%'" },
+      post: { method: "POST", path: "/guilds/guild/channels" },
+      nothing: async () => {
+        expect(await t.db.select().from(readyRooms)).toEqual([]);
+        expect(await t.db.select().from(rooms)).toEqual([]);
+      },
+      everything: roomMade,
+    },
+    "an auto-move (its claim → the room → its id)": {
+      setup: async () => {
+        await fresh();
+        await wow();
+        twoPlaying();
+        await t.db.insert(voiceSegments).values([
+          { user_id: "b", channel_id: "lobby", started_at: now() - 60, last_seen: now() },
+          { user_id: "c", channel_id: "lobby", started_at: now() - 50, last_seen: now() },
+        ]);
+      },
+      run: () => Spontaneous.use((s) => s.react(new Map([["b", "lobby"], ["c", "lobby"]]), now())).pipe(Effect.provideService(LegacyPresences, true)),
+      claim: { table: "lobby_prompts", op: "INSERT" },
+      record: { table: "rooms", op: "UPDATE", when: "OLD.channel_id LIKE 'pending:%'" },
+      post: { method: "POST", path: "/guilds/guild/channels" },
+      nothing: async () => {
+        expect(await t.db.select().from(lobbyPrompts)).toEqual([]);
+        expect(await t.db.select().from(rooms)).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(lobbyPrompts)).map((p) => p.state)).toEqual(["moved"]);
+        await roomMade();
+      },
+    },
+    "a pull-in (its claim → the move → the note)": {
+      setup: async () => {
+        await fresh();
+        await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: now() - 600 });
+      },
+      run: () => Spontaneous.use((s) => s.react(new Map([["a", "lobby"], ["b", "wow"]]), now(), { user: "a", from: null, to: "lobby" })),
+      claim: { table: "rooms", op: "UPDATE", when: "NEW.pulled IS DISTINCT FROM OLD.pulled" },
+      record: { table: "fleeting", op: "INSERT" },
+      post: { method: "PATCH", path: "/guilds/guild/members/a" },
+      nothing: async () => {
+        expect((await t.db.select().from(rooms))[0].pulled).toEqual([]);
+        expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(rooms))[0].pulled).toEqual(["a"]);
+        expect(await t.db.select().from(fleeting)).toHaveLength(1);
+      },
+    },
+    "a pick on the Lobby question (the pick → the room → its id)": {
+      setup: async () => {
+        await fresh();
+        await t.db.insert(lobbyPrompts).values({ created_at: now() - 60, state: "open", message_id: "q1", posted_at: now() - 60 });
+      },
+      run: () => Effect.flatMap(Effect.promise(() => t.db.select().from(lobbyPrompts)), ([p]) => Spontaneous.use((s) => s.answer(p.id, "a", "g", "World of Warcraft"))),
+      claim: { table: "lobby_prompts", op: "UPDATE", when: "NEW.state = 'picked'" },
+      record: { table: "rooms", op: "UPDATE", when: "OLD.channel_id LIKE 'pending:%'" },
+      post: { method: "POST", path: "/guilds/guild/channels" },
+      nothing: async () => {
+        expect((await t.db.select().from(lobbyPrompts))[0].state).toBe("open");
+        expect(await t.db.select().from(rooms)).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(lobbyPrompts))[0].state).toBe("picked");
+        await roomMade();
+      },
+    },
+    "a night locked in (the stage → the event → its id → the ping)": {
+      setup: async () => {
+        await fresh();
+        await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" }).onConflictDoNothing();
+        await t.db.insert(gameNights).values({ day: DAY, stage: "time", game: "R.E.P.O.", message_id: "card", stage_at: now() - 600 });
+        const at = String(Date.parse("2026-11-10T20:30:00Z") / 1000); // 22:30
+        for (const u of ["a", "b"]) await t.db.insert(gameNightVotes).values({ day: DAY, stage: "time", user_id: u, choice: at, voted_at: "x" });
+      },
+      // (the tap's slow work runs right in the tap here, so lock-in is part of what's interrupted)
+      run: () =>
+        Effect.flatMap(Effect.context<AppServices>(), (ctx) =>
+          GameNight.use((g) =>
+            g.act(DAY, "c", "time", String(Date.parse("2026-11-10T20:30:00Z") / 1000), (later) => later.pipe(Effect.orElseSucceed(() => undefined), Effect.asVoid, Effect.provideContext(ctx))),
+          ),
+        ),
+      claim: { table: "game_nights", op: "UPDATE", when: "NEW.stage = 'set' AND OLD.stage = 'time'" },
+      record: { table: "game_nights", op: "UPDATE", when: "NEW.event_id IS NOT NULL AND OLD.event_id IS NULL" },
+      post: { method: "POST", path: "/guilds/guild/scheduled-events" },
+      nothing: async () => {
+        expect((await t.db.select().from(gameNights))[0].stage).toBe("time");
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(gameNights))[0]).toMatchObject({ stage: "set", event_id: expect.any(String) });
+        expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages" && c.body.content.includes("it's on!"))).toHaveLength(1);
+      },
+    },
+    "a re-nudge (its claim → the ping → its id)": {
+      setup: async () => {
+        await fresh();
+        await t.db.insert(gameNights).values({ day: DAY, stage: "ask", message_id: "card", stage_at: now() - 7200, started_by: "a" });
+        await t.db.insert(gameNightVotes).values({ day: DAY, stage: "ask", user_id: "a", choice: "yes", voted_at: "x" });
+      },
+      run: () => GameNight.use((g) => g.maintain),
+      claim: { table: "game_nights", op: "UPDATE", when: "NEW.renudged IS NOT NULL AND OLD.renudged IS NULL" },
+      record: { table: "game_nights", op: "UPDATE", when: "NEW.nudge_id IS NOT NULL" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect((await t.db.select().from(gameNights))[0]).toMatchObject({ renudged: null, nudge_id: null });
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(gameNights))[0]).toMatchObject({ renudged: "ask", nudge_id: expect.any(String) });
+      },
+    },
+  };
+}
+Object.assign(sequences, auditSequences());
 
 for (const [name, s] of Object.entries(sequences)) {
   test(`${name}: interrupted before its claim, nothing is done`, async () => {

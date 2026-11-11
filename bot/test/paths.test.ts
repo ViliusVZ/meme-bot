@@ -679,3 +679,20 @@ test("😐 a meme up for less than 6 hours doesn't count yet", async () => {
   vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // 19:05: the fresh ones are 2 to 4 hours old
   expect((await slackers(env)).who).toEqual([]);
 });
+
+test("a start whose play count fails after the ping keeps its claim: the ping never goes twice", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 60, message_id: "card", reminded: false });
+  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_fail() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'games are down'; END $$ LANGUAGE plpgsql`);
+  await t.pool.query(`CREATE TRIGGER qa_fail BEFORE UPDATE ON games FOR EACH STATEMENT EXECUTE FUNCTION qa_fail()`);
+  presence.snapshot([]);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  await gn.maintain(env);
+  await gn.maintain(env); // the next minute
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  await t.pool.query("DROP TRIGGER qa_fail ON games");
+  expect((await night())!.reminded).toBe(true);
+  expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages" && c.body.content?.includes("starts now"))).toHaveLength(1);
+  expect(said).toContain("counting the night as played failed");
+  expect(said).not.toContain("the start ping failed");
+});
