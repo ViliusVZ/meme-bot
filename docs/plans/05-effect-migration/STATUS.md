@@ -20,8 +20,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   **4/5 done** (`f5cb909`): maintain; **5/5 done** (`85ab8cf`): the start + the `GameNight`
   service. On the test bot (`bdc5fed`, logs `qa-effect/gn-bdc5fed/`): qa_all 79/0, qa_timing
   13/0, qa_slowpoke exit 0, qa_leaveby output identical to the baseline's, no failed/error log
-  lines. LateSlips (`78d83a6`), Polls (`cbd3b66`), Activity (`572bd89`) done. Next: Hub, Cleanup,
-  MemeShame; deploy,
+  lines. LateSlips (`78d83a6`), Polls (`cbd3b66`), Activity (`572bd89`), Hub (`8ee1b4c`),
+  Cleanup (`b96dd12`), MemeShame (`dd1d940`) done: every module of phase 4 is moved. Next: deploy,
   `qa_late_ui.py`, `qa_stats.py`; then the second pass; then the phase 4 audit and note. How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
@@ -125,24 +125,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 36 | 5 | 5 |
-| `await` | 139 | 18 | 7 |
+| `async` | 30 | 5 | 5 |
+| `await` | 116 | 18 | 7 |
 | `.then(` | 12 | 1 | 2 |
-| `.catch(` | 57 | 3 | 21 |
-| `try {` | 10 | 2 | 0 |
+| `.catch(` | 56 | 3 | 24 |
+| `try {` | 8 | 2 | 0 |
 | `new Promise` | 3 | 7 | 0 |
 | `setTimeout/Interval` | 10 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
 | `console.` | 14 | 15 | 0 |
-| `Date.now/new Date` | 35 | 0 | 3 |
+| `Date.now/new Date` | 29 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
 | `: any` | 9 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 346 | 15 | 0 |
+| `LEGACY-BRIDGE` | 362 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -150,10 +150,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **675** | **78** | **48** |
+| **total** | **653** | **78** | **51** |
 
 Import cycles: none.
-Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, live.ts 37, jobs.ts 31, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, reddit.ts 9, late.ts 8, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, live.ts 37, jobs.ts 31, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, reddit.ts 9, late.ts 8, snooze.ts 8, panels.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -196,6 +196,14 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `dd1d940` memeshame (MemeShame): broken: the person's claim skipped (red), no cooldown
+  (red), from 18:00 (red). Stayed green, tests added (`b319b5b`), red since: a failed call-out
+  keeping the day's claim, three in a row not enough, a fresh meme counted.
+- 2026-11-11 `b96dd12` cleanup (Cleanup): broken: deleted cards not forgotten (red), recaps swept
+  (red), old messages bulk-deleted (red). Stayed green, tests added (`582aa5a`), red since: a
+  failed sweep keeping its claim, only the first page looked at, a started night's card swept.
+- 2026-11-11 `8ee1b4c` hub (Hub): nothing tested hub.ts; all three breaks (the top 25 only, the
+  remove menu's order, the guide's channels) stayed green until `9449280` added tests, red since.
 - 2026-11-11 `572bd89` activity (Activity): broken: a stay not extended (red), an unseen end taken
   as seen (red), a quiet period posted (red), recaps from 09:00 (red). Stayed green, tests added
   (`068e972`), red since: a failed recap keeping its claim, the month's recap on the 2nd.
