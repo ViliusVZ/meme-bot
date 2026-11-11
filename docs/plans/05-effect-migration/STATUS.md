@@ -148,7 +148,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | not started | | |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
