@@ -30,29 +30,30 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   the small action/choice comparisons in Spontaneous.answer, LateSlips.act, Polls.act): done
   (`bb296ea`, `cf8b260`, `8dc4b1e`, `23ea186`, `3ddb611`). Phase 4 exit holds (only the entry
   files, the signature verifier and the leader lock are promise-style).
-- **Phase 4 audit (9c3e6fa..3ddb611) done; its findings, being closed (tick each when done):**
-  1. [ ] Claim → act sequences still interruptible: cleanup nightly (claim → deletes → clear ids),
+- **Phase 4 audit (9c3e6fa..3ddb611) done; all ten findings closed** (`b1fa4f1` code, `322bb29`
+  tests; the decisions and lists are below in their sections):
+  1. [x] Claim → act sequences still interruptible: cleanup nightly (claim → deletes → clear ids),
      Spontaneous.answer (picked → room → delete), gamenight nudge (post → nudge_id), the warn and
      re-nudge claims in maintainNight, resumeNight, lockIn (event → id → ping), spontaneous
      finishSession, count, closePrompt. Make each uninterruptible.
-  2. [ ] Test 6 entries missing: recaps, meme-shame, ready room, auto-move, pull-in (+ the new
+  2. [x] Test 6 entries missing: recaps, meme-shame, ready room, auto-move, pull-in (+ the new
      regions from 1 where a test can reach them). STATUS said "one entry per sequence": make true.
-  3. [ ] claimStart gives the claim back when the plays update fails after the ping (a second
+  3. [x] claimStart gives the claim back when the plays update fails after the ping (a second
      ping next minute): old code too, but §15.2 says release only on the post's failure → release
      only when the start ping didn't go out; record as a decision; test.
-  4. [ ] Per-item loops (maintain per night, late per player, trackSessions per room, voice per
+  4. [x] Per-item loops (maintain per night, late per player, trackSessions per room, voice per
      room, lockIn's event block) catch typed errors only (§6), so a defect (the `!` on a vanished
      night row) aborts the whole job: turn the vanished-row cases into a typed NightGone so they
      stay per item; fix the comments; record the §6 decision.
-  5. [ ] `bot/scripts/import-d1.ts` imports the deleted `runMigrations`: fix or retire, record.
-  6. [ ] reddit's refill fiber uses catchCause: declare it as background work (§6 boundary).
-  7. [ ] §6 record rule: list the DiscordNotFound/DiscordRejected handlers that only log/ignore.
-  8. [ ] Phase 5 note: the daily meme, meme recaps and /meme (still promise code) must become one
+  5. [x] `bot/scripts/import-d1.ts` imports the deleted `runMigrations`: fix or retire, record.
+  6. [x] reddit's refill fiber uses catchCause: declare it as background work (§6 boundary).
+  7. [x] §6 record rule: list the DiscordNotFound/DiscordRejected handlers that only log/ignore.
+  8. [x] Phase 5 note: the daily meme, meme recaps and /meme (still promise code) must become one
      uninterruptible Effect each when they move.
-  9. [ ] Process: the G6 transition column under "Declared exceptions" too; note that 78d83a6
+  9. [x] Process: the G6 transition column under "Declared exceptions" too; note that 78d83a6
      and 85ab8cf put test 6 entries in the code's commit, and c97fb91 converted three config tests
      to it.effect in place (assertions unchanged).
-  10. [ ] Minor: the event-live PATCH fork must finish even if the moves fail (forkDetach);
+  10. [x] Minor: the event-live PATCH fork must finish even if the moves fail (forkDetach);
      preciseStarts: one start's failure must not interrupt the others (mode "result"); Activity's
      Match on kind must keep the old fallback for an unchecked admin kind; Panels' lock map must
      be pruned (and the unused promise bridge removed); readyRoom/autoMove/answer regions include
@@ -165,7 +166,7 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `async` | 30 | 5 | 5 |
 | `await` | 116 | 18 | 7 |
 | `.then(` | 12 | 1 | 2 |
-| `.catch(` | 56 | 3 | 24 |
+| `.catch(` | 57 | 3 | 24 |
 | `try {` | 8 | 2 | 0 |
 | `new Promise` | 3 | 7 | 0 |
 | `setTimeout/Interval` | 10 | 8 | 0 |
@@ -179,18 +180,18 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `: any` | 9 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 362 | 15 | 0 |
-| `Effect.promise` | 0 | 0 | 2 |
+| `LEGACY-BRIDGE` | 360 | 15 | 0 |
+| `Effect.promise` | 0 | 0 | 1 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
 | `runFork` | 0 | 0 | 0 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **653** | **78** | **51** |
+| **total** | **652** | **78** | **50** |
 
 Import cycles: none.
-Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, live.ts 37, jobs.ts 31, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, reddit.ts 9, late.ts 8, snooze.ts 8, panels.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 45, live.ts 37, jobs.ts 31, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, reddit.ts 9, late.ts 8, snooze.ts 8, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -362,6 +363,9 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   harness writes its file even when empty. Exceptions to the baseline go in
   `test/recordings.allowed.json`, each with a reason, and are listed here.
 
+- **2026-11-11, G6's transition column (`8194406`), declared here as well as under Deviations:**
+  lines marked `LEGACY-BRIDGE` are counted in a column of their own that may grow until phase 5;
+  `--final` requires it empty, and the NEVER moves are refused there.
 - **2026-11-11, gate changes in phase 3 (from its audit):**
   - G6 (`leftovers.mjs`): lines marked `LEGACY-BRIDGE` are counted in a column of their own
     ("in transition code"), not as old-style code; that column may grow until phase 5 and must be
@@ -494,6 +498,23 @@ timeout), with the evidence.
   nothing, `createChannel` only the id, a voice state's `channel_id` may be missing (= not in
   voice, as `s?.channel_id ?? null` had it). The old code read nothing else, so a short answer
   must not become `DiscordUnexpected`.
+- **A claim is given back only when the post failed, even where the old code gave it back later**
+  (phase 4 audit): `claimStart` released its claim when anything after the start ping failed (the
+  play count), so the next minute ran the whole start again and pinged twice. Now only a failed
+  ping releases it; a later failure is reported ("counting the night as played") and the claim
+  stays (architecture §15.2, and the no-duplicates rule). Test `322bb29`.
+- **Per-item loops isolate typed failures, not defects** (§6; phase 4 audit): the old per-night,
+  per-player and per-room `try/catch` caught everything. The new ones handle typed errors (a defect
+  reaches the job runner's boundary, which reports it and runs the next minute). The one defect a
+  loop used to meet in practice, a night row that vanished mid-run (`!` on the lookup), is a typed
+  `NightGone` now, so it stays that night's. The "one night's trouble…" comments hold for that.
+- **Uninterruptible regions can include waits** (phase 4 audit): a ready room, an auto-move and a
+  pick on the Lobby question call `openRoom` inside their region, so its wait for another tap's
+  room (up to 14 s) and Discord's retries are uninterruptible there too (the claim before them must
+  be followed through). Shutdown's 35 s cap still ends the process, as it ended the old promises.
+- **Reddit's refill fiber is background work** (a §6 boundary, like `Background`'s tasks): its
+  `catchCause` reports any failure with the refill's own rule (logged while the pool is fresh, a DM
+  after 12 h). architecture.md §6 amended.
 
 - **Leader lock:** a one-connection `PgClient.makeClient` in the term's scope, pinged every 5 s
   (spike S2: `sql.reserve` returns its connection to the pool still holding the lock; a killed
@@ -514,6 +535,33 @@ timeout), with the evidence.
 - **Recordings depend on a test's place in its file:** tables with serial ids (`games`) are
   emptied between tests but their sequences run on, so a test added in the middle of a file
   changes every later test's database snapshot. New tests go at the end of their file.
+- **`scripts/import-d1.ts` (the one-off D1 move) was already broken before plan 05:** it uses
+  `s.tiebreaks`, a table gone since before the baseline. Plan 05 also removed the migrator it
+  called; that part is fixed (`b1fa4f1`: it checks the database is migrated and says how). The
+  tiebreaks part is left as found.
+- **Discord answers handled by logging or ignoring them** (architecture §6's record rule):
+  - ignored: a slip edit (attendance `etaOnSlip`, `retireSlips`; late `updateSlip`), the old nudge's
+    delete (`clearNudge`), the racing duplicate card's delete (`openNight`), a bail's event end or
+    delete (`afterBail`), `resetNight`'s deletes, the sweep's one-by-one deletes, the empty archive
+    category's delete and the archived room's event end (voice), the Spontaneous message deletes
+    (`deleteMessage`: a 404 is fine, anything else is logged);
+  - a 404 taken as "gone": a hand-deleted card (`refreshCard` forgets its id), a session line swept
+    at 03:00 (`editLine`), a voice state (not in voice), a room's channel (`openRoom` recreates
+    it), an archived room's delete;
+  - logged only: the event going live (`startReminder`), the card refresh at the start, a room
+    note (`note`), a move back to the Lobby (`goBack`), a failed voice lookup (late, Spontaneous).
+- **Phase 5 must make these one uninterruptible Effect each** (phase 4 audit): the daily meme
+  (`jobs.ts`), the meme recaps (`jobs.ts`) and `/meme` (`interactions.ts`) are still promise code,
+  each step its own bridge call, so today an interrupted run would release the claim. When they
+  move, claim → post → record is one region and a claim is released only on a typed failure.
+- **Small differences the audit listed, kept:** the roast's emoji lookup is inside the claim's
+  giveback (a failure there retries the roast instead of losing it); a malformed snooze row or
+  reddit times count as empty; a channel listing that fails its schema fails the sweep (retried
+  the next minute); an empty legacy Gemini key on an old env spends a budget request; a webhook
+  answer whose body can't be read is treated as none (re-sent; the private copy's row goes).
+- **Process notes (phase 4 audit):** `78d83a6` and `85ab8cf` put test 6 entries in the code's own
+  commit (pure additions); `c97fb91` converted three phase 3 config tests to `it.effect` in place
+  (assertions unchanged, the ledger says identical).
 - **The assertion ledger keys assertions by enclosing function:** a test file's table of cases at
   top level is one entry, which may not grow; new cases go in a function of their own.
 - **`secret()` has a branch nothing reaches:** the game stage's (the card's game stage decides

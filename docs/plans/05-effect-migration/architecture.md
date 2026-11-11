@@ -183,8 +183,9 @@ database error, and in version 4 a typed handler does not run when the cause con
 
 **Defects are bugs.** Nothing catches them except the outermost boundaries, which are exactly:
 the job runner (per job), the interaction handler (per tap), the voice event loop (per event),
-background work (per task), the alert sender (per DM: a defect there must not stop every later
-alert; amended in phase 3), and `main`. Each of those uses `Effect.catchCause`, reports through
+background work (per task; the Reddit refill's own fiber counts as one, amended in phase 4), the
+alert sender (per DM: a defect there must not stop every later alert; amended in phase 3), and
+`main`. Each of those uses `Effect.catchCause`, reports through
 `Alerts` with the same `what` text as today, and carries on. There must be no other catch-all in
 the codebase; a typed handler names the errors it handles.
 
