@@ -800,6 +800,17 @@
    "expect.toHaveLength(1)",
    "expect.toContain(\"**fetching memes from Reddit** failed\")",
    "expect.toContain(`no fresh memes since <t:${ok / 1000}:R>`)"
+  ],
+  "test \"Reddit's busy answers are tried again: 1 s after a 503, then the 429's reset plus 2 s; a 404 is final\"": [
+   "expect.toBe(false)",
+   "expect.toEqual({ refilling: true })",
+   "expect.toHaveLength(3)",
+   "expect.toBeGreaterThanOrEqual(990)",
+   "expect.toBeLessThan(1500)",
+   "expect.toBeGreaterThanOrEqual(2990)",
+   "expect.toBeLessThan(3500)",
+   "expect.toEqual({ refilling: true })",
+   "expect.toHaveLength(1)"
   ]
  },
  "resilience.test.ts": {

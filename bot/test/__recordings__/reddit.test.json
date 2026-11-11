@@ -45,5 +45,18 @@
    "memes": "84:05bab78b3688",
    "settings": "1:aff0da4937ff"
   }
+ },
+ "Reddit's busy answers are tried again: 1 s after a 503, then the 429's reset plus 2 s; a 404 is final": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "84:05bab78b3688",
+   "settings": "1:842d1aa82d80"
+  }
  }
 }

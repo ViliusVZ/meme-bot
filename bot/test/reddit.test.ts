@@ -116,3 +116,34 @@ test("a failed refill DMs only once the pool has gone 12 hours without fresh mem
   expect(dms[0]).toContain(`no fresh memes since <t:${ok / 1000}:R>`);
   alerts._reset();
 });
+
+test("Reddit's busy answers are tried again: 1 s after a 503, then the 429's reset plus 2 s; a 404 is final", async () => {
+  const env = testEnv(t.db);
+  const answers = [new Response("busy", { status: 503 }), new Response("slow down", { status: 429, headers: { "x-ratelimit-reset": "1" } }), new Response(FEED, { status: 200 })];
+  const at: number[] = [];
+  globalThis.fetch = (async (url: string) => (String(url).includes("reddit.com") ? (at.push(performance.now()), answers.shift()!) : Response.json({ id: "m" }))) as typeof fetch;
+  // waits on real timers (vi.waitFor would move the fake clock on, and the stored refill time with it)
+  const idle = async () => {
+    for (let i = 0; i < 500 && refilling(); i++) await new Promise((ok) => setTimeout(ok, 20));
+    expect(refilling()).toBe(false);
+  };
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse("2026-11-12T12:00:00Z"));
+  await t.db.delete(settings).where(eq(settings.key, "reddit_refill"));
+  _reset();
+  expect(await maybeRefill(env)).toEqual({ refilling: true });
+  await idle();
+  expect(at).toHaveLength(3);
+  const gaps = [at[1] - at[0], at[2] - at[1]];
+  expect(gaps[0]).toBeGreaterThanOrEqual(990);
+  expect(gaps[0]).toBeLessThan(1500);
+  expect(gaps[1]).toBeGreaterThanOrEqual(2990);
+  expect(gaps[1]).toBeLessThan(3500);
+  // a refusal Reddit means is final: one try, and the next one is 10 minutes away
+  at.length = 0;
+  answers.push(new Response("gone", { status: 404 }));
+  vi.setSystemTime(Date.parse("2026-11-12T18:00:01Z"));
+  expect(await maybeRefill(env)).toEqual({ refilling: true });
+  await idle();
+  expect(at).toHaveLength(1);
+}, 20_000);
