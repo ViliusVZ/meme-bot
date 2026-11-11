@@ -198,8 +198,9 @@ export class Discord extends Context.Service<
           const res = yield* http.execute(req).pipe(Effect.catch((e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))));
           if (res.status === 429) {
             const j = (yield* res.json.pipe(Effect.orElseSucceed(() => ({})))) as { retry_after?: number };
-            const retryAfter = typeof j?.retry_after === "number" ? j.retry_after : 1;
-            return yield* new Transient({ kind: "rate", last: "rate limited", delayMs: Math.min(retryAfter, 10) * 1000 + 100 });
+            const retryAfter = typeof j?.retry_after === "number" ? Duration.seconds(j.retry_after) : RATE_LIMIT_DEFAULT;
+            const wait = Duration.sum(Duration.min(retryAfter, RATE_LIMIT_CAP), RATE_LIMIT_MARGIN);
+            return yield* new Transient({ kind: "rate", last: "rate limited", delayMs: Duration.toMillis(wait) });
           }
           if (res.status >= 500) return yield* new Transient({ kind: "server", last: `${res.status}`, delayMs: 0 });
           if (res.status >= 400) {
@@ -345,6 +346,10 @@ export const ATTEMPT_TIMEOUT = Duration.seconds(10);
 export const MAX_ATTEMPTS = 4;
 /** 5xx and network errors (not on POST): 300 ms, 600 ms, 1.2 s. */
 export const BACKOFF_MS = 300;
+/** A 429 waits Discord's retry_after (this when it gives none), at most RATE_LIMIT_CAP, plus a margin. */
+const RATE_LIMIT_DEFAULT = Duration.seconds(1);
+const RATE_LIMIT_CAP = Duration.seconds(10);
+const RATE_LIMIT_MARGIN = Duration.millis(100);
 /** Interaction webhooks: 400 ms, 800 ms, 1.2 s. */
 export const WEBHOOK_STEP_MS = 400;
 

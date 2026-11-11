@@ -19,6 +19,9 @@ const EVERY = 6 * 3600_000;
 const STALE = 12 * 3600_000; // the pool holds a week of memes: only this long without a refill is worth a DM
 const RETRY = 10 * 60_000; // after a failed refill
 const ATTEMPT_TIMEOUT = Duration.seconds(20);
+const BACKOFF = Duration.seconds(1); // doubling: 1, 2, 4 s
+const RATE_LIMIT_MARGIN = Duration.seconds(2); // after a 429's reset
+const RETRY_CAP = Duration.minutes(1);
 const RETRYABLE = [429, 500, 502, 503];
 const KEY = "reddit_refill"; // { ok, tried }: when the last refill worked, and the last attempt (unix ms)
 const Times = Schema.Struct({ ok: Schema.optional(Schema.Number), tried: Schema.optional(Schema.Number) });
@@ -76,7 +79,12 @@ const retries = Schedule.recurs(3).pipe(
   Schedule.setInputType<unknown>(),
   Schedule.while(({ input }) => input instanceof RedditError && RETRYABLE.includes(input.status)),
   Schedule.modifyDelay(({ input, attempt: n }) =>
-    Effect.succeed(Duration.seconds(Math.min(60, input instanceof RedditError && input.status === 429 ? input.reset + 2 : 2 ** (n - 1)))),
+    Effect.succeed(
+      Duration.min(
+        RETRY_CAP,
+        input instanceof RedditError && input.status === 429 ? Duration.sum(Duration.seconds(input.reset), RATE_LIMIT_MARGIN) : Duration.times(BACKOFF, 2 ** (n - 1)),
+      ),
+    ),
   ),
 );
 
