@@ -3,6 +3,7 @@
 // unknown route, a body over the limit, and /health while shutting down.
 import { beforeAll, expect, test, vi } from "vitest";
 import { build } from "../src/app.js";
+import * as alerts from "../src/alerts.js";
 import { harness } from "./harness.js";
 import type { Env } from "../src/env.js";
 
@@ -77,4 +78,32 @@ test("admin routes: a bad token, an unknown action, an internal failure", async 
 test("an unknown route answers like Fastify's 404", async () => {
   const r = await build(env, up).inject({ method: "GET", url: "/nope" });
   expect([r.statusCode, r.json()]).toEqual([404, { message: "Route GET:/nope not found", error: "Not Found", statusCode: 404 }]);
+});
+
+test("a tap whose handling breaks gets a private apology, not Discord's failure", async () => {
+  const { pub, sign } = await signer();
+  const app = build({ ...env, DISCORD_PUBLIC_KEY: pub }, up);
+  const payload = JSON.stringify({ type: 3, token: "tok", data: { custom_id: "v:t3_x:fire" } }); // no user: the handler can't go on
+  const log = quietLog();
+  const r = await app.inject({ method: "POST", url: "/interactions", payload, headers: { "content-type": "application/json", "x-signature-ed25519": await sign(payload, "42"), "x-signature-timestamp": "42" } });
+  log.mockRestore();
+  expect([r.statusCode, r.json()]).toEqual([200, { type: 4, data: { content: "Something went wrong on my end 🤕 Try again in a moment.", flags: 64 } }]);
+});
+
+test("a failure of ours is reported to the owner; a request that's too large isn't", async () => {
+  alerts._reset();
+  alerts.setup({ ...env, ALERT_USER_ID: "owner" });
+  const { pub, sign } = await signer();
+  const app = build({ ...env, DISCORD_PUBLIC_KEY: pub }, up);
+  const dms = () => h.calls.filter((c) => c.method === "POST" && c.path === "/users/@me/channels");
+  const log = quietLog();
+  const huge = JSON.stringify({ type: 1, pad: "x".repeat(1_100_000) });
+  await app.inject({ method: "POST", url: "/interactions", payload: huge, headers: { "content-type": "application/json", "x-signature-ed25519": await sign(huge, "42"), "x-signature-timestamp": "42" } });
+  await alerts._settle();
+  expect(dms()).toEqual([]);
+  await app.inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a" }, payload: { action: "copy", day: "2026-01-01", user: "a" } });
+  await alerts._settle();
+  log.mockRestore();
+  expect(dms()).toHaveLength(1);
+  alerts._reset();
 });

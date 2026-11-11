@@ -34,5 +34,20 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "a tap whose handling breaks gets a private apology, not Discord's failure": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a failure of ours is reported to the owner; a request that's too large isn't": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/40000/messages 720f659f16b4"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
  }
 }

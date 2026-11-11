@@ -1700,6 +1700,13 @@
   ],
   "test \"an unknown route answers like Fastify's 404\"": [
    "expect.toEqual([404, { message: \"Route GET:/nope not found\", error: \"Not Found\", statusCode: 404 }])"
+  ],
+  "test \"a tap whose handling breaks gets a private apology, not Discord's failure\"": [
+   "expect.toEqual([200, { type: 4, data: { content: \"Something went wrong on my end 🤕 Try again in a moment.\", flags: 64 } }])"
+  ],
+  "test \"a failure of ours is reported to the owner; a request that's too large isn't\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
   ]
  }
 }
