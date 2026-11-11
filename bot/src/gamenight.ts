@@ -19,11 +19,13 @@
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
-import { Db, type Tx as DbTx } from "./db/db.js";
-import { Discord } from "./discord.js";
+import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
+import { Roasts } from "./roasts.js";
+import type { AppServices } from "./runtime.js";
+import { Discord, type DiscordError } from "./discord.js";
 import { Games } from "./games.js";
 import { Nights } from "./nights.js";
 import { Attendances } from "./attendance.js";
@@ -341,12 +343,8 @@ const clearNudge = Effect.fnUntraced(function* (n: Night) {
 
 // the promise code that hasn't moved yet calls these
 const votesP = (env: Env, day: string, stage: VoteStage) => run(env, votes(day, stage)); // LEGACY-BRIDGE
-const voteP = (env: Env, day: string, stage: VoteStage, user: string, choice: string) => run(env, vote(day, stage, user, choice)); // LEGACY-BRIDGE
-const unvoteP = (env: Env, day: string, stage: VoteStage, user: string) => run(env, unvote(day, stage, user)); // LEGACY-BRIDGE
-const advanceP = (env: Env, day: string, from: Stage, to: Stage, set?: { game?: string; start_at?: number; note?: string | null }) => run(env, advance(day, from, to, set)); // LEGACY-BRIDGE
 const culpritsP = (env: Env, n: Night) => run(env, culprits(n)); // LEGACY-BRIDGE
 const nudgeP = (env: Env, day: string, who: string[], content: string) => run(env, nudge(day, who, content)); // LEGACY-BRIDGE
-const clearNudgeP = (env: Env, n: Night) => run(env, clearNudge(n)); // LEGACY-BRIDGE
 
 // ---------------------------------------------------------------- 🤫 secret ballots
 // The card is the same for everyone, so it can't highlight *your* picks. Clicking it answers with
@@ -608,21 +606,27 @@ export const syncPanels = (env: Env, day: string, mine?: Mine) => run(env, syncC
 export const trackPanel = (env: Env, day: string, user: string, token: string, messageId?: string) =>
   panels.track(env, `gn:${day}`, user, token, messageId);
 
-const closeP = (env: Env, day: string, rerender?: boolean) => run(env, closeCard(day, rerender)); // LEGACY-BRIDGE
 const callOffP = (env: Env, n: Night, who: Record<string, Reason>, note?: string) => run(env, callNightOff(n, who, note)); // LEGACY-BRIDGE
 
+/** Slow side effects of a tap (pings, the event): handed to whoever answers the tap, to run after it. */
+type Later = (effect: Effect.Effect<unknown, DbError | DiscordError, AppServices>) => Effect.Effect<void>;
+
 /**
- * A player clicked something. Slow side effects (events, pings) go through `defer` so the
+ * A player clicked something. Slow side effects (events, pings) go through `later` so the
  * interaction can be answered within Discord's 3 seconds.
  */
-export async function act(env: Env, day: string, user: string, action: string, value: string | undefined, defer: Defer): Promise<Outcome> {
-  const n = await getNight(env, day);
+const actOn = Effect.fnUntraced(function* (day: string, user: string, action: string, value: string | undefined, later: Later) {
+  const db = yield* Db;
+  const nights = yield* Nights;
+  const w = yield* when;
+  const n = yield* nights.get(day);
   if (!n) return say("This poll has vanished 🫥");
-  if (!players(env).includes(user)) return say("This one's for the trio 😅");
-  if (OPEN.includes(n.stage) && isOver(env, n)) {
+  const ps = yield* theTrio;
+  if (!ps.includes(user)) return say("This one's for the trio 😅");
+  if (OPEN.includes(n.stage) && (yield* nights.isOver(n))) {
     // close in the background; the reply below already shows the closed card
-    defer(closeP(env, day, false));
-    await advanceP(env, day, n.stage, "off", { note: closeNote(n.stage) });
+    yield* later(closeCard(day, false));
+    yield* advance(day, n.stage, "off", { note: closeNote(n.stage) });
     return say("That poll has closed. Start a new one with **/playtoday** 🎮", true);
   }
 
@@ -634,86 +638,86 @@ export async function act(env: Env, day: string, user: string, action: string, v
       if (n.stage !== "ask")
         return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
       if (action === "maybe" && finalCall(n)) return say("No more maybes: this is the final call. ✅ In or ✖️ out?", true);
-      await voteP(env, day, "ask", user, action);
+      yield* vote(day, "ask", user, action);
       break;
     case "game":
       if (n.stage !== "game") return say(n.stage === "off" ? "Game night's off 🫡" : n.game ? `The game's already picked: **${n.game}** 🎮` : "We're not picking games yet 🙂", true);
       if (!value) return ok;
-      await voteP(env, day, "game", user, value);
+      yield* vote(day, "game", user, value);
       break;
     case "suggest": {
       if (n.stage !== "game") return say("Game picking is already over for today.", true);
-      const name = await addGame(env, value ?? "", user);
+      const name = yield* (yield* Games).add(value ?? "", user);
       if (!name) return say("Give the game a name 🙃");
-      await voteP(env, day, "game", user, name);
+      yield* vote(day, "game", user, name);
       break;
     }
     case "time":
     case "custom": {
       if (n.stage !== "time")
-        return say(n.stage === "set" ? `The time's already set: **${timeLabel(W(env), n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
-      const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
+        return say(n.stage === "set" ? `The time's already set: **${timeLabel(w, n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
+      const t = action === "custom" ? parseTimeFor(w, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
-      if (!onNightDay(W(env), day, t)) return say("That time isn't on this game night's day 🤔", true);
-      if (t < nowSec() + 60) return say(`**${clock(W(env), t)}** has already passed ⏰ Pick a later time.`, true);
-      const mine = (await votesP(env, day, "time"))[user];
+      if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔", true);
+      if (t < w.now + 60) return say(`**${clock(w, t)}** has already passed ⏰ Pick a later time.`, true);
+      const mine = (yield* votes(day, "time"))[user];
       // clicking your current pick again takes it back
       if (action === "time" && mine === String(t)) {
-        await unvoteP(env, day, "time", user);
+        yield* unvote(day, "time", user);
         break;
       }
-      const until = (await votesP(env, day, "until"))[user];
+      const until = (yield* votes(day, "until"))[user];
       if (until && Number(until) - t < MIN_TOGETHER) {
         return say(
-          `You said you have to leave by **${timeLabel(W(env), Number(until), day)}**, so starting at **${timeLabel(W(env), t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
+          `You said you have to leave by **${timeLabel(w, Number(until), day)}**, so starting at **${timeLabel(w, t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
         );
       }
-      await voteP(env, day, "time", user, String(t));
+      yield* vote(day, "time", user, String(t));
       break;
     }
     case "until": {
       // 🏁 optional "I have to leave by…"; an empty form clears it
       if (n.stage !== "time") return say("Time picking is already over for this night.", true);
       if (!(value ?? "").trim()) {
-        await unvoteP(env, day, "until", user);
+        yield* unvote(day, "until", user);
         break;
       }
-      const t = parseTime(env, value ?? "", day);
+      const t = parseTimeFor(w, value ?? "", day);
       if (typeof t === "string") return say(t);
-      if (!onNightDay(W(env), day, t)) return say("That time isn't on this game night's day 🤔");
-      if (t < nowSec() + MIN_TOGETHER) return say(`Leaving by **${clock(W(env), t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
-      const start = (await votesP(env, day, "time"))[user];
+      if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔");
+      if (t < w.now + MIN_TOGETHER) return say(`Leaving by **${clock(w, t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
+      const start = (yield* votes(day, "time"))[user];
       if (start && t - Number(start) < MIN_TOGETHER) {
         return say(
-          `Your start is **${timeLabel(W(env), Number(start), day)}**, so a leave-by of **${timeLabel(W(env), t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
+          `Your start is **${timeLabel(w, Number(start), day)}**, so a leave-by of **${timeLabel(w, t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
         );
       }
-      await voteP(env, day, "until", user, String(t));
+      yield* vote(day, "until", user, String(t));
       break;
     }
     case "out":
-      if (n.stage === "set" && (n.start_at ?? 0) < nowSec() - 4 * 3600) return say("That game night is already history 🕰️");
+      if (n.stage === "set" && (n.start_at ?? 0) < w.now - 4 * 3600) return say("That game night is already history 🕰️");
       if (n.stage === "off" || n.stage === "ask") return ok;
       // all of us or none of us: a bail calls it off for everyone, even after the start
-      if (await callOffP(env, n, { [user]: "out" })) defer(afterBail(env, n));
+      if (yield* callNightOff(n, { [user]: "out" })) yield* later(afterBail(n));
       return ok;
     case "late": {
       // ⏰ "I'll be late by…" on the locked-in card
       if (n.stage !== "set") return say(n.stage === "off" ? "Game night's off, no need to hurry 🫡" : "Nothing's locked in yet, so you can't be late 😄 Pick a later time instead.");
       const mins = Number(value);
       if (![5, 15, 30, 60].includes(mins)) return ok;
-      return runningLate(env, n, user, mins, defer);
+      return yield* runningLate(n, user, mins, later);
     }
     case "reopen": {
       // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
       if (n.stage !== "off") return ok;
-      if (day < local(env).day) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
-      const r = await env.db
+      if (day < today(w)) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
+      const r = yield* db
         .update(gameNights)
         .set({
           stage: "ask",
-          stage_at: nowSec(),
+          stage_at: w.now,
           game: null,
           start_at: null,
           event_id: null,
@@ -735,45 +739,50 @@ export async function act(env: Env, day: string, user: string, action: string, v
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
         .returning({ day: gameNights.day });
       if (!r.length) return ok; // someone else reopened it a moment ago
-      await clearDayP(env, day);
-      await voteP(env, day, "ask", user, "yes");
-      const when = day === local(env).day ? "tonight" : `on ${weekday(env, day)}`;
-      defer(nudgeP(env, day, players(env).filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${when}? ⬆️`));
+      yield* db.transaction((tx) => clearDay(tx, day));
+      yield* vote(day, "ask", user, "yes");
+      const tonight = day === today(w) ? "tonight" : `on ${weekdayOf(day)}`;
+      yield* later(nudge(day, ps.filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${tonight}? ⬆️`));
       break;
     }
     default:
       return say("That button is from an older version of me. Try **/playtoday** 🤖");
   }
-  await settle(env, day, user, defer);
+  yield* settle(day, user, later);
   return { update: true };
-}
+});
+export const act = (env: Env, day: string, user: string, action: string, value: string | undefined, defer: Defer): Promise<Outcome> => // LEGACY-BRIDGE
+  run(env, actOn(day, user, action, value, (e) => Effect.sync(() => defer(run(env, e).catch(asOld))))).catch(asOld); // LEGACY-BRIDGE
 
 /**
  * ⏰ Running late. Before the start we wait for everyone (all together or not at all), so the start
  * moves to whoever arrives last: the planned start plus the biggest delay. Tapping your delay again
  * takes it back (and the start moves back). Once the night has started it's an ETA on your slip.
  */
-async function runningLate(env: Env, n: Night, user: string, mins: number, defer: Defer): Promise<Outcome> {
-  const t = nowSec();
+const runningLate = Effect.fnUntraced(function* (n: Night, user: string, mins: number, later: Later) {
+  const db = yield* Db;
+  const attendances = yield* Attendances;
+  const w = yield* when;
+  const t = w.now;
   if (n.start_at! < t - 3 * 3600) return say("That game night is already history 🕰️");
-  if (n.reminded) return say(await attendance.declare(env, n.day, user, mins));
+  if (n.reminded) return say(yield* attendances.declare(n.day, user, mins));
   const planned = n.planned_start ?? n.start_at!;
   const eta = planned + mins * 60;
-  const mine = (await attendance.etas(env, n.day))[user];
+  const mine = (yield* attendances.etas(n.day))[user];
   const undo = mine === eta;
-  await attendance.expect(env, n.day, user, undo ? null : eta);
+  yield* attendances.expect(n.day, user, undo ? null : eta);
   // one statement over every ETA on record, so two taps at once can't leave the start too early;
   // and never in the past (taking it back after the planned time means: start now)
   const latest = sql`(SELECT MAX(${nightAttendance.eta}) FROM ${nightAttendance} WHERE ${nightAttendance.day} = ${n.day} AND ${nightAttendance.state} = 'eta')`;
-  const moved = await env.db
+  const moved = yield* db
     .update(gameNights)
     .set({ start_at: sql`GREATEST(${planned}::bigint, COALESCE(${latest}, 0), ${t + 60}::bigint)`, planned_start: planned })
     .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false)))
     .returning({ start: gameNights.start_at });
-  if (!moved.length) return say(await attendance.declare(env, n.day, user, mins)); // it started a moment ago
+  if (!moved.length) return say(yield* attendances.declare(n.day, user, mins)); // it started a moment ago
   const start = moved[0].start!;
-  const at = (x: number) => timeLabel(W(env), x, n.day);
-  if (start !== n.start_at) defer(startMoved(env, n, start, user, undo ? null : mins));
+  const at = (x: number) => timeLabel(w, x, n.day);
+  if (start !== n.start_at) yield* later(startMoved(n, start, user, undo ? null : mins));
   if (undo) return say(`✅ Taken back: you'll be on time.${start !== n.start_at ? ` Start's back to **${at(start)}**.` : ""}`, true);
   return say(
     start !== n.start_at
@@ -781,123 +790,250 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
       : `⏰ Got it, you'll be there at **${at(eta)}**. The start stays at **${at(start)}** (someone's even later).`,
     true,
   );
-}
+});
+
+const isoAt = (sec: number) => DateTime.formatIso(DateTime.makeUnsafe(sec * 1000));
 
 /** The start moved because someone's late (or isn't any more): the event follows, the others hear. */
-async function startMoved(env: Env, n: Night, start: number, user: string, mins: number | null) {
-  const at = (x: number) => timeLabel(W(env), x, n.day);
+const startMoved = Effect.fnUntraced(function* (n: Night, start: number, user: string, mins: number | null) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const discord = yield* Discord;
+  const alerts = yield* Alerts;
+  const w = yield* when;
+  const at = (x: number) => timeLabel(w, x, n.day);
   if (n.event_id && n.event_end) {
     // (no end: the event's already over, nothing to move)
-    const evStart = Math.max(start, nowSec() + 60);
+    const evStart = Math.max(start, w.now + 60);
     const evEnd = Math.max(n.event_end, evStart + 15 * 60);
-    await api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, {
-      scheduled_start_time: new Date(evStart * 1000).toISOString(),
-      scheduled_end_time: new Date(evEnd * 1000).toISOString(),
-    }).catch((e) => alerts.failed("moving the Discord event", e, n.day));
-    await env.db.update(gameNights).set({ event_end: evEnd }).where(eq(gameNights.day, n.day));
+    yield* discord
+      .editEvent(n.event_id, { scheduled_start_time: isoAt(evStart), scheduled_end_time: isoAt(evEnd) })
+      .pipe(Effect.catch((e) => alerts.failed("moving the Discord event", e, n.day)));
+    yield* db.update(gameNights).set({ event_end: evEnd }).where(eq(gameNights.day, n.day));
   }
   // a leave-by that now leaves under an hour together is worth a heads-up
-  const until = await votesP(env, n.day, "until");
+  const ps = yield* theTrio;
+  const until = yield* votes(n.day, "until");
   const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
-  const leavers = end === null ? [] : players(env).filter((p) => Number(until[p]) === end);
+  const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
   const tight =
     end !== null && end - start < MIN_TOGETHER
       ? `\n-# ⚠️ That leaves ${Math.max(0, Math.round((end - start) / 60))} min before ${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave (${at(end)}).`
       : "";
-  const others = players(env).filter((p) => p !== user);
+  const others = ps.filter((p) => p !== user);
   const content =
     mins === null
       ? `✅ ${mention(user)} will be on time after all: we start at **${at(start)}** ${ts(start, "R")}${tight}`
       : `⏰ ${mention(user)} is running ${mins === 60 ? "an hour" : `${mins} min`} late, so we start at **${at(start)}** ${ts(start, "R")} instead of ${at(n.start_at!)}${tight}`;
-  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+  yield* discord.createMessage(config.gameChannelId, {
     content,
-    allowed_mentions: pings(env, others),
+    allowed_mentions: yield* allowedMentions(others),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
-}
+});
 
 /** Moves the night forward if the votes allow it. */
-async function settle(env: Env, day: string, actor: string, defer: Defer) {
-  const n = (await getNight(env, day))!;
-  const ps = players(env);
+const settle = Effect.fnUntraced(function* (day: string, actor: string, later: Later) {
+  const db = yield* Db;
+  const n = (yield* (yield* Nights).get(day))!;
+  const ps = yield* theTrio;
 
   if (n.stage === "ask") {
-    const v = await votesP(env, day, "ask");
-    if (ps.every((p) => v[p] === "yes") && (await advanceP(env, day, "ask", "game"))) {
-      defer(nudgeP(env, day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
+    const v = yield* votes(day, "ask");
+    if (ps.every((p) => v[p] === "yes") && (yield* advance(day, "ask", "game"))) {
+      yield* later(nudge(day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
     } else if (ps.every((p) => v[p]) && ps.some((p) => v[p] === "no")) {
       // everyone answered and somebody said no (a maybe can't save it): the votes come out, and so do the roasts
       const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
-      if (await callOffP(env, n, who)) defer(postRoast(env, day));
+      if (yield* callNightOff(n, who)) yield* later(postRoastOf(day));
     } else if (ps.every((p) => v[p]) && !n.paused_until && n.maybes < HOLDS.length) {
-      await hold(env, n, ps.filter((p) => v[p] === "maybe"), defer);
+      yield* hold(n, ps.filter((p) => v[p] === "maybe"), later);
     }
     return;
   }
 
   if (n.stage === "game") {
     // nothing is decided until everyone's voted (or the deadline calls it off)
-    const v = await votesP(env, day, "game");
+    const v = yield* votes(day, "game");
     if (!ps.every((p) => v[p])) return;
-    const counts = tally(players(env), v);
+    const counts = tally(ps, v);
     const top = Math.max(...counts.values());
     const tied = [...counts].filter(([, c]) => c === top).map(([g]) => g);
     if (tied.length === 1) {
       const winner = tied[0];
-      if (await advanceP(env, day, "game", "time", { game: winner })) {
-        defer(nudgeP(env, day, ps, `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
+      if (yield* advance(day, "game", "time", { game: winner })) {
+        yield* later(nudge(day, ps, `🗳️ Everyone's voted: ${yield* (yield* Games).emojiFor(winner)} **${winner}** it is! When can you start? ⬆️`));
       }
     } else {
       // a split: the picks are revealed (everyone's voted) and it stays open for a re-vote; one
       // ping per night about it
-      const claimed = await env.db
+      const claimed = yield* db
         .update(gameNights)
         .set({ renudged: "split" })
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "game"), or(isNull(gameNights.renudged), ne(gameNights.renudged, "split"))))
         .returning({ day: gameNights.day });
-      if (claimed.length) defer(nudgeP(env, day, ps, "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
+      if (claimed.length) yield* later(nudge(day, ps, "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
     }
     return;
   }
 
   if (n.stage === "time") {
-    const f = fit(ps, await votesP(env, day, "time"), await votesP(env, day, "until"), soonest(W(env)));
+    const f = fit(ps, yield* votes(day, "time"), yield* votes(day, "until"), soonest(yield* when));
     if (!f.ready) return;
     if (f.conflict) {
       // ping the people involved once per distinct clash (not on every click)
       const key = `${f.conflict.leaver}@${f.conflict.leaveBy}/${f.conflict.lateFrom}`;
-      const claimed = await env.db
+      const claimed = yield* db
         .update(gameNights)
         .set({ conflict: key })
         .where(and(eq(gameNights.day, day), or(isNull(gameNights.conflict), ne(gameNights.conflict, key))))
         .returning({ day: gameNights.day });
       const who = [...new Set([f.conflict.leaver, ...f.conflict.late])].filter((p) => p !== actor);
       if (claimed.length && who.length) {
-        defer(nudgeP(env, day, who, "⚠️ The times don't fit together yet. Take a look ⬆️"));
+        yield* later(nudge(day, who, "⚠️ The times don't fit together yet. Take a look ⬆️"));
       }
       return;
     }
-    if (await advanceP(env, day, "time", "set", { start_at: f.start! })) defer(lockIn(env, day));
+    if (yield* advance(day, "time", "set", { start_at: f.start! })) yield* later(lockIn(day));
   }
-}
+});
 
 // ---------------------------------------------------------------- 🤔 maybe
 
 /** Everyone's answered, nobody said no, but someone isn't sure: put the answer on hold (once per round). */
-async function hold(env: Env, n: Night, unsure: string[], defer: Defer) {
-  const until = awakeTime(W(env), nowSec() + HOLDS[n.maybes]);
-  const claimed = await env.db
+const hold = Effect.fnUntraced(function* (n: Night, unsure: ReadonlyArray<string>, later: Later) {
+  const db = yield* Db;
+  const w = yield* when;
+  const until = awakeTime(w, w.now + HOLDS[n.maybes]);
+  const claimed = yield* db
     .update(gameNights)
     .set({ maybes: n.maybes + 1, paused_until: until })
     .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "ask"), isNull(gameNights.paused_until), eq(gameNights.maybes, n.maybes)))
     .returning({ day: gameNights.day });
   if (!claimed.length) return;
   // the sure ones hear why they're waiting; the unsure get their ping when it's up
-  const waiting = players(env).filter((p) => !unsure.includes(p));
-  defer(
-    nudgeP(env, n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(W(env), until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
+  const waiting = (yield* theTrio).filter((p) => !unsure.includes(p));
+  yield* later(
+    nudge(n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(w, until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
   );
-}
+});
+
+/** The night is set: create a Discord event and ping everyone once. */
+const lockIn = Effect.fnUntraced(function* (day: string) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const discord = yield* Discord;
+  const games = yield* Games;
+  const alerts = yield* Alerts;
+  const n = (yield* (yield* Nights).get(day))!;
+  const ps = yield* theTrio;
+  yield* clearNudge(n);
+  yield* Effect.gen(function* () {
+    const start = n.start_at! * 1000;
+    const until = Object.values(yield* votes(day, "until")).map(Number);
+    const end = until.length ? Math.min(...until) * 1000 : start + 3 * 3600e3;
+    const evStart = Math.max(start, (yield* Clock.currentTimeMillis) + 60e3);
+    const evEnd = Math.max(end, evStart + 15 * 60e3);
+    const ev = yield* discord.createEvent({
+      name: `${yield* games.emojiFor(n.game!)} ${n.game}`,
+      description: `Terrible Trio game night: ${n.game}. Planned by Meme Bot 3000.`,
+      privacy_level: 2,
+      entity_type: 3,
+      entity_metadata: { location: "Terrible Trio 🔊" },
+      scheduled_start_time: DateTime.formatIso(DateTime.makeUnsafe(evStart)),
+      scheduled_end_time: DateTime.formatIso(DateTime.makeUnsafe(evEnd)),
+    });
+    yield* db.update(gameNights).set({ event_id: ev.id, event_end: Math.floor(evEnd / 1000) }).where(eq(gameNights.day, day));
+    yield* refreshCard(day);
+  }).pipe(Effect.catch((e) => alerts.failed("creating the Discord event", e, day))); // the night still happens; the card just has no event link
+  const isToday = day === today(yield* when);
+  yield* discord.createMessage(config.gameChannelId, {
+    content: `🎉 ${ps.map(mention).join(" ")} it's on! ${yield* games.emojiFor(n.game!)} **${n.game}** ${isToday ? "at" : "on"} ${ts(n.start_at!, isToday ? "t" : "f")} (${ts(n.start_at!, "R")})`,
+    allowed_mentions: yield* allowedMentions(ps),
+    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+  });
+});
+
+// ---------------------------------------------------------------- 🔥 bails and roasts
+
+/**
+ * Someone bailed: ends the night's Discord event (deleted if it hadn't started, marked ended if it
+ * had), retires everyone's late slips, and posts the roast.
+ */
+const afterBail = Effect.fnUntraced(function* (n: Night) {
+  const discord = yield* Discord;
+  if (n.event_id) {
+    const live = n.reminded || (n.start_at ?? Infinity) <= (yield* currentSec);
+    yield* (live ? Effect.asVoid(discord.editEvent(n.event_id, { status: 3 })) : discord.deleteEvent(n.event_id)).pipe(Effect.ignore);
+  }
+  const alerts = yield* Alerts;
+  yield* (yield* Attendances).retireSlips(n.day).pipe(Effect.catch((e) => alerts.failed("tidying the late slips", e, n.day)));
+  yield* postRoastOf(n.day);
+});
+
+/** A late slip's 😴: same as 🚪, the whole night is off. */
+const bailOn = Effect.fnUntraced(function* (day: string, user: string) {
+  const n = yield* (yield* Nights).get(day);
+  if (n?.stage !== "set") return false;
+  if (!(yield* callNightOff(n, { [user]: "out" }))) return false;
+  yield* refreshCard(day);
+  yield* afterBail(n);
+  return true;
+});
+export const bailFromSlip = (env: Env, day: string, user: string) => run(env, bailOn(day, user)).catch(asOld); // LEGACY-BRIDGE
+
+/** Post a night's roast if it's due (exactly once: claimed in the database first). */
+const postRoastOf = (day: string) =>
+  // claim → post is never cut short (architecture §15); a failed post gives the claim back
+  Effect.uninterruptible(
+    Effect.gen(function* () {
+      const config = yield* AppConfig;
+      const db = yield* Db;
+      const w = yield* when;
+      const claimed = yield* db
+        .update(gameNights)
+        .set({ roasted_at: w.now })
+        .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, w.now)))
+        .returning();
+      const n = claimed[0];
+      if (!n?.roast) return false;
+      const roast = n.roast;
+      const ps = yield* theTrio;
+      const culprits = Object.keys(roast.who);
+      const isToday = n.day === today(w);
+      const whose = isToday ? "tonight's" : `${weekdayOf(n.day)}'s`;
+      yield* Effect.gen(function* () {
+        const what =
+          roast.stage === "set" && n.game ? `${yield* (yield* Games).emojiFor(n.game)} ${n.game} ${isToday ? "tonight" : `on ${weekdayOf(n.day)}`}` : `${whose} game night`;
+        const head =
+          culprits.length >= ps.length && ps.every((p) => roast.who[p])
+            ? `🔥 **Nobody's in, so ${what} is off**`
+            : `🔥 **${what[0].toUpperCase()}${what.slice(1)} is off** · ${blame(roast.who)}`;
+        yield* (yield* Discord).createMessage(config.gameChannelId, {
+          content: `${head}\n> ${yield* (yield* Roasts).next(culprits)}`,
+          // everyone hears it's off; the culprits are named in it
+          allowed_mentions: yield* allowedMentions(ps),
+          message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+        });
+      }).pipe(Effect.tapError(() => db.update(gameNights).set({ roasted_at: null }).where(eq(gameNights.day, day)))); // the next minute retries
+      return true;
+    }),
+  );
+export const postRoast = (env: Env, day: string) => run(env, postRoastOf(day)).catch(asOld); // LEGACY-BRIDGE
+
+/** Every minute: roasts that were held for the morning. */
+const dueRoastsNow = Effect.gen(function* () {
+  const db = yield* Db;
+  const now = yield* currentSec;
+  const due = yield* db
+    .select({ day: gameNights.day })
+    .from(gameNights)
+    .where(and(eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, now)));
+  const posted: string[] = [];
+  for (const { day } of due) if (yield* postRoastOf(day)) posted.push(day);
+  return posted;
+});
+export const dueRoasts = (env: Env) => run(env, dueRoastsNow).catch(asOld); // LEGACY-BRIDGE
 
 /** A hold is up: the maybes are cleared and those players asked again, with an hour to answer. */
 async function resume(env: Env, n: Night) {
@@ -929,105 +1065,6 @@ async function resume(env: Env, n: Night) {
       : `⏰ Decision time: are you in ${when}? Still not sure? 🤔 Maybe once more gives you 1 more hour. Answer by ${by} ⬆️`,
   );
   return true;
-}
-
-/** The night is set: create a Discord event and ping everyone once. */
-async function lockIn(env: Env, day: string) {
-  const n = (await getNight(env, day))!;
-  const ps = players(env);
-  await clearNudgeP(env, n);
-  try {
-    const start = n.start_at! * 1000;
-    const until = Object.values(await votesP(env, day, "until")).map(Number);
-    const end = until.length ? Math.min(...until) * 1000 : start + 3 * 3600e3;
-    const evStart = Math.max(start, Date.now() + 60e3);
-    const evEnd = Math.max(end, evStart + 15 * 60e3);
-    const ev = await api(env, "POST", `/guilds/${env.GUILD_ID}/scheduled-events`, {
-      name: `${await emojiFor(env, n.game!)} ${n.game}`,
-      description: `Terrible Trio game night: ${n.game}. Planned by Meme Bot 3000.`,
-      privacy_level: 2,
-      entity_type: 3,
-      entity_metadata: { location: "Terrible Trio 🔊" },
-      scheduled_start_time: new Date(evStart).toISOString(),
-      scheduled_end_time: new Date(evEnd).toISOString(),
-    });
-    await env.db.update(gameNights).set({ event_id: ev.id, event_end: Math.floor(evEnd / 1000) }).where(eq(gameNights.day, day));
-    await refresh(env, day);
-  } catch (e) {
-    alerts.failed("creating the Discord event", e, day); // the night still happens; the card just has no event link
-  }
-  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: `🎉 ${ps.map(mention).join(" ")} it's on! ${await emojiFor(env, n.game!)} **${n.game}** ${day === local(env).day ? "at" : "on"} ${ts(n.start_at!, day === local(env).day ? "t" : "f")} (${ts(n.start_at!, "R")})`,
-    allowed_mentions: pings(env, ps),
-    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-  });
-}
-
-// ---------------------------------------------------------------- 🔥 deadlines and roasts
-
-/**
- * Someone bailed: ends the night's Discord event (deleted if it hadn't started, marked ended if it
- * had), retires everyone's late slips, and posts the roast.
- */
-async function afterBail(env: Env, n: Night) {
-  if (n.event_id) {
-    const live = n.reminded || (n.start_at ?? Infinity) <= nowSec();
-    await (live
-      ? api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 3 })
-      : api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`)
-    ).catch(() => {});
-  }
-  await attendance.retireSlips(env, n.day).catch((e) => alerts.failed("tidying the late slips", e, n.day));
-  await postRoast(env, n.day);
-}
-
-/** A late slip's 😴: same as 🚪, the whole night is off. */
-export async function bailFromSlip(env: Env, day: string, user: string) {
-  const n = await getNight(env, day);
-  if (n?.stage !== "set") return false;
-  if (!(await callOffP(env, n, { [user]: "out" }))) return false;
-  await refresh(env, day);
-  await afterBail(env, n);
-  return true;
-}
-
-/** Post a night's roast if it's due (exactly once: claimed in the database first). */
-export async function postRoast(env: Env, day: string) {
-  const claimed = await env.db
-    .update(gameNights)
-    .set({ roasted_at: nowSec() })
-    .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, nowSec())))
-    .returning();
-  const n = claimed[0];
-  if (!n?.roast) return false;
-  const ps = players(env);
-  const culprits = Object.keys(n.roast.who);
-  const when = n.day === local(env).day ? "tonight's" : `${weekday(env, n.day)}'s`;
-  const what = n.roast.stage === "set" && n.game ? `${await emojiFor(env, n.game)} ${n.game} ${n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`}` : `${when} game night`;
-  const head = culprits.length >= ps.length && ps.every((p) => n.roast!.who[p]) ? `🔥 **Nobody's in, so ${what} is off**` : `🔥 **${what[0].toUpperCase()}${what.slice(1)} is off** · ${blame(n.roast.who)}`;
-  try {
-    await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-      content: `${head}\n> ${await roasts.next(env, culprits)}`,
-      // everyone hears it's off; the culprits are named in it
-      allowed_mentions: pings(env, ps),
-      message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-    });
-    return true;
-  } catch (e) {
-    await env.db.update(gameNights).set({ roasted_at: null }).where(eq(gameNights.day, day)); // the next minute retries
-    throw e;
-  }
-}
-
-/** Every minute: roasts that were held for the morning. */
-export async function dueRoasts(env: Env) {
-  const due = await env.db
-    .select({ day: gameNights.day })
-    .from(gameNights)
-    .where(and(eq(gameNights.stage, "off"), sql`${gameNights.roast} IS NOT NULL`, isNull(gameNights.roasted_at), lte(gameNights.roast_due, nowSec())));
-  const posted: string[] = [];
-  for (const { day } of due) if (await postRoast(env, day)) posted.push(day);
-  return posted;
 }
 
 /**
@@ -1605,4 +1642,3 @@ const clearDay = (tx: DbTx, day: string) =>
     yield* tx.delete(gameNightVotes).where(eq(gameNightVotes.day, day));
     yield* tx.delete(nightAttendance).where(eq(nightAttendance.day, day));
   });
-const clearDayP = (env: Env, day: string) => run(env, Db.use((db) => db.transaction((tx) => clearDay(tx, day)))); // LEGACY-BRIDGE
