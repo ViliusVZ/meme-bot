@@ -9,8 +9,14 @@ self-contained: read this file, then the plan, then the code it names. Build one
 | 02 | [WoW: Forever news](02-wow-forever-news.md): a quiet #wow-news channel | small | nothing |
 | 03 | [The bot speaks](03-bot-voice.md): jingle, spoken roasts, the spoken Lobby question | large, risky | 01 phase 1 for one of its three moments |
 | 04 | [AI roast trial](04-ai-roast-trial.md): a sample sheet from a free model, then go/no-go | **no-go 2026-11-11**: keep the hand-written pools | done |
+| 05 | [Move the whole bot to Effect](05-effect-migration/README.md): every module, the tests, the HTTP and database layers | very large: ten phases, many sessions | 02 finished first; 03 waits until after it |
 
 Suggested order: 01 phase 1, 02, 01 phase 2, 04 (any time the user has two minutes for the key), 03.
+
+Plan 05 (decided 2026-11-11) changes that order: once 02 is in, the bot's features are frozen
+until 05 is cut over (production fixes excepted), and 03 is then built on the new code. Plan 05
+is the exception to "one plan per session": it has its own folder, and its `STATUS.md` says
+where it stands.
 
 ## The product rule
 
