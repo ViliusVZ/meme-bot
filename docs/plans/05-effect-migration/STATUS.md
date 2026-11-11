@@ -21,8 +21,14 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   service. On the test bot (`bdc5fed`, logs `qa-effect/gn-bdc5fed/`): qa_all 79/0, qa_timing
   13/0, qa_slowpoke exit 0, qa_leaveby output identical to the baseline's, no failed/error log
   lines. LateSlips (`78d83a6`), Polls (`cbd3b66`), Activity (`572bd89`), Hub (`8ee1b4c`),
-  Cleanup (`b96dd12`), MemeShame (`dd1d940`) done: every module of phase 4 is moved. Next: deploy,
-  `qa_late_ui.py`, `qa_stats.py`; then the second pass; then the phase 4 audit and note. How it's staged: the moved code is module-level
+  Cleanup (`b96dd12`), MemeShame (`dd1d940`) done: every module of phase 4 is moved. On the test
+  bot (`3c7184d`): qa_stats 17/0, qa_late_ui output identical to the baseline's, no failed/error
+  log lines. Second pass: named Durations done (`24ea65e`); explicit concurrency needed no change
+  (every translated Promise.all states it: memes 4, the rest unbounded over ≤3 players or a few
+  starts; presence's forEach replaces a plain loop, sequential as before). Next: `Match` (the
+  stage switches in gamenight's render and your-vote, act's action, Activity's period kind, and
+  the small action/choice comparisons in Spontaneous.answer, LateSlips.act, Polls.act); then the
+  phase 4 audit (fresh subagent) and the phase note. How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
@@ -168,9 +174,9 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | 79 passed, 0 failed (`bdc5fed`, GameNight moved) |
 | `qa_timing.py` | 13 passed, 0 failed; start ping 0.92 s after the start, room 9.8 s early | 13 passed, 0 failed; start ping 0.64 s after the start, room 9.8 s early (`bdc5fed`, GameNight moved) |
 | `qa_rooms.py` | 10 checks, no failures | 10 checks, no failures (`07dd493`, phase 4 after Voice and Attendance) |
-| `qa_stats.py` | 17 passed, 0 failed | |
+| `qa_stats.py` | 17 passed, 0 failed | 17 passed, 0 failed (`3c7184d`, phase 4 done) |
 | `qa_spontaneous.py` | 14 checks, "all good" | 14 checks, "all good" (`e47a7b9`, phase 4 after Spontaneous and Reddit) |
-| `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | |
+| `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | identical to the baseline's output (ids and times masked), `3c7184d` |
 | `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical to the baseline's output (ids and times masked), `bdc5fed` |
 | `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), `bdc5fed` (its printout lists the channel's latest messages, so it differs with whatever ran before it) |
 | `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | |
