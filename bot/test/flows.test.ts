@@ -54,7 +54,7 @@ const act = async (user: string, action: string, value?: string) => {
 const night = () => gn.getNight(env, DAY);
 
 test("17:00 posts one card per day, however many times it runs", async () => {
-  h.race("two daily jobs at once; whether both get as far as posting depends on timing");
+  h.race("two daily jobs at once; whether both get as far as posting depends on timing", { mask: { game_nights: ["message_id"] } });
   const [a, b] = await Promise.all([gn.startNight(env), gn.startNight(env)]);
   expect([a, b].filter((r) => "started" in r && r.started).length).toBe(1);
   // if both got as far as posting, the loser deletes its copy at once
@@ -69,7 +69,7 @@ test("17:00 posts one card per day, however many times it runs", async () => {
 
 test("three people planning the same day at once: one card, and only whoever claimed it is in", async () => {
   const day = "2026-11-10";
-  h.race("three startNight calls at once; whichever claims the day first wins");
+  h.race("three startNight calls at once; whichever claims the day first wins", { mask: { game_nights: ["started_by", "message_id", "nudge_id"], game_night_votes: ["user_id"] }, bodies: false });
   const rs = await Promise.all(["a", "b", "c"].map((u) => gn.startNight(env, u, true, day)));
   expect(rs.filter((r) => "started" in r && r.started).length).toBe(1);
   const n = (await gn.getNight(env, day))!;
@@ -524,7 +524,7 @@ test("roast pools: personal lines join the right pools", () => {
 });
 
 test("rooms: one room per game even when two open at once; archived after 15 empty minutes", async () => {
-  h.race("two openRoom calls at once; which one's channel is kept depends on timing");
+  h.race("two openRoom calls at once; which one's channel is kept depends on timing", { mask: { rooms: ["channel_id", "game", "created_by"] }, calls: false });
   presence.snapshot([]); // nobody in voice
   const [a, b] = await Promise.all([voice.openRoom(env, "R.E.P.O.", "📦", { by: "a" }), voice.openRoom(env, "r.e.p.o.", "📦", { by: "b" })]);
   expect(a.channelId).toBe(b.channelId);

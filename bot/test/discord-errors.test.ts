@@ -3,7 +3,7 @@
 // what the typed errors are built from (plan 05, verification.md §2d).
 import { readdirSync, readFileSync } from "node:fs";
 import { beforeAll, expect, test } from "vitest";
-import { api, isNotFound } from "../src/discord.js";
+import { api, editOriginal, isNotFound } from "../src/discord.js";
 import * as voice from "../src/voice.js";
 import * as presence from "../src/presence.js";
 import type { Env } from "../src/env.js";
@@ -87,4 +87,13 @@ test("a rate limit is waited out (retry_after) and retried, whatever the method"
   h.override = () => (n++ === 0 ? json(fixtures["rate-limited"].body, 429) : json({ id: "ok" }));
   expect(await api(env, "POST", "/x", {})).toEqual({ id: "ok" });
   expect(n).toBe(2);
+});
+
+test("an expired interaction token: one attempt, no retries, the caller gets the refusal", async () => {
+  // 401 is neither "not processed yet" (404) nor transient (429, 5xx): webhook() gives it back at once
+  let n = 0;
+  h.override = (c) => (c.path.startsWith("/webhooks/") ? (n++, json(fixtures["expired-interaction-token"].body, 401)) : undefined);
+  const r = await editOriginal(env, "tok", { content: "x" });
+  expect(r?.status).toBe(401);
+  expect(n).toBe(1);
 });
