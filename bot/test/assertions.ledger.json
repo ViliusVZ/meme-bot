@@ -524,6 +524,10 @@
   "test \"🏁 the leave-by box comes filled in with your current one\"": [
    "expect.toContain('\"value\":\"22:30\"')",
    "expect.not.toContain('\"value\":\"')"
+  ],
+  "test \"⏰ a later start moves the Discord event, and its new end is remembered\"": [
+   "expect.toEqual({ scheduled_start_time: new Date(moved * 1000).toISOString(), scheduled_end_time: new Date((moved + 900) * 1000).toISOString() })",
+   "expect.toMatchObject({ start_at: moved, event_end: moved + 900 })"
   ]
  },
  "maybe-matrix.test.ts": {

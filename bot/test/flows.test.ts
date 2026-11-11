@@ -988,3 +988,13 @@ test("🏁 the leave-by box comes filled in with your current one", async () => 
   expect(JSON.stringify(await gn.leaveByModal(env, DAY, "b"))).toContain('"value":"22:30"');
   expect(JSON.stringify(await gn.leaveByModal(env, DAY, "c"))).not.toContain('"value":"');
 });
+
+test("⏰ a later start moves the Discord event, and its new end is remembered", async () => {
+  const start = gn.wallToUnix(env, 2026, 11, 6, 20, 0);
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, message_id: "card", event_id: "ev1", event_end: start + 600 });
+  await act("b", "late", "30");
+  const moved = start + 1800;
+  const ev = calls.find((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1"))!;
+  expect(ev.body).toEqual({ scheduled_start_time: new Date(moved * 1000).toISOString(), scheduled_end_time: new Date((moved + 900) * 1000).toISOString() });
+  expect(await night()).toMatchObject({ start_at: moved, event_end: moved + 900 });
+});
