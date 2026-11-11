@@ -796,5 +796,16 @@
    "recaps": "1:ca0ac4fbb65a",
    "users": "1:fe20f3ead3e7"
   }
+ },
+ "😴 asked ahead: the last snoozed day sleeps, the day it runs out is back": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b"
+  ],
+  "db": {
+   "games": "3:54d0c1ebcf46",
+   "recaps": "1:ca0ac4fbb65a",
+   "settings": "1:07068715fc07",
+   "users": "1:fe20f3ead3e7"
+  }
  }
 }

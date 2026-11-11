@@ -945,3 +945,12 @@ test("private poll copies follow the poll too: once it's decided, everyone's cop
   expect(edits.map((e) => e.path).sort()).toEqual(["/webhooks/app/ptok-a/messages/@original", "/webhooks/app/ptok-b/messages/@original"]);
   for (const e of edits) expect(text(e.body)).toContain("✅ Decided: Yes"); // no stale answer buttons left
 });
+
+test("😴 asked ahead: the last snoozed day sleeps, the day it runs out is back", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T10:00:00Z")); // Friday 12:00
+  await snooze.snooze(env, "a", "3d"); // until Monday the 9th
+  expect(await snooze.isSnoozed(env, "2026-11-06")).toBe(true);
+  expect(await snooze.isSnoozed(env, "2026-11-08")).toBe(true);
+  expect(await snooze.isSnoozed(env, "2026-11-09")).toBe(false);
+  expect(await snooze.isSnoozed(env, "2026-11-10")).toBe(false);
+});

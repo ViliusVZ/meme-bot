@@ -501,6 +501,12 @@
    "expect.toEqual([`poll:${id}`, `poll:${id}`])",
    "expect.toEqual([\"/webhooks/app/ptok-a/messages/@original\", \"/webhooks/app/ptok-b/messages/@original\"])",
    "expect.toContain(\"✅ Decided: Yes\")"
+  ],
+  "test \"😴 asked ahead: the last snoozed day sleeps, the day it runs out is back\"": [
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(false)",
+   "expect.toBe(false)"
   ]
  },
  "maybe-matrix.test.ts": {
