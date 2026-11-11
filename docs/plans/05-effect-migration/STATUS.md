@@ -13,12 +13,19 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
     rollback rehearsal (previous `main` over it), then tag `pre-effect`; land phases 0+1 on `main`
     when the deploy rule allows (or with the cutover)
   - the phase 1 and phase 2 audits (fresh subagents) are still to run
-- **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`; `drizzle-1` points at the
-  phase 1 commit for test-bot deploys; tag `baseline` = phase 0 recordings and ledger (`1b83120`)
+- **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
+  (`aa49c52`): `0efcba9` (Drizzle 1.0) plus the phase 0 fixes cherry-picked, so the rollback
+  target has the old code and the final phase 0 harness, and reproduces `baseline` exactly (all
+  gates green there, 550 recordings identical). Tag `baseline` = `1b83120` (pinned in
+  `scripts/gates.json`). Evidence branch `baseline-on-drizzle-0.45` (`90412d3`): the baseline
+  harness on `618cf73` (Drizzle 0.45), three runs, all 550 recordings identical.
+- **Baseline of what `main` was:** `origin/main` was at `f401685` on 2026-11-11 (plan 02 still on
+  `wow-news`, unmerged); every baseline here is of that code.
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
 - **Next step:** phase 3 (foundations), after the drizzle-1 test-bot checks
-- **Waiting for:** the QA baseline run (background, about an hour); the owner's Discord login in
-  the T3 browser (tap timings and the browser test; everything else carries on)
+- **Waiting for:** production to be clear for landing phases 0+1 (`pre-effect`, `aa49c52`):
+  at 17:34 tonight's real night was voting. Checked again later; else it rides with the cutover.
+  The owner's Discord login in the T3 browser (tap timings and the browser test).
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
 - **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc
   (use the Edit tool). `git checkout --` on a file added with `git add -N` empties it. Run long
@@ -31,8 +38,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | # | Phase | State | Finished | Notes |
 |---|---|---|---|---|
 | 0 | Baseline and preparation | in progress | | steps 1-6 done, audited, findings fixed; QA baseline running |
-| 1 | Drizzle 1.0 under the old code | in progress | | code + tests done (recordings identical on old and new code); test-bot checks next |
-| 2 | Toolchain and spikes | done | 2026-11-11 | all ten spikes pass; see spike-report.md |
+| 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
+| 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | not started | | |
 | 4 | Feature services | not started | | |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
@@ -171,7 +178,8 @@ recordings (see "Numbers").
     edits every live copy of a card or a poll in one `Promise.all` (polls go through it too:
     `polls.ts:129`). Shown order-only: the b/c copies swapped between two identical runs.
 - **Background reads:** `GET /webhooks/<app>/<token>/messages/@original` (looking up a private
-  copy's message right after the tap, in the background) is recorded as its own list after the
+  copy's message right after the tap, in the background; the same lookup also serves the poll
+  card and `/meme`, interactions.ts, whose ids are then stored) is recorded as its own list after the
   other calls, in its own order. The stub answers these with ids from their own range (first id +
   700,000), so when the read lands doesn't shift the ids of everything else. Shown: three flows
   panel tests and the paths copy test changed under jitter only through this read's position and
@@ -179,7 +187,8 @@ recordings (see "Numbers").
 - **Declared races** (`h.race(reason, { mask, bodies, calls })`), each a test whose point is
   several callers at once. A create the bot deletes again in the same test cancels out with its
   delete, ids in URLs are masked, calls sorted; the database is hashed in full except the named
-  winner-dependent columns:
+  winner-dependent columns (every numeric URL segment of three digits or more is masked, not
+  only the racing ids):
   - flows "17:00 posts one card per day, however many times it runs": `game_nights.message_id`
   - flows "three people planning the same day at once": `game_nights.started_by/message_id/
     nudge_id`, `game_night_votes.user_id`, bodies not hashed (the nudge names the winner)
@@ -193,8 +202,9 @@ recordings (see "Numbers").
     previous tap's background work has landed): `panels.message_id`, no calls. Each has a twin
     "(each tap done before the next)" that waits between taps and is recorded in full.
   Evidence: full dumps (`RECORD=full`) of normal and jitter runs differ only in those columns.
-- **Masked values:** `roast_bags.updated_at` and `settings.updated_at` only where the value is the
-  database's own `now()` (within 10 minutes of the real wall clock); where the bot writes the
+- **Masked values:** `roast_bags.updated_at` and `settings.updated_at` where the value is within 10
+  minutes of the real wall clock: the database's own `now()` (a heuristic: a value the bot wrote
+  from the real clock would be masked too; under the fake clock the bot writes 2026-11-06..10); where the bot writes the
   column from the fake clock (`gemini.ts`, `reddit.ts`, `snooze.ts`) the value is recorded.
 - **Body normalisation:** JSON keys sorted before hashing (key order is not behaviour); stack-frame
   lines (newline, indent, `at …`) removed from every string before hashing (alert DMs quote the
@@ -210,6 +220,25 @@ recordings (see "Numbers").
 
 Small technical choices the plan left open (which logger, the leader ping interval, each job's
 timeout), with the evidence.
+- **`ignoreEffectWarningsInTscExitCode: true`** (tsconfig), so the old-code warnings don't fail G1
+  until they flip to errors at the end of phase 5; then the option goes. Rules that default to
+  warning and matter now (`duplicatePackage`, `layerMergeAllWithDependencies`) are set to error.
+- **Leader loss detection (audit of phase 2):** today `pg`'s `end` event ends the term at once;
+  the Effect client reports nothing until a statement fails. The term pings every **1 s** (not 5)
+  with a 2 s timeout and TCP keepalive on, so two copies lead at the same time for about a second
+  at most (the other copy's lock poll is 1 s anyway). Every guard is in the database, so a brief
+  overlap can't duplicate anything; noted as a near-difference, not an intended one.
+- **HTTP during shutdown (audit of phase 2):** Fastify (`return503OnClosing`) answered 503 to a
+  request on a connection still open while closing; the Effect server stops accepting connections
+  and finishes those in flight. Caddy retries a refused connection on the other copy, so this is
+  at least as good; `/health` still answers 503 first, as today.
+- **An oversized body (audit of phase 2):** answers 500 `{ "error": ... }` as today, and is not
+  alerted (Fastify's statusCode for it was 413; only 500s alerted).
+- **int8 beyond `Number.MAX_SAFE_INTEGER`:** the codec fails the query where `pg` silently
+  rounded; no column comes close (unix seconds and counts).
+- **Service keys:** the `deterministicKeys` rule (error level) wants `meme-bot/<path>` and adds the
+  class name only when it differs from the file name (`meme-bot/db/db` for `Db`), close to the
+  plan's `meme-bot/<file>/<Class>`; the rule is followed.
 
 - **Leader lock:** a one-connection `PgClient.makeClient` in the term's scope, pinged every 5 s
   (spike S2: `sql.reserve` returns its connection to the pool still holding the lock; a killed
@@ -231,17 +260,24 @@ timeout), with the evidence.
   (pure functions) have no recordings; their assertions are in the ledger.
 
 
-- **Rollback and migrations (Drizzle 1.0, found in phase 1):** the 1.0 migrator writes
-  `created_at` at whole seconds, while the old migrator (Drizzle 0.45, at the `pre-effect` tag)
-  applies every journal entry whose millisecond `when` is greater than the latest `created_at`.
-  So a migration that 1.0 applied and that is also in the old code's journal is re-run by the old
-  code, and its startup fails ("already exists"). Proven locally: a database first built by 1.0
-  makes the old migrator fail on `activity_guesses`. Production's and the test bot's databases
-  were built by the old migrator, so rolling back to `pre-effect` is safe as long as no
-  migration is added that the old journal also contains (a new migration after the upgrade is
-  unknown to the old journal and is skipped by it). Keep this in mind if plan 02's migration
-  lands: it must be in the old journal before any 1.0 migrator applies it, or rollback needs a
-  manual `created_at` fix.
+- **Migrations across Drizzle 0.45 and 1.0 (found in phase 1, corrected after the audit):**
+  the rollback target `pre-effect` is Drizzle 1.0 code, so rolling back after the cutover meets no
+  0.45 migrator. The 0.45 migrator is the old `main` (`f401685`) and older; three hazards apply
+  only if one of those runs on a database 1.0 has touched, or 1.0 runs after them:
+  - 1.0 writes `created_at` at whole seconds; 0.45 applies every journal entry whose millisecond
+    `when` is greater than the latest `created_at`, so a migration both know, applied by 1.0, is
+    re-run by 0.45 ("already exists"). Proven locally on a database first built by 1.0.
+  - 1.0's one-time upgrade of the migrations table throws when a row matches no local migration.
+    **This happened on the test bot:** the paused `wow-news` branch had applied its
+    `0013_news.sql` there (row id 15), so the first `drizzle-1` deploy failed its health check
+    (blue/green kept the old copy). The row was set aside (copied to
+    `drizzle.plan05_set_aside` in `meme_bot_dev`, then deleted from the migrations table); the
+    `news_items` table and its data stay. When plan 02 is merged, its migration must be converted
+    to the 1.0 layout, and on the test bot either that table is dropped first or the row is put
+    back with its `name`. Production has the 13 known rows only (checked read-only).
+  - After the upgrade, rows the 0.45 migrator writes have `name` NULL and are never backfilled;
+    1.0 matches by name, so it would re-run such a migration. Only if old code with a new
+    migration is deployed after 1.0 has run.
 - **drizzle-kit 1.0 rc.5 and partial indexes:** `drizzle-kit generate` with no schema change
   proposes dropping and recreating the five partial indexes (`one_daily_per_day`,
   `memes_posted`, `memes_pool`, `voice_segments_one_open`, `lobby_prompts_current`): it writes

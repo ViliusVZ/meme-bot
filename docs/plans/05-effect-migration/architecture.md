@@ -3,7 +3,7 @@
 What the code looks like when the migration is done. Where this file says "must", it is a
 requirement. Where it says "check", the API detail has to be confirmed against `node_modules`
 before use. Everything stated as fact here was checked against `effect` 4.1.4, `@effect/sql-pg`
-4.1.3 and `drizzle-orm` 1.0.0-rc.5 on 2026-11-11.
+4.1.4 and `drizzle-orm` 1.0.0-rc.5 on 2026-11-11.
 
 ## 1. Packages and versions
 
@@ -234,7 +234,8 @@ relatives.
   `PgClient.makeClient` owned by the term's scope (spike S2): closing or interrupting the term
   closes that connection, and Postgres frees the lock. Not `sql.reserve`: closing its scope gives
   the connection back to the pool still holding the lock. The driver reports no closed socket on
-  its own, so the term pings every 5 seconds; a dead connection fails the ping at once.
+  its own, so the term pings every second with a 2 s timeout and TCP keepalive on; a dead
+  connection fails the ping at once (STATUS "Decisions": today's `end` event was immediate).
 - Migrations take the migration lock on a one-connection client too, and run Drizzle's Effect
   migrator on a database built on that client (spike S3).
 - **In tests** the pool is built and closed on the live clock, and has no acquire timeout: the
@@ -330,8 +331,8 @@ Each mechanism the bot has today, and what replaces it. Behaviour in the right c
 - Tests call the router without a port: `HttpRouter.toWebHandler` gives a
   `(Request) => Promise<Response>` function, the replacement for `app.inject`.
 - Today's answers to edge cases stay (spike S4): a body over 1 MB (`MaxBodySize`) answers 500
-  `{ "error": … }` because Fastify's error handler answered every error that way; an unknown route
-  answers Fastify's JSON 404 body.
+  `{ "error": … }` because Fastify's error handler answered every error that way, and is not
+  alerted (only errors that are our fault are); an unknown route answers Fastify's JSON 404 body.
 - **Interactions are decoded, then routed.** A `Schema` for the parts of an interaction the bot
   reads; a parser turning `custom_id` into a tagged union (`gn:<day>:<action>[:<value>]`,
   `poll:…`, `lob:…`, `late:…`, `room:…`, `st:…`, `snz:…`, `hub:…`, `plan:…`, `games:…`, `v:…`,
