@@ -208,6 +208,9 @@ test("a planned night owns the Lobby: none while one starts within 15 min or is 
   await t.db.update(gameNights).set({ start_at: t0 - 60, reminded: true }).where(eq(gameNights.day, DAY));
   await t.db.insert(rooms).values({ channel_id: "repo", game: "R.E.P.O.", day: DAY, created_at: t0 - 60 });
   expect(await at(t0 + 120)).toBeNull();
+  // its room failed to open: the night is still on, so still no question
+  await t.db.delete(rooms);
+  expect(await at(t0 + 150)).toBeNull();
   expect(posted("lobby")).toEqual([]);
   // voting still in progress blocks nothing
   await t.db.delete(rooms);

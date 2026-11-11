@@ -27,6 +27,7 @@ export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
 const PLANNED_SOON = 15 * 60; // a planned night starting within this owns the Lobby
 const NIGHT_LIVE = 6 * 3600; // a started night's room is the night's for this long (while it's open)
+const NIGHT_ON = 3 * 3600; // a night this recently started is on, room or no room (late.ts watches this long)
 export const LINE_AFTER = 2 * 60; // a session this old with someone missing gets its quiet line
 export const COUNT_AFTER = 10 * 60; // together this long → it counts as a game night
 export const END_GRACE = 15 * 60; // fewer than two for this long → the session's over
@@ -57,8 +58,9 @@ export function minutes(sec: number) {
 // ---------------------------------------------------------------- what's planned
 
 /**
- * The planned night that owns voice right now: `room` is its open room once it has started (for
- * NIGHT_LIVE), `soon` means one is about to start (or is due and hasn't yet).
+ * The planned night that owns voice right now: `rooms` are open rooms of nights that started (for
+ * NIGHT_LIVE), `on` means one started lately (even if its room didn't open), `soon` that one is
+ * about to start (or is due and hasn't yet).
  */
 export async function planned(env: Env, t = nowSec()) {
   const nights = await env.db
@@ -73,7 +75,8 @@ export async function planned(env: Env, t = nowSec()) {
         .from(rooms)
         .where(and(inArray(rooms.day, started), isNull(rooms.archived_at), real))
     : [];
-  return { soon, rooms: new Set(open.map((r) => r.channel_id)) };
+  const on = nights.some((n) => n.reminded && n.start_at! <= t && n.start_at! > t - NIGHT_ON);
+  return { soon, on, rooms: new Set(open.map((r) => r.channel_id)) };
 }
 type Planned = Awaited<ReturnType<typeof planned>>;
 
@@ -130,7 +133,7 @@ function oneGame(of: Map<string, string>) {
  * Once per game per day, silently; the room archives itself after an hour if nobody comes.
  */
 async function readyRoom(env: Env, where: Where, open: Room[], plan: Planned, t: number) {
-  if (!env.PRESENCES || plan.soon || plan.rooms.size) return;
+  if (!env.PRESENCES || plan.soon || plan.on || plan.rooms.size) return;
   // only those not in voice yet (in voice, the Lobby flow has them)
   const away = players(env).filter((p) => !where.get(p));
   if (away.length < 2) return;
@@ -184,7 +187,7 @@ async function gathering(env: Env, where: Where, open: Room[], inRoom: (r: Room)
     return null;
   }
   // a planned night owns the Lobby; and with someone already in a game room, joiners get pulled there
-  if (plan.soon || plan.rooms.size || open.some((r) => inRoom(r).length)) return null;
+  if (plan.soon || plan.on || plan.rooms.size || open.some((r) => inRoom(r).length)) return null;
 
   // the gathering started when the second of us got here (their Lobby stretch, as tracked for stats)
   const segs = await env.db
@@ -337,7 +340,7 @@ export async function answer(env: Env, id: number, user: string, what: string, g
 
 /** Someone joined the Lobby: with exactly one game room in use (not a planned night's), bring them in, once. */
 async function pullIn(env: Env, { user, from }: Change, open: Room[], inRoom: (r: Room) => string[], plan: Planned, t: number) {
-  if (plan.rooms.size) return; // a planned night's latecomers are late.ts's
+  if (plan.on || plan.rooms.size) return; // a planned night's latecomers are late.ts's
   const busy = open.filter((r) => inRoom(r).length);
   if (busy.length !== 1) return;
   const r = busy[0];

@@ -84,6 +84,28 @@ category exists only while it has something in it; rooms deleted by hand are sim
 While the gateway is reconnecting, voice lookups fall back to REST, and nothing is archived on a
 guess. QA: `bot/scripts/qa_rooms.py`, `qa_timing.py`.
 
+## 🎮 Spontaneous play (`src/spontaneous.ts`)
+For when nothing's planned and we end up playing anyway. Nothing here pings anyone; every message
+is silent and tidies itself away.
+- **The Lobby question.** Two or more of us in the Lobby for 30 s, with no game night on or starting
+  within 15 min: "🎮 Playing something?" in the Lobby's chat, with the games we played last. One tap
+  opens that game's room (the archived one comes back) and brings the Lobby along. "Just hanging
+  out", or no answer in 10 min, keeps it quiet until that gathering breaks up.
+- **Game detection** (`PRESENCES=1`, Presence Intent on in the Developer Portal). Two of us in the
+  Lobby playing the same game skip the question and go straight to its room, with a ↩ Back to the
+  Lobby button for two minutes. When Discord's name for a game doesn't match ours, answering the
+  question once offers "Yes, always open …" (`game_aliases`); it's never learned silently. Two of us
+  playing the same game before anyone's in voice gets its room waiting under the Lobby, once a day
+  (it archives itself after an hour if nobody comes). What people play is kept in memory only.
+- **Sessions.** Two or more of us in a game room that isn't a started planned night, however we got
+  there. Two minutes in, if someone's missing, a silent line in #game-night says where we are; ten
+  minutes together counts as a game night (stats show "(N unplanned)", and the game's play count goes
+  up). 15 min after it drops below two, the line says "played … for 46 min" (or goes, if it never
+  counted). One per game per day; if the day's planned night is the same game, it becomes that night.
+- **Pulling in.** Joining the Lobby while exactly one game room has any of us in it pulls you in
+  once (unless you just came out of it), with the same ↩ note.
+QA: `bot/scripts/qa_spontaneous.py` (stand-in players, simulated time, real Discord).
+
 ## ⏰ Latecomers (`src/late.ts`)
 Once a night has started (its room is open), every minute and the moment anyone joins the Lobby,
 the bot checks where each player is:
