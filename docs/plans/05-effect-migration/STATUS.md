@@ -5,7 +5,9 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 2 done (spikes, report written); phase 0 and 1 have open items, run alongside:
+- **Phase:** 3 (foundations): all six steps in (bridge, config, logging, db, channels + discord,
+  alerts/background/presence/lifecycle); its live check (qa_all, qa_timing on the test bot with
+  `8e7c1f2`) running, then the audit. Earlier phases:
   - phase 0: the live QA baseline is running on the test bot against `618cf73` (old code), see
     "Numbers"; then the tap baseline (needs the owner's Discord login in the T3 browser, which
     was logged out at 16:20), memory, the phase note
@@ -56,24 +58,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files |
 |---|---|---|
-| `async` | 197 | 5 |
-| `await` | 664 | 18 |
-| `.then(` | 23 | 1 |
-| `.catch(` | 59 | 3 |
-| `try {` | 38 | 2 |
-| `new Promise` | 8 | 7 |
-| `setTimeout/Interval` | 15 | 8 |
+| `async` | 188 | 5 |
+| `await` | 650 | 18 |
+| `.then(` | 20 | 1 |
+| `.catch(` | 58 | 3 |
+| `try {` | 35 | 2 |
+| `new Promise` | 6 | 7 |
+| `setTimeout/Interval` | 13 | 8 |
 | `AbortController` | 1 | 2 |
-| `AbortSignal` | 7 | 2 |
-| `fetch(` | 4 | 0 |
-| `console.` | 37 | 15 |
-| `Date.now/new Date` | 82 | 0 |
+| `AbortSignal` | 5 | 2 |
+| `fetch(` | 2 | 0 |
+| `console.` | 31 | 15 |
+| `Date.now/new Date` | 79 | 0 |
 | `Math.random` | 1 | 0 |
-| `process.env` | 3 | 0 |
-| `: any` | 12 | 0 |
+| `process.env` | 2 | 0 |
+| `: any` | 11 | 0 |
 | `as any` | 2 | 0 |
-| `_reset` | 4 | 0 |
-| `LEGACY-BRIDGE` | 94 | 8 |
+| `_reset` | 1 | 0 |
+| `LEGACY-BRIDGE` | 177 | 14 |
 | `Effect.promise` | 0 | 0 |
 | `Effect.tryPromise` | 0 | 0 |
 | `runPromise` | 0 | 0 |
@@ -81,10 +83,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 |
 | `@ts-` | 0 | 0 |
-| **total** | **1251** | **71** |
+| **total** | **1282** | **77** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 81, interactions.ts 76, main.ts 53, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 27, cleanup.ts 19, gateway.ts 18, alerts.ts 17, memeshame.ts 17, gemini.ts 15, panels.ts 15, env.ts 12, games.ts 8, roasts.ts 8, background.ts 7, localtime.ts 5, presence.ts 5, nights.ts 3, hub.ts 2, channels.ts 1, runtime.ts 1.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 59, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 25, presence.ts 21, cleanup.ts 19, gateway.ts 18, memeshame.ts 17, alerts.ts 15, gemini.ts 15, panels.ts 15, env.ts 12, channels.ts 10, games.ts 8, roasts.ts 8, background.ts 6, lifecycle.ts 5, localtime.ts 5, nights.ts 3, hub.ts 2, runtime.ts 2.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -119,6 +121,21 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 ## Modules moved (phases 3–5)
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
+
+- 2026-11-11 `ae0c46e` config (AppConfig, Overrides, the bridge): tests 1, 2, 5. Broken: `quiet`
+  ignoring Overrides (red), the bridge dropping stand-in players (red), a secret not redacted (red).
+- 2026-11-11 `35b4a40` logging (logfmt): broken by dropping the logger layer (red).
+- 2026-11-11 `6fa6110` db (PgClient pool, Drizzle Effect database, Effect migrator): broken: no
+  int8 codec (red), no statement_timeout (red), migrator without its lock (red).
+- 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
+  300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `740e1f6` alerts, background, presence, lifecycle: broken: a repeat not counted (red),
+  the burst cap's branch (red), the DM channel not remembered (recordings red), a background
+  failure not reported (red); presence emitting before a snapshot and a snapshot reporting no
+  changes, and the channel cache's `remove` doing nothing, stayed green: tests added
+  (`test/presence.test.ts`), red on each since. The channel cache ignoring `upsert` before its
+  snapshot is unobservable (not ready reads as null, and only a snapshot makes it ready, replacing
+  everything): an equivalent change. Lifecycle is only reached from main.ts: tests 11-13 (phase 5).
 
 ## Deviations from the plan
 
@@ -239,6 +256,19 @@ timeout), with the evidence.
 - **Service keys:** the `deterministicKeys` rule (error level) wants `meme-bot/<path>` and adds the
   class name only when it differs from the file name (`meme-bot/db/db` for `Db`), close to the
   plan's `meme-bot/<file>/<Class>`; the rule is followed.
+- **No trace headers outbound** (`HttpClient.TracerPropagationEnabled` false): our trace ids are
+  no business of Discord's. Found because the tracer draws span ids from `Math.random`, which the
+  harness seeds per test for the roast shuffle: with propagation on, every request consumed
+  random numbers and shifted the roasts (654 recordings differed). Until roasts use Effect's
+  `Random` (phase 4), anything in Effect that draws from `Math.random` during a test would shift
+  them again; the recordings would show it.
+- **Discord retries give up without a final sleep:** the old loop slept its back-off after the
+  last failed attempt too, then gave up; the schedule gives up at once. Same attempts and the same
+  delays between them; a failing call returns 2.4 s sooner.
+- **The alert time is when the problem was reported**, not when the queued DM goes out (the old
+  promise chain read the clock in the same tick as the report, so the meaning is unchanged).
+- **`legacy.runDetached`** for promise code calling Effect code that needs no per-call overrides
+  (the tests' `_settle`, `drain`); `legacy.run` carries the old env's QUIET and PLAYERS.
 
 - **Leader lock:** a one-connection `PgClient.makeClient` in the term's scope, pinged every 5 s
   (spike S2: `sql.reserve` returns its connection to the pool still holding the lock; a killed
