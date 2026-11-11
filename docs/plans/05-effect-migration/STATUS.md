@@ -5,7 +5,22 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: HTTP, Ticker + start timers, Live, Gateway, Leadership/main/shutdown, then delete the transition. Phase 3 done: all six steps; live check on the
+- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: **HTTP step design (in progress):** `app.ts` becomes an
+  `HttpRouter` (effect/http) on `NodeHttpServer` (@effect/platform-node), same routes and answers:
+  GET /health (503 + `{ok:false, shuttingDown:true}` while shutting down; db `SELECT 1`, 503
+  `{ok:false, db}` on failure; else `{ok, leader, clock: sinceTick, gateway: presence ready,
+  background: in flight, uptime, version}`), GET / ("Meme Bot 3000 🔥"), POST /interactions
+  (raw text, Ed25519 check → 401 "bad signature", the tap boundary: timing log line
+  `interaction|slow interaction <ms> ms <what> <who> <where>`, the 3 s report, an apology on
+  failure), POST /ingest (ingest secret, 401 "nope"), admin routes behind one bearer check (401
+  "nope"), `/admin/gamenight` actions as a Match (unknown → 400 `{error:"action?"}`, quiet calls
+  via `withOverrides({quiet:true, players})`), any unhandled failure → 500 `{error: String(e)}`
+  and a report when ours, a body over 1 MB → 500 not reported, an unknown route → Fastify's JSON
+  404 body. The routes read an `AppStatus` service (leader, shuttingDown, publicKey): production
+  builds it from Lifecycle + config; the test delegate `build(env, status)` builds a web handler
+  (`HttpRouter.toWebHandler`) with the status and key the test gives, over the installed
+  runtime's services, and returns `{ inject }` shaped like Fastify's (statusCode, json(), body),
+  so the tests change only their call expressions. Test 13: the contract route by route. HTTP, Ticker + start timers, Live, Gateway, Leadership/main/shutdown, then delete the transition. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
   Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous; `qa_rooms.py` on the test bot
