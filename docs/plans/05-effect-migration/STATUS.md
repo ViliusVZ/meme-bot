@@ -9,7 +9,12 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
   Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous; `qa_rooms.py` on the test bot
-  (`07dd493`): 10 checks, no failures. Next: deploy, `qa_spontaneous.py`; then GameNight.
+  (`07dd493`): 10 checks, no failures. Next: `qa_spontaneous.py` (running on `e47a7b9`); then
+  **architecture §15 for the moved services before GameNight**: make the claim → post → record
+  regions uninterruptible (Voice `openRoom` placeholder → channel → id; Spontaneous `ask`,
+  `postLine`, `readyRoom`, `autoMove`, `pullIn`; Attendance `declare`; check Memes/Panels/Roasts
+  for any sequence inside a service) and write test 6 (interrupt at each step: nothing done and
+  no claim, or everything done; a claim released only on a typed failure). Then GameNight.
   Phases 0+1 are on `main` and in production (below). Browser tap timings and the browser tap
   test: deferred by the owner.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
