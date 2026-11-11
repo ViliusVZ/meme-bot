@@ -1207,6 +1207,12 @@
    "expect.toEqual([\"a\", \"b\", \"c\"])",
    "expect.toEqual([\"qa-1\", true])",
    "expect.toEqual([\"a\", \"b\", \"c\"])"
+  ],
+  "test \"overrides reach background work: a quiet call's deferred ping goes out with no mentions\"": [
+   "expect.toEqual([{ parse: [] }, { users: [\"a\"] }])"
+  ],
+  "test \"an inner override keeps the outer one's other fields\"": [
+   "expect.toEqual([[\"qa-1\", \"qa-2\"], true])"
   ]
  },
  "logging.test.ts": {
@@ -1281,6 +1287,14 @@
   "describe \"the retry rules (TestClock)\" > test \"interaction webhooks: a 404 (not processed yet) is tried again 400 ms, 800 ms, 1.2 s later\"": [
    "assert.deepStrictEqual(_, [400, 800, 1200])",
    "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"an answer that stalls after its headers times out at 10 s too, and is tried again\"": [
+   "assert.deepStrictEqual(_, [10_000 + 300])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 2xx we can't read fails at once, with no retry (the request did go through)\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.isTrue(_)"
   ]
  },
  "presence.test.ts": {
@@ -1348,6 +1362,12 @@
    "expect.toBeLessThan(log.indexOf(\"card-2 start a\"))",
    "expect.toEqual([\"card-1\", \"card-2\"])",
    "expect.toBeLessThan(log.indexOf(\"card-1 end a\"))"
+  ]
+ },
+ "overrides.test.ts": {
+  "test \"an admin stats call with stand-ins tracks only the stand-ins, though the real players are in voice too\"": [
+   "expect.toEqual({ tracked: true })",
+   "expect.toEqual([\"qa-1\", \"qa-2\"])"
   ]
  }
 }

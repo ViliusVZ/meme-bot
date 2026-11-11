@@ -18,7 +18,8 @@ const fixture = (name: string): Fixture => JSON.parse(readFileSync(new URL(`${na
 
 type Seen = { method: string; url: string; at: number };
 /** A Discord that answers from `answer` (a status and body, or "network" for a failed connection, or "hang"). */
-const fake = (answer: (call: Seen, n: number) => { status: number; body?: unknown } | "network" | "hang") =>
+type Answer = { status: number; body?: unknown; raw?: string; stall?: boolean } | "network" | "hang";
+const fake = (answer: (call: Seen, n: number) => Answer) =>
   Effect.gen(function* () {
     const seen = yield* Ref.make<Seen[]>([]);
     const client = HttpClient.make((request: HttpClientRequest.HttpClientRequest, url: URL) =>
@@ -28,7 +29,9 @@ const fake = (answer: (call: Seen, n: number) => { status: number; body?: unknow
         const a = answer(call, n);
         if (a === "hang") return yield* Effect.never;
         if (a === "network") return yield* new HttpClientError.HttpClientError({ reason: new HttpClientError.TransportError({ request, description: "connection reset" }) });
-        return HttpClientResponse.fromWeb(request, new Response(a.body === undefined ? null : JSON.stringify(a.body), { status: a.status }));
+        // `stall`: the headers arrive, the body never finishes; `raw`: a body that isn't JSON
+        const body = a.stall ? new ReadableStream({ start() {} }) : a.raw !== undefined ? a.raw : a.body === undefined ? null : JSON.stringify(a.body);
+        return HttpClientResponse.fromWeb(request, new Response(body, { status: a.status }));
       }),
     );
     const layer = Discord.layer.pipe(
@@ -159,6 +162,24 @@ describe("the retry rules (TestClock)", () => {
       const exit = yield* settle(Discord.use((d) => d.getChannel("c")).pipe(Effect.provide(layer)));
       assert.deepStrictEqual(gaps(yield* Ref.get(seen)), [10_000 + 300]);
       assert.strictEqual(exit._tag, "Success");
+    }),
+  );
+
+  it.effect("an answer that stalls after its headers times out at 10 s too, and is tried again", () =>
+    Effect.gen(function* () {
+      const { layer, seen } = yield* fake((_c, n) => (n === 0 ? { status: 200, stall: true } : { status: 200, body: { id: "c" } }));
+      const exit = yield* settle(Discord.use((d) => d.getChannel("c")).pipe(Effect.provide(layer)));
+      assert.deepStrictEqual(gaps(yield* Ref.get(seen)), [10_000 + 300]);
+      assert.strictEqual(exit._tag, "Success");
+    }),
+  );
+
+  it.effect("a 2xx we can't read fails at once, with no retry (the request did go through)", () =>
+    Effect.gen(function* () {
+      const { layer, seen } = yield* fake(() => ({ status: 200, raw: "<html>not json</html>" }));
+      const exit = yield* settle(Discord.use((d) => d.request("PATCH", "/channels/c", { name: "x" })).pipe(Effect.provide(layer)));
+      assert.strictEqual((yield* Ref.get(seen)).length, 1);
+      assert.isTrue(exit._tag === "Failure" && String(exit.cause).includes("unexpected answer"));
     }),
   );
 
