@@ -11,10 +11,14 @@ floors=scripts/gates.json
 red() { echo "GATE RED: $*" >&2; exit 1; }
 
 echo "== G1 types"
+# the Effect diagnostics only run inside a patched tsc: make sure it is
+npx effect-language-service check 2>&1 | grep -q "_tsc.js patched with version" || red "G1: tsc is not patched with the Effect language service (npm run prepare)"
 npm run -s check || red "G1 types"
+# the baseline is a commit, not just a name: a moved tag would re-baseline silently
+[ "$(git rev-parse 'baseline^{commit}')" = "$(node -p 'require("./'$floors'").baseline')" ] || red "the tag baseline has moved"
 
 echo "== G2 tests (+ G4 recordings)"
-if grep -rnE "\b(test|it|describe)\.(only|skip|todo|fails|skipIf|runIf)\b|(^|[^.[:alnum:]_])(xit|xtest|fit)\(" test --include=*.ts; then red "G2: .only/.skip/.todo in the tests"; fi
+if grep -rnE "\.(only|skip|todo|fails|skipIf|runIf)\b|(^|[^.[:alnum:]_])(xit|xtest|fit)\(" test --include=*.ts; then red "G2: .only/.skip/.todo/.fails in the tests"; fi
 rm -rf test/__recordings__/full
 # every recording is written again by this run; one that isn't shows up as deleted (G4)
 rm -f test/__recordings__/*.json

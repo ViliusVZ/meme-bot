@@ -16,6 +16,15 @@ const bases = args.flatMap((a, i) => (args[i - 1] === "--base" ? [a] : []));
 if (!bases.length) bases.push("baseline", "HEAD");
 const allowedFile = `${root}test/recordings.allowed.json`;
 const allowed = existsSync(allowedFile) ? JSON.parse(readFileSync(allowedFile, "utf8")) : {};
+// every exception names its reason; they are printed with each run, so none goes unseen
+for (const [f, keys] of Object.entries(allowed))
+  for (const [k, reason] of Object.entries(keys)) {
+    if (typeof reason !== "string" || reason.trim().length < 10) {
+      console.error(`recordings.allowed.json: ${f} › ${k} needs its reason`);
+      process.exit(1);
+    }
+    console.log(`allowed to differ: ${f} › ${k}: ${reason}`);
+  }
 const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8", maxBuffer: 64 << 20 });
 
 const problems = [];

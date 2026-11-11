@@ -59,7 +59,9 @@
           "strictEffectProvide": "warning",
           "extendsNativeError": "warning",
           "preferSchemaOverJson": "warning",
-          "schemaSyncInEffect": "warning"
+          "schemaSyncInEffect": "warning",
+          "duplicatePackage": "error",
+          "layerMergeAllWithDependencies": "error"
         },
         "ignoreEffectWarningsInTscExitCode": true,
         "keyPatterns": [
