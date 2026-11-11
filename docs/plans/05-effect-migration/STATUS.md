@@ -129,6 +129,14 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres bash scripts/gates.sh`.
   CI keeps its own Postgres service; the tunnel stays available.
 
+- **2026-11-11, phase 1, tap timings:** the "interaction <ms> ms" line is written only for real,
+  signed Discord taps; the QA scripts go through admin routes, so `qa_all.py` produces none (and
+  production had 8 logged taps since the server rebuild). The tap baseline is taken from real taps
+  in the T3 browser on the test server, the same sequence on the old code and on the new.
+- **2026-11-11, phase 1:** `runMigrations` takes an optional `migrationsSchema` (default
+  `drizzle`), so `test/migrations.test.ts` can run the real migrator on a throwaway schema; the
+  test database role can't create databases.
+
 ## Declared exceptions
 
 - **Unordered call groups** in the recordings (`verification.md` §2a), in `test/harness.ts`
@@ -165,6 +173,23 @@ timeout), with the evidence.
 
 ## Found on the way
 
+
+- **Rollback and migrations (Drizzle 1.0, found in phase 1):** the 1.0 migrator writes
+  `created_at` at whole seconds, while the old migrator (Drizzle 0.45, at the `pre-effect` tag)
+  applies every journal entry whose millisecond `when` is greater than the latest `created_at`.
+  So a migration that 1.0 applied and that is also in the old code's journal is re-run by the old
+  code, and its startup fails ("already exists"). Proven locally: a database first built by 1.0
+  makes the old migrator fail on `activity_guesses`. Production's and the test bot's databases
+  were built by the old migrator, so rolling back to `pre-effect` is safe as long as no
+  migration is added that the old journal also contains (a new migration after the upgrade is
+  unknown to the old journal and is skipped by it). Keep this in mind if plan 02's migration
+  lands: it must be in the old journal before any 1.0 migrator applies it, or rollback needs a
+  manual `created_at` fix.
+- **drizzle-kit 1.0 rc.5 and partial indexes:** `drizzle-kit generate` with no schema change
+  proposes dropping and recreating the five partial indexes (`one_daily_per_day`,
+  `memes_posted`, `memes_pool`, `voice_segments_one_open`, `lobby_prompts_current`): it writes
+  their WHERE clause differently from the converted snapshots. Not a real change; deleted. Any
+  future `generate` must drop those lines from its output.
 Bugs and weak spots in the existing behaviour, noticed during the migration and deliberately not
 fixed in it. For the owner to prioritise after the cutover.
 
