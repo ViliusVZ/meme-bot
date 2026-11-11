@@ -29,7 +29,7 @@ import { Alerts } from "./alerts.js";
 import { Lifecycle } from "./lifecycle.js";
 import { LocalTime } from "./localtime.js";
 import { nowIso, nowSec } from "./clock.js";
-import * as scheduler from "./scheduler.js";
+import { Ticker } from "./scheduler.js";
 import { appContext, runDetached } from "./legacy.js"; // LEGACY-BRIDGE
 import type { AppServices } from "./runtime.js";
 
@@ -131,6 +131,7 @@ export const Routes = HttpRouter.use((router) =>
     const late = yield* LateSlips;
     const attendances = yield* Attendances;
     const presence = yield* Presence;
+    const ticker = yield* Ticker;
     const alerts = yield* Alerts;
     const time = yield* LocalTime;
 
@@ -170,7 +171,7 @@ export const Routes = HttpRouter.use((router) =>
         return json({
           ok: true,
           leader: yield* status.leader,
-          clock: scheduler.sinceTick(),
+          clock: yield* ticker.sinceTick,
           gateway: yield* presence.isReady,
           background: yield* background.inFlight,
           uptime: Math.round(process.uptime()),

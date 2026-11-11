@@ -46,6 +46,11 @@ export async function runDetached<A, E>(effect: Effect.Effect<A, E, AppServices>
   throw Cause.squash(exit.cause); // LEGACY-BRIDGE
 } // LEGACY-BRIDGE
 
+/** Promise code starting Effect code that runs until interrupted (the clock): its fiber. */
+export function forkDetached<A, E>(env: Env, effect: Effect.Effect<A, E, AppServices | LegacyEnv>) { // LEGACY-BRIDGE
+  return installed().runFork(withEnv(env, effect)); // LEGACY-BRIDGE
+} // LEGACY-BRIDGE
+
 /** The same, for synchronous services (presence and channel lookups are synchronous in the old code). */
 export function runSync<A, E>(effect: Effect.Effect<A, E, AppServices>): A { // LEGACY-BRIDGE
   const exit = installed().runSyncExit(effect); // LEGACY-BRIDGE

@@ -163,7 +163,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -178,35 +178,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 11 | 6 | 8 |
-| `await` | 24 | 19 | 13 |
-| `.then(` | 3 | 1 | 3 |
-| `.catch(` | 56 | 3 | 27 |
-| `try {` | 2 | 2 | 0 |
+| `async` | 8 | 6 | 8 |
+| `await` | 20 | 19 | 13 |
+| `.then(` | 2 | 1 | 3 |
+| `.catch(` | 53 | 3 | 27 |
+| `try {` | 1 | 2 | 0 |
 | `new Promise` | 2 | 7 | 0 |
-| `setTimeout/Interval` | 9 | 8 | 0 |
-| `AbortController` | 1 | 2 | 0 |
+| `setTimeout/Interval` | 6 | 8 | 0 |
+| `AbortController` | 0 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 10 | 15 | 0 |
-| `Date.now/new Date` | 19 | 0 | 3 |
+| `console.` | 8 | 15 | 0 |
+| `Date.now/new Date` | 10 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 1 | 0 | 1 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 397 | 15 | 0 |
-| `Effect.promise` | 0 | 0 | 1 |
+| `LEGACY-BRIDGE` | 410 | 15 | 0 |
+| `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 1 | 0 |
 | `runPromise` | 0 | 0 | 1 |
-| `runFork` | 0 | 0 | 0 |
+| `runFork` | 0 | 0 | 1 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **538** | **81** | **63** |
+| **total** | **524** | **81** | **65** |
 
 Import cycles: none.
-Per file: legacy.ts 89, main.ts 60, gamenight.ts 45, live.ts 37, spontaneous.ts 31, app.ts 29, scheduler.ts 28, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 92, main.ts 60, gamenight.ts 45, live.ts 37, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -242,6 +242,23 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
+- 2026-11-11 (this commit) scheduler (Ticker, start timers in a FiberMap; tests 8 `starts.test.ts`, 9
+  `ticker.test.ts`): broken: firing a second early (red), no catch-up (red), a minute forked so
+  minutes overlap (red), the watchdog repeating (red) or never firing (red), a start timer armed
+  again each minute (red), start timers outliving the term (red), no net on the minute (red),
+  sinceTick kept after stop (red).
+- 2026-11-11 `27b8e7e` http (HttpRouter; test 13 `d5705d9`, `2b77fb3`): broken: an unknown action
+  answered 200 (red), no body limit (red), the admin check skipped (red), a shutting-down copy
+  saying it's fine (red); our failures not reported and a broken tap's apology lost stayed green:
+  tests added, red since.
+- 2026-11-11 `f835117` interactions (payload Schema, `Tap` union, Match): broken: /meme's message
+  not stored (recordings red), a refused tap on your panel not tracked (recordings red); a
+  stranger's poll vote, a changed vote touching the streak row, an unclamped stats offset, the
+  retired tiebreaker reply and a blank room form stayed green: tests `bdc3332`, red since.
+- 2026-11-11 `a11bdc4` jobs (Jobs, the per-job boundary): broken: the daily's message not stored
+  (recordings red), a failed post keeping its claim (red), a no-votes recap keeping its claim
+  (red); one failing job stopping the rest, posting an hour early and a failed thread failing the
+  post stayed green: tests `6a06611`, red since.
 - 2026-11-11 `ae0c46e` config (AppConfig, Overrides, the bridge): tests 1, 2, 5. Broken: `quiet`
   ignoring Overrides (red), the bridge dropping stand-in players (red), a secret not redacted (red).
 - 2026-11-11 `35b4a40` logging (logfmt): broken by dropping the logger layer (red).
@@ -532,6 +549,15 @@ timeout), with the evidence.
   pick on the Lobby question call `openRoom` inside their region, so its wait for another tap's
   room (up to 14 s) and Discord's retries are uninterruptible there too (the claim before them must
   be followed through). Shutdown's 35 s cap still ends the process, as it ended the old promises.
+- **The ticker is a §6 boundary** (phase 5, step 4; architecture.md §6 amended): today each minute
+  (`tick().catch(…"the minute jobs")`) and each start timer (`.catch(…"starting the game night on
+  time")`) reports whatever it lets through and the clock goes on. Kept: one `catchCause` for each,
+  same wording, interrupts re-raised. Without it a defect would end the leader's clock silently
+  (the watchdog only sees a minute that runs too long, not one that never comes).
+- **A term's end interrupts the running minute** (phase 5, step 4): the old `stop()` waited for it.
+  Every claim in the minute's jobs is uninterruptible from the claim on (test 6), so an interrupted
+  minute leaves each job done or not started, and `stop` returns once nothing of the term runs
+  (the old one could hand over while a slow minute still ran past shutdown's 15 s).
 - **Reddit's refill fiber is background work** (a §6 boundary, like `Background`'s tasks): its
   `catchCause` reports any failure with the refill's own rule (logged while the pool is fresh, a DM
   after 12 h). architecture.md §6 amended.
