@@ -273,20 +273,26 @@ or a browser, or you aren't sure), answer null.`,
         const game = of.get(hit[0])!;
         if (open.some((r) => r.game.toLowerCase() === game.toLowerCase())) return;
         const day = time.at(t).day;
-        const [claim] = yield* db.insert(readyRooms).values({ day, game, at: t }).onConflictDoNothing().returning({ day: readyRooms.day });
-        if (!claim) return;
-        yield* Effect.gen(function* () {
-          const r = yield* voice.openRoom(game, yield* games.emojiFor(game), { move: false });
-          yield* Effect.logInfo(`room ready ahead ${game} ${r.channelId}`);
-        }).pipe(
-          Effect.catch((e) =>
-            Effect.andThen(db.delete(readyRooms).where(and(eq(readyRooms.day, day), eq(readyRooms.game, game))), alerts.failed("getting a game room ready", e, game)),
-          ),
+        // claim → room, never cut short (architecture §15); the claim goes back only on a failure
+        yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const [claim] = yield* db.insert(readyRooms).values({ day, game, at: t }).onConflictDoNothing().returning({ day: readyRooms.day });
+            if (!claim) return;
+            yield* Effect.gen(function* () {
+              const r = yield* voice.openRoom(game, yield* games.emojiFor(game), { move: false });
+              yield* Effect.logInfo(`room ready ahead ${game} ${r.channelId}`);
+            }).pipe(
+              Effect.catch((e) =>
+                Effect.andThen(db.delete(readyRooms).where(and(eq(readyRooms.day, day), eq(readyRooms.game, game))), alerts.failed("getting a game room ready", e, game)),
+              ),
+            );
+          }),
         );
       });
 
       /** Two of us in the Lobby playing the same game: straight to its room, with ↩ in case we're wrong. */
-      const autoMove = Effect.fnUntraced(function* (game: string, by: ReadonlyArray<string>, t: number) {
+      const autoMove = (game: string, by: ReadonlyArray<string>, t: number) => Effect.uninterruptible(autoMoveOnce(game, by, t)); // claim → move → note (§15)
+      const autoMoveOnce = Effect.fnUntraced(function* (game: string, by: ReadonlyArray<string>, t: number) {
         const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "moved", game }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
         if (!claim) return;
         yield* Effect.gen(function* () {
@@ -339,19 +345,25 @@ or a browser, or you aren't sure), answer null.`,
         };
       });
 
-      /** Claim this gathering's question, then post it; a failed post leaves the gathering quiet. */
-      const ask = Effect.fnUntraced(function* (t: number, first: string | null, activity: string | null) {
-        const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "open", activity }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
-        if (!claim) return;
-        yield* Effect.gen(function* () {
-          const msg = yield* discord.createMessage(lobbyId, yield* questionMessage(claim.id, first));
-          yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
-        }).pipe(
-          Effect.catch((e) =>
-            Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("asking the Lobby what we're playing", e)),
-          ),
+      /**
+       * Claim this gathering's question, then post it; a failed post leaves the gathering quiet.
+       * Claim → post → record is never cut short (architecture §15).
+       */
+      const ask = (t: number, first: string | null, activity: string | null) =>
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "open", activity }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
+            if (!claim) return;
+            yield* Effect.gen(function* () {
+              const msg = yield* discord.createMessage(lobbyId, yield* questionMessage(claim.id, first));
+              yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
+            }).pipe(
+              Effect.catch((e) =>
+                Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("asking the Lobby what we're playing", e)),
+              ),
+            );
+          }),
         );
-      });
 
       const closePrompt = Effect.fnUntraced(function* (p: Prompt, state: "expired" | "dismissed") {
         const done = yield* db
@@ -464,15 +476,19 @@ or a browser, or you aren't sure), answer null.`,
         const r = busy[0];
         // came out of that very room (to chat in the Lobby, say): that's on purpose
         if (r.pulled.includes(user) || from === r.channel_id) return;
-        // claim first, so a quick out-and-back can't pull twice
-        const claimed = yield* db
-          .update(rooms)
-          .set({ pulled: sql`${rooms.pulled} || ${JSON.stringify([user])}::jsonb` })
-          .where(and(eq(rooms.channel_id, r.channel_id), not(sql`${rooms.pulled} ? ${user}`)))
-          .returning({ id: rooms.channel_id });
-        if (!claimed.length) return;
-        yield* discord.moveMember(user, r.channel_id);
-        yield* note(r.channel_id, `👋 Pulled ${mention(user)} in from the Lobby: ${names(inRoom(r))} ${inRoom(r).length === 1 ? "is" : "are"} here.`, [user], t);
+        // claim first, so a quick out-and-back can't pull twice; claim → move → note is never cut short
+        yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const claimed = yield* db
+              .update(rooms)
+              .set({ pulled: sql`${rooms.pulled} || ${JSON.stringify([user])}::jsonb` })
+              .where(and(eq(rooms.channel_id, r.channel_id), not(sql`${rooms.pulled} ? ${user}`)))
+              .returning({ id: rooms.channel_id });
+            if (!claimed.length) return;
+            yield* discord.moveMember(user, r.channel_id);
+            yield* note(r.channel_id, `👋 Pulled ${mention(user)} in from the Lobby: ${names(inRoom(r))} ${inRoom(r).length === 1 ? "is" : "are"} here.`, [user], t);
+          }),
+        );
       });
 
       const goBack = Effect.fn("Spontaneous.goBack")(function* (channel: string, users: ReadonlyArray<string>, messageId: string | undefined, at?: number) {
@@ -524,7 +540,9 @@ or a browser, or you aren't sure), answer null.`,
         yield* db.update(sessions).set({ line }).where(sessionIs(s));
       });
 
-      const postLine = Effect.fnUntraced(function* (s: Session, here: ReadonlyArray<string>) {
+      /** Claim → post → record, never cut short (architecture §15). */
+      const postLine = (s: Session, here: ReadonlyArray<string>) => Effect.uninterruptible(postLineOnce(s, here));
+      const postLineOnce = Effect.fnUntraced(function* (s: Session, here: ReadonlyArray<string>) {
         const claimed = yield* db
           .update(sessions)
           .set({ message_id: "posting" })

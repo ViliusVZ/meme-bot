@@ -250,12 +250,35 @@ export class Voice extends Context.Service<
         }
         if (!room) {
           const placeholder = `${PENDING}${game.toLowerCase()}`;
-          const claim = yield* db
-            .insert(rooms)
-            .values({ channel_id: placeholder, game, day: opts.day ?? null, created_by: opts.by ?? null, created_at: yield* nowSec })
-            .onConflictDoNothing()
-            .returning({ id: rooms.channel_id });
-          if (!claim.length) {
+          // claim → channel → real id is one piece that's never cut short (architecture §15): the
+          // claim is given back only when Discord or the database said no
+          const made = yield* Effect.uninterruptible(
+            Effect.gen(function* () {
+              const claim = yield* db
+                .insert(rooms)
+                .values({ channel_id: placeholder, game, day: opts.day ?? null, created_by: opts.by ?? null, created_at: yield* nowSec })
+                .onConflictDoNothing()
+                .returning({ id: rooms.channel_id });
+              if (!claim.length) return { taken: true } as const;
+              const raced = yield* latestRoom(game);
+              if (raced) {
+                // another click finished creating this game's room between our first look and our claim
+                yield* db.delete(rooms).where(eq(rooms.channel_id, placeholder));
+                return { raced } as const;
+              }
+              return yield* Effect.gen(function* () {
+                const ch = yield* discord.createChannel({
+                  name: `${emoji ?? "🎮"} ${game}`.slice(0, 100),
+                  type: 2,
+                  parent_id: config.voiceCategoryId,
+                  bitrate: 96000,
+                });
+                yield* db.update(rooms).set({ channel_id: ch.id }).where(eq(rooms.channel_id, placeholder));
+                return { channelId: ch.id } as const;
+              }).pipe(Effect.tapError(() => db.delete(rooms).where(eq(rooms.channel_id, placeholder))));
+            }),
+          );
+          if ("taken" in made) {
             // someone else is creating this game's room right now: use theirs
             for (let i = 0; i < CLAIM_POLLS && !room; i++) {
               yield* Effect.sleep(CLAIM_POLL);
@@ -263,22 +286,12 @@ export class Voice extends Context.Service<
             }
             if (!room) return yield* new RoomStillCreating({ game });
             reused = true;
-          } else if ((room = yield* latestRoom(game))) {
-            // another click finished creating this game's room between our first look and our claim
-            yield* db.delete(rooms).where(eq(rooms.channel_id, placeholder));
+          } else if ("raced" in made) {
+            room = made.raced;
             reused = true;
           } else {
-            room = yield* Effect.gen(function* () {
-              const ch = yield* discord.createChannel({
-                name: `${emoji ?? "🎮"} ${game}`.slice(0, 100),
-                type: 2,
-                parent_id: config.voiceCategoryId,
-                bitrate: 96000,
-              });
-              yield* db.update(rooms).set({ channel_id: ch.id }).where(eq(rooms.channel_id, placeholder));
-              yield* placeAfterLobby(ch.id);
-              return (yield* db.select().from(rooms).where(eq(rooms.channel_id, ch.id)))[0];
-            }).pipe(Effect.tapError(() => db.delete(rooms).where(eq(rooms.channel_id, placeholder))));
+            yield* placeAfterLobby(made.channelId);
+            room = (yield* db.select().from(rooms).where(eq(rooms.channel_id, made.channelId)))[0];
           }
         }
         // a room reused for a game night belongs to that night now (late handling looks it up by day),

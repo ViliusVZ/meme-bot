@@ -70,6 +70,24 @@ export class Attendances extends Context.Service<
         return slipFor(day, user, row, n.game!, n.start_at ?? undefined, room?.channel_id);
       });
 
+      /** An ETA from now, on their slip: posted now if they had none, its id recorded. */
+      const etaOnSlip = Effect.fnUntraced(function* (day: string, user: string, mins: number) {
+        const r = yield* put(day, user, { state: "eta", eta: (yield* nowSec) + mins * 60 });
+        const body = yield* render(day, user);
+        if (r.message_id) {
+          yield* discord.editMessage(config.gameChannelId, r.message_id, body).pipe(Effect.ignore);
+        } else {
+          const [n] = yield* db.select({ message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
+          const msg = yield* discord.createMessage(config.gameChannelId, {
+            ...body,
+            allowed_mentions: { parse: [] },
+            message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+          });
+          yield* db.update(nightAttendance).set({ message_id: msg.id }).where(and(eq(nightAttendance.day, day), eq(nightAttendance.user_id, user)));
+        }
+        return `Got it 🏃 ETA <t:${r.eta}:t>. Everyone can see it on your slip.`;
+      });
+
       return Attendances.of({
         get,
         put,
@@ -92,20 +110,8 @@ export class Attendances extends Context.Service<
           const [room] = yield* db.select({ channel_id: rooms.channel_id }).from(rooms).where(and(eq(rooms.day, day), isNull(rooms.archived_at), real));
           const inRoom = room && (yield* voice.voiceChannel(user).pipe(Effect.catch(() => Effect.succeed(null)))) === room.channel_id;
           if (row?.state === "arrived" || inRoom) return "You're already here 👋";
-          const r = yield* put(day, user, { state: "eta", eta: (yield* nowSec) + mins * 60 });
-          const body = yield* render(day, user);
-          if (r.message_id) {
-            yield* discord.editMessage(config.gameChannelId, r.message_id, body).pipe(Effect.ignore);
-          } else {
-            const [n] = yield* db.select({ message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
-            const msg = yield* discord.createMessage(config.gameChannelId, {
-              ...body,
-              allowed_mentions: { parse: [] },
-              message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-            });
-            yield* db.update(nightAttendance).set({ message_id: msg.id }).where(and(eq(nightAttendance.day, day), eq(nightAttendance.user_id, user)));
-          }
-          return `Got it 🏃 ETA <t:${r.eta}:t>. Everyone can see it on your slip.`;
+          // the ETA → the slip → its id is never cut short (architecture §15)
+          return yield* Effect.uninterruptible(etaOnSlip(day, user, mins));
         }),
         markArrived: Effect.fn("Attendances.markArrived")(function* (day: string, users: ReadonlyArray<string>) {
           for (const u of users) yield* put(day, u, { state: "arrived", arrived_at: yield* nowSec });

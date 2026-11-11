@@ -70,6 +70,8 @@ export type Harness = {
   calls: Call[];
   /** This test's own answers; reset to null before each test. */
   override: Route | null;
+  /** The app's runtime for this file (a test that forks a service call and interrupts it). */
+  runtime: ReturnType<typeof makeRuntime>;
   /**
    * Declare that this test races on purpose (several callers at once, one wins), so which one wins
    * isn't fixed, nor how many calls it takes (two may both post, then the loser deletes its copy).
@@ -290,6 +292,7 @@ export function harness(o: Options = {}): Harness {
     // (on this file's throwaway schema, the same one the old pool uses)
     runtime = makeRuntime(configFromEnv(h.env, { databaseUrl: url() }), h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {});
     await runtime.context();
+    h.runtime = runtime;
     install(runtime);
   });
   afterAll(async () => {
