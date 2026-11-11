@@ -84,6 +84,16 @@
   ],
   "test \"a racing duplicate check doesn't open a second segment\"": [
    "expect.toBe(1)"
+  ],
+  "test \"a recap that fails to post is tried again the next minute\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ \"games-week:2026-11-02\": \"posted\" })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the monthly recap comes on the 1st, and only then\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({ \"games-month:2026-11-01\": \"posted\" })",
+   "expect.toMatch(/Monthly recap · November 2026/)"
   ]
  },
  "alerts.test.ts": {

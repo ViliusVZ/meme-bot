@@ -205,3 +205,44 @@ test("a racing duplicate check doesn't open a second segment", async () => {
   await Promise.all([act.track(env, where({ a: LOBBY }), at(0)), act.track(env, where({ a: LOBBY }), at(0))]);
   expect((await segs()).length).toBe(1);
 });
+
+test("a recap that fails to post is tried again the next minute", async () => {
+  let fail = true;
+  const posts: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    if (fail) return new Response(JSON.stringify({ message: "Missing Access", code: 50001 }), { status: 403, headers: { "Content-Type": "application/json" } });
+    posts.push(String(url));
+    return new Response(JSON.stringify({ id: "1" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    await put(seg("a", REPO, 0, 2, "R.E.P.O."), seg("b", REPO, 0, 2, "R.E.P.O."));
+    vi.setSystemTime(Date.parse("2026-11-09T08:05:00Z")); // Monday 10:05
+    await expect(act.recaps(env)).rejects.toThrow(/403/);
+    fail = false;
+    vi.setSystemTime(Date.parse("2026-11-09T08:06:00Z"));
+    expect(await act.recaps(env)).toEqual({ "games-week:2026-11-02": "posted" });
+    expect(posts).toHaveLength(1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the monthly recap comes on the 1st, and only then", async () => {
+  const posts: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    posts.push(String(init.body));
+    return new Response(JSON.stringify({ id: "1" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    await put(seg("a", REPO, 0, 2, "R.E.P.O."), seg("b", REPO, 0, 2, "R.E.P.O."));
+    vi.setSystemTime(Date.parse("2026-12-02T08:05:00Z")); // Wednesday 2 Dec 10:05
+    expect(await act.recaps(env)).toEqual({});
+    vi.setSystemTime(Date.parse("2026-12-01T08:05:00Z")); // Tuesday 1 Dec 10:05
+    expect(await act.recaps(env)).toEqual({ "games-month:2026-11-01": "posted" });
+    expect(posts.join("")).toMatch(/Monthly recap · November 2026/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
