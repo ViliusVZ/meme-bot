@@ -5,14 +5,21 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00
+- **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00. Done: steps 1 (ledger), 2
+  (harness), 3 (no import cycles), 4 (recorder, deterministic), 5 (Discord error fixtures), 6
+  (`leftovers.mjs`, `soak_watch.py`, `gates.sh`, all self-checked). Left: step 7 (numbers: the
+  live QA suites on the test bot, tap timings, memory), step 8 (ship), the audit, the phase note.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect` (one branch for everything,
-  owner's changes 2026-11-11)
+  owner's changes 2026-11-11). Local Postgres for the gates: see "Deviations".
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
-- **Next step:** phase 0 step 1 (qcov.py into the repo, then the assertion ledger)
+- **Next step:** deploy `effect` to the test bot, run every QA suite for the baseline numbers
 - **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
   `f401685`, plan 02 still on `wow-news`, unmerged.
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
+- **Gotchas learned:** never write code containing `
+` through a Python heredoc (it becomes a
+  real newline; use the Edit tool). `git checkout --` on a file added with `git add -N` empties
+  it. Run long commands detached or in the background; a tool timeout kills its children.
 
 ## Phases
 
@@ -31,15 +38,49 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Numbers
 
+<!-- leftovers -->
+| Pattern | Outside boundary files | In boundary files |
+|---|---|---|
+| `async` | 197 | 5 |
+| `await` | 664 | 19 |
+| `.then(` | 23 | 1 |
+| `.catch(` | 59 | 3 |
+| `try {` | 38 | 2 |
+| `new Promise` | 8 | 7 |
+| `setTimeout/Interval` | 15 | 8 |
+| `AbortController` | 1 | 2 |
+| `AbortSignal` | 7 | 2 |
+| `fetch(` | 4 | 0 |
+| `console.` | 37 | 15 |
+| `Date.now/new Date` | 82 | 0 |
+| `Math.random` | 1 | 0 |
+| `process.env` | 4 | 0 |
+| `: any` | 12 | 0 |
+| `as any` | 2 | 0 |
+| `_reset` | 4 | 0 |
+| `LEGACY-BRIDGE` | 0 | 0 |
+| `Effect.promise` | 0 | 0 |
+| `Effect.tryPromise` | 0 | 0 |
+| `runPromise` | 0 | 0 |
+| `runFork` | 0 | 0 |
+| `Effect.orDie` | 0 | 0 |
+| `@effect-diagnostics` | 0 | 0 |
+| `@ts-` | 0 | 0 |
+| **total** | **1158** | **64** |
+
+Import cycles: none.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, interactions.ts 76, app.ts 51, main.ts 46, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 27, cleanup.ts 19, gateway.ts 18, alerts.ts 17, memeshame.ts 17, gemini.ts 15, panels.ts 15, games.ts 8, roasts.ts 8, background.ts 7, localtime.ts 5, presence.ts 5, nights.ts 3, hub.ts 2, channels.ts 1, env.ts 1.
+<!-- /leftovers -->
+
 Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 | Measure | Baseline (phase 0) | Now |
 |---|---|---|
-| Tests passed | 580 (9 files, 2026-11-11, before any change) | |
+| Tests passed | 580 before any change; 586 with the Discord-error tests (10 files) | |
 | Query sites found / executed | 210 / 210 | |
 | Recordings differing | 0 | |
-| Assertion ledger | identical | |
-| Leftovers (G6 total; per-pattern table below) | | |
+| Assertion ledger | 741 assertions (728 at the start, 13 from the Discord-error tests) | |
+| Leftovers (G6 total; per-pattern table below) | 1158 outside boundary files, 64 inside (after the phase 0 moves) | |
 | `qa_all.py` | | |
 | `qa_timing.py` | | |
 | `qa_rooms.py` | | |
@@ -91,7 +132,31 @@ One line per module: date, commit, the three break-it changes tried (`verificati
 
 ## Declared exceptions
 
-- **Unordered call groups** in the recordings (`verification.md` §2a): none yet
+- **Unordered call groups** in the recordings (`verification.md` §2a), in `test/harness.ts`
+  `UNORDERED`:
+  - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original`
+    calls is sorted. `panels.ts` `push()` edits every live copy of a card in one `Promise.all`;
+    shown order-only on 2026-11-11 (the b/c copies swapped between two otherwise identical runs).
+- **Declared races** (`h.race(reason)`: no calls recorded, database as row counts only), each a
+  test whose point is several callers at once: flows "17:00 posts one card per day, however many
+  times it runs" (two daily jobs), flows "three people planning the same day at once" (three
+  `startNight`), flows "rooms: one room per game even when two open at once" (two `openRoom`),
+  spontaneous "two taps at the same moment open one room". Shown: the winner, and whether the
+  loser got as far as posting, change with timing (tunnel run and jitter runs).
+- **Body normalisation:** stack frames (`
+    at …` lines) are dropped from request bodies before
+  hashing; alert DMs quote the error's stack, whose frames depend on timing and code shape. The
+  error's message line, the DM's wording and footer still count.
+- **Tests that wait for background work between taps** (setup, not assertions): paths "clicking
+  the card opens your private copy…", matrix "taps: Maybe on the card opens your panel…". Without
+  it the next tap overlapped the previous tap's background work and the panel rows differed.
+- **Timing-sensitive tests** (deterministic under the gate's conditions, five identical runs, but
+  their recordings change under `JITTER=1`, because a tap's reply and its background work overlap
+  and the stub hands out ids in arrival order): flows "a tap on your own panel keeps its note when
+  the panels sync", "panels past Discord's 15 minutes, or dismissed, are let go", "private panels
+  follow the card: one person's vote moves everyone's open panel on". If the migration changes
+  their recordings, compare full dumps (`RECORD=full`): if only the interleaving and the ids that
+  follow from it differ, declare it here with the evidence; anything else is a bug.
 - **Assertion changes** (`verification.md` §2b): none yet
 - **Diagnostics switched off** in boundary files: none yet
 
