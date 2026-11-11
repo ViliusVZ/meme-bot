@@ -7,8 +7,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 - **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
-  its audit is running (subagent). Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts, Panels,
-  Gemini. Next: Snooze, Voice, then Attendance (it needs Voice); deploy, `qa_rooms.py`.
+  its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
+  Panels, Gemini, Snooze. Next: Voice, then Attendance (it needs Voice); deploy, `qa_rooms.py`.
   Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
   phases 0+1 on `main` when production is clear.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -57,7 +57,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
-| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -143,6 +143,8 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `b327d0e` snooze (Snoozes): broken: snooze row not written (red), the until-day
+  boundary `day <= until` (stayed green: test `abafb58` added, red since), wake not announced (red).
 - 2026-11-11 `696ded5` gemini: broken: budget not counted (red), budget off by one (red), answer
   dropped (red). The per-call key of the old env travels through `LegacyGeminiKey` (bridge).
 - 2026-11-11 `a355258` panels (test 7 `2cc538e`): broken: expired copies kept (red), a failed
@@ -348,6 +350,9 @@ timeout), with the evidence.
 
 - **`/meme` picks with Postgres `random()`** (`interactions.ts:244`): not seeded in tests, so the
   recordings only stay stable because the tests that reach it have one candidate.
+- **Recordings depend on a test's place in its file:** tables with serial ids (`games`) are
+  emptied between tests but their sequences run on, so a test added in the middle of a file
+  changes every later test's database snapshot. New tests go at the end of their file.
 - **Not under the harness:** `resilience.test.ts` (fake timers, its own pool) and `time.test.ts`
   (pure functions) have no recordings; their assertions are in the ledger.
 
