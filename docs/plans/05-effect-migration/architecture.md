@@ -118,17 +118,18 @@ both by moving code, before any Effect is written:
 2. `Db` (§8), the HTTP client
 3. `Channels` (cache only, no I/O)
 4. `Discord` (§9; reports its own channel changes into `Channels`). "List channels: from the
-   cache, else over REST" moves here from `channels.ts`.
+   cache, else over REST" moves here from `channels.ts` (phase 0: `discord.ts` `listChannels`).
 5. `Alerts`, `Background`, `Presence`, `Lifecycle`
 6. `LocalTime` (today `local`, `wallToUnix`, `pollHour`, `weekday` in `gamenight.ts`),
    `Games` (today `games`, `addGame`, `removeGame`, `emojiFor`, `gameLabel` in `gamenight.ts`),
    `Nights` (today `getNight`, `isOver`: reading a night's row),
-   `Attendance` (today the data half of `late.ts`: `get`, `expect`, `etas`, `declare`,
-   `markArrived`, `retireSlips`), `Memes`, `Roasts`, `Panels`, `Gemini`
-7. `Snooze`, `Voice`
+   `Memes`, `Roasts`, `Panels`, `Gemini`
+7. `Snooze`, `Voice`, then `Attendance` (today the data half of `late.ts`, now `attendance.ts`:
+   `get`, `expect`, `etas`, `declare`, `markArrived`, `retireSlips`, and the slip's `render`,
+   because `declare` posts the slip and asks `Voice` where the person is; amended in phase 0)
 8. `Spontaneous`, `Reddit`, `News`
 9. `GameNight` (the rest of `gamenight.ts`)
-10. `LateSlips` (today the other half of `late.ts`: `watch`, `act`, `render`; it calls
+10. `LateSlips` (today the other half of `late.ts`: `watch`, `act`; it calls
     `GameNight.bailFromSlip`), `Polls`, `Activity`, `Hub`, `Cleanup`, `MemeShame`
 11. `Jobs`, `Interactions`
 12. `HttpApp`, and the leader-only group: `Gateway`, `Ticker`, `Live`

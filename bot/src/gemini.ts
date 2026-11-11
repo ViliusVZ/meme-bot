@@ -6,7 +6,7 @@
 import { eq } from "drizzle-orm";
 import type { Env } from "./env.js";
 import { settings } from "./db/index.js";
-import { local } from "./gamenight.js";
+import { local } from "./localtime.js";
 
 const MODEL = "gemini-3.8-flash";
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all

@@ -28,16 +28,20 @@ import * as roasts from "./roasts.js";
 import type { Reason } from "./db/index.js";
 import { now } from "./memes.js";
 import * as voice from "./voice.js";
-import * as late from "./late.js";
+import { players } from "./env.js";
+import { local, pollHour, wallToUnix, weekday } from "./localtime.js";
+import { getNight, isOver, type Night } from "./nights.js";
+import { addGame, emojiFor, gameLabel, games, removeGame } from "./games.js";
+import * as attendance from "./attendance.js";
 import * as snooze from "./snooze.js";
 import * as spontaneous from "./spontaneous.js";
 
-export type Night = typeof gameNights.$inferSelect;
-interface Game {
-  name: string;
-  emoji: string | null;
-  plays: number;
-}
+// moved out to break import cycles (plan 05); still offered from here to existing callers
+export { players } from "./env.js";
+export { local, pollHour, wallToUnix, weekday } from "./localtime.js";
+export { getNight, isOver, type Night } from "./nights.js";
+export { addGame, emojiFor, gameLabel, games, removeGame } from "./games.js";
+
 type Votes = Record<string, string>; // user id → choice
 type Defer = (p: Promise<unknown>) => void;
 /** What to tell the clicker privately, and whether the card should be re-rendered. */
@@ -55,7 +59,6 @@ const AFTER_HOLD = 3600; // once a hold is up, the unsure get this long to answe
 const ANSWER: Record<string, string> = { yes: "✅", maybe: "🤔", no: "❌" };
 const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted between midnight and this
 
-export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);
 const mention = (id: string) => `<@${id}>`;
 /** QUIET is set by the admin test route so simulated runs don't notify anyone. */
 const pings = (env: Env, users: string[]) => (env.QUIET ? { parse: [] } : { users });
@@ -73,44 +76,9 @@ const say = (notice: string, update = false): Outcome => ({ notice, update });
 
 // ---------------------------------------------------------------- time
 
-/** Wall-clock parts in the configured timezone. Intl handles Lithuanian DST for us. */
-export function local(env: Env, d = new Date(Date.now())) {
-  const p: Record<string, string> = {};
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: env.TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-  for (const x of fmt.formatToParts(d)) p[x.type] = x.value;
-  return { y: +p.year, m: +p.month, d: +p.day, day: `${p.year}-${p.month}-${p.day}`, hour: +p.hour, minute: +p.minute, hm: `${p.hour}:${p.minute}` };
-}
-
-/** Unix seconds for a wall-clock time in the configured timezone. */
-export function wallToUnix(env: Env, y: number, m: number, d: number, hour: number, minute: number) {
-  const guess = Date.UTC(y, m - 1, d, hour, minute) / 1000;
-  // shift by the zone's offset at that moment (twice, so DST changeover days land right)
-  let t = guess;
-  for (let i = 0; i < 2; i++) {
-    const l = local(env, new Date(t * 1000));
-    t -= Date.UTC(l.y, l.m - 1, l.d, l.hour, l.minute) / 1000 - guess;
-  }
-  return t;
-}
-
 const clock = (env: Env, sec: number) => local(env, new Date(sec * 1000)).hm;
 /** A Discord timestamp: just the time if it's today, else the date too. */
 const stamp = (env: Env, sec: number) => ts(sec, local(env, new Date(sec * 1000)).day === local(env).day ? "t" : "f");
-
-/** Local hour of the automatic daily card on `day`: 17:00, but 14:00 on Saturdays and Sundays. */
-export function pollHour(env: Env, day: string) {
-  const [y, m, d] = day.split("-").map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return Number(dow === 0 || dow === 6 ? env.GAME_POLL_HOUR_WEEKEND : env.GAME_POLL_HOUR);
-}
 
 /** "18:30", or "🌙 00:30" for after midnight. */
 function timeLabel(env: Env, sec: number, day: string) {
@@ -167,11 +135,6 @@ export function parseTime(env: Env, raw: string, day = local(env).day): number |
   return t;
 }
 
-/** "Friday", for cards about a day other than today. */
-export function weekday(env: Env, day: string) {
-  return new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
-}
-
 /** The least time we must all get together, or the night doesn't fit. */
 export const MIN_TOGETHER = 3600;
 
@@ -211,9 +174,6 @@ export function fit(ps: string[], starts: Votes, untils: Votes, soonest: number)
 
 // ---------------------------------------------------------------- storage
 
-export const getNight = async (env: Env, day: string): Promise<Night | null> =>
-  (await env.db.select().from(gameNights).where(eq(gameNights.day, day)))[0] ?? null;
-
 /** Vote buckets: one per stage, plus "until" for optional 🏁 leave-by times (unix seconds). */
 type VoteStage = Stage | "until";
 
@@ -237,26 +197,7 @@ const vote = (env: Env, day: string, stage: VoteStage, user: string, choice: str
 const unvote = (env: Env, day: string, stage: VoteStage, user: string) =>
   env.db.delete(gameNightVotes).where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, stage), eq(gameNightVotes.user_id, user)));
 
-/** The game list, most played first (a dropdown holds 25). */
-export async function games(env: Env, limit = 25): Promise<Game[]> {
-  return env.db
-    .select({ name: gameTable.name, emoji: gameTable.emoji, plays: gameTable.plays })
-    .from(gameTable)
-    .orderBy(desc(gameTable.plays), asc(gameTable.seq))
-    .limit(limit);
-}
 
-/** Adds a game if it's new; returns its stored name (names are case-insensitive). */
-export async function addGame(env: Env, raw: string, user: string) {
-  const name = raw.replace(/\s+/g, " ").trim().slice(0, 60);
-  if (!name) return null;
-  await env.db.insert(gameTable).values({ name, emoji: null, added_by: user, added_at: now() }).onConflictDoNothing();
-  return (await env.db.select({ name: gameTable.name }).from(gameTable).where(eq(gameTable.name, name)))[0].name;
-}
-
-export const removeGame = (env: Env, name: string) => env.db.delete(gameTable).where(eq(gameTable.name, name));
-
-/** Compare-and-set on the stage, so concurrent clicks can only advance a night once. */
 async function advance(env: Env, day: string, from: Stage, to: Stage, set: { game?: string; start_at?: number; note?: string | null } = {}) {
   const r = await env.db
     .update(gameNights)
@@ -422,17 +363,6 @@ export async function refreshOpen(env: Env) {
     .from(gameNights)
     .where(and(gte(gameNights.day, local(env).day), inArray(gameNights.stage, OPEN)));
   for (const { day } of open) await refresh(env, day);
-}
-
-/**
- * Is an unfinished card past its time? Asking and game picking end at midnight, but time picking
- * runs until the small hours, because 🌙 after-midnight starts (up to 06:00) are fair game.
- */
-export function isOver(env: Env, n: { day: string; stage: Stage }) {
-  if (n.day >= local(env).day) return false;
-  if (n.stage !== "time") return true;
-  const [y, mo, d] = n.day.split("-").map(Number);
-  return nowSec() >= wallToUnix(env, y, mo, d, 0, 0) + 30 * 3600;
 }
 
 /** Cards left open past their time get closed so their buttons stop working. */
@@ -643,12 +573,12 @@ export async function act(env: Env, day: string, user: string, action: string, v
 async function runningLate(env: Env, n: Night, user: string, mins: number, defer: Defer): Promise<Outcome> {
   const t = nowSec();
   if (n.start_at! < t - 3 * 3600) return say("That game night is already history 🕰️");
-  if (n.reminded) return say(await late.declare(env, n.day, user, mins));
+  if (n.reminded) return say(await attendance.declare(env, n.day, user, mins));
   const planned = n.planned_start ?? n.start_at!;
   const eta = planned + mins * 60;
-  const mine = (await late.etas(env, n.day))[user];
+  const mine = (await attendance.etas(env, n.day))[user];
   const undo = mine === eta;
-  await late.expect(env, n.day, user, undo ? null : eta);
+  await attendance.expect(env, n.day, user, undo ? null : eta);
   // one statement over every ETA on record, so two taps at once can't leave the start too early;
   // and never in the past (taking it back after the planned time means: start now)
   const latest = sql`(SELECT MAX(${nightAttendance.eta}) FROM ${nightAttendance} WHERE ${nightAttendance.day} = ${n.day} AND ${nightAttendance.state} = 'eta')`;
@@ -657,7 +587,7 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
     .set({ start_at: sql`GREATEST(${planned}::bigint, COALESCE(${latest}, 0), ${t + 60}::bigint)`, planned_start: planned })
     .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false)))
     .returning({ start: gameNights.start_at });
-  if (!moved.length) return say(await late.declare(env, n.day, user, mins)); // it started a moment ago
+  if (!moved.length) return say(await attendance.declare(env, n.day, user, mins)); // it started a moment ago
   const start = moved[0].start!;
   const at = (x: number) => timeLabel(env, x, n.day);
   if (start !== n.start_at) defer(startMoved(env, n, start, user, undo ? null : mins));
@@ -831,13 +761,6 @@ function onNightDay(env: Env, day: string, t: number) {
   return t >= dayStart && t <= dayStart + 30 * 3600;
 }
 
-/** "👻 Phasmophobia", using each game's emoji. */
-export async function gameLabel(env: Env) {
-  const list = await env.db.select({ name: gameTable.name, emoji: gameTable.emoji }).from(gameTable);
-  const emoji = new Map(list.map((g) => [g.name.toLowerCase(), g.emoji]));
-  return (g: string) => `${emoji.get(g.toLowerCase()) ?? "🎮"} ${g}`;
-}
-
 /**
  * Stage changes only edit the card, which doesn't notify anyone. When a stage needs someone's
  * input, ping them once; the previous nudge is deleted so the channel stays tidy.
@@ -959,7 +882,7 @@ async function afterBail(env: Env, n: Night) {
       : api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`)
     ).catch(() => {});
   }
-  await late.retireSlips(env, n.day).catch((e) => alerts.failed("tidying the late slips", e, n.day));
+  await attendance.retireSlips(env, n.day).catch((e) => alerts.failed("tidying the late slips", e, n.day));
   await postRoast(env, n.day);
 }
 
@@ -1126,7 +1049,7 @@ async function startReminder(env: Env, n: Night, at?: number) {
     : null;
   if (room) {
     const moved = await voice.moveFromLobby(env, room.channelId).catch((e) => (alerts.failed("moving people from the Lobby", e, n.day), [] as string[]));
-    await late.markArrived(env, n.day, moved);
+    await attendance.markArrived(env, n.day, moved);
     where = `Room: <#${room.channelId}>${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`;
   }
   await live;
@@ -1213,11 +1136,6 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
 export const notify = (env: Env, token: string, notice: string) => followup(env, token, { content: notice, flags: EPHEMERAL });
 
 // ---------------------------------------------------------------- rendering
-
-export async function emojiFor(env: Env, game: string) {
-  const [g] = await env.db.select({ emoji: gameTable.emoji }).from(gameTable).where(eq(gameTable.name, game));
-  return g?.emoji ?? "🎮";
-}
 
 const text = (content: string) => ({ type: 10, content });
 const row = (...components: unknown[]) => ({ type: 1, components });
@@ -1396,7 +1314,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       const gameVotes = await gameVotesLine(env, day);
       const endLine = end === null ? "" : `\n🏁 until **${timeLabel(env, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
       // ⏰ who said they'd be late (before the start; after it, their slips say it)
-      const lateBy = n.reminded ? {} : await late.etas(env, day);
+      const lateBy = n.reminded ? {} : await attendance.etas(env, day);
       const planned = n.planned_start ?? n.start_at!;
       const lateLine = Object.keys(lateBy).length
         ? `\n⏰ Running late: ${ps

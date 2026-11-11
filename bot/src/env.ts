@@ -72,3 +72,6 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
     GEMINI_API_KEY: e.GEMINI_API_KEY || undefined,
   };
 }
+
+/** The trio's user ids (moved here from gamenight.ts: everything below it needs them). */
+export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);

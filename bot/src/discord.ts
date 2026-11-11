@@ -92,6 +92,11 @@ function noteChannels(env: Env, method: string, path: string, body: unknown, dat
   if (method === "DELETE") channels.remove(m[1]);
 }
 
+/** All channels: from the live cache, or over REST when we don't have one (moved from channels.ts). */
+export async function listChannels(env: Env): Promise<channels.Channel[]> {
+  return channels.cached() ?? api(env, "GET", `/guilds/${env.GUILD_ID}/channels`);
+}
+
 /** True when an api() error is Discord's 404 (the thing is gone). */
 export const isNotFound = (e: unknown) => / -> 404 /.test(String(e));
 

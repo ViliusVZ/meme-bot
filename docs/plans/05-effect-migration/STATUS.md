@@ -77,6 +77,18 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   with the cutover if the deploy rule blocks); plan 02 not waited for; the cutover go given in
   advance; test 16's timeouts from production's `minute … ms` log lines.
 
+- **2026-11-11, phase 0 step 3:** `declare` needs the slip renderer and `Voice`, so `render` and
+  `slip` moved to `attendance.ts` with it, and `Attendance` sits after `Voice` (layer 7), not in
+  layer 6. `late.ts` keeps `watch`, `act` and re-exports the rest. `gamenight.ts` re-exports what
+  moved out (`players`, `local`, `wallToUnix`, `pollHour`, `weekday`, `getNight`, `isOver`, the
+  game list), so callers above it didn't change. architecture.md §4 amended.
+- **2026-11-11, gates on a local Postgres 18.6** (the production major and minor) on port 55433,
+  instead of the tunnel: 16 s for the suite instead of 290 s. Same recordings as the tunnel run
+  apart from timing-dependent tests (below). Start it with
+  `powershell -File <scratchpad>\pg-start.ps1`; gates with
+  `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres bash scripts/gates.sh`.
+  CI keeps its own Postgres service; the tunnel stays available.
+
 ## Declared exceptions
 
 - **Unordered call groups** in the recordings (`verification.md` §2a): none yet

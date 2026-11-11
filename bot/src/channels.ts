@@ -2,8 +2,6 @@
 // UPDATE and DELETE keep it current) and from our own channel calls (discord.ts reports them, so a
 // channel we just made is known before its event arrives). Room upkeep reads it every minute and on
 // every room it opens, which over REST would run into Discord's rate limit on that endpoint.
-import type { Env } from "./env.js";
-
 export type Channel = { id: string; name: string; type: number; position: number; parent_id?: string | null };
 
 const cache = new Map<string, Channel>();
@@ -37,11 +35,9 @@ export function invalidate() {
 
 const slim = (c: Channel): Channel => ({ id: c.id, name: c.name, type: c.type, position: c.position, parent_id: c.parent_id ?? null });
 
-/** All channels: from the live cache, or over REST when we don't have one. */
-export async function list(env: Env): Promise<Channel[]> {
-  if (ready) return [...cache.values()];
-  const { api } = await import("./discord.js");
-  return api(env, "GET", `/guilds/${env.GUILD_ID}/channels`);
+/** The cached list, or null before the gateway has sent one. */
+export function cached(): Channel[] | null {
+  return ready ? [...cache.values()] : null;
 }
 
 /** Tests only. */
