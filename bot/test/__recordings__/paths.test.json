@@ -468,5 +468,40 @@
    "games": "8:1134d6e24e08",
    "polls": "1:b32b0c016eb1"
   }
+ },
+ "🧹 a sweep that fails is tried again the next minute": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567916399001600001 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "recaps": "1:92779ec0676a"
+  }
+ },
+ "🧹 the sweep goes back page by page, 100 at a time": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100&before=1567916399001600101 -",
+   "POST https://discord.com/api/v10/channels/gn/messages/bulk-delete dcd8cc6bf50a",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567916399001600001 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08"
+  }
+ },
+ "🧹 a night that started in the last 6 hours keeps its card through the sweep": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "game_nights": "1:e08e1890459e",
+   "games": "8:1134d6e24e08"
+  }
  }
 }

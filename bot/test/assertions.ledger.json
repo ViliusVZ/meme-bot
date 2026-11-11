@@ -833,6 +833,16 @@
    "expect.toHaveLength(1)",
    "expect.toEqual({ notice: \"🗳️ Took your vote back.\", update: true })",
    "expect.toEqual([])"
+  ],
+  "test \"🧹 a sweep that fails is tried again the next minute\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ deleted: 1, kept: 0 })"
+  ],
+  "test \"🧹 the sweep goes back page by page, 100 at a time\"": [
+   "expect.toEqual({ deleted: 101, kept: 0 })"
+  ],
+  "test \"🧹 a night that started in the last 6 hours keeps its card through the sweep\"": [
+   "expect.toEqual({ deleted: 0, kept: 1 })"
   ]
  },
  "reddit.test.ts": {

@@ -594,3 +594,46 @@ test("a poll: tapping your answer again takes your vote back", async () => {
   expect(await polls.pollAct(env, id, "a", "0")).toEqual({ notice: "🗳️ Took your vote back.", update: true });
   expect(await t.db.select().from(pollVotes).where(eq(pollVotes.poll_id, id))).toEqual([]);
 });
+
+test("🧹 a sweep that fails is tried again the next minute", async () => {
+  const { snowflakeAt, nightly } = await import("../src/cleanup.js");
+  vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
+  const old = snowflakeAt(Date.parse("2026-11-05T15:00:00Z"), 1);
+  let down = true;
+  h.override = (c) => {
+    if (c.path === "/users/@me") return json({ id: "bot" });
+    if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return down ? json({ message: "Missing Access", code: 50001 }, 403) : json([{ id: old, author: { id: "bot" } }]);
+    return undefined;
+  };
+  await expect(nightly(env)).rejects.toThrow(/403/);
+  down = false;
+  vi.setSystemTime(Date.parse("2026-11-06T01:06:00Z"));
+  expect(await nightly(env)).toEqual({ deleted: 1, kept: 0 });
+});
+
+test("🧹 the sweep goes back page by page, 100 at a time", async () => {
+  const { snowflakeAt, sweep } = await import("../src/cleanup.js");
+  vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z"));
+  const old = Date.parse("2026-11-05T15:00:00Z");
+  const first = Array.from({ length: 100 }, (_, i) => ({ id: snowflakeAt(old, 200 - i), author: { id: "bot" } })); // newest first
+  const second = [{ id: snowflakeAt(old, 1), author: { id: "bot" } }];
+  h.override = (c) => {
+    if (c.path === "/users/@me") return json({ id: "bot" });
+    if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json(c.path.includes(`before=${first[99].id}`) ? second : first);
+    return undefined;
+  };
+  expect(await sweep(env, Date.parse("2026-11-06T01:00:00Z"))).toEqual({ deleted: 101, kept: 0 });
+});
+
+test("🧹 a night that started in the last 6 hours keeps its card through the sweep", async () => {
+  const { snowflakeAt, sweep } = await import("../src/cleanup.js");
+  vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
+  const card = snowflakeAt(Date.parse("2026-11-05T17:00:00Z"), 1);
+  await t.db.insert(gameNights).values({ day: "2026-11-05", stage: "set", game: "R.E.P.O.", start_at: Date.parse("2026-11-05T23:30:00Z") / 1000, reminded: true, message_id: card });
+  h.override = (c) => {
+    if (c.path === "/users/@me") return json({ id: "bot" });
+    if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json([{ id: card, author: { id: "bot" } }]);
+    return undefined;
+  };
+  expect(await sweep(env, Date.parse("2026-11-06T01:00:00Z"))).toEqual({ deleted: 0, kept: 1 });
+});
