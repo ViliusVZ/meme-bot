@@ -15,7 +15,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { Env } from "../src/env.js";
 import { drain } from "../src/background.js";
-import { testDb, testEnv } from "./pg.js";
+import { install, configFromEnv } from "../src/legacy.js";
+import { makeRuntime } from "../src/runtime.js";
+import { testDb, testEnv, url } from "./pg.js";
 
 export type Call = { method: string; path: string; body: any };
 export type TestDb = Awaited<ReturnType<typeof testDb>>;
@@ -204,6 +206,7 @@ export function harness(o: Options = {}): Harness {
   let current: { calls: Entry[]; full: Full["calls"] } = { calls: [], full: [] };
   let tables: string[] = [];
   let nextId = 0;
+  let runtime: ReturnType<typeof makeRuntime> | undefined;
   let nextCopyId = 0;
   let random: { mockRestore(): void } | undefined;
   let racing: { mask: Record<string, string[]>; bodies: boolean; calls: boolean } | null = null;
@@ -283,8 +286,14 @@ export function harness(o: Options = {}): Harness {
       tables = r.rows.map((x: { table_name: string }) => x.table_name);
       await o.setup?.(h.t);
     } else h.env = testEnv({} as never, o.env);
+    // the app's services for this file (plan 05 transition: old code reaches them through legacy.ts)
+    runtime = makeRuntime(configFromEnv(h.env, { databaseUrl: url() }));
+    await runtime.context();
+    install(runtime);
   });
   afterAll(async () => {
+    install(null);
+    await runtime?.dispose();
     Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: realFetch });
     const dir = fileURLToPath(new URL("./__recordings__/", import.meta.url));
     mkdirSync(dir, { recursive: true });

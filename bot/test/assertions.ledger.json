@@ -1181,5 +1181,32 @@
    "expect.toEqual(Object.values(when))",
    "expect.toBe(before)"
   ]
+ },
+ "config.test.ts": {
+  "test \"every missing variable is named in one message, as before\"": [
+   "expect.toBeInstanceOf(ConfigMissing)",
+   "expect.toBe(\"missing environment: DATABASE_URL, DISCORD_TOKEN, DISCORD_PUBLIC_KEY, DISCORD_APP_ID, INGEST_SECRET, ADMIN_SECRET, CHANNEL_ID, GAME_CHANNEL_ID, PLAYERS, LOBBY_CHANNEL_ID, VOICE_CATEGORY_ID\")",
+   "expect.toThrow(\"missing environment: DATABASE_URL, DISCORD_TOKEN\")"
+  ],
+  "test \"defaults, numbers and the player list; the old Env keeps its strings\"": [
+   "expect.toEqual([3000, 10, 17, 14, \"Europe/Vilnius\", \"ProgrammerHumor\"])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toEqual([undefined, false])",
+   "expect.toEqual([3000, \"10\", \"17\", \"a,b,c\", true, undefined])"
+  ],
+  "test \"a secret never appears in logs or when the config is printed\"": [
+   "expect.not.toContain(secret)",
+   "expect.toContain(\"<redacted>\")",
+   "expect.toBe(\"discord-secret-token\")"
+  ],
+  "test \"overrides reach background work: a quiet call's deferred ping is quiet too\"": [
+   "expect.toEqual([false, true])"
+  ],
+  "test \"stand-in players given to an admin call are the players deep code sees\"": [
+   "expect.toEqual([\"qa-1\", \"qa-2\"])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toEqual([\"qa-1\", true])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])"
+  ]
  }
 }
