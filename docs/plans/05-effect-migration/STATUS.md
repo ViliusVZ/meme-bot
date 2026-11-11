@@ -7,8 +7,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 - **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
-  its audit is running (subagent). Phase 4 so far: LocalTime, Games, Nights (`3c31df2`). Next:
-  Attendance, Memes, Roasts (with Random), Panels (test 7), Gemini; then Snooze, Voice.
+  its audit is running (subagent). Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts, Panels,
+  Gemini. Next: Snooze, Voice, then Attendance (it needs Voice); deploy, `qa_rooms.py`.
   Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
   phases 0+1 on `main` when production is clear.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -31,6 +31,24 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   is started detached by `pg-start.ps1`). `git ls-tree` from a subdirectory filters its output
   even for `ref:path` (use `--full-tree`).
 
+## How the work is done (read after a context summary)
+
+- Gates: `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres bash scripts/gates.sh` in
+  `bot/` (24 s). Local Postgres: `powershell -File <scratchpad>/pg-start.ps1` if it isn't running.
+- A module: becomes a `Context.Service` (key from the `deterministicKeys` rule, e.g.
+  `meme-bot/<file>`), methods `Effect.fn("Service.method")`, errors declared; queries `yield* db…`
+  on `Db`; time from `clock.ts` (`nowSec`, `nowIso`) and `LocalTime`; HTTP through `Discord` or
+  `HttpClient`; the old exported functions stay as one-line delegates marked `// LEGACY-BRIDGE`
+  (`run(env, X.use(...))`, `runSync` for synchronous ones, `runDetached` without an env); the
+  layer goes into `runtime.ts` (`AppServices` and `appLayer`, bottom to top).
+- Before each commit: the suite, `node scripts/recordings.mjs` (550 identical to baseline), then
+  three break-it changes (a skipped write, a wrong branch, a swapped/removed side effect); a break
+  that stays green means a missing test: write it first, commit it before the code.
+- Commits: checks and code apart. New tests that pass on the old code first, then the code; or
+  the code first with the new test set aside, then the test. `node scripts/assertions.mjs --add`
+  after adding tests. Never `git stash` bare (a tagged stash plus apply by SHA, or copies).
+- Python heredocs eat backslashes: write scripts with the Write tool, or edit with Edit.
+
 ## Phases
 
 | # | Phase | State | Finished | Notes |
@@ -39,7 +57,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
-| 4 | Feature services | in progress | | LocalTime, Games, Nights |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -54,24 +72,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 164 | 5 | 5 |
-| `await` | 614 | 18 | 7 |
+| `async` | 162 | 5 | 5 |
+| `await` | 608 | 18 | 7 |
 | `.then(` | 18 | 1 | 2 |
-| `.catch(` | 56 | 3 | 2 |
-| `try {` | 33 | 2 | 0 |
+| `.catch(` | 57 | 3 | 2 |
+| `try {` | 32 | 2 | 0 |
 | `new Promise` | 6 | 7 | 0 |
 | `setTimeout/Interval` | 13 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
-| `AbortSignal` | 5 | 2 | 0 |
-| `fetch(` | 2 | 0 | 0 |
-| `console.` | 31 | 15 | 0 |
-| `Date.now/new Date` | 69 | 0 | 1 |
+| `AbortSignal` | 4 | 2 | 0 |
+| `fetch(` | 1 | 0 | 0 |
+| `console.` | 28 | 15 | 0 |
+| `Date.now/new Date` | 68 | 0 | 1 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
 | `: any` | 11 | 0 | 0 |
 | `as any` | 2 | 0 | 0 |
 | `_reset` | 1 | 0 | 3 |
-| `LEGACY-BRIDGE` | 219 | 15 | 0 |
+| `LEGACY-BRIDGE` | 225 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -79,10 +97,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **1247** | **78** | **24** |
+| **total** | **1239** | **78** | **24** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, discord.ts 25, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, gemini.ts 15, env.ts 12, channels.ts 10, panels.ts 7, background.ts 6, games.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 87, interactions.ts 76, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, discord.ts 25, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, env.ts 12, channels.ts 10, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -125,6 +143,16 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `696ded5` gemini: broken: budget not counted (red), budget off by one (red), answer
+  dropped (red). The per-call key of the old env travels through `LegacyGeminiKey` (bridge).
+- 2026-11-11 `a355258` panels (test 7 `2cc538e`): broken: expired copies kept (red), a failed
+  edit's branch (red), a tap not renewing (red); test 7 red without the per-card lock and with
+  one shared lock.
+- 2026-11-11 `d0ba22e` roasts (Random): broken: bag not saved (red), refill every draw (red);
+  "may open a cycle with the last line" stayed green: test added (`cc1104e`), red since.
+- 2026-11-11 `152c71f` memes: broken: claim counting a refusal (red), the vote toggle (red),
+  setMessage skipped (red); streaks never growing stayed green: test added (`3bd2409`), red
+  since. Exposed: `unclaimRecap` was never executed by any test (G3); tested now.
 - 2026-11-11 `3c31df2` localtime, games, nights: broken: game insert skipped (red), blank-name
   branch flipped (red), isOver's stage branch (red), Friday as weekend (red), emoji ignored (red).
 - 2026-11-11 `740e1f6` alerts, background, presence, lifecycle: broken: a repeat not counted (red),
