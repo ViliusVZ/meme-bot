@@ -1514,6 +1514,18 @@
   ],
   "test `${name}: interrupted during the ${step}, everything is done, once`": [
    "expect.toHaveLength(1)"
+  ],
+  "fn nightSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([DAY, \"ask\", true])",
+   "expect.toBe(false)",
+   "expect.toEqual([])",
+   "expect.toBe(true)",
+   "expect.toBe(3)",
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toBe(now())"
   ]
  }
 }

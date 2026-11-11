@@ -18,8 +18,8 @@
 //
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { Clock, DateTime, Effect } from "effect";
+import { and, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer } from "effect";
 import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
 import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
@@ -33,23 +33,14 @@ import { localAt, pollHourOf, wallToUnixIn, weekdayOf } from "./localtime.js";
 import { Alerts } from "./alerts.js";
 import { Panels, type Mine } from "./panels.js";
 import { Snoozes } from "./snooze.js";
+import { Voice } from "./voice.js";
+import { Spontaneous } from "./spontaneous.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
-import { legacyEnv, run } from "./legacy.js"; // LEGACY-BRIDGE
-import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
-import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
+import { run } from "./legacy.js"; // LEGACY-BRIDGE
+import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/index.js";
+import { followup, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import * as panels from "./panels.js";
-import * as alerts from "./alerts.js";
-import * as roasts from "./roasts.js";
-import type { Reason } from "./db/index.js";
-import { now } from "./memes.js";
-import * as voice from "./voice.js";
-import { players } from "./env.js";
-import { local, pollHour, wallToUnix, weekday } from "./localtime.js";
-import { getNight, isOver, type Night } from "./nights.js";
-import { addGame, emojiFor, gameLabel, games, removeGame } from "./games.js";
-import * as attendance from "./attendance.js";
-import * as snooze from "./snooze.js";
-import * as spontaneous from "./spontaneous.js";
+import type { Night } from "./nights.js";
 
 // moved out to break import cycles (plan 05); still offered from here to existing callers
 export { players } from "./env.js";
@@ -75,16 +66,8 @@ const ANSWER: Record<string, string> = { yes: "✅", maybe: "🤔", no: "❌" };
 const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted between midnight and this
 
 const mention = (id: string) => `<@${id}>`;
-/** QUIET is set by the admin test route so simulated runs don't notify anyone. */
-const pings = (env: Env, users: string[]) => (env.QUIET ? { parse: [] } : { users });
 const ts = (sec: number, style: string) => `<t:${sec}:${style}>`;
-const nowSec = () => Math.floor(Date.now() / 1000);
-/** Sleep until `ms` (epoch ms); an abort wakes it early. */
-const sleepUntil = (ms: number, signal?: AbortSignal) =>
-  new Promise<void>((ok) => {
-    const t = setTimeout(ok, Math.max(0, ms - Date.now()));
-    signal?.addEventListener("abort", () => (clearTimeout(t), ok()), { once: true });
-  });
+const nowSec = () => Math.floor(Date.now() / 1000); // LEGACY-BRIDGE
 const ROOM_EARLY = 10; // a night's room opens this many seconds before the start, so the moves land on the dot
 const ok: Outcome = { update: true };
 const say = (notice: string, update = false): Outcome => ({ notice, update });
@@ -1102,8 +1085,7 @@ const maintainAll = Effect.gen(function* () {
     .select()
     .from(gameNights)
     .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), lte(gameNights.start_at, t)));
-  const env = yield* legacyEnv; // LEGACY-BRIDGE
-  for (const n of due) if (n.start_at! >= t - 1800 && (yield* Effect.promise(() => claimStart(env, n)))) done.reminded = n.day; // LEGACY-BRIDGE
+  for (const n of due) if (n.start_at! >= t - 1800 && (yield* claimStart(n))) done.reminded = n.day;
   return done;
 });
 export const maintain = (env: Env) => run(env, maintainAll).catch(asOld); // LEGACY-BRIDGE
@@ -1180,84 +1162,118 @@ const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: b
   }
 });
 
+/** Sleep until `ms` (epoch ms), on the Clock. */
+const sleepUntil = (ms: number) =>
+  Effect.flatMap(Clock.currentTimeMillis, (now) => Effect.sleep(Duration.millis(Math.max(0, ms - now))));
+
+/** Locked-in nights starting after now and by `until` (unix seconds) that haven't started yet. */
+const upcoming = Effect.fnUntraced(function* (until: number) {
+  const db = yield* Db;
+  const now = yield* currentSec;
+  return yield* db
+    .select()
+    .from(gameNights)
+    .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), gt(gameNights.start_at, now), lte(gameNights.start_at, until)));
+});
+export const upcomingStarts = (env: Env, until: number) => run(env, upcoming(until)); // LEGACY-BRIDGE
+
 /**
  * Starts due by `until` (unix seconds): wait for them, open the room a few seconds early, then
  * move everyone and ping at the exact start time. The scheduler calls this every minute for the
  * next two; the claim in claimStart makes overlapping calls harmless.
  */
-export async function preciseStarts(env: Env, until: number) {
+const startsDue = Effect.fnUntraced(function* (until: number) {
   const started: string[] = [];
-  await Promise.all((await upcomingStarts(env, until)).map(async (n) => (await startOnTime(env, n)) && started.push(n.day)));
+  const due = yield* upcoming(until);
+  // every start at once: each waits for its own second
+  yield* Effect.forEach(due, (n) => Effect.map(startAt(n), (ok) => void (ok && started.push(n.day))), { concurrency: "unbounded", discard: true });
   return started;
-}
+});
+export const preciseStarts = (env: Env, until: number) => run(env, startsDue(until)); // LEGACY-BRIDGE
 
-/** Locked-in nights starting after now and by `until` (unix seconds) that haven't started yet. */
-export const upcomingStarts = (env: Env, until: number) =>
-  env.db
-    .select()
-    .from(gameNights)
-    .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), gt(gameNights.start_at, nowSec()), lte(gameNights.start_at, until)));
-
-/** Wait until just before the night's start, then run it on the dot (unless it was cancelled or moved meanwhile). */
-export async function startOnTime(env: Env, n: Night, signal?: AbortSignal) {
-  await sleepUntil((n.start_at! - ROOM_EARLY) * 1000, signal);
-  if (signal?.aborted) return false; // shutting down: the next leader (or the minute job) starts it
-  const fresh = await getNight(env, n.day);
+/**
+ * Wait until just before the night's start, then run it on the dot (unless it was cancelled or moved
+ * meanwhile). `stop` ends the wait early (shutting down: the next leader, or the minute job, starts it).
+ */
+const startAt = Effect.fnUntraced(function* (n: Night, stop: Effect.Effect<void> = Effect.never) {
+  const stopped = yield* sleepUntil((n.start_at! - ROOM_EARLY) * 1000).pipe(Effect.as(false), Effect.raceFirst(Effect.as(stop, true)));
+  if (stopped) return false;
+  const fresh = yield* (yield* Nights).get(n.day);
   if (fresh?.stage !== "set" || fresh.start_at !== n.start_at) return false;
-  return claimStart(env, fresh, fresh.start_at! * 1000);
-}
+  return yield* claimStart(fresh, fresh.start_at! * 1000);
+});
+/** The old signal, as something to wait on. */
+const aborted = (signal?: AbortSignal): Effect.Effect<void> => // LEGACY-BRIDGE
+  signal ? Effect.callback<void>((resume) => (signal.aborted ? resume(Effect.void) : signal.addEventListener("abort", () => resume(Effect.void), { once: true }))) : Effect.never; // LEGACY-BRIDGE
+export const startOnTime = (env: Env, n: Night, signal?: AbortSignal) => run(env, startAt(n, aborted(signal))); // LEGACY-BRIDGE
 
-/** Claim the start (once, whoever gets there first), then run it; a failure releases the claim. */
-async function claimStart(env: Env, n: Night, at?: number) {
-  const claimed = await env.db
-    .update(gameNights)
-    .set({ reminded: true })
-    .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false), eq(gameNights.start_at, n.start_at!)))
-    .returning({ day: gameNights.day });
-  if (!claimed.length) return false;
-  try {
-    await startReminder(env, n, at);
-    await refresh(env, n.day).catch((e) => console.log("card refresh at start", e));
-    // a night counts as played once it actually starts (a locked-in night can still be called off)
-    await env.db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
-    // already playing it unplanned today? Then that session is this night now, counted once
-    await spontaneous.absorb(env, n.day, n.game!).catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day));
-    return true;
-  } catch (e) {
-    // the ping didn't go out: release the claim so the next minute tries again
-    alerts.failed("the start ping", e, n.day);
-    await env.db.update(gameNights).set({ reminded: false }).where(eq(gameNights.day, n.day));
-    return false;
-  }
-}
+/**
+ * Claim the start (once, whoever gets there first), then run it; a failure releases the claim. A
+ * start that has begun finishes (architecture §15): from the claim on it isn't cut short.
+ */
+const claimStart = (n: Night, at?: number) =>
+  Effect.uninterruptible(
+    Effect.gen(function* () {
+      const db = yield* Db;
+      const alerts = yield* Alerts;
+      const claimed = yield* db
+        .update(gameNights)
+        .set({ reminded: true })
+        .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false), eq(gameNights.start_at, n.start_at!)))
+        .returning({ day: gameNights.day });
+      if (!claimed.length) return false;
+      return yield* Effect.gen(function* () {
+        yield* startReminder(n, at);
+        yield* refreshCard(n.day).pipe(Effect.catch((e) => Effect.logInfo(`card refresh at start ${errorText(e)}`)));
+        // a night counts as played once it actually starts (a locked-in night can still be called off)
+        yield* db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
+        // already playing it unplanned today? Then that session is this night now, counted once
+        yield* (yield* Spontaneous).absorb(n.day, n.game!).pipe(Effect.catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day)));
+        return true;
+      }).pipe(
+        Effect.catch((e) =>
+          Effect.gen(function* () {
+            // the ping didn't go out: release the claim so the next minute tries again
+            yield* alerts.failed("the start ping", e, n.day);
+            yield* db.update(gameNights).set({ reminded: false }).where(eq(gameNights.day, n.day));
+            return false;
+          }),
+        ),
+      );
+    }),
+  );
 
 /**
  * It's time: open the room, then (at `at`, epoch ms, when given) move the Lobby in, make the
  * event live and ping the squad.
  */
-async function startReminder(env: Env, n: Night, at?: number) {
-  const ps = players(env);
-  const emoji = await emojiFor(env, n.game!);
+const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
+  const config = yield* AppConfig;
+  const discord = yield* Discord;
+  const alerts = yield* Alerts;
+  const voice = yield* Voice;
+  const ps = yield* theTrio;
+  const emoji = yield* (yield* Games).emojiFor(n.game!);
   // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
   let where = "Hop in 🔊";
-  const room = await voice.openRoom(env, n.game!, emoji, { day: n.day, move: false }).catch((e) => (alerts.failed("opening the game room", e, n.day), null));
-  if (at) await sleepUntil(at);
-  // external events don't go live on their own
+  const room = yield* voice.openRoom(n.game!, emoji, { day: n.day, move: false }).pipe(Effect.catch((e) => Effect.as(alerts.failed("opening the game room", e, n.day), null)));
+  if (at) yield* sleepUntil(at);
+  // external events don't go live on their own (made live alongside the moves)
   const live = n.event_id
-    ? api(env, "PATCH", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`, { status: 2 }).catch((e) => console.log("event start", e))
+    ? yield* Effect.forkChild(Effect.asVoid(discord.editEvent(n.event_id, { status: 2 })).pipe(Effect.catch((e) => Effect.logInfo(`event start ${errorText(e)}`))), { startImmediately: true })
     : null;
   if (room) {
-    const moved = await voice.moveFromLobby(env, room.channelId).catch((e) => (alerts.failed("moving people from the Lobby", e, n.day), [] as string[]));
-    await attendance.markArrived(env, n.day, moved);
+    const moved = yield* voice.moveFromLobby(room.channelId).pipe(Effect.catch((e) => Effect.as(alerts.failed("moving people from the Lobby", e, n.day), [] as string[])));
+    yield* (yield* Attendances).markArrived(n.day, moved);
     where = `Room: <#${room.channelId}>${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`;
   }
-  await live;
-  await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
+  if (live) yield* Fiber.join(live);
+  yield* discord.createMessage(config.gameChannelId, {
     content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
-    allowed_mentions: pings(env, ps),
+    allowed_mentions: yield* allowedMentions(ps),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
-}
+});
 
 /** Private heads-up after a click, when we also re-render the card. */
 export const notify = (env: Env, token: string, notice: string) => followup(env, token, { content: notice, flags: EPHEMERAL });
@@ -1649,3 +1665,44 @@ const clearDay = (tx: DbTx, day: string) =>
     yield* tx.delete(gameNightVotes).where(eq(gameNightVotes.day, day));
     yield* tx.delete(nightAttendance).where(eq(nightAttendance.day, day));
   });
+
+// ---------------------------------------------------------------- the service
+
+/** What the night's code runs on. */
+type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous;
+
+const makeGameNight = Effect.gen(function* () {
+  // the services, captured once; a call's own overrides (quiet, stand-in players) still come from
+  // the caller, since providing merges this over the caller's context
+  const ctx = yield* Effect.context<Needs>();
+  const bound =
+    <Args extends ReadonlyArray<unknown>, A, E>(f: (...args: Args) => Effect.Effect<A, E, Needs>) =>
+    (...args: Args) =>
+      Effect.provideContext(f(...args), ctx);
+  return {
+    /** Post a day's card if there isn't one yet (see openNight). */
+    startNight: bound(openNight),
+    retryUnposted: Effect.provideContext(retryCards, ctx),
+    refreshOpen: Effect.provideContext(refreshCards, ctx),
+    closeStale: Effect.provideContext(closeStaleCards, ctx),
+    refresh: bound(refreshCard),
+    syncPanels: bound(syncCopies),
+    act: (day: string, user: string, action: string, value: string | undefined, later: Later) => Effect.provideContext(actOn(day, user, action, value, later), ctx),
+    bailFromSlip: bound(bailOn),
+    postRoast: (day: string) => Effect.provideContext(postRoastOf(day), ctx),
+    dueRoasts: Effect.provideContext(dueRoastsNow, ctx),
+    maintain: Effect.provideContext(maintainAll, ctx),
+    upcomingStarts: bound(upcoming),
+    preciseStarts: bound(startsDue),
+    startOnTime: (n: Night, stop?: Effect.Effect<void>) => Effect.provideContext(startAt(n, stop), ctx),
+    render: (day: string, viewer?: string, notice?: string) => Effect.provideContext(renderCard(day, viewer, notice), ctx),
+    planPicker: Effect.provideContext(planPickerCard, ctx),
+    leaveByModal: bound(leaveBy),
+    resetNight: bound(wipeNight),
+  };
+});
+
+/** 🎮 The daily game-night planner: the card, its votes, deadlines, roasts and the start. */
+export class GameNight extends Context.Service<GameNight, Effect.Success<typeof makeGameNight>>()("meme-bot/gamenight") {
+  static readonly layer = Layer.effect(GameNight, makeGameNight);
+}

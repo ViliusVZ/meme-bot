@@ -6,13 +6,14 @@
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { Effect, Fiber } from "effect";
-import { gameNights, lobbyPrompts, nightAttendance, rooms, sessions, voiceSegments } from "../src/db/schema.js";
+import { gameNights, games, lobbyPrompts, nightAttendance, roastBags, rooms, sessions, voiceSegments } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import type { DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
 import type { AppServices } from "../src/runtime.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Attendances } from "../src/attendance.js";
+import { GameNight } from "../src/gamenight.js";
 import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
@@ -38,7 +39,8 @@ type Sequence = {
   run: () => Effect.Effect<unknown, DbError | DiscordError | RoomStillCreating, AppServices>;
   /** Its claim and its record, as trigger conditions: `BEFORE <op> ON <table> … WHEN (<when>)`. */
   claim: { table: string; op: "INSERT" | "UPDATE"; when?: string };
-  record: { table: string; op: "INSERT" | "UPDATE"; when?: string };
+  /** (none: the post is the last step) */
+  record?: { table: string; op: "INSERT" | "UPDATE"; when?: string };
   /** Its post. */
   post: { method: string; path: string };
   setup?: () => Promise<void>;
@@ -81,7 +83,7 @@ function holdPost(s: Sequence) {
 async function interruptAt(s: Sequence, step: "before" | "claim" | "post" | "record") {
   await s.setup?.();
   calls.length = 0;
-  const held = step === "claim" ? await hold(s.claim) : step === "record" ? await hold(s.record) : step === "post" ? holdPost(s) : null;
+  const held = step === "claim" ? await hold(s.claim) : step === "record" ? await hold(s.record!) : step === "post" ? holdPost(s) : null;
   const fiber = h.runtime.runFork(s.run());
   if (held) await held.inFlight;
   const stopped = h.runtime.runPromise(Fiber.interrupt(fiber));
@@ -163,6 +165,62 @@ const sequences: Record<string, Sequence> = {
   },
 };
 
+/** Game night's sequences (gamenight 5/5). */
+function nightSequences(): Record<string, Sequence> {
+  return {
+    "the game-night card (the day's claim → the card → its message id)": {
+      run: () => GameNight.use((g) => g.startNight(undefined, true)),
+      claim: { table: "game_nights", op: "INSERT" },
+      record: { table: "game_nights", op: "UPDATE", when: "OLD.message_id IS NULL AND NEW.message_id IS NOT NULL" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect(await t.db.select().from(gameNights)).toEqual([]);
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        const [n] = await t.db.select().from(gameNights);
+        expect([n.day, n.stage, !!n.message_id]).toEqual([DAY, "ask", true]);
+      },
+    },
+    "the start (its claim → the start ping → the night counted as played)": {
+      setup: async () => {
+        // (games and roast_bags aren't emptied between this file's tests: the cases set their own rows)
+        await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03", plays: 2 }).onConflictDoUpdate({ target: games.name, set: { plays: 2 } });
+        await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now(), message_id: "card" });
+      },
+      run: () => GameNight.use((g) => Effect.flatMap(g.upcomingStarts(now() + 60), () => g.maintain)),
+      claim: { table: "game_nights", op: "UPDATE", when: "NEW.reminded AND NOT OLD.reminded" },
+      record: { table: "games", op: "UPDATE" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect((await t.db.select().from(gameNights))[0].reminded).toBe(false);
+        expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(gameNights))[0].reminded).toBe(true);
+        expect((await t.db.select().from(games).where(eq(games.name, "R.E.P.O.")))[0].plays).toBe(3);
+      },
+    },
+    "the roast (the due roasts read → its claim → the roast)": {
+      setup: async () => {
+        await t.db.delete(roastBags);
+        await t.db.insert(gameNights).values({ day: DAY, stage: "off", message_id: "card", roast: { who: { a: "no" }, stage: "ask" }, roast_due: now() - 60 });
+      },
+      run: () => GameNight.use((g) => g.dueRoasts),
+      claim: { table: "game_nights", op: "UPDATE", when: "OLD.roasted_at IS NULL AND NEW.roasted_at IS NOT NULL" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect((await t.db.select().from(gameNights))[0].roasted_at).toBeNull();
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(gameNights))[0].roasted_at).toBe(now());
+      },
+    },
+  };
+}
+Object.assign(sequences, nightSequences());
+
 for (const [name, s] of Object.entries(sequences)) {
   test(`${name}: interrupted before its claim, nothing is done`, async () => {
     presence._reset();
@@ -170,7 +228,7 @@ for (const [name, s] of Object.entries(sequences)) {
     await interruptAt(s, "before");
     await s.nothing();
   });
-  for (const step of ["claim", "post", "record"] as const) {
+  for (const step of s.record ? (["claim", "post", "record"] as const) : (["claim", "post"] as const)) {
     test(`${name}: interrupted during the ${step}, everything is done, once`, async () => {
       presence._reset();
       channels._reset();

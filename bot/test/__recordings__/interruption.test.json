@@ -143,5 +143,123 @@
    "rooms": "1:a7f3af5a37f4",
    "sessions": "1:ce7450f49330"
   }
+ },
+ "the game-night card (the day's claim → the card → its message id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the game-night card (the day's claim → the card → its message id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+  ],
+  "db": {
+   "game_nights": "1:43b2c8a275e9",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the game-night card (the day's claim → the card → its message id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+  ],
+  "db": {
+   "game_nights": "1:fdc0c17fb9bd",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the game-night card (the day's claim → the card → its message id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+  ],
+  "db": {
+   "game_nights": "1:43b2c8a275e9",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the start (its claim → the start ping → the night counted as played): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:1eb979bf0908",
+   "games": "8:745dc9153deb"
+  }
+ },
+ "the start (its claim → the start ping → the night counted as played): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+  ],
+  "db": {
+   "game_nights": "1:a966e79e0386",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:212c39e99eee"
+  }
+ },
+ "the start (its claim → the start ping → the night counted as played): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+  ],
+  "db": {
+   "game_nights": "1:a966e79e0386",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:212c39e99eee"
+  }
+ },
+ "the start (its claim → the start ping → the night counted as played): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+  ],
+  "db": {
+   "game_nights": "1:a966e79e0386",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:212c39e99eee"
+  }
+ },
+ "the roast (the due roasts read → its claim → the roast): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:9d5a16b2205e",
+   "games": "8:20142a6ccc67"
+  }
+ },
+ "the roast (the due roasts read → its claim → the roast): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 289829207256"
+  ],
+  "db": {
+   "game_nights": "1:e1ddc1eb3beb",
+   "games": "8:20142a6ccc67",
+   "roast_bags": "1:98dee6e29e8b"
+  }
+ },
+ "the roast (the due roasts read → its claim → the roast): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 6e1947a252b1"
+  ],
+  "db": {
+   "game_nights": "1:e1ddc1eb3beb",
+   "games": "8:20142a6ccc67",
+   "roast_bags": "1:35b4871d9cc9"
+  }
  }
 }
