@@ -271,5 +271,56 @@
    "memes": "1:b34a7ab0c4f9",
    "votes": "1:3fabfdfb4bfd"
   }
+ },
+ "rooms: opening a room brings the Lobby along unless told not to": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 668a3869ee22",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 668a3869ee22",
+   "GET https://discord.com/api/v10/channels/5000 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:b21c6cc63dab"
+  }
+ },
+ "room upkeep: an archived room is deleted 3 days after it was archived, not a second sooner": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "DELETE https://discord.com/api/v10/channels/due -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:cb2e8c200bb7"
+  }
+ },
+ "rooms: a room Discord won't move to Recent games stays open, and the next check tries again": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 8d51ba9b6789",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 4c7a43a17223"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:ab5fce78da1c"
+  }
+ },
+ "rooms: a new room Discord won't slot under the Lobby is still known, so the next tap makes no twin": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "GET https://discord.com/api/v10/channels/5000 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:9111e49316d9"
+  }
  }
 }

@@ -380,3 +380,53 @@ test("admin: redraw every posted meme with its voters", async () => {
   expect(r.json()).toEqual({ updated: 1, failed: [] });
   expect(JSON.stringify(calls.find((c) => c.method === "PATCH" && c.path === "/channels/memes/messages/m1")!.body)).toContain("💀 <@c>");
 });
+
+test("rooms: opening a room brings the Lobby along unless told not to", async () => {
+  presence.snapshot([{ user_id: "a", channel_id: "lobby" }, { user_id: "c", channel_id: "lobby" }]);
+  const r = await voice.openRoom(env, "R.E.P.O.", "📦", {});
+  expect(r.moved).toEqual(["a", "c"]);
+  const moves = () => calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/guilds/guild/members/"));
+  expect(moves().map((c) => [c.path.split("/").pop(), c.body.channel_id]).sort()).toEqual([["a", r.channelId], ["c", r.channelId]]);
+  calls.length = 0;
+  const again = await voice.openRoom(env, "R.E.P.O.", "📦", { move: false });
+  expect([again.channelId, again.reused, again.moved]).toEqual([r.channelId, true, []]);
+  expect(moves()).toEqual([]);
+});
+
+test("room upkeep: an archived room is deleted 3 days after it was archived, not a second sooner", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values([
+    { channel_id: "young", game: "Young", created_at: t0 - 9 * 86400, archived_at: t0 - 3 * 86400 + 1 },
+    { channel_id: "due", game: "Due", created_at: t0 - 9 * 86400, archived_at: t0 - 3 * 86400 },
+  ]);
+  const list = ["young", "due"].map((id, i) => ({ id, type: 2, parent_id: "archive", position: i + 1, name: id }));
+  h.override = (c) => (c.method === "GET" && c.path.endsWith("/channels") ? json([{ id: "archive", type: 4, position: 9, name: "🗄️ Recent games" }, ...list]) : undefined);
+  presence.snapshot([]);
+  expect(await voice.maintainRooms(env)).toEqual({ deleted: ["Due"] });
+  expect(calls.filter((c) => c.method === "DELETE").map((c) => c.path)).toEqual(["/channels/due"]);
+  expect((await t.db.select().from(rooms)).map((r) => r.channel_id)).toEqual(["young"]);
+});
+
+test("rooms: a room Discord won't move to Recent games stays open, and the next check tries again", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", created_at: t0 - 7200, last_seen: t0 - 3600 });
+  h.override = (c) => (c.method === "PATCH" && c.path === "/channels/r1" ? json({ message: "Missing Permissions", code: 50013 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  expect((await voice.checkRooms(env, new Set(), t0)).archived).toEqual([]);
+  expect((await t.db.select().from(rooms)).map((r) => [r.channel_id, r.archived_at])).toEqual([["r1", null]]);
+  await voice.checkRooms(env, new Set(), t0 + 60);
+  expect(calls.filter((c) => c.method === "PATCH" && c.path === "/channels/r1")).toHaveLength(2);
+  log.mockRestore();
+});
+
+test("rooms: a new room Discord won't slot under the Lobby is still known, so the next tap makes no twin", async () => {
+  presence.snapshot([]);
+  h.override = (c) => (c.method === "PATCH" && c.path === "/guilds/guild/channels" ? json({ message: "Missing Permissions", code: 50013 }, 403) : undefined);
+  await expect(voice.openRoom(env, "Palworld", "🐑", {})).rejects.toThrow(/403/);
+  const [made] = await t.db.select().from(rooms);
+  expect([made.game, made.channel_id.startsWith("pending:")]).toEqual(["Palworld", false]);
+  h.override = null;
+  const again = await voice.openRoom(env, "Palworld", "🐑", {});
+  expect([again.channelId, again.reused]).toEqual([made.channel_id, true]);
+  expect(calls.filter((c) => c.method === "POST" && c.path === "/guilds/guild/channels")).toHaveLength(1);
+});
