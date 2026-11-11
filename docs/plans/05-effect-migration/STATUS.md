@@ -15,7 +15,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   sequence: GameNight's sequences (the card, the start ping, roasts) are added there as they move.
   Memes, Panels, Roasts hold no claim → post sequence inside a service (the daily meme's lives in
   `jobs.ts`/`gamenight.ts` callers, still promise code). GameNight in five commits: **1/5 done
-  (`164d512`)**: readers, helpers, the card; **2/5 done** (see Modules moved): the lifecycle. How it's staged: the moved code is module-level
+  (`164d512`)**: readers, helpers, the card; **2/5 done** (`b230588`): the lifecycle; **3/5 done** (`ef1831d`): act
+  (+ postRoast, dueRoasts, moved here rather than in 4/5: a two-line loop over postRoast). How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
@@ -80,6 +81,9 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - Commits: checks and code apart. New tests that pass on the old code first, then the code; or
   the code first with the new test set aside, then the test. `node scripts/assertions.mjs --add`
   after adding tests. Never `git stash` bare (a tagged stash plus apply by SHA, or copies).
+- A break-it must actually change the code: check the edit (a no-op "swap" proves nothing); a
+  swap moves the side effect itself, not just an early return.
+- Dead wrappers count as query sites (G3): delete a `…P` wrapper as soon as nothing calls it.
 - Commit only on a green gate log: `bash scripts/gates.sh > $SP/gates.log 2>&1; grep -q "^ALL
   GATES GREEN" $SP/gates.log && git commit …` ($SP = the scratchpad). A pipe into `tail` hides the exit code (it let one
   commit through on a red G4 that was expected, the commit being amended).
@@ -180,7 +184,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
-- 2026-11-11 gamenight 2/5 (the card's lifecycle; commit after `c2df056`): broken: a hand-deleted
+- 2026-11-11 `ef1831d` gamenight 3/5 (act, settle, hold, late, lock-in, bails, the roast): broken:
+  reopen keeping the old votes (red), a maybe saving a no (red), a failed roast keeping its claim
+  (red), the hold not counted (red), a live event deleted instead of ended (red), a second tap not
+  taking a delay back (red), the it's-on ping before the event (recordings red). Stayed green,
+  test added (`f7b5f8b`), red since: the moved event's new end not stored.
+- 2026-11-11 `b230588` gamenight 2/5 (the card's lifecycle): broken: a hand-deleted
   card not forgotten (red), a quiet close roasting anyway (red), the racing duplicate kept (red),
   open cards closed as stale (red). Stayed green, tests added (`c2df056`), red since: the nudge
   cleared before a stage flip that loses, no alert for a card that can't post. The card's
