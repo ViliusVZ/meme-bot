@@ -5,15 +5,14 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** not started (plan written and agreed by the owner 2026-11-11)
-- **Workspace / branch:** none yet (`RUN.md` §1 sets them up)
-- **Backstop task id:** none yet
-- **Next step:** `RUN.md` §1 (setup), then phase 0, step 1. On 2026-11-11 plan 02 (news) was
-  still in progress on the `wow-news` branch in the owner's checkout, with uncommitted work;
-  `origin/main` was at `f401685`. The baseline waits for it (`RUN.md` §3).
-- **Waiting for:** nothing
-- **Blocked on the owner:** nothing. The freeze, Drizzle 1.0 rc in production, and shipping
-  phases 0 and 1 are agreed. The cutover go is asked for at the end of phase 8.
+- **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00
+- **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect` (one branch for everything,
+  owner's change of plan 2026-11-11)
+- **Backstop task id:** (see below once created)
+- **Next step:** phase 0 step 1 (qcov.py into the repo, then the assertion ledger)
+- **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
+  `f401685`, plan 02 still on `wow-news`, unmerged.
+- **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
 
 ## Phases
 
@@ -36,7 +35,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 | Measure | Baseline (phase 0) | Now |
 |---|---|---|
-| Tests passed | | |
+| Tests passed | 580 (9 files, 2026-11-11, before any change) | |
 | Query sites found / executed | | |
 | Recordings differing | 0 | |
 | Assertion ledger | identical | |
@@ -67,8 +66,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
 
 ## Deviations from the plan
 
-Every place the work departed from `architecture.md`, `verification.md` or `phases.md`, with the
-reason, and whether the plan file was amended.
+- **2026-11-11, the owner's change of plan** (README.md top block; RUN.md §3 and phases.md
+  amended, pointers at the top of RUN, verification, phases): no calendar waits, no soak, drills,
+  rollback rehearsals, tap-timing or memory comparisons, no `soak_watch.py`, no
+  `qa_maybe_matrix.py`; one branch `effect`, shipped once at the end, the go given in advance;
+  plan 02 not waited for; one audit before the cutover; break-it only for claim → post → record
+  modules; one message to the owner at the end. Test 16 uses a 60 s job timeout.
 
 ## Declared exceptions
 

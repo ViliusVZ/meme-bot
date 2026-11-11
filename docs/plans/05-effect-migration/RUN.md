@@ -1,5 +1,11 @@
 # 05 · Running it to the end
 
+> **Owner's change of plan, 2026-11-11:** see the block at the top of `README.md`. It overrides
+> this file wherever they disagree (no calendar waits, one `effect` branch shipped once at the
+> end, no soak, drills or rollback rehearsals, one audit before the cutover, the go given in
+> advance).
+
+
 For the Opus session that carries this plan out. The owner agreed to the whole plan on
 2026-11-11: the feature freeze, Drizzle 1.0 release candidate in production, the phases, and the
 authority described here.
@@ -42,27 +48,17 @@ start the next phase in the same stretch of work.
 
 ## 3. Branches
 
-| Work | Branch | Lands on `main` by |
-|---|---|---|
-| Phase 0 | `effect-prep` | `git push origin effect-prep:main` (fast-forward), when §4 allows |
-| Phase 1 | `drizzle-1`, cut from `effect-prep` | the same |
-| Phases 2–8 | `effect`, cut from the phase 1 commit | the phase 9 merge commit |
+All phases happen on one branch, `effect`, in the worktree `C:\p\meme-bot-effect` (owner's
+change of plan, 2026-11-11). Nothing lands on `main` before the cutover, which is one merge
+commit (`git revert -m 1` undoes it). The last old-style commit (the end of phase 1, Drizzle 1.0
+under the old code) is tagged `pre-effect` on the branch; it is the rollback target and the
+source of the baseline recordings.
 
-Rebase a preparation branch onto `origin/main` before it lands, and rerun the gates after the
-rebase. After you push to `main`, the owner's checkout is simply behind; leave it.
-
-**Plan 02 (the news channel) was still being finished on 2026-11-11**, on a `wow-news` branch.
-Start phase 0 at once: steps 1, 2, 3, 5 and 6 don't depend on it. The baseline (steps 4 and 7)
-and everything after it wait until plan 02 is on `origin/main`, because the baseline must include
-its code, its tests and its migration. Rebase onto it, then take the baseline. If it still isn't
-on `main` when you have nothing else left to do, say so to the owner and wait (§6).
-
-**Waiting for "one evening in production" doesn't block the next phase's work.** After phase 0
-lands, start phase 1 on its branch immediately; only its landing on `main` waits until phase 0's
-evening was clean (the 17:00 Vilnius poll through midnight, logs clean the next morning). After
-phase 1 lands, cut `effect` and start phase 2 immediately; place the `pre-effect` tag on the
-phase 1 commit once its evening was clean. If that evening turns up a problem, fix it on `main`
-as a production fix and merge it into `effect`, as `phases.md` describes.
+Plan 02 (the news channel) is not waited for. If it lands on `origin/main` during the run, merge
+`origin/main` into `effect` like any other change: port `news.ts` to Effect if its layer has
+already moved, add its tests to the recordings and the ledger in their own commit, and re-run
+`drizzle-kit up` if its migration arrives in the old folder format. After the cutover, the
+owner's checkout is simply behind; leave it.
 
 ## 4. What you may do without asking
 
