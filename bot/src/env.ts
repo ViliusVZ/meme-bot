@@ -20,6 +20,8 @@ export interface Env {
   LOBBY_CHANNEL_ID: string; // 🛋️ Lobby: hang out here; game rooms pull people from it
   VOICE_CATEGORY_ID: string; // 🔊 Voice: where game rooms are opened
   ALERT_USER_ID?: string; // 🚨 who gets a DM when something breaks (alerts.ts); unset on the test bot
+  /** 🎮 Ask Discord what people are playing (the presence intent, on in the Developer Portal too). */
+  PRESENCES?: boolean;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -64,5 +66,6 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
     LOBBY_CHANNEL_ID: e.LOBBY_CHANNEL_ID!,
     VOICE_CATEGORY_ID: e.VOICE_CATEGORY_ID!,
     ALERT_USER_ID: e.ALERT_USER_ID || undefined,
+    PRESENCES: e.PRESENCES === "1",
   };
 }

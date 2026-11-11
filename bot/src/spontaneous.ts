@@ -9,13 +9,18 @@
 //     over the line says how long it went.
 //   • Anyone joining the Lobby while exactly one game room has any of us in it is pulled in once,
 //     with a note that offers the way back.
+//   • With game detection on (PRESENCES=1): two of us in the Lobby playing the same game skip the
+//     question and go straight to its room (↩ to undo); one tap teaches the bot a name Discord
+//     uses for a game; and two of us playing a game before anyone's in voice gets its room ready
+//     under the Lobby, silently (it archives itself after an hour if nobody comes).
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
 import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
-import { fleeting, gameNights, games as gameTable, lobbyPrompts, rooms, sessions, voiceSegments } from "./db/index.js";
+import { fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/index.js";
 import { api, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import { emojiFor, games, local, players } from "./gamenight.js";
 import * as voice from "./voice.js";
+import * as presence from "./presence.js";
 import * as alerts from "./alerts.js";
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
@@ -85,7 +90,80 @@ export async function react(env: Env, where: Where, t = nowSec(), change?: Chang
   const inRoom = (r: Room) => players(env).filter((p) => where.get(p) === r.channel_id);
   await trackSessions(env, open, inRoom, plan, t);
   if (change?.to === env.LOBBY_CHANNEL_ID && players(env).includes(change.user)) await pullIn(env, change, open, inRoom, plan, t);
+  await readyRoom(env, where, open, plan, t);
   return gathering(env, where, open, inRoom, plan, t);
+}
+
+// ---------------------------------------------------------------- 🎮 what we're playing (game detection)
+
+/**
+ * What each of `users` is playing, as our games: Discord's name matched to a game (case aside) or
+ * to a name we learned. `unknown` is a name two or more of them share that matches nothing.
+ */
+export async function playingGames(env: Env, users: string[]) {
+  const seen = new Map(users.map((u) => [u, presence.playing(u)]));
+  const all = [...new Set([...seen.values()].flat())];
+  const game = new Map<string, string>(); // lower-case activity name → game
+  if (all.length) {
+    for (const g of await env.db.select({ name: gameTable.name }).from(gameTable).where(inArray(gameTable.name, all))) game.set(g.name.toLowerCase(), g.name);
+    for (const a of await env.db.select().from(gameAliases).where(inArray(gameAliases.activity, all))) game.set(a.activity.toLowerCase(), a.game);
+  }
+  const of = new Map<string, string>();
+  for (const [u, names] of seen) {
+    const g = names.map((n) => game.get(n.toLowerCase())).find(Boolean);
+    if (g) of.set(u, g);
+  }
+  const shared = all.filter((n) => !game.has(n.toLowerCase()) && users.filter((u) => seen.get(u)!.includes(n)).length >= 2);
+  return { of, unknown: shared[0] ?? null };
+}
+
+/** The one game everyone who's playing something we know is playing (null: none, or a mix). */
+function oneGame(of: Map<string, string>) {
+  const gs = [...new Set([...of.values()].map((g) => g.toLowerCase()))];
+  if (gs.length !== 1) return null;
+  const g = [...of.values()][0];
+  return { game: g, by: [...of].filter(([, x]) => x.toLowerCase() === gs[0]).map(([u]) => u) };
+}
+
+/**
+ * Two of us playing the same game and nobody in voice yet: have its room waiting under the Lobby.
+ * Once per game per day, silently; the room archives itself after an hour if nobody comes.
+ */
+async function readyRoom(env: Env, where: Where, open: Room[], plan: Planned, t: number) {
+  if (!env.PRESENCES || plan.soon || plan.rooms.size) return;
+  // only those not in voice yet (in voice, the Lobby flow has them)
+  const away = players(env).filter((p) => !where.get(p));
+  if (away.length < 2) return;
+  const { of } = await playingGames(env, away);
+  const counts = new Map<string, string[]>();
+  for (const [u, g] of of) counts.set(g.toLowerCase(), [...(counts.get(g.toLowerCase()) ?? []), u]);
+  const hit = [...counts.values()].find((us) => us.length >= 2);
+  if (!hit) return;
+  const game = of.get(hit[0])!;
+  if (open.some((r) => r.game.toLowerCase() === game.toLowerCase())) return;
+  const day = local(env, new Date(t * 1000)).day;
+  const [claim] = await env.db.insert(readyRooms).values({ day, game, at: t }).onConflictDoNothing().returning({ day: readyRooms.day });
+  if (!claim) return;
+  try {
+    const r = await voice.openRoom(env, game, await emojiFor(env, game), { move: false });
+    console.log("room ready ahead", game, r.channelId);
+  } catch (e) {
+    await env.db.delete(readyRooms).where(and(eq(readyRooms.day, day), eq(readyRooms.game, game)));
+    alerts.failed("getting a game room ready", e, game);
+  }
+}
+
+/** Two of us in the Lobby playing the same game: straight to its room, with ↩ in case we're wrong. */
+async function autoMove(env: Env, game: string, by: string[], t: number) {
+  const [claim] = await env.db.insert(lobbyPrompts).values({ created_at: t, state: "moved", game }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
+  if (!claim) return;
+  try {
+    const r = await voice.openRoom(env, game, await emojiFor(env, game), { move: true });
+    if (r.moved.length) await note(env, r.channelId, `🎮 Saw ${names(by)} in **${game}**, so I brought you over.`, r.moved, t);
+  } catch (e) {
+    await env.db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id));
+    alerts.failed("moving the Lobby into the game we're playing", e, game);
+  }
 }
 
 // ---------------------------------------------------------------- the Lobby question
@@ -116,7 +194,14 @@ async function gathering(env: Env, where: Where, open: Room[], inRoom: (r: Room)
   const starts = segs.map((s) => s.started_at).sort((a, b) => a - b);
   const since = starts.length >= 2 ? starts[1] : t;
   if (t < since + GATHER_AFTER) return since + GATHER_AFTER;
-  await ask(env, t);
+  // game detection: two playing the same game and nobody playing another → no need to ask
+  const seen = env.PRESENCES ? await playingGames(env, lobby) : { of: new Map<string, string>(), unknown: null };
+  const one = oneGame(seen.of);
+  if (one && one.by.length >= 2) {
+    await autoMove(env, one.game, one.by, t);
+    return null;
+  }
+  await ask(env, t, one?.game ?? null, seen.unknown);
   return t + PROMPT_TTL;
 }
 
@@ -136,8 +221,10 @@ export async function recentGames(env: Env, n = 3) {
   return out;
 }
 
-export async function questionMessage(env: Env, id: number) {
-  const list = await recentGames(env);
+export async function questionMessage(env: Env, id: number, first: string | null = null) {
+  const recent = await recentGames(env);
+  // someone's playing it: that game first
+  const list = first ? [first, ...recent.filter((g) => g.toLowerCase() !== first.toLowerCase())].slice(0, 3) : recent;
   const emoji = new Map((await games(env, 100)).map((g) => [g.name.toLowerCase(), g.emoji ?? "🎮"]));
   const btn = (label: string, custom_id: string, e: string, style = 2) => ({ type: 2, style, label: label.slice(0, 80), custom_id, emoji: { name: e } });
   return {
@@ -158,15 +245,15 @@ export async function questionMessage(env: Env, id: number) {
 }
 
 /** Claim this gathering's question, then post it; a failed post leaves the gathering quiet. */
-async function ask(env: Env, t: number) {
+async function ask(env: Env, t: number, first: string | null = null, activity: string | null = null) {
   const [claim] = await env.db
     .insert(lobbyPrompts)
-    .values({ created_at: t, state: "open" })
+    .values({ created_at: t, state: "open", activity })
     .onConflictDoNothing()
     .returning({ id: lobbyPrompts.id });
   if (!claim) return;
   try {
-    const msg = await api(env, "POST", `/channels/${env.LOBBY_CHANNEL_ID}/messages`, await questionMessage(env, claim.id));
+    const msg = await api(env, "POST", `/channels/${env.LOBBY_CHANNEL_ID}/messages`, await questionMessage(env, claim.id, first));
     await env.db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
   } catch (e) {
     await env.db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id));
@@ -193,13 +280,24 @@ async function endGathering(env: Env, p: typeof lobbyPrompts.$inferSelect, t: nu
   await env.db.update(lobbyPrompts).set({ current: false, ended_at: t }).where(eq(lobbyPrompts.id, p.id));
 }
 
+/** What to tell the tapper privately: a line, or a whole message (with buttons). */
+export type Notice = string | { content: string; components: unknown[] } | null;
+
 /**
- * A tap on the question: `lob:<id>:g:<game>` | `lob:<id>:other` | `lob:<id>:chill`. Returns what
- * to tell the tapper privately, or null when the tap simply goes through.
+ * A tap on the question: `lob:<id>:g:<game>` | `lob:<id>:other` | `lob:<id>:chill`, or the
+ * follow-up offer `lob:<id>:alias`. Returns what to tell the tapper privately, if anything.
  */
-export async function answer(env: Env, id: number, user: string, what: string, game?: string) {
+export async function answer(env: Env, id: number, user: string, what: string, game?: string): Promise<Notice> {
   const [p] = await env.db.select().from(lobbyPrompts).where(eq(lobbyPrompts.id, id));
   if (!p) return "That question's gone 🫥";
+  if (what === "alias") {
+    if (!p.activity || !p.game) return "🤷";
+    await env.db
+      .insert(gameAliases)
+      .values({ activity: p.activity, game: p.game, added_by: user })
+      .onConflictDoUpdate({ target: gameAliases.activity, set: { game: p.game, added_by: user } });
+    return `👍 From now on, two of you in *${p.activity}* go straight to **${p.game}**.`;
+  }
   if (what === "chill") {
     if (p.state !== "open") return null;
     await env.db.update(lobbyPrompts).set({ by: user }).where(eq(lobbyPrompts.id, id));
@@ -219,6 +317,13 @@ export async function answer(env: Env, id: number, user: string, what: string, g
   try {
     const r = await voice.openRoom(env, game!, await emojiFor(env, game!), { by: user, move: true });
     if (p.message_id) await deleteMessage(env, env.LOBBY_CHANNEL_ID, p.message_id);
+    if (p.activity) {
+      // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
+      return {
+        content: `Discord says you were playing *${p.activity}*. Is that **${game}**?`,
+        components: [{ type: 1, components: [{ type: 2, style: 1, label: `Yes, always open ${game}`.slice(0, 80), custom_id: `lob:${id}:alias`, emoji: { name: "🧠" } }] }],
+      };
+    }
     return r.moved.length ? null : `🔊 Room's up: <#${r.channelId}>. Nobody was left in the Lobby to bring along.`;
   } catch (e) {
     // give the question back, so someone can try again

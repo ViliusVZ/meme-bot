@@ -90,6 +90,13 @@ export function start(env: Env) {
     });
   });
 
+  // 🎮 what someone's playing changed (game detection): it may be time to get a room ready
+  const unsubscribePlaying = presence.onPlaying((user, names) => {
+    if (!ps.has(user) || stopped) return;
+    console.log("playing", user, names.length ? names.join(" | ") : "(nothing)"); // what Discord calls each game
+    void enqueue("playing", () => lobby());
+  });
+
   /** The gateway (re)connected and sent a fresh snapshot: catch up on everything. */
   const resync = () =>
     enqueue("resync", async () => {
@@ -103,6 +110,7 @@ export function start(env: Env) {
     stop: async () => {
       stopped = true;
       unsubscribe();
+      unsubscribePlaying();
       if (heartbeat) clearInterval(heartbeat);
       if (wrapUp) clearTimeout(wrapUp);
       if (lobbyTimer) clearTimeout(lobbyTimer);

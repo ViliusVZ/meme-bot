@@ -7,7 +7,8 @@ import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import * as activity from "../src/activity.js";
 import { interaction } from "../src/interactions.js";
-import { fleeting, gameNights, games, lobbyPrompts, rooms, sessions, voiceSegments } from "../src/db/schema.js";
+import { fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "../src/db/schema.js";
+import { loadConfig } from "../src/env.js";
 import { testDb, testEnv } from "./pg.js";
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -25,7 +26,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games]) await t.db.delete(tbl);
+  for (const tbl of [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms]) await t.db.delete(tbl);
   calls = [];
   override = null;
   presence._reset();
@@ -127,7 +128,7 @@ test("two taps at the same moment open one room", async () => {
   await at(now() + 30);
   const id = (await prompt()).id;
   const r = await Promise.all([spontaneous.answer(env, id, "a", "g", "World of Warcraft"), spontaneous.answer(env, id, "b", "g", "R.E.P.O.")]);
-  expect(r.filter((x) => x?.includes("already picked"))).toHaveLength(1);
+  expect(r.filter((x) => typeof x === "string" && x.includes("already picked"))).toHaveLength(1);
   expect(await t.db.select().from(rooms)).toHaveLength(1);
 });
 
@@ -441,4 +442,154 @@ test("words", () => {
   expect(spontaneous.minutes(30)).toBe("1 min");
   expect(spontaneous.minutes(3600 + 20 * 60)).toBe("1 h 20 min");
   expect(spontaneous.minutes(7200)).toBe("2 h");
+});
+
+// ---------------------------------------------------------------- 🎮 game detection (PRESENCES=1)
+
+const playing = (user: string, ...names: string[]) => presence.setActivities(user, names.map((name) => ({ type: 0, name })));
+
+test("two in the Lobby playing the same game skip the question: straight to its room, with ↩", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  playing("a", "World of Warcraft");
+  playing("b", "world of warcraft"); // Discord's spelling may differ in case
+  await at(t0, { a: "lobby", b: "lobby" });
+  vi.setSystemTime((t0 + 30) * 1000);
+  expect(await spontaneous.react(e, where, t0 + 30)).toBeNull();
+  expect(posted("lobby")).toEqual([]);
+  const [room] = await t.db.select().from(rooms);
+  expect(room.game).toBe("World of Warcraft");
+  expect(calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/guilds/guild/members/"))).toHaveLength(2);
+  const [n] = posted(room.channel_id);
+  expect(n.body.content).toBe("🎮 Saw <@a> and <@b> in **World of Warcraft**, so I brought you over.");
+  expect(JSON.stringify(n.body.components)).toContain("lob:back:a,b");
+  expect((await prompt()).state).toBe("moved");
+  // without game detection the same moment just asks
+  await t.db.delete(lobbyPrompts);
+  await t.db.delete(rooms);
+  await spontaneous.react(env, where, t0 + 31);
+  expect(posted("lobby")).toHaveLength(1);
+});
+
+test("different games, or only one of us in a known game: ask, that game first", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  playing("a", "World of Warcraft");
+  playing("b", "R.E.P.O.");
+  await at(t0, { a: "lobby", b: "lobby" });
+  await spontaneous.react(e, where, t0 + 30);
+  expect(posted("lobby")).toHaveLength(1);
+  // b stops; only a plays something we know → asked, with WoW first (R.E.P.O. is otherwise first)
+  await t.db.delete(lobbyPrompts);
+  playing("b");
+  await spontaneous.react(e, where, t0 + 31);
+  const q = posted("lobby")[1].body.components[0].components[1].components;
+  expect(q.map((b: any) => b.label)).toEqual(["World of Warcraft", "R.E.P.O."]);
+});
+
+test("a name Discord uses that we don't know is learned with one tap, never silently", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  playing("a", "World of Warcraft: Forever", "Visual Studio Code");
+  playing("b", "World of Warcraft: Forever");
+  await at(t0, { a: "lobby", b: "lobby" });
+  await spontaneous.react(e, where, t0 + 30);
+  const p = await prompt();
+  expect(p).toMatchObject({ state: "open", activity: "World of Warcraft: Forever" });
+  const r = (await spontaneous.answer(e, p.id, "a", "g", "World of Warcraft")) as { content: string; components: any[] };
+  expect(r.content).toBe("Discord says you were playing *World of Warcraft: Forever*. Is that **World of Warcraft**?");
+  expect(JSON.stringify(r.components)).toContain(`lob:${p.id}:alias`);
+  expect(await spontaneous.answer(e, p.id, "a", "alias")).toBe("👍 From now on, two of you in *World of Warcraft: Forever* go straight to **World of Warcraft**.");
+  // next evening: straight there
+  await at(t0 + 60, { a: null, b: null });
+  await t.db.delete(rooms);
+  await at(t0 + 3600, { a: "lobby", b: "lobby" });
+  vi.setSystemTime((t0 + 3630) * 1000);
+  await spontaneous.react(e, where, t0 + 3630);
+  expect((await prompt()).state).toBe("moved");
+  // a tap on the offer with nothing to learn is harmless
+  expect(await spontaneous.answer(e, (await prompt()).id, "a", "alias")).toBe("🤷");
+});
+
+test("two of us playing the same game before anyone's in voice: its room is ready under the Lobby, once a day", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 - 86400, archived_at: t0 - 80000 });
+  playing("a", "World of Warcraft");
+  await spontaneous.react(e, where, t0);
+  expect(calls).toEqual([]); // one person isn't enough
+  playing("b", "World of Warcraft");
+  where.set("c", "lobby");
+  await spontaneous.react(e, where, t0 + 5);
+  expect(calls.some((c) => c.method === "PATCH" && c.path === "/channels/wow" && c.body.parent_id === "voice")).toBe(true); // out of the archive
+  expect(calls.some((c) => c.path.startsWith("/guilds/guild/members/"))).toBe(false); // nobody's moved, nothing's posted
+  expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/messages"))).toBe(false);
+  expect((await t.db.select().from(rooms))[0]).toMatchObject({ archived_at: null, last_seen: null });
+  // (the third hanging out in the Lobby meanwhile changes nothing: the two playing aren't in voice)
+  // nobody came: it archives itself after an hour like any never-joined room, and isn't brought back again today
+  await t.db.update(rooms).set({ archived_at: t0 + 3600 });
+  calls = [];
+  await spontaneous.react(e, where, t0 + 3700);
+  expect(calls).toEqual([]);
+});
+
+test("no ready room when one of the players is already in voice, a night is on its way, or detection is off", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  playing("a", "World of Warcraft");
+  playing("b", "World of Warcraft");
+  await spontaneous.react(env, where, t0); // detection off
+  where.set("a", "lobby");
+  await spontaneous.react(e, where, t0); // a's in the Lobby: that flow has them
+  where.delete("a");
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 + 300, reminded: false });
+  await spontaneous.react(e, where, t0);
+  expect(await t.db.select().from(rooms)).toEqual([]);
+});
+
+test("a room that can't be got ready gives the day's claim back", async () => {
+  const e = { ...env, PRESENCES: true };
+  playing("a", "World of Warcraft");
+  playing("b", "World of Warcraft");
+  override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  await spontaneous.react(e, where, now());
+  log.mockRestore();
+  expect(await t.db.select().from(readyRooms)).toEqual([]);
+});
+
+test("what someone's playing: only “Playing …”, and a listener hears only real changes", () => {
+  const heard: string[][] = [];
+  presence.onPlaying((_u, names) => heard.push(names));
+  presence.setActivities("a", [
+    { type: 0, name: "World of Warcraft" },
+    { type: 2, name: "Spotify" },
+    { type: 4, name: "Custom Status" },
+  ]);
+  presence.setActivities("a", [{ type: 0, name: "World of Warcraft" }]);
+  presence.setActivities("a", []);
+  expect(heard).toEqual([["World of Warcraft"], []]);
+  expect(presence.playing("a")).toEqual([]);
+});
+
+test("game detection is off unless PRESENCES=1", () => {
+  const base = { DATABASE_URL: "x", DISCORD_TOKEN: "x", DISCORD_PUBLIC_KEY: "x", DISCORD_APP_ID: "x", INGEST_SECRET: "x", ADMIN_SECRET: "x", GUILD_ID: "x", CHANNEL_ID: "x", GAME_CHANNEL_ID: "x", PLAYERS: "x", LOBBY_CHANNEL_ID: "x", VOICE_CATEGORY_ID: "x" };
+  expect(loadConfig(base).PRESENCES).toBe(false);
+  expect(loadConfig({ ...base, PRESENCES: "1" }).PRESENCES).toBe(true);
+});
+
+test("an auto-move whose room won't open keeps the gathering quiet and says so", async () => {
+  const e = { ...env, PRESENCES: true };
+  const t0 = now();
+  playing("a", "World of Warcraft");
+  playing("b", "World of Warcraft");
+  await at(t0, { a: "lobby", b: "lobby" });
+  override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  await spontaneous.react(e, where, t0 + 30);
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  expect(said).toContain("moving the Lobby into the game we're playing failed");
+  expect((await prompt()).state).toBe("failed");
+  expect(posted("lobby")).toEqual([]);
 });

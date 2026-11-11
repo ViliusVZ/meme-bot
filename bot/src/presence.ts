@@ -74,10 +74,47 @@ function emit(user: string, from: string | null, to: string | null) {
   }
 }
 
+// ---------------------------------------------------------------- 🎮 what people are playing
+// Only with the presence intent (PRESENCES=1). Kept in memory only, never stored: "Playing …"
+// activity names per user, straight from Discord.
+
+const games = new Map<string, string[]>();
+type PlayingListener = (user: string, names: string[]) => void;
+const playingListeners: PlayingListener[] = [];
+
+/** One presence (GUILD_CREATE's list or a PRESENCE_UPDATE): their "Playing …" names. */
+export function setActivities(user: string, activities: { type: number; name: string }[] | undefined) {
+  const names = (activities ?? []).filter((a) => a.type === 0 && a.name).map((a) => a.name);
+  const before = games.get(user) ?? [];
+  if (names.length) games.set(user, names);
+  else games.delete(user);
+  if (before.join("|") === names.join("|")) return;
+  for (const fn of playingListeners) {
+    try {
+      fn(user, names);
+    } catch (e) {
+      console.log("playing listener failed", e);
+    }
+  }
+}
+
+/** What they're playing right now (empty: nothing we can see). */
+export const playing = (user: string) => games.get(user) ?? [];
+
+export function onPlaying(fn: PlayingListener) {
+  playingListeners.push(fn);
+  return () => {
+    const i = playingListeners.indexOf(fn);
+    if (i >= 0) playingListeners.splice(i, 1);
+  };
+}
+
 /** Tests only. */
 export function _reset() {
   states.clear();
+  games.clear();
   ready = false;
   known = false;
   listeners.length = 0;
+  playingListeners.length = 0;
 }

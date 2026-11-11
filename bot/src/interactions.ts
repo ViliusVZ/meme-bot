@@ -124,7 +124,7 @@ export async function interaction(i: any, env: Env): Promise<object> {
   if (i.type === 3 && cid.startsWith("lob:")) {
     if (!isPlayer) return ephemeral("This one's for the trio 😅");
     const [, id, what, ...rest] = cid.split(":");
-    const tell = (notice: string | null) => (notice ? followup(env, i.token, { content: notice, flags: EPHEMERAL }) : null);
+    const tell = (n: spontaneous.Notice) => (n ? followup(env, i.token, { ...(typeof n === "string" ? { content: n } : n), flags: EPHEMERAL }) : null);
     if (id === "back") {
       defer(spontaneous.goBack(env, i.channel_id, what.split(","), i.message?.id).then(tell), "moving people back to the Lobby");
       return reply({ type: R.DeferredUpdate });

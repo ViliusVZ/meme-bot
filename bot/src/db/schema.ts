@@ -261,6 +261,7 @@ export const lobbyPrompts = pgTable(
     posted_at: unix("posted_at"),
     by: text(), // who answered
     game: citext("game"),
+    activity: text(), // a game two of them were playing that we don't know by that name (learnable)
     ended_at: unix("ended_at"),
   },
   (t) => [uniqueIndex("lobby_prompts_current").on(t.current).where(sql`${t.current}`)],

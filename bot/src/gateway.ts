@@ -8,14 +8,19 @@ import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload }
 import type { Env } from "./env.js";
 import * as presence from "./presence.js";
 import * as channels from "./channels.js";
+import * as alerts from "./alerts.js";
 
 const CONNECT_TIMEOUT = 30_000;
+const DISALLOWED_INTENTS = 4014;
+/** Discord refused the presence intent (it's off in the Developer Portal): carry on without it. */
+let presencesRefused = false;
 
 export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSignal) {
   const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
   const manager = new WebSocketManager({
     token: env.DISCORD_TOKEN,
-    intents: GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates,
+    intents:
+      GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates | (env.PRESENCES && !presencesRefused ? GatewayIntentBits.GuildPresences : 0),
     rest,
     shardCount: 1,
   });
@@ -33,6 +38,7 @@ export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSi
       // a fresh connection: the full picture of who's in voice right now, and of the channels
       channels.snapshot((payload.d.channels ?? []) as channels.Channel[]);
       presence.snapshot(payload.d.voice_states ?? []);
+      for (const p of payload.d.presences ?? []) presence.setActivities(p.user.id, p.activities as { type: number; name: string }[]);
       console.log("gateway: voice snapshot", (payload.d.voice_states ?? []).length, "in voice");
       onSnapshot();
     } else if (
@@ -49,6 +55,8 @@ export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSi
       console.log("gateway: guild gone", payload.d.unavailable ? "(outage)" : "");
     } else if (payload.t === GatewayDispatchEvents.VoiceStateUpdate && payload.d.guild_id === env.GUILD_ID) {
       presence.update(payload.d.user_id, payload.d.channel_id);
+    } else if (payload.t === GatewayDispatchEvents.PresenceUpdate && payload.d.guild_id === env.GUILD_ID) {
+      presence.setActivities(payload.d.user.id, payload.d.activities as { type: number; name: string }[]);
     }
   });
   manager.on(WebSocketShardEvents.Ready, () => console.log("gateway: ready"));
@@ -61,6 +69,11 @@ export async function connect(env: Env, onSnapshot: () => void, signal?: AbortSi
     // until we resume (or get a new snapshot), fall back to asking Discord over REST
     presence.invalidate();
     console.log("gateway: closed", code);
+    if (code === DISALLOWED_INTENTS && env.PRESENCES && !presencesRefused) {
+      // the next connect goes without it: voice (and everything else) must not depend on it
+      presencesRefused = true;
+      alerts.failed("connecting with the presence intent", "Discord refused it (4014): turn on Presence Intent in the Developer Portal. Carrying on without game detection.");
+    }
   });
   manager.on(WebSocketShardEvents.Error, (e: Error) => console.log("gateway: error", e.message));
 

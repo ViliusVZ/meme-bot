@@ -78,6 +78,13 @@
       "when": 1794386631426,
       "tag": "0010_spontaneous",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794387985356,
+      "tag": "0011_lobby_activity",
+      "breakpoints": true
     }
   ]
 }

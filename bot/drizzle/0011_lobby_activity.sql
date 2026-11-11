@@ -1,0 +1,1 @@
+ALTER TABLE "lobby_prompts" ADD COLUMN "activity" text;
