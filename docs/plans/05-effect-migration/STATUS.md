@@ -10,8 +10,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
   Panels, Gemini, Snooze, Voice, Attendance, Reddit; `qa_rooms.py` on the test bot (`07dd493`):
   10 checks, no failures. Next: Spontaneous; deploy, `qa_spontaneous.py`; then GameNight.
-  Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
-  phases 0+1 on `main` when production is clear.
+  Still open from earlier phases: landing phases 0+1 on `main` (cleared for tonight, see the
+  owner's facts below). Browser tap timings and the browser tap test: deferred by the owner.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
   (`aa49c52`): `0efcba9` (Drizzle 1.0) plus the phase 0 fixes cherry-picked, so the rollback
   target has the old code and the final phase 0 harness, and reproduces `baseline` exactly (all
@@ -22,9 +22,21 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   `wow-news`, unmerged); every baseline here is of that code.
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
 - **Next step:** phase 3 (foundations), after the drizzle-1 test-bot checks
-- **Waiting for:** production to be clear for landing phases 0+1 (`pre-effect`, `aa49c52`):
-  at 17:34 tonight's real night was voting. Checked again later; else it rides with the cutover.
-  The owner's Discord login in the T3 browser (tap timings and the browser test).
+- **Owner's facts, 2026-11-11 evening (verbatim intent):**
+  1. No game night tonight: the trio won't play, so tonight's open poll is no reason to hold a
+     production deploy. **For tonight (2026-11-11) only**, the deploy rule is just: nobody is in
+     voice at that moment (check it). That clears landing phases 0+1 on `main` now and the
+     cutover whenever it's reached tonight. From 2026-11-12 the normal rule applies again (no one
+     in voice, no night voting, on or starting soon, not around the 17:00 poll; else retry in
+     30 min).
+  2. He's away from his PC and can't log in to Discord in the T3 browser tonight. Nothing waits
+     for it, the cutover included. **Deferred, to list as outstanding in the final message:** the
+     tap-timing measurement in the browser and the private-copy browser tap test. The private-copy
+     path stays covered by its vitest tests; timings are compared without the browser, from the
+     test bot's `interaction … ms` log lines during the QA suites, old code vs new. If the
+     browser turns out to be logged in after all, do them.
+- **Waiting for:** nothing. (Landing phases 0+1, `pre-effect` = `aa49c52`: cleared by fact 1 if
+  nobody is in voice.)
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
 - **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc
   (use the Edit tool). `git checkout --` on a file added with `git add -N` empties it. Run long
