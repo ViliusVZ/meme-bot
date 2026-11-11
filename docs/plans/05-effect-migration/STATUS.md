@@ -5,16 +5,12 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 3 (foundations): all six steps in (bridge, config, logging, db, channels + discord,
-  alerts/background/presence/lifecycle); its live check (qa_all, qa_timing on the test bot with
-  `8e7c1f2`) running, then the audit. Earlier phases:
-  - phase 0: the live QA baseline is running on the test bot against `618cf73` (old code), see
-    "Numbers"; then the tap baseline (needs the owner's Discord login in the T3 browser, which
-    was logged out at 16:20), memory, the phase note
-  - phase 1: deploy `drizzle-1` (`0efcba9`) to the test bot, `qa_all.py` + `qa_timing.py`, the
-    rollback rehearsal (previous `main` over it), then tag `pre-effect`; land phases 0+1 on `main`
-    when the deploy rule allows (or with the cutover)
-  - the phase 1 and phase 2 audits (fresh subagents) are still to run
+- **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
+  test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
+  its audit is running (subagent). Phase 4 so far: LocalTime, Games, Nights (`3c31df2`). Next:
+  Attendance, Memes, Roasts (with Random), Panels (test 7), Gemini; then Snooze, Voice.
+  Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
+  phases 0+1 on `main` when production is clear.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
   (`aa49c52`): `0efcba9` (Drizzle 1.0) plus the phase 0 fixes cherry-picked, so the rollback
   target has the old code and the final phase 0 harness, and reproduces `baseline` exactly (all
@@ -42,8 +38,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 0 | Baseline and preparation | in progress | | steps 1-6 done, audited, findings fixed; QA baseline running |
 | 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
-| 3 | Foundations | not started | | |
-| 4 | Feature services | not started | | |
+| 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -58,8 +54,8 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files |
 |---|---|---|
-| `async` | 188 | 5 |
-| `await` | 650 | 18 |
+| `async` | 183 | 5 |
+| `await` | 645 | 18 |
 | `.then(` | 20 | 1 |
 | `.catch(` | 58 | 3 |
 | `try {` | 35 | 2 |
@@ -69,13 +65,13 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `AbortSignal` | 5 | 2 |
 | `fetch(` | 2 | 0 |
 | `console.` | 31 | 15 |
-| `Date.now/new Date` | 79 | 0 |
+| `Date.now/new Date` | 73 | 0 |
 | `Math.random` | 1 | 0 |
 | `process.env` | 2 | 0 |
 | `: any` | 11 | 0 |
 | `as any` | 2 | 0 |
 | `_reset` | 1 | 0 |
-| `LEGACY-BRIDGE` | 177 | 14 |
+| `LEGACY-BRIDGE` | 187 | 14 |
 | `Effect.promise` | 0 | 0 |
 | `Effect.tryPromise` | 0 | 0 |
 | `runPromise` | 0 | 0 |
@@ -83,10 +79,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 |
 | `@ts-` | 0 | 0 |
-| **total** | **1282** | **77** |
+| **total** | **1276** | **77** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 59, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 25, presence.ts 21, cleanup.ts 19, gateway.ts 18, memeshame.ts 17, alerts.ts 15, gemini.ts 15, panels.ts 15, env.ts 12, channels.ts 10, games.ts 8, roasts.ts 8, background.ts 6, lifecycle.ts 5, localtime.ts 5, nights.ts 3, hub.ts 2, runtime.ts 2.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 59, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 25, presence.ts 21, cleanup.ts 19, gateway.ts 18, memeshame.ts 17, alerts.ts 15, gemini.ts 15, panels.ts 15, env.ts 12, channels.ts 10, roasts.ts 8, background.ts 6, games.ts 6, lifecycle.ts 5, nights.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -129,6 +125,8 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `3c31df2` localtime, games, nights: broken: game insert skipped (red), blank-name
+  branch flipped (red), isOver's stage branch (red), Friday as weekend (red), emoji ignored (red).
 - 2026-11-11 `740e1f6` alerts, background, presence, lifecycle: broken: a repeat not counted (red),
   the burst cap's branch (red), the DM channel not remembered (recordings red), a background
   failure not reported (red); presence emitting before a snapshot and a snapshot reporting no
