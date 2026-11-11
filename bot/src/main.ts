@@ -105,6 +105,7 @@ async function shutdown(signal: string) {
   const left = await drain(20_000);
   if (left) console.log(`exiting with ${left} background task(s) unfinished`);
   await pool.end();
+  await runtime.dispose(); // the Effect pool and services, last // LEGACY-BRIDGE
   process.exit(0);
 }
 process.on("SIGTERM", () => void shutdown("SIGTERM"));

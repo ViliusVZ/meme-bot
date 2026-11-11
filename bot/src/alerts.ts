@@ -15,7 +15,7 @@ const BURST_WINDOW = 10 * 60_000; // …in any 10 minutes
 const GATEWAY_GRACE = 5 * 60; // seconds without the gateway before it's worth a DM (reconnects take seconds)
 
 /** The DM itself: what broke, where, the error, and how to read the logs. */
-export function alertMessage(what: string, detail: string, context: unknown[] = [], again = "", app = "meme-bot", nowMs = 0) {
+export function alertMessage(what: string, detail: string, context: unknown[], again: string, app: string, nowMs: number) {
   const where = context.length ? ` · ${context.map(String).join(" · ")}` : "";
   const logs = app.replace(/-(blue|green)$/, ""); // app-logs covers both colours, across deploys
   const lines = detail.split("\n").slice(0, 6).join("\n").slice(0, 1200);
@@ -162,7 +162,10 @@ export class Alerts extends Context.Service<
 export const setup = (env: Env) => runSync(Alerts.use((a) => a.setOwner(env.ALERT_USER_ID))); // LEGACY-BRIDGE
 export const failed = (what: string, error: unknown, ...context: unknown[]) => runSync(Alerts.use((a) => a.failed(what, error, ...context))); // LEGACY-BRIDGE
 export const report = (what: string, error: unknown, context: unknown[] = []) => runSync(Alerts.use((a) => a.report(what, error, context))); // LEGACY-BRIDGE
-export const test = (env: Env, to?: string) => run(env, Alerts.use((a) => a.test(to ?? env.ALERT_USER_ID))); // LEGACY-BRIDGE
+export const test = (env: Env, to?: string) => // LEGACY-BRIDGE
+  run(env, Alerts.use((a) => a.test(to ?? env.ALERT_USER_ID))).catch((e: unknown) => { // LEGACY-BRIDGE
+    throw e instanceof Error && "_tag" in e ? new Error(e.message) : e; // today's error text // LEGACY-BRIDGE
+  }); // LEGACY-BRIDGE
 export const watchGateway = (env: Env) => run(env, Alerts.use((a) => a.watchGateway)); // LEGACY-BRIDGE
 /** Tests: wait for queued DMs. */
 export const _settle = () => runDetached(Alerts.use((a) => a.settle)); // LEGACY-BRIDGE

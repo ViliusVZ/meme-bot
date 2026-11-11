@@ -124,6 +124,24 @@ export const players = Effect.gen(function* () {
   return o.players ?? (yield* AppConfig).players;
 });
 
+/**
+ * Run `effect` with some overrides changed and the rest kept: an inner quiet call keeps the stand-in
+ * players an outer call gave (providing Overrides replaces the whole value).
+ */
+export const withOverrides =
+  (change: { readonly quiet?: boolean; readonly players?: ReadonlyArray<string> }) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    Effect.gen(function* () {
+      const o = yield* Overrides;
+      return yield* Effect.provideService(effect, Overrides, { ...o, ...change });
+    });
+
+/** Who a message may ping: nobody on a quiet call (the admin test routes), else these people. */
+export const allowedMentions = (users: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    return (yield* Overrides).quiet ? { parse: [] as string[] } : { users: [...users] };
+  });
+
 /** Whether this call must not notify anyone. */
 export const quiet = Effect.gen(function* () {
   return (yield* Overrides).quiet;

@@ -1,6 +1,5 @@
 // Postgres connection (node-postgres pool + Drizzle), migrations, and the leader lock.
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 
 export * from "./schema.js";
@@ -28,23 +27,7 @@ export function connect(url: string) {
   return { pool, db };
 }
 
-const MIGRATION_LOCK = 4_242_001;
-
-/**
- * Apply pending migrations from drizzle/. Blue and green may start at the same moment, so the
- * migration runs under an advisory lock: the second one waits, then finds nothing to do.
- * (`migrationsSchema` is for tests, which migrate a throwaway schema.)
- */
-export async function runMigrations(pool: pg.Pool, folder: string, migrationsSchema = "drizzle") {
-  const client = await pool.connect();
-  try {
-    await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK]);
-    await migrate(drizzle({ client }), { migrationsFolder: folder, migrationsSchema });
-  } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK]).catch(() => {});
-    client.release();
-  }
-}
+// migrations: db/db.ts runMigrations (the Effect migrator, under the same lock)
 
 const LEADER_LOCK = 4_242_002;
 

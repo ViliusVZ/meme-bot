@@ -86,7 +86,15 @@ export const runMigrations = Effect.fn("Db.runMigrations")(function* (folder: st
   const options = yield* DbOptions;
   yield* Effect.scoped(
     Effect.gen(function* () {
-      const client = yield* PgClient.makeClient({ url: config.databaseUrl, applicationName: config.appName, startupOptions: options.startupOptions, types: int8AsNumber() });
+      const client = yield* PgClient.makeClient({
+        url: config.databaseUrl,
+        applicationName: config.appName,
+        startupOptions: options.startupOptions,
+        // the pool's limits here too: waiting on the lock, or a migration stuck behind a lock, fails
+        // after 30 s (startup fails, and Docker tries again) instead of stalling the copy still serving
+        startupParameters: { statement_timeout: "30s", idle_in_transaction_session_timeout: "60s" },
+        types: int8AsNumber(),
+      });
       yield* client`SELECT pg_advisory_lock(${MIGRATION_LOCK})`;
       const db = yield* PgDrizzle.makeWithDefaults().pipe(Effect.provideService(PgClient.PgClient, client));
       yield* migrate(db, { migrationsFolder: folder, migrationsSchema });

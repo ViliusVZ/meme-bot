@@ -185,17 +185,17 @@ export class Discord extends Context.Service<
       const http = yield* HttpClient.HttpClient;
       const channels = yield* Channels;
 
-      /** One attempt, with the bot token; a 4xx is final, the rest may be retried. */
+      /**
+       * One attempt, with the bot token; a 4xx is final, the rest may be retried. The timeout covers
+       * the whole attempt, reading the answer included (as AbortSignal.timeout did).
+       */
       const attempt = (method: Method, path: string, body: unknown) =>
         Effect.gen(function* () {
           let req = HttpClientRequest.make(method)(API + path).pipe(
             HttpClientRequest.setHeaders({ Authorization: `Bot ${Redacted.value(config.discordToken)}`, "Content-Type": "application/json", "User-Agent": USER_AGENT }),
           );
           if (body !== undefined) req = HttpClientRequest.bodyText(req, JSON.stringify(body), "application/json");
-          const res = yield* http.execute(req).pipe(
-            Effect.timeout(ATTEMPT_TIMEOUT),
-            Effect.catch((e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))),
-          );
+          const res = yield* http.execute(req).pipe(Effect.catch((e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))));
           if (res.status === 429) {
             const j = (yield* res.json.pipe(Effect.orElseSucceed(() => ({})))) as { retry_after?: number };
             const retryAfter = typeof j?.retry_after === "number" ? j.retry_after : 1;
@@ -209,8 +209,12 @@ export class Discord extends Context.Service<
             return yield* new DiscordRejected({ method, path, status: res.status, code: e.code, discordMessage: e.message ?? text, errors: e.errors, text });
           }
           if (res.status === 204) return null;
-          return (yield* res.json.pipe(Effect.catch((e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))))) as unknown;
-        });
+          // a 2xx we can't read is final (the old code threw at once; the request did go through)
+          return (yield* res.json.pipe(Effect.catch((e) => Effect.fail(new DiscordUnexpected({ method, path, detail: String(e).slice(0, 300) }))))) as unknown;
+        }).pipe(
+          Effect.timeout(ATTEMPT_TIMEOUT),
+          Effect.catchTag("TimeoutError", (e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))),
+        );
 
       /**
        * Rate limits are always retried, after Discord's retry_after (capped at 10 s) plus 100 ms. 5xx
@@ -221,7 +225,7 @@ export class Discord extends Context.Service<
       const retries = (method: Method) =>
         Schedule.recurs(MAX_ATTEMPTS - 1).pipe(
           // a 4xx (DiscordNotFound, DiscordRejected) is final: only Transient failures are retried
-          Schedule.setInputType<Transient | DiscordNotFound | DiscordRejected>(),
+          Schedule.setInputType<Transient | DiscordNotFound | DiscordRejected | DiscordUnexpected>(),
           Schedule.while(({ input }) => input._tag === "Transient" && (input.kind === "rate" || method !== "POST")),
           Schedule.modifyDelay(({ input, attempt: n }) =>
             Effect.succeed(input._tag === "Transient" && input.kind === "rate" ? Duration.millis(input.delayMs) : Duration.millis(BACKOFF_MS * 2 ** (n - 1))),
@@ -259,7 +263,8 @@ export class Discord extends Context.Service<
         );
 
       const guild = `/guilds/${config.guildId}`;
-      const request = Effect.fn("Discord.request")(function* (method: string, path: string, body?: unknown) {
+      const request = Effect.fn("Discord.request")(function* (raw: string, path: string, body?: unknown) {
+        const method = raw.toUpperCase(); // `dc.py get …` works, as it did through fetch
         if (!isMethod(method)) return yield* new DiscordRejected({ method, path, status: 405, discordMessage: "method?", text: "" });
         return yield* call(method, path, body);
       });
@@ -270,10 +275,12 @@ export class Discord extends Context.Service<
           const once = Effect.gen(function* () {
             let req = HttpClientRequest.make(method)(url);
             if (body !== undefined) req = HttpClientRequest.bodyText(req, JSON.stringify(body), "application/json");
-            const res = yield* http.execute(req).pipe(Effect.timeout(ATTEMPT_TIMEOUT), Effect.option);
-            if (Option.isNone(res)) return null;
-            const text = yield* res.value.text.pipe(Effect.orElseSucceed(() => ""));
-            return { status: res.value.status, ok: res.value.status >= 200 && res.value.status < 300, text } as WebhookResult;
+            // no answer at all, or none within 10 s (reading it included): null, tried again like a 404
+            const got = yield* Effect.gen(function* () {
+              const res = yield* http.execute(req);
+              return { status: res.status, ok: res.status >= 200 && res.status < 300, text: yield* res.text } as WebhookResult;
+            }).pipe(Effect.timeout(ATTEMPT_TIMEOUT), Effect.option);
+            return Option.getOrNull(got);
           });
           const notYet = (r: WebhookResult) => !r || r.status === 404 || r.status === 429 || r.status >= 500;
           const r = yield* once.pipe(
