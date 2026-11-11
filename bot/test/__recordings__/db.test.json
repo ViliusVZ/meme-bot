@@ -1,0 +1,14 @@
+{
+ "bigint columns and raw bigint aggregates are numbers, as with the old pool": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:ccf7a8646862"
+  }
+ },
+ "the old pool and the Effect one see the same schema": {
+  "calls": [],
+  "db": {
+   "games": "1:efa042867fb3"
+  }
+ }
+}

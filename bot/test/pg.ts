@@ -39,6 +39,7 @@ export async function testDb() {
   return {
     db,
     pool,
+    schema: name,
     close: async () => {
       await pool.query(`DROP SCHEMA ${name} CASCADE`);
       await pool.end();

@@ -1218,5 +1218,19 @@
    "expect.not.toContain(\"discord-secret-token\")",
    "expect.not.toContain(\"\\n\")"
   ]
+ },
+ "db.test.ts": {
+  "test \"the pool has today's settings: statement timeout, idle-in-transaction timeout, application name\"": [
+   "expect.toEqual({ st: \"30s\", idle: \"1min\", app: \"meme-bot\" })"
+  ],
+  "test \"bigint columns and raw bigint aggregates are numbers, as with the old pool\"": [
+   "expect.toEqual([1793977200, 1793977200, 2 ** 40])"
+  ],
+  "test \"a typed failure rolls the transaction back and comes out typed; a failed query is typed\"": [
+   "expect.toEqual([\"Nope\", \"EffectDrizzleQueryError\", 0])"
+  ],
+  "test \"the old pool and the Effect one see the same schema\"": [
+   "expect.toContain(\"Written by the old pool\")"
+  ]
  }
 }

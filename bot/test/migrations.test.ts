@@ -1,4 +1,4 @@
-// The real migrator (db/index.ts runMigrations, Drizzle 1.0) on a throwaway schema: blue and green
+// The real migrator (db/db.ts runMigrations: Drizzle 1.0, Effect) on a throwaway schema: blue and green
 // starting together migrate once, a restart applies nothing, and a migrations table written by the
 // old migrator (Drizzle 0.45: id, hash, created_at in ms) is upgraded in place without re-running
 // anything, so production's existing database carries over.
@@ -9,8 +9,16 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { afterAll, expect, test } from "vitest";
 import pg from "pg";
-import { runMigrations } from "../src/db/index.js";
+import { Effect } from "effect";
+import { DbOptions, runMigrations } from "../src/db/db.js";
+import { run } from "../src/legacy.js";
+import { harness } from "./harness.js";
 import { url } from "./pg.js";
+
+const h = harness({ db: false });
+/** The app's migrator, pointed at a throwaway schema (as main.ts runs it at startup). */
+const migrateWith = (schema: string, dir: string) =>
+  run(h.env, runMigrations(dir, `${schema}_drizzle`).pipe(Effect.provideService(DbOptions, { startupOptions: `-c search_path=${schema},public` })));
 
 const source = fileURLToPath(new URL("../drizzle", import.meta.url));
 const made: { pool: pg.Pool; schema: string; dir: string }[] = [];
@@ -46,12 +54,12 @@ afterAll(async () => {
 
 test("two copies starting at once migrate once; a restart applies nothing", async () => {
   const { pool, schema, dir, table } = await fresh();
-  await Promise.all([runMigrations(pool, dir, `${schema}_drizzle`), runMigrations(pool, dir, `${schema}_drizzle`)]);
+  await Promise.all([migrateWith(schema, dir), migrateWith(schema, dir)]);
   const rows = (await pool.query(`SELECT name FROM ${table} ORDER BY id`)).rows.map((r) => r.name);
   expect(rows).toEqual(readdirSync(source).sort());
   const before = await tables(pool, schema);
   expect(before).toBeGreaterThan(15);
-  await runMigrations(pool, dir, `${schema}_drizzle`);
+  await migrateWith(schema, dir);
   expect((await pool.query(`SELECT count(*) FROM ${table}`)).rows[0].count).toBe(migrationCount);
   expect(await tables(pool, schema)).toBe(before);
 });
@@ -73,7 +81,7 @@ test("an old-style migrations table (Drizzle 0.45) is upgraded in place, nothing
     await pool.query(`INSERT INTO ${table} (hash, created_at) VALUES ($1, $2)`, [hash, when[m.replace(/^\d+_/, "")]]);
   }
   const before = await tables(pool, schema);
-  await runMigrations(pool, dir, `${schema}_drizzle`); // would fail ("already exists") if it re-ran one
+  await migrateWith(schema, dir); // would fail ("already exists") if it re-ran one
   const rows = (await pool.query(`SELECT id, name, created_at FROM ${table} ORDER BY id`)).rows;
   expect(rows.map((r) => r.name)).toEqual(readdirSync(source).sort());
   expect(rows.map((r) => Number(r.created_at))).toEqual(Object.values(when)); // the old timestamps stay, so the old code still sees them all

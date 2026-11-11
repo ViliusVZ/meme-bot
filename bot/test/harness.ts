@@ -287,7 +287,8 @@ export function harness(o: Options = {}): Harness {
       await o.setup?.(h.t);
     } else h.env = testEnv({} as never, o.env);
     // the app's services for this file (plan 05 transition: old code reaches them through legacy.ts)
-    runtime = makeRuntime(configFromEnv(h.env, { databaseUrl: url() }));
+    // (on this file's throwaway schema, the same one the old pool uses)
+    runtime = makeRuntime(configFromEnv(h.env, { databaseUrl: url() }), h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {});
     await runtime.context();
     install(runtime);
   });
