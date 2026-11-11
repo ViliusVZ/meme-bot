@@ -134,7 +134,7 @@ export const Listed = Schema.Struct({
   components: Schema.optional(Schema.Array(Schema.Unknown)),
 });
 export const WithId = Schema.Struct({ id: Schema.String });
-export const VoiceState = Schema.Struct({ channel_id: Schema.NullOr(Schema.String) });
+export const VoiceState = Schema.Struct({ channel_id: Schema.optional(Schema.NullOr(Schema.String)) });
 
 /** What an interaction webhook answered: the edit landed (2xx) or it didn't. null: no answer at all. */
 export type WebhookResult = { readonly status: number; readonly ok: boolean; readonly text: string } | null;
@@ -158,9 +158,9 @@ export class Discord extends Context.Service<
     pins(channelId: string): Effect.Effect<unknown, DiscordError>;
     pin(channelId: string, messageId: string): Effect.Effect<void, DiscordError>;
     getChannel(channelId: string): Effect.Effect<typeof WithId.Type, DiscordError>;
-    editChannel(channelId: string, body: unknown): Effect.Effect<typeof ChannelInfo.Type, DiscordError>;
+    editChannel(channelId: string, body: unknown): Effect.Effect<void, DiscordError>;
     deleteChannel(channelId: string): Effect.Effect<void, DiscordError>;
-    createChannel(body: unknown): Effect.Effect<typeof ChannelInfo.Type, DiscordError>;
+    createChannel(body: unknown): Effect.Effect<typeof WithId.Type, DiscordError>;
     reorderChannels(moves: ReadonlyArray<{ id: string; position: number; parent_id?: string | null; lock_permissions?: boolean }>): Effect.Effect<void, DiscordError>;
     /** All channels: from the live cache, or over REST when we don't have one. */
     readonly listChannels: Effect.Effect<ReadonlyArray<Channel>, DiscordError>;
@@ -315,9 +315,9 @@ export class Discord extends Context.Service<
         pins: Effect.fn("Discord.pins")((channelId: string) => call("GET", `/channels/${channelId}/pins`)),
         pin: Effect.fn("Discord.pin")((channelId: string, messageId: string) => Effect.asVoid(call("PUT", `/channels/${channelId}/pins/${messageId}`))),
         getChannel: Effect.fn("Discord.getChannel")((channelId: string) => read("GET", `/channels/${channelId}`, WithId)),
-        editChannel: Effect.fn("Discord.editChannel")((channelId: string, body: unknown) => read("PATCH", `/channels/${channelId}`, ChannelInfo, body)),
+        editChannel: Effect.fn("Discord.editChannel")((channelId: string, body: unknown) => Effect.asVoid(call("PATCH", `/channels/${channelId}`, body))),
         deleteChannel: Effect.fn("Discord.deleteChannel")((channelId: string) => Effect.asVoid(call("DELETE", `/channels/${channelId}`))),
-        createChannel: Effect.fn("Discord.createChannel")((body: unknown) => read("POST", `${guild}/channels`, ChannelInfo, body)),
+        createChannel: Effect.fn("Discord.createChannel")((body: unknown) => read("POST", `${guild}/channels`, WithId, body)),
         reorderChannels: Effect.fn("Discord.reorderChannels")((moves) => Effect.asVoid(call("PATCH", `${guild}/channels`, moves))),
         listChannels: Effect.gen(function* () {
           const cached = yield* channels.cached;
