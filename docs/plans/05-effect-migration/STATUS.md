@@ -14,7 +14,18 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   uninterruptible; test 6 is `test/interruption.test.ts` (`ddee640`), one table entry per
   sequence: GameNight's sequences (the card, the start ping, roasts) are added there as they move.
   Memes, Panels, Roasts hold no claim → post sequence inside a service (the daily meme's lives in
-  `jobs.ts`/`gamenight.ts` callers, still promise code). Next: GameNight, in several commits.
+  `jobs.ts`/`gamenight.ts` callers, still promise code). GameNight in five commits: **1/5 done
+  (`164d512`)**: readers, helpers, the card. How it's staged: the moved code is module-level
+  Effect functions (their services in R); the promise code not moved yet calls them through
+  `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
+  `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
+  lifecycle (startNight, retryUnposted, refreshOpen, closeStale, close, refresh, syncPanels,
+  trackPanel, resetNight, callOff, clearDay), 3/5 act (settle, hold, runningLate, startMoved,
+  lockIn, afterBail, bailFromSlip, postRoast), 4/5 maintain (maintainNight, resume, dueRoasts),
+  5/5 the start (claimStart, startReminder, startOnTime, preciseStarts, upcomingStarts) + the
+  service. `act`'s `defer` takes Effects; its delegate runs each through the bridge into the
+  caller's defer (keeps the tests' waits and the call's overrides). Test 6 entries for the card,
+  the start ping and the roast go into `test/interruption.test.ts` with their stages.
   Phases 0+1 are on `main` and in production (below). Browser tap timings and the browser tap
   test: deferred by the owner.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -169,6 +180,10 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `164d512` gamenight 1/5 (readers, helpers, the card): broken: the nudge id not
+  stored (recordings red), the new nudge before the old one goes (recordings red), a planned day
+  closing before noon (red). Stayed green, tests added (`848c389`), red since: a gone nudge
+  failing the next one, start times revealed after the first pick, the leave-by prefill.
 - 2026-11-11 `40adbeb` spontaneous (Spontaneous): broken: the line id not saved (red), a swept
   line as a failure (recordings red), the question not given back (red), a ready room with
   detection off (red). Stayed green, tests added (`f2ec221`), red since: moving before the
@@ -402,6 +417,8 @@ timeout), with the evidence.
 - **Recordings depend on a test's place in its file:** tables with serial ids (`games`) are
   emptied between tests but their sequences run on, so a test added in the middle of a file
   changes every later test's database snapshot. New tests go at the end of their file.
+- **`secret()` has a branch nothing reaches:** the game stage's (the card's game stage decides
+  "split" itself and never asks). Harmless; noted, not changed.
 - **`vi.waitFor` moves the fake clock** on every poll when fake timers are on (Date only, here),
   so a long wait shifts any time the code stores. Waits that long poll on real `setTimeout`.
 - **Not under the harness:** `resilience.test.ts` (fake timers, its own pool) and `time.test.ts`
