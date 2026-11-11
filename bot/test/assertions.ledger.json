@@ -1208,5 +1208,15 @@
    "expect.toEqual([\"qa-1\", true])",
    "expect.toEqual([\"a\", \"b\", \"c\"])"
   ]
+ },
+ "logging.test.ts": {
+  "test \"one line per entry, logfmt, phrases whole, secrets redacted\"": [
+   "expect.toHaveLength(3)",
+   "expect.toMatch(/level=INFO .*message=\"leader: took over\"/)",
+   "expect.toContain('message=\"interaction 412 ms\"')",
+   "expect.toContain(\"what=gn:2026-11-11:yes who=vithis\")",
+   "expect.not.toContain(\"discord-secret-token\")",
+   "expect.not.toContain(\"\\n\")"
+  ]
  }
 }
