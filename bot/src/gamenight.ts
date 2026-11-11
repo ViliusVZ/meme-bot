@@ -22,12 +22,15 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "
 import { Effect } from "effect";
 import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
-import { Db } from "./db/db.js";
+import { Db, type Tx as DbTx } from "./db/db.js";
 import { Discord } from "./discord.js";
 import { Games } from "./games.js";
 import { Nights } from "./nights.js";
 import { Attendances } from "./attendance.js";
-import { localAt, wallToUnixIn, weekdayOf } from "./localtime.js";
+import { localAt, pollHourOf, wallToUnixIn, weekdayOf } from "./localtime.js";
+import { Alerts } from "./alerts.js";
+import { Panels, type Mine } from "./panels.js";
+import { Snoozes } from "./snooze.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
 import { run } from "./legacy.js"; // LEGACY-BRIDGE
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
@@ -420,109 +423,158 @@ const revealOff = Effect.fnUntraced(function* (day: string) {
 
 export type StartResult = { started: boolean; day: string; message_id: string | null; stage: Stage };
 
+/** Discord's typed errors turned back into today's error text, for the promise code that reads it. */
+const asOld = (e: unknown) => { // LEGACY-BRIDGE
+  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
+}; // LEGACY-BRIDGE
+
 /**
  * Posts the card for a day (today by default) if there isn't one yet. `by` is the player who ran
  * /playtoday or planned the day (their "yes" counts straight away); without it this is the 17:00
  * schedule, which only acts in the poll hour. Either way the INSERT OR IGNORE on the day decides
  * who wins, so a day planned in advance is never posted again by the schedule.
  */
-export async function startNight(env: Env, by?: string, anyHour = false, forDay?: string): Promise<StartResult | { skipped: string }> {
-  const { day: today, hour } = local(env);
-  const day = forDay ?? today;
-  if (day < today) return { skipped: "that day is over" };
-  let n = await getNight(env, day);
-  if (!n) {
-    if (!by && !anyHour) {
-      if (hour !== pollHour(env, day)) return { skipped: "not poll hour" };
-      // 😴 someone snoozed planning: no automatic card (starting one by hand still works)
-      if (await snooze.isSnoozed(env, day)) return { skipped: "snoozed" };
-    }
-    await env.db.insert(gameNights).values({ day, stage: "ask", reminded: false, started_by: by ?? null, stage_at: nowSec() }).onConflictDoNothing();
-    n = (await getNight(env, day))!;
+const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, forDay?: string) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const discord = yield* Discord;
+  const nights = yield* Nights;
+  const alerts = yield* Alerts;
+  const w = yield* when;
+  const { day: todayIs, hour } = localOf(w);
+  const day = forDay ?? todayIs;
+  if (day < todayIs) return { skipped: "that day is over" };
+  const found = yield* nights.get(day);
+  if (!found && !by && !anyHour) {
+    if (hour !== pollHourOf(day, config.gamePollHour, config.gamePollHourWeekend)) return { skipped: "not poll hour" };
+    // 😴 someone snoozed planning: no automatic card (starting one by hand still works)
+    if (yield* (yield* Snoozes).isSnoozed(day)) return { skipped: "snoozed" };
   }
-  // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
-  // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
-  if (by && n.started_by === by && n.stage === "ask" && !n.message_id) await voteP(env, day, "ask", by, "yes");
-  // already posted, or someone else's card: just point at it
-  if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
-  // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
-  try {
-    const msg = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, await render(env, day));
-    // only the first writer stores its message; a racing duplicate deletes itself
-    const set = await env.db
-      .update(gameNights)
-      .set({ message_id: msg.id })
-      .where(and(eq(gameNights.day, day), isNull(gameNights.message_id)))
-      .returning({ day: gameNights.day });
-    if (!set.length) {
-      await api(env, "DELETE", `/channels/${env.GAME_CHANNEL_ID}/messages/${msg.id}`).catch(() => {});
-      const n = (await getNight(env, day))!;
-      return { started: false, day, message_id: n.message_id, stage: n.stage };
-    }
-    if (by) {
-      // someone kicked it off by hand: the other two hear about it (the daily card is expected)
-      const when = day === today ? "tonight" : `on ${weekday(env, day)}`;
-      await nudgeP(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => alerts.failed("the “wants to play” ping", e, day));
-    }
-    return { started: true, day, message_id: msg.id as string, stage: "ask" };
-  } catch (e) {
-    // keep the claim (so the daily job can't post a second poll); the next minute (retryUnposted) or /playtoday retries
-    alerts.failed("posting the game-night card", e, day);
-    throw e;
+  // claim → post → record is never cut short (architecture §15); a failed post keeps the claim
+  const posted: StartResult = yield* Effect.uninterruptible(
+    Effect.gen(function* () {
+      let n = found;
+      if (!n) {
+        yield* db.insert(gameNights).values({ day, stage: "ask", reminded: false, started_by: by ?? null, stage_at: yield* currentSec }).onConflictDoNothing();
+        n = (yield* nights.get(day))!;
+      }
+      // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
+      // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
+      if (by && n.started_by === by && n.stage === "ask" && !n.message_id) yield* vote(day, "ask", by, "yes");
+      // already posted, or someone else's card: just point at it
+      if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
+      // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
+      return yield* Effect.gen(function* () {
+        const msg = yield* discord.createMessage(config.gameChannelId, yield* renderCard(day));
+        // only the first writer stores its message; a racing duplicate deletes itself
+        const set = yield* db
+          .update(gameNights)
+          .set({ message_id: msg.id })
+          .where(and(eq(gameNights.day, day), isNull(gameNights.message_id)))
+          .returning({ day: gameNights.day });
+        if (!set.length) {
+          yield* discord.deleteMessage(config.gameChannelId, msg.id).pipe(Effect.ignore);
+          const again = (yield* nights.get(day))!;
+          return { started: false, day, message_id: again.message_id, stage: again.stage };
+        }
+        return { started: true, day, message_id: msg.id, stage: "ask" as Stage };
+      }).pipe(
+        // keep the claim (so the daily job can't post a second poll); the next minute (retryUnposted) or /playtoday retries
+        Effect.tapError((e) => alerts.failed("posting the game-night card", e, day)),
+      );
+    }),
+  );
+  if (posted.started && by) {
+    // someone kicked it off by hand: the other two hear about it (the daily card is expected)
+    const tonight = day === todayIs ? "tonight" : `on ${weekdayOf(day)}`;
+    yield* nudge(day, (yield* theTrio).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${tonight}! Are you in? ⬆️`).pipe(
+      Effect.catch((e) => alerts.failed("the “wants to play” ping", e, day)),
+    );
   }
-}
+  return posted;
+});
+export const startNight = (env: Env, by?: string, anyHour = false, forDay?: string): Promise<StartResult | { skipped: string }> => // LEGACY-BRIDGE
+  run(env, openNight(by, anyHour, forDay)).catch(asOld); // LEGACY-BRIDGE
 
 /** A claimed day whose card failed to post (today's or a planned one): try again. */
-export async function retryUnposted(env: Env) {
-  const days = await env.db
+const retryCards = Effect.gen(function* () {
+  const db = yield* Db;
+  const days = yield* db
     .select({ day: gameNights.day })
     .from(gameNights)
-    .where(and(isNull(gameNights.message_id), eq(gameNights.stage, "ask"), gte(gameNights.day, local(env).day)));
-  for (const { day } of days) await startNight(env, undefined, true, day);
+    .where(and(isNull(gameNights.message_id), eq(gameNights.stage, "ask"), gte(gameNights.day, today(yield* when))));
+  for (const { day } of days) yield* openNight(undefined, true, day);
   return days.map((d) => d.day);
-}
+});
+export const retryUnposted = (env: Env) => run(env, retryCards).catch(asOld); // LEGACY-BRIDGE
 
 /** Re-render every open card (after the game list changes, say). */
-export async function refreshOpen(env: Env) {
-  const open = await env.db
+const refreshCards = Effect.gen(function* () {
+  const db = yield* Db;
+  const open = yield* db
     .select({ day: gameNights.day })
     .from(gameNights)
-    .where(and(gte(gameNights.day, local(env).day), inArray(gameNights.stage, OPEN)));
-  for (const { day } of open) await refresh(env, day);
-}
+    .where(and(gte(gameNights.day, today(yield* when)), inArray(gameNights.stage, OPEN)));
+  for (const { day } of open) yield* refreshCard(day);
+});
+export const refreshOpen = (env: Env) => run(env, refreshCards).catch(asOld); // LEGACY-BRIDGE
 
 /** Cards left open past their time get closed so their buttons stop working. */
-export async function closeStale(env: Env) {
-  const today = local(env).day;
-  const open = await env.db
+const closeStaleCards = Effect.gen(function* () {
+  const db = yield* Db;
+  const nights = yield* Nights;
+  const open = yield* db
     .select({ day: gameNights.day, stage: gameNights.stage })
     .from(gameNights)
-    .where(and(sql`${gameNights.day} < ${today}`, inArray(gameNights.stage, OPEN)));
-  const stale = open.filter((n) => isOver(env, n));
-  for (const { day } of stale) await close(env, day);
-  return stale.map((s) => s.day);
-}
+    .where(and(sql`${gameNights.day} < ${today(yield* when)}`, inArray(gameNights.stage, OPEN)));
+  const stale: string[] = [];
+  for (const n of open) if (yield* nights.isOver(n)) stale.push(n.day);
+  for (const day of stale) yield* closeCard(day);
+  return stale;
+});
+export const closeStale = (env: Env) => run(env, closeStaleCards).catch(asOld); // LEGACY-BRIDGE
 
 /**
  * Closes a card that's past its time. From the minute job it re-renders the card itself; from a click
  * (`rerender` false) the stage is already flipped and the reply shows the closed card, so this
  * only tidies the nudge.
  */
-async function close(env: Env, day: string, rerender = true) {
-  const n = await getNight(env, day);
+const closeCard = Effect.fnUntraced(function* (day: string, rerender = true) {
+  const n = yield* (yield* Nights).get(day);
   if (!n) return;
   if (rerender) {
     if (!OPEN.includes(n.stage)) return;
     // the day ran out: anyone who had an hour to vote and didn't (or said no) still gets roasted,
     // in the morning; a vote that only just opened closes quietly
-    const { who } = await culpritsP(env, n);
-    const fair = nowSec() - (n.stage_at ?? 0) >= RENUDGE_AFTER;
-    if (!(await callOff(env, n, fair ? who : {}, fair && Object.keys(who).length ? undefined : closeNote(n.stage)))) return;
-    await refresh(env, day);
+    const { who } = yield* culprits(n);
+    const fair = (yield* currentSec) - (n.stage_at ?? 0) >= RENUDGE_AFTER;
+    if (!(yield* callNightOff(n, fair ? who : {}, fair && Object.keys(who).length ? undefined : closeNote(n.stage)))) return;
+    yield* refreshCard(day);
     return;
   }
-  await clearNudgeP(env, n);
-}
+  yield* clearNudge(n);
+});
+
+/**
+ * Call the night off (once: compare-and-set on the stage), with the culprits recorded for the roast.
+ * The roast posts right away, or at 09:30 if it happened in the small hours. With nobody to
+ * blame (say, the day simply ended) it just closes.
+ */
+const callNightOff = Effect.fnUntraced(function* (n: Night, who: Record<string, Reason>, note?: string) {
+  const db = yield* Db;
+  const anyone = Object.keys(who).length > 0;
+  const line = note ?? (anyone ? `🔥 Called off: ${blame(who)}.` : closeNote(n.stage));
+  if (!(yield* advance(n.day, n.stage, "off", { note: line }))) return false;
+  if (anyone) {
+    const w = yield* when;
+    yield* db
+      .update(gameNights)
+      .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(w, w.now), roasted_at: null })
+      .where(eq(gameNights.day, n.day));
+  }
+  yield* clearNudge((yield* (yield* Nights).get(n.day))!);
+  return true;
+});
 
 /**
  * Re-render a card in place (used outside interactions, where we can't reply with an update), and
@@ -530,27 +582,34 @@ async function close(env: Env, day: string, rerender = true) {
  * we playing?" card then gets reposted by the next minute, and later stages simply stop trying to
  * edit it. `mine` is the panel a tap just answered, so its notice survives the sync.
  */
-export async function refresh(env: Env, day: string, mine?: panels.Mine) {
-  const n = await getNight(env, day);
+const refreshCard = Effect.fnUntraced(function* (day: string, mine?: Mine) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const n = yield* (yield* Nights).get(day);
   if (!n) return;
   if (n.message_id) {
-    try {
-      await api(env, "PATCH", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`, await render(env, day));
-    } catch (e) {
-      if (!isNotFound(e)) throw e;
-      await env.db.update(gameNights).set({ message_id: null }).where(and(eq(gameNights.day, day), eq(gameNights.message_id, n.message_id)));
-    }
+    const id = n.message_id;
+    yield* (yield* Discord)
+      .editMessage(config.gameChannelId, id, yield* renderCard(day))
+      .pipe(Effect.catchTag("DiscordNotFound", () => db.update(gameNights).set({ message_id: null }).where(and(eq(gameNights.day, day), eq(gameNights.message_id, id)))));
   }
-  await syncPanels(env, day, mine);
-}
+  yield* syncCopies(day, mine);
+});
+export const refresh = (env: Env, day: string, mine?: Mine) => run(env, refreshCard(day, mine)).catch(asOld); // LEGACY-BRIDGE
 
 /** Bring everyone's private copies of a day's card up to date (panels.ts). */
-export const syncPanels = (env: Env, day: string, mine?: panels.Mine) =>
-  panels.sync(env, `gn:${day}`, (user, notice) => render(env, day, user, notice), mine);
+const syncCopies = Effect.fnUntraced(function* (day: string, mine?: Mine) {
+  const ctx = yield* Effect.context<Effect.Services<ReturnType<typeof renderCard>>>();
+  yield* (yield* Panels).sync(`gn:${day}`, (user, notice) => renderCard(day, user, notice).pipe(Effect.provideContext(ctx)), mine);
+});
+export const syncPanels = (env: Env, day: string, mine?: Mine) => run(env, syncCopies(day, mine)); // LEGACY-BRIDGE
 
 /** Remember a private copy of a day's card, so it follows along (panels.ts). */
 export const trackPanel = (env: Env, day: string, user: string, token: string, messageId?: string) =>
   panels.track(env, `gn:${day}`, user, token, messageId);
+
+const closeP = (env: Env, day: string, rerender?: boolean) => run(env, closeCard(day, rerender)); // LEGACY-BRIDGE
+const callOffP = (env: Env, n: Night, who: Record<string, Reason>, note?: string) => run(env, callNightOff(n, who, note)); // LEGACY-BRIDGE
 
 /**
  * A player clicked something. Slow side effects (events, pings) go through `defer` so the
@@ -562,7 +621,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
   if (!players(env).includes(user)) return say("This one's for the trio 😅");
   if (OPEN.includes(n.stage) && isOver(env, n)) {
     // close in the background; the reply below already shows the closed card
-    defer(close(env, day, false));
+    defer(closeP(env, day, false));
     await advanceP(env, day, n.stage, "off", { note: closeNote(n.stage) });
     return say("That poll has closed. Start a new one with **/playtoday** 🎮", true);
   }
@@ -637,7 +696,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
       if (n.stage === "set" && (n.start_at ?? 0) < nowSec() - 4 * 3600) return say("That game night is already history 🕰️");
       if (n.stage === "off" || n.stage === "ask") return ok;
       // all of us or none of us: a bail calls it off for everyone, even after the start
-      if (await callOff(env, n, { [user]: "out" })) defer(afterBail(env, n));
+      if (await callOffP(env, n, { [user]: "out" })) defer(afterBail(env, n));
       return ok;
     case "late": {
       // ⏰ "I'll be late by…" on the locked-in card
@@ -676,7 +735,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
         .returning({ day: gameNights.day });
       if (!r.length) return ok; // someone else reopened it a moment ago
-      await env.db.transaction((tx) => clearDay(tx, day));
+      await clearDayP(env, day);
       await voteP(env, day, "ask", user, "yes");
       const when = day === local(env).day ? "tonight" : `on ${weekday(env, day)}`;
       defer(nudgeP(env, day, players(env).filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${when}? ⬆️`));
@@ -769,7 +828,7 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
     } else if (ps.every((p) => v[p]) && ps.some((p) => v[p] === "no")) {
       // everyone answered and somebody said no (a maybe can't save it): the votes come out, and so do the roasts
       const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
-      if (await callOff(env, n, who)) defer(postRoast(env, day));
+      if (await callOffP(env, n, who)) defer(postRoast(env, day));
     } else if (ps.every((p) => v[p]) && !n.paused_until && n.maybes < HOLDS.length) {
       await hold(env, n, ps.filter((p) => v[p] === "maybe"), defer);
     }
@@ -907,25 +966,6 @@ async function lockIn(env: Env, day: string) {
 // ---------------------------------------------------------------- 🔥 deadlines and roasts
 
 /**
- * Call the night off (once: compare-and-set on the stage), with the culprits recorded for the roast.
- * The roast posts right away, or at 09:30 if it happened in the small hours. With nobody to
- * blame (say, the day simply ended) it just closes.
- */
-async function callOff(env: Env, n: Night, who: Record<string, Reason>, note?: string) {
-  const anyone = Object.keys(who).length > 0;
-  const text = note ?? (anyone ? `🔥 Called off: ${blame(who)}.` : closeNote(n.stage));
-  if (!(await advanceP(env, n.day, n.stage, "off", { note: text }))) return false;
-  if (anyone) {
-    await env.db
-      .update(gameNights)
-      .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(W(env), nowSec()), roasted_at: null })
-      .where(eq(gameNights.day, n.day));
-  }
-  await clearNudgeP(env, (await getNight(env, n.day))!);
-  return true;
-}
-
-/**
  * Someone bailed: ends the night's Discord event (deleted if it hadn't started, marked ended if it
  * had), retires everyone's late slips, and posts the roast.
  */
@@ -945,7 +985,7 @@ async function afterBail(env: Env, n: Night) {
 export async function bailFromSlip(env: Env, day: string, user: string) {
   const n = await getNight(env, day);
   if (n?.stage !== "set") return false;
-  if (!(await callOff(env, n, { [user]: "out" }))) return false;
+  if (!(await callOffP(env, n, { [user]: "out" }))) return false;
   await refresh(env, day);
   await afterBail(env, n);
   return true;
@@ -1117,7 +1157,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
     // everyone voted for a game but it's split: the clock still runs, for all three
     const split = n.stage === "game" && !missing.length;
     if (split && t >= deadline) {
-      if (await callOff(env, n, {}, "🤷 We couldn't agree on a game in time. Maybe tomorrow 🫡")) {
+      if (await callOffP(env, n, {}, "🤷 We couldn't agree on a game in time. Maybe tomorrow 🫡")) {
         await refresh(env, n.day);
         done[`split ran out ${n.day}`] = true;
       }
@@ -1138,7 +1178,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
     }
     if (missing.length && t >= deadline) {
       // 🔥 time's up: the votes come out, the night's off, and whoever sank it gets roasted
-      if (await callOff(env, n, who)) {
+      if (await callOffP(env, n, who)) {
         await refresh(env, n.day);
         await postRoast(env, n.day);
         done[`called off ${n.day}`] = who;
@@ -1540,21 +1580,29 @@ const leaveBy = Effect.fnUntraced(function* (day: string, user: string) {
 export const leaveByModal = (env: Env, day: string, user: string) => run(env, leaveBy(day, user)); // LEGACY-BRIDGE
 
 /** Testing/maintenance: wipe a day's night (card, nudge, event, votes). */
-export async function resetNight(env: Env, day: string) {
-  const n = await getNight(env, day);
+const wipeNight = Effect.fnUntraced(function* (day: string) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const discord = yield* Discord;
+  const n = yield* (yield* Nights).get(day);
   if (!n) return { reset: false };
-  if (n.message_id) await api(env, "DELETE", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`).catch(() => {});
-  await clearNudgeP(env, n);
-  if (n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
-  await env.db.transaction(async (tx) => {
-    await clearDay(tx, day);
-    await tx.delete(gameNights).where(eq(gameNights.day, day));
-  });
+  if (n.message_id) yield* discord.deleteMessage(config.gameChannelId, n.message_id).pipe(Effect.ignore);
+  yield* clearNudge(n);
+  if (n.event_id) yield* discord.deleteEvent(n.event_id).pipe(Effect.ignore);
+  yield* db.transaction((tx) =>
+    Effect.gen(function* () {
+      yield* clearDay(tx, day);
+      yield* tx.delete(gameNights).where(eq(gameNights.day, day));
+    }),
+  );
   return { reset: true };
-}
+});
+export const resetNight = (env: Env, day: string) => run(env, wipeNight(day)); // LEGACY-BRIDGE
 
 /** A day's votes and attendance (reopen and reset start the day over). */
-async function clearDay(tx: Tx, day: string) {
-  await tx.delete(gameNightVotes).where(eq(gameNightVotes.day, day));
-  await tx.delete(nightAttendance).where(eq(nightAttendance.day, day));
-}
+const clearDay = (tx: DbTx, day: string) =>
+  Effect.gen(function* () {
+    yield* tx.delete(gameNightVotes).where(eq(gameNightVotes.day, day));
+    yield* tx.delete(nightAttendance).where(eq(nightAttendance.day, day));
+  });
+const clearDayP = (env: Env, day: string) => run(env, Db.use((db) => db.transaction((tx) => clearDay(tx, day)))); // LEGACY-BRIDGE
