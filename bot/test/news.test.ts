@@ -134,7 +134,14 @@ test("Gemini down: items wait, and after 6 hours the title decides", async () =>
     [21, 1, "Midnight Talebound Demo"],
   ]);
   const t0 = now();
+  const asks = () => calls.filter((c) => c.url.includes("gemini-3.5")).length;
   expect(await news.run(env, t0)).toEqual({ seen: 2 });
+  expect(asks()).toBe(1);
+  // the same lot isn't put to Gemini every half hour: every 2 hours
+  await news.run(env, t0 + 1800);
+  expect(asks()).toBe(1);
+  await news.run(env, t0 + news.ASK_AGAIN);
+  expect(asks()).toBe(2);
   expect(await news.run(env, t0 + news.FALLBACK_AFTER - 1)).toEqual({});
   expect(await news.run(env, t0 + news.FALLBACK_AFTER)).toMatchObject({ judged: 2, posted: ["Explore WoW: Forever with a Gamepad"] });
   log.mockRestore();

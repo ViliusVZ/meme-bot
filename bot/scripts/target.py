@@ -8,7 +8,7 @@ import pathlib
 _root = pathlib.Path(__file__).resolve().parent.parent
 _secrets = dict(line.split("=", 1) for line in (_root / ".env.qa").read_text().split() if "=" in line)
 _config = dict(
-    line.split("=", 1) for line in (_root / "deploy" / ("prod.env" if os.environ.get("BOT") == "prod" else "dev.env")).read_text().splitlines()
+    line.split("=", 1) for line in (_root / "deploy" / ("prod.env" if os.environ.get("BOT") == "prod" else "dev.env")).read_text(encoding="utf-8").splitlines()
     if "=" in line and not line.startswith("#")
 )
 

@@ -21,9 +21,11 @@ const UA = "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)";
 export const EVERY = 30 * 60;
 const RETRY = 10 * 60; // a failed check tries again this soon
 export const FALLBACK_AFTER = 6 * 3600; // Gemini silent this long → the title rule decides
+export const ASK_AGAIN = 2 * 3600; // Gemini didn't answer: the same items wait this long before the next try
 export const DAILY_POSTS = 5;
 const STALE = 24 * 3600; // no successful check for this long → tell the owner
 const KEY = "wow_news";
+const ASKED = "wow_news_asked"; // when Gemini was last asked to judge
 const SILENT = 1 << 12;
 const nowSec = () => Math.floor(Date.now() / 1000);
 const parser = new XMLParser({ processEntities: true, htmlEntities: true });
@@ -154,7 +156,13 @@ type Verdict = { topic: number; forever: boolean; news: boolean; summary: string
 async function judge(env: Env, t: number) {
   const waiting = await env.db.select().from(newsItems).where(eq(newsItems.state, "new")).orderBy(asc(newsItems.published_at));
   if (!waiting.length) return 0;
-  const answer = await gemini.ask<{ items: Verdict[] }>(
+  // Gemini's free tier is often busy: something new is asked about at once, the same lot again only
+  // every 2 hours (the daily budget is shared with game-name matching), then the title rule decides
+  const [row] = await env.db.select().from(settings).where(eq(settings.key, ASKED));
+  const asked = (row?.value as { at: number } | undefined)?.at ?? 0;
+  const ask = waiting.some((w) => w.seen_at > asked) || t - asked >= ASK_AGAIN;
+  if (ask) await env.db.insert(settings).values({ key: ASKED, value: { at: t } }).onConflictDoUpdate({ target: settings.key, set: { value: { at: t }, updated_at: new Date() } });
+  const answer = !ask ? null : await gemini.ask<{ items: Verdict[] }>(
     env,
     `These are new staff posts from Blizzard's World of Warcraft forums. For each one decide:
 - forever: is it about World of Warcraft: Forever (Blizzard's permanent "Classic plus" realms launched in November 2026)?
