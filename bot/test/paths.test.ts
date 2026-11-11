@@ -464,3 +464,24 @@ test("a called-off night leaves the slips of people who made it alone", async ()
   expect(edits.map(([p]) => p).sort()).toEqual(["/channels/gn/messages/slip-b", "/channels/gn/messages/slip-c"]);
   expect(edits.find(([p]) => p.endsWith("slip-c"))![1]).toContain("Never mind <@c>");
 });
+
+test("a night another copy already called off isn't touched again", async () => {
+  await t.db.insert(gameNights).values({ day: "2026-11-05", stage: "ask", stage_at: now() - 86400, message_id: "old-card", nudge_id: "old-nudge" });
+  // the other copy flips the stage first: ours finds nothing to flip
+  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_lost() RETURNS trigger AS $$ BEGIN RETURN NULL; END $$ LANGUAGE plpgsql`);
+  await t.pool.query(`CREATE TRIGGER qa_lost BEFORE UPDATE ON game_nights FOR EACH ROW WHEN (NEW.stage = 'off') EXECUTE FUNCTION qa_lost()`);
+  await gn.closeStale(env);
+  await t.pool.query("DROP TRIGGER qa_lost ON game_nights");
+  expect(calls.filter((c) => c.method === "DELETE")).toEqual([]);
+  expect((await t.db.select().from(gameNights).where(eq(gameNights.day, "2026-11-05")))[0]).toMatchObject({ stage: "ask", nudge_id: "old-nudge" });
+});
+
+test("a card that won't post is reported, and its claim kept", async () => {
+  h.override = (c) => (c.method === "POST" && c.path === "/channels/gn/messages" ? json({ message: "Missing Access", code: 50001 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  await expect(gn.startNight(env, undefined, true)).rejects.toThrow(/403/);
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  expect(said).toContain("posting the game-night card failed");
+  expect(await night()).toMatchObject({ stage: "ask", message_id: null });
+});

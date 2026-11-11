@@ -355,5 +355,21 @@
    "games": "8:a906c10ebcec",
    "night_attendance": "3:b3adb2fc41d8"
   }
+ },
+ "a night another copy already called off isn't touched again": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:e719994f5665",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "a card that won't post is reported, and its claim kept": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115"
+  ],
+  "db": {
+   "game_nights": "1:ccf7a8646862",
+   "games": "8:a906c10ebcec"
+  }
  }
 }

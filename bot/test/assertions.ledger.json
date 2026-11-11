@@ -772,6 +772,15 @@
   "test \"a called-off night leaves the slips of people who made it alone\"": [
    "expect.toEqual([\"/channels/gn/messages/slip-b\", \"/channels/gn/messages/slip-c\"])",
    "expect.toContain(\"Never mind <@c>\")"
+  ],
+  "test \"a night another copy already called off isn't touched again\"": [
+   "expect.toEqual([])",
+   "expect.toMatchObject({ stage: \"ask\", nudge_id: \"old-nudge\" })"
+  ],
+  "test \"a card that won't post is reported, and its claim kept\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toContain(\"posting the game-night card failed\")",
+   "expect.toMatchObject({ stage: \"ask\", message_id: null })"
   ]
  },
  "reddit.test.ts": {
