@@ -5,7 +5,7 @@
 // one answer leads (🔒 Close decides it then too). Clicking gives you a private copy with your
 // answer highlighted (see gamenight.ts).
 import { and, eq, isNull } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 import type { Env } from "./env.js";
 import { polls, pollVotes } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
@@ -170,35 +170,43 @@ export class Polls extends Context.Service<
           if (poll.closed_at) return { notice: "This poll is already decided 🔒", update: true };
 
           const c = yield* counts(poll);
-          if (action === "close") {
-            const top = Math.max(...c.voters.map((v) => v.length));
-            if (!top) return { notice: "Nobody has voted yet 🤷", update: false };
-            if (c.total < 2) return { notice: "One vote isn't a decision 😅 Wait for at least one more.", update: false };
-            const leaders = c.options.filter((_, i) => c.voters[i].length === top);
-            if (leaders.length > 1) return { notice: `🔁 Still split (${leaders.join(" vs ")}). Someone has to change their vote first.`, update: false };
-            yield* close(id, `win:${leaders[0]}`);
-            return { update: true };
-          }
-
-          const choice = Number(action);
-          if (!Number.isInteger(choice) || choice < 0 || choice >= c.options.length) return { update: true };
-          if (c.mine(user) === choice) {
-            yield* db.delete(pollVotes).where(and(eq(pollVotes.poll_id, id), eq(pollVotes.user_id, user)));
-            return { notice: "🗳️ Took your vote back.", update: true };
-          }
-          const at = yield* nowIso;
-          yield* db
-            .insert(pollVotes)
-            .values({ poll_id: id, user_id: user, choice, voted_at: at })
-            .onConflictDoUpdate({ target: [pollVotes.poll_id, pollVotes.user_id], set: { choice, voted_at: at } });
-          const after = yield* counts(poll);
-          // nothing is decided until everyone's voted: then most votes wins; a split stays open (revealed)
-          // for a re-vote
-          if (!(yield* trio).every((p) => after.voters.some((v) => v.includes(p)))) return { update: true };
-          const top = Math.max(...after.voters.map((v) => v.length));
-          const leaders = after.options.filter((_, i) => after.voters[i].length === top);
-          if (leaders.length === 1) yield* close(id, `win:${leaders[0]}`);
-          return { update: true };
+          return yield* Match.value(action).pipe(
+            Match.when("close", () =>
+              Effect.gen(function* () {
+                const top = Math.max(...c.voters.map((v) => v.length));
+                if (!top) return { notice: "Nobody has voted yet 🤷", update: false };
+                if (c.total < 2) return { notice: "One vote isn't a decision 😅 Wait for at least one more.", update: false };
+                const leaders = c.options.filter((_, i) => c.voters[i].length === top);
+                if (leaders.length > 1) return { notice: `🔁 Still split (${leaders.join(" vs ")}). Someone has to change their vote first.`, update: false };
+                yield* close(id, `win:${leaders[0]}`);
+                return { update: true };
+              }),
+            ),
+            // an answer's number
+            Match.orElse(() =>
+              Effect.gen(function* () {
+                const choice = Number(action);
+                if (!Number.isInteger(choice) || choice < 0 || choice >= c.options.length) return { update: true };
+                if (c.mine(user) === choice) {
+                  yield* db.delete(pollVotes).where(and(eq(pollVotes.poll_id, id), eq(pollVotes.user_id, user)));
+                  return { notice: "🗳️ Took your vote back.", update: true };
+                }
+                const at = yield* nowIso;
+                yield* db
+                  .insert(pollVotes)
+                  .values({ poll_id: id, user_id: user, choice, voted_at: at })
+                  .onConflictDoUpdate({ target: [pollVotes.poll_id, pollVotes.user_id], set: { choice, voted_at: at } });
+                const after = yield* counts(poll);
+                // nothing is decided until everyone's voted: then most votes wins; a split stays open (revealed)
+                // for a re-vote
+                if (!(yield* trio).every((p) => after.voters.some((v) => v.includes(p)))) return { update: true };
+                const top = Math.max(...after.voters.map((v) => v.length));
+                const leaders = after.options.filter((_, i) => after.voters[i].length === top);
+                if (leaders.length === 1) yield* close(id, `win:${leaders[0]}`);
+                return { update: true };
+              }),
+            ),
+          );
         }),
         isClosed: Effect.fn("Polls.isClosed")(function* (id: number) {
           return !!(yield* getPoll(id))?.closed_at;
