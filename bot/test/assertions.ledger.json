@@ -1120,5 +1120,32 @@
   "test \"after-midnight custom time on DST-end night stays a wall-clock time\"": [
    "assert.equal(_, \"01:30\")"
   ]
+ },
+ "discord-errors.test.ts": {
+  "test \"every capture is a real Discord error body\"": [
+   "expect.toEqual([ \"deleted-event-extend\", \"ended-event-end\", \"ended-event-extend\", \"expired-interaction-token\", \"missing-access\", \"rate-limited\", \"unknown-channel\", \"unknown-guild\", \"unknown-message\", \"unknown-message-patch\", \"unknown-voice-state\", ])",
+   "expect.toBe(\"string\")",
+   "expect.toBeGreaterThanOrEqual(400)"
+  ],
+  "test \"gone things are 404s, and isNotFound says so\"": [
+   "expect.toBe(true)",
+   "expect.toBe(false)"
+  ],
+  "test \"not in voice: Discord's Unknown Voice State reads as null\"": [
+   "expect.toBeNull()"
+  ],
+  "test \"today's text match can't tell a 403 whose path holds 10065 from 'not in voice'\"": [
+   "expect.toContain(\"10065\")",
+   "expect.toContain(\" 403 \")"
+  ],
+  "test \"an ended event: Discord's answer to pushing its end back holds INVALID_END_BY_STATUS\"": [
+   "expect.toContain(\"INVALID_END_BY_STATUS\")",
+   "expect.toContain(\" 403 \")",
+   "expect.not.toContain(\"INVALID_END_BY_STATUS\")"
+  ],
+  "test \"a rate limit is waited out (retry_after) and retried, whatever the method\"": [
+   "expect.toEqual({ id: \"ok\" })",
+   "expect.toBe(2)"
+  ]
  }
 }

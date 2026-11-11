@@ -1,0 +1,22 @@
+{
+ "note": "voice.ts keepEventAlive: pushing back the end of an event that was ended",
+ "request": {
+  "method": "PATCH",
+  "path": "/guilds/1567507827897933995/scheduled-events/1570070699735781497"
+ },
+ "status": 400,
+ "body": {
+  "message": "Invalid Form Body",
+  "code": 50035,
+  "errors": {
+   "scheduled_end_time": {
+    "_errors": [
+     {
+      "code": "GUILD_SCHEDULED_EVENT_SCHEDULE_INVALID_END_BY_STATUS",
+      "message": "Cannot update end time of finished event."
+     }
+    ]
+   }
+  }
+ }
+}

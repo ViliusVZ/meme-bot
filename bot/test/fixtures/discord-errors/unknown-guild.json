@@ -1,0 +1,12 @@
+{
+ "note": "a guild the test bot isn't in (the trio's server; a read-only GET)",
+ "request": {
+  "method": "GET",
+  "path": "/guilds/968922621662076988/voice-states/10065"
+ },
+ "status": 404,
+ "body": {
+  "message": "Unknown Guild",
+  "code": 10004
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "note": "a 403 whose path contains 10065: must not read as 'not in voice' (a channel on the trio's server, which the test bot can't see; a read-only GET)",
+ "request": {
+  "method": "GET",
+  "path": "/channels/1567132345213911240/messages/10065"
+ },
+ "status": 403,
+ "body": {
+  "message": "Missing Access",
+  "code": 50001
+ }
+}

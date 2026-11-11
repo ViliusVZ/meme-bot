@@ -1,0 +1,13 @@
+{
+ "note": "after 14 quick requests; headers: retry-after=2, scope=user",
+ "request": {
+  "method": "GET",
+  "path": "/webhooks/1567518901644820550/<token>/messages/@original"
+ },
+ "status": 429,
+ "body": {
+  "message": "You are being rate limited.",
+  "retry_after": 0.3,
+  "global": false
+ }
+}

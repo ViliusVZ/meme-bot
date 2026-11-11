@@ -1,0 +1,12 @@
+{
+ "note": "a message that is gone (deleted by hand, or swept)",
+ "request": {
+  "method": "GET",
+  "path": "/channels/1567519658901508157/messages/1"
+ },
+ "status": 404,
+ "body": {
+  "message": "Unknown Message",
+  "code": 10008
+ }
+}

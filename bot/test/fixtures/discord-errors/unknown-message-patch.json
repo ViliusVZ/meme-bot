@@ -1,0 +1,12 @@
+{
+ "note": "editing a message that is gone",
+ "request": {
+  "method": "PATCH",
+  "path": "/channels/1567519658901508157/messages/1"
+ },
+ "status": 404,
+ "body": {
+  "message": "Unknown Message",
+  "code": 10008
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "note": "pushing back the end of an event that was deleted",
+ "request": {
+  "method": "PATCH",
+  "path": "/guilds/1567507827897933995/scheduled-events/1570070699735781497"
+ },
+ "status": 404,
+ "body": {
+  "message": "Unknown Guild Scheduled Event",
+  "code": 10070
+ }
+}

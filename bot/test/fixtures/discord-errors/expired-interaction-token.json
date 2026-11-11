@@ -1,0 +1,12 @@
+{
+ "note": "discord.ts editOriginal on a token past its 15 minutes",
+ "request": {
+  "method": "PATCH",
+  "path": "/webhooks/1567518901644820550/<token>/messages/@original"
+ },
+ "status": 401,
+ "body": {
+  "message": "Invalid Webhook Token",
+  "code": 50027
+ }
+}

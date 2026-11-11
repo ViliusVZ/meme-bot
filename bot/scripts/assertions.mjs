@@ -4,6 +4,8 @@
 //   node scripts/assertions.mjs          write test/assertions.ledger.json
 //   node scripts/assertions.mjs --check  fail if an existing test's assertions changed, shrank,
 //                                        were reordered or disappeared (new tests are fine)
+//   node scripts/assertions.mjs --add    the check, then add new tests to the ledger (never
+//                                        changes or drops an entry that is already there)
 // What is recorded per assertion: the matcher chain after `expect(…)` with its arguments
 // (`.not.toBe(401)`), or for `assert.*` the method and every argument after the actual value.
 // The value under test is left out on purpose: that is the call expression, which may change.
@@ -82,7 +84,11 @@ function scan(file) {
 const files = readdirSync(testDir).filter((f) => f.endsWith(".ts")).sort();
 const ledger = Object.fromEntries(files.map((f) => [f, scan(`${testDir}/${f}`)]).filter(([, e]) => Object.keys(e).length));
 
-if (!process.argv.includes("--check")) {
+if (!process.argv.includes("--check") && !process.argv.includes("--add")) {
+  if (existsSync(ledgerFile)) {
+    console.error("the ledger exists: use --check, or --add for new tests (it is never rewritten)");
+    process.exit(1);
+  }
   writeFileSync(ledgerFile, JSON.stringify(ledger, null, 1) + "\n");
   const n = Object.values(ledger).flatMap((e) => Object.values(e)).reduce((s, a) => s + a.length, 0);
   console.log(`ledger written: ${Object.keys(ledger).length} files, ${n} assertions`);
@@ -116,3 +122,14 @@ if (problems.length) {
   process.exit(1);
 }
 console.log(`assertion ledger: identical (${checked} assertions checked)`);
+if (process.argv.includes("--add")) {
+  let added = 0;
+  for (const [f, e] of Object.entries(ledger))
+    for (const [k, a] of Object.entries(e)) {
+      if (before[f]?.[k] || Object.values(before).some((b) => b[k])) continue;
+      (before[f] ??= {})[k] = a;
+      added += a.length;
+    }
+  writeFileSync(ledgerFile, JSON.stringify(before, null, 1) + "\n");
+  console.log(`added ${added} assertions from new tests`);
+}

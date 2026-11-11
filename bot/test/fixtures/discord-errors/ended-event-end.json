@@ -1,0 +1,12 @@
+{
+ "note": "voice.ts archiveIfIdle: ending an event that was already ended",
+ "request": {
+  "method": "PATCH",
+  "path": "/guilds/1567507827897933995/scheduled-events/1570070699735781497"
+ },
+ "status": 403,
+ "body": {
+  "message": "Cannot update a finished event",
+  "code": 180000
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "note": "voice.ts voiceChannel: a user who isn't in voice",
+ "request": {
+  "method": "GET",
+  "path": "/guilds/1567507827897933995/voice-states/1"
+ },
+ "status": 404,
+ "body": {
+  "message": "Unknown Voice State",
+  "code": 10065
+ }
+}
