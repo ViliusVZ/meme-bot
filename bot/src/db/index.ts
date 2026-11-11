@@ -2,10 +2,9 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import * as schema from "./schema.js";
 
 export * from "./schema.js";
-export type Db = NodePgDatabase<typeof schema>;
+export type Db = NodePgDatabase;
 
 // bigint (int8) columns hold unix seconds and counts: small enough for a JS number
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
@@ -25,7 +24,7 @@ export function connect(url: string) {
   // client gets its own listener for the times it's checked out (transactions, the leader lock)
   pool.on("error", (e) => console.log("pg pool error", e.message));
   pool.on("connect", (client) => client.on("error", (e) => console.log("pg client error", e.message)));
-  const db = drizzle(pool, { schema });
+  const db = drizzle({ client: pool });
   return { pool, db };
 }
 
@@ -34,12 +33,13 @@ const MIGRATION_LOCK = 4_242_001;
 /**
  * Apply pending migrations from drizzle/. Blue and green may start at the same moment, so the
  * migration runs under an advisory lock: the second one waits, then finds nothing to do.
+ * (`migrationsSchema` is for tests, which migrate a throwaway schema.)
  */
-export async function runMigrations(pool: pg.Pool, folder: string) {
+export async function runMigrations(pool: pg.Pool, folder: string, migrationsSchema = "drizzle") {
   const client = await pool.connect();
   try {
     await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK]);
-    await migrate(drizzle(client), { migrationsFolder: folder });
+    await migrate(drizzle({ client }), { migrationsFolder: folder, migrationsSchema });
   } finally {
     await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK]).catch(() => {});
     client.release();

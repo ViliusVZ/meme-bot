@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "5322b854-a435-4aca-82a3-ec5acd80da05",
+  "prevIds": [
+    "8fccdda4-7cd9-49b6-8a4e-5683ca4337ed"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "night_attendance",
+        "roast"
+      ],
+      "writes": [
+        "s|col|public.night_attendance.roast",
+        "n|col|public.night_attendance.roast",
+        "e|col|public.night_attendance.roast"
+      ],
+      "reads": [
+        "n|tbl|public.night_attendance",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "night_attendance",
+        "name": "roast",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

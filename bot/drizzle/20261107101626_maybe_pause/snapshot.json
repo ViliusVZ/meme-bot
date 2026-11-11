@@ -1,0 +1,81 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0f868f9f-9420-4bf6-b037-b042c3ac9a18",
+  "prevIds": [
+    "f85354f6-ec36-4e48-a7a4-2f6330cfe464"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "game_nights",
+        "maybes"
+      ],
+      "writes": [
+        "s|col|public.game_nights.maybes",
+        "n|col|public.game_nights.maybes",
+        "e|col|public.game_nights.maybes"
+      ],
+      "reads": [
+        "n|tbl|public.game_nights",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "game_nights",
+        "paused_until"
+      ],
+      "writes": [
+        "s|col|public.game_nights.paused_until",
+        "n|col|public.game_nights.paused_until",
+        "e|col|public.game_nights.paused_until"
+      ],
+      "reads": [
+        "n|tbl|public.game_nights",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "game_nights",
+        "name": "maybes",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "game_nights",
+        "name": "paused_until",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

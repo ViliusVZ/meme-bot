@@ -5,7 +5,6 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import * as schema from "../src/db/schema.js";
 import type { Env } from "../src/env.js";
 
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
@@ -29,11 +28,12 @@ export async function testDb() {
   await admin.end();
   // the schema first, public second (where the citext extension lives)
   const pool = new pg.Pool({ connectionString: url(), max: 4, options: `-c search_path=${name},public` });
-  const db = drizzle(pool, { schema });
+  const db = drizzle({ client: pool });
   // the same SQL the bot runs on startup, pointed at this schema (drizzle qualifies references with "public")
   const dir = fileURLToPath(new URL("../drizzle", import.meta.url));
-  for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    const sqlText = readFileSync(`${dir}/${f}`, "utf8").replaceAll('"public".', `"${name}".`);
+  // drizzle 1.0 layout: one folder per migration (<timestamp>_<name>/migration.sql), in name order
+  for (const f of readdirSync(dir).filter((f) => existsSync(`${dir}/${f}/migration.sql`)).sort()) {
+    const sqlText = readFileSync(`${dir}/${f}/migration.sql`, "utf8").replaceAll('"public".', `"${name}".`);
     for (const stmt of sqlText.split("--> statement-breakpoint")) if (stmt.trim()) await pool.query(stmt);
   }
   return {

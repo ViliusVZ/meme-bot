@@ -1,0 +1,69 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "72329686-138e-475f-a2d6-06c2b21c28cb",
+  "prevIds": [
+    "79ce208b-9744-497a-97e8-97d2502ecdba"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "roast_bags",
+        "last_line"
+      ],
+      "writes": [
+        "s|col|public.roast_bags.last_line",
+        "n|col|public.roast_bags.last_line",
+        "e|col|public.roast_bags.last_line"
+      ],
+      "reads": [
+        "n|tbl|public.roast_bags",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "roast_bags",
+        "last"
+      ],
+      "writes": [
+        "s|col|public.roast_bags.last",
+        "n|col|public.roast_bags.last",
+        "e|col|public.roast_bags.last"
+      ],
+      "reads": [
+        "n|tbl|public.roast_bags",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "roast_bags",
+        "name": "last_line",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"roast_bags\",\"last\"]"
+    }
+  ]
+}

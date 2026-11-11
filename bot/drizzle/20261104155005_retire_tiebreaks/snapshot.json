@@ -1,0 +1,95 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "79ce208b-9744-497a-97e8-97d2502ecdba",
+  "prevIds": [
+    "5322b854-a435-4aca-82a3-ec5acd80da05"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tiebreaks"
+      ],
+      "writes": [
+        "s|tbl|public.tiebreaks",
+        "n|tbl|public.tiebreaks",
+        "e|tbl|public.tiebreaks",
+        "n|rel|public.tiebreaks",
+        "n|type|public.tiebreaks"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"tiebreaks\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"ref\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"options\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"contenders\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"alive\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"mode\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"round\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"hands\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"history\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"result\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"how\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tiebreaks\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"one_tiebreak_per_host\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"tiebreaks\",\"tiebreaks_pkey\"]"
+    }
+  ]
+}

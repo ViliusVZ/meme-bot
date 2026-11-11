@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c268c2e0-f89f-438c-bfc3-bd1f6e3ffd1a",
+  "prevIds": [
+    "72329686-138e-475f-a2d6-06c2b21c28cb"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "game_nights",
+        "planned_start"
+      ],
+      "writes": [
+        "s|col|public.game_nights.planned_start",
+        "n|col|public.game_nights.planned_start",
+        "e|col|public.game_nights.planned_start"
+      ],
+      "reads": [
+        "n|tbl|public.game_nights",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "game_nights",
+        "name": "planned_start",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}
