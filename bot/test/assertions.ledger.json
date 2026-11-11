@@ -1282,5 +1282,36 @@
    "assert.deepStrictEqual(_, [400, 800, 1200])",
    "assert.isTrue(_)"
   ]
+ },
+ "presence.test.ts": {
+  "describe \"Presence\" > test \"changes before the first snapshot aren't reported, and lookups can't be trusted yet\"": [
+   "assert.deepStrictEqual(_, [])",
+   "assert.strictEqual(_, undefined)",
+   "assert.isFalse(_)"
+  ],
+  "describe \"Presence\" > test \"a snapshot reports what changed while we weren't looking, then live moves are reported\"": [
+   "assert.deepStrictEqual(_, [\"a:null->lobby\", \"a:lobby->room\", \"b:null->lobby\", \"b:lobby->null\"])",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, null)"
+  ],
+  "describe \"Presence\" > test \"after a drop, lookups wait for the resume; moves replayed meanwhile still count\"": [
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.deepStrictEqual(_, [\"a:lobby->room\"])",
+   "assert.strictEqual(_, \"room\")"
+  ],
+  "describe \"Presence\" > test \"what people play: only real changes are reported; one listener's error doesn't stop the next\"": [
+   "assert.deepStrictEqual(_, [\"a:World of Warcraft\", \"a:\"])",
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Channels\" > test \"nothing is cached before the gateway's snapshot; changes before it are ignored\"": [
+   "assert.strictEqual(_, null)",
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Channels\" > test \"after the snapshot: created, moved and deleted channels are kept current; a drop forgets the list\"": [
+   "assert.deepStrictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [\"1\"])",
+   "assert.strictEqual(_, null)"
+  ]
  }
 }
