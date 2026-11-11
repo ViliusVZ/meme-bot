@@ -10,17 +10,19 @@
 //   • Anyone joining the Lobby while exactly one game room has any of us in it is pulled in once,
 //     with a note that offers the way back.
 //   • With game detection on (PRESENCES=1): two of us in the Lobby playing the same game skip the
-//     question and go straight to its room (↩ to undo); one tap teaches the bot a name Discord
-//     uses for a game; and two of us playing a game before anyone's in voice gets its room ready
+//     question and go straight to its room (↩ to undo). A name Discord uses that isn't one of our
+//     games is put to Gemini once, in the background ("World of Warcraft: Forever" → World of
+//     Warcraft); when Gemini can't say, one tap teaches it instead. And two of us playing a game before anyone's in voice gets its room ready
 //     under the Lobby, silently (it archives itself after an hour if nobody comes).
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
 import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
 import type { Env } from "./env.js";
-import { fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/index.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/index.js";
 import { api, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import { emojiFor, games, local, players } from "./gamenight.js";
 import * as voice from "./voice.js";
 import * as presence from "./presence.js";
+import * as gemini from "./gemini.js";
 import * as alerts from "./alerts.js";
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
@@ -116,8 +118,54 @@ export async function playingGames(env: Env, users: string[]) {
     const g = names.map((n) => game.get(n.toLowerCase())).find(Boolean);
     if (g) of.set(u, g);
   }
-  const shared = all.filter((n) => !game.has(n.toLowerCase()) && users.filter((u) => seen.get(u)!.includes(n)).length >= 2);
+  // a name two of them share that we can't place (and Gemini didn't already rule out): worth a tap
+  const notOurs = all.length
+    ? new Set(
+        (await env.db.select({ a: activityGuesses.activity }).from(activityGuesses).where(and(inArray(activityGuesses.activity, all), eq(activityGuesses.answered, true))))
+          .map((r) => r.a.toLowerCase()),
+      )
+    : new Set<string>();
+  const shared = all.filter((n) => !game.has(n.toLowerCase()) && !notOurs.has(n.toLowerCase()) && users.filter((u) => seen.get(u)!.includes(n)).length >= 2);
   return { of, unknown: shared[0] ?? null };
+}
+
+const RETRY_GUESS = 86400; // Gemini couldn't answer: ask about that name again a day later
+
+/**
+ * Someone's playing something new to us: ask Gemini (once per name, in the background) whether
+ * it's one of our games under another name. A yes becomes an alias, so the next time two of us
+ * are in it, it just works. Returns what was learned, for logs and tests.
+ */
+export async function learn(env: Env, names: string[], t = nowSec()) {
+  if (!env.GEMINI_API_KEY || !names.length) return [];
+  const list = (await games(env, 200)).map((g) => g.name);
+  const known = new Set(list.map((g) => g.toLowerCase()));
+  for (const a of await env.db.select().from(gameAliases).where(inArray(gameAliases.activity, names))) known.add(a.activity.toLowerCase());
+  const learned: { activity: string; game: string | null }[] = [];
+  for (const name of names.filter((n) => !known.has(n.toLowerCase()))) {
+    // claim the name, so a second presence update doesn't ask twice; a failed ask may retry tomorrow
+    const [claim] = await env.db
+      .insert(activityGuesses)
+      .values({ activity: name, at: t })
+      .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lte(activityGuesses.at, t - RETRY_GUESS)) })
+      .returning({ a: activityGuesses.activity });
+    if (!claim) continue;
+    const r = await gemini.ask<{ game: string | null }>(
+      env,
+      `Discord shows a friend "Playing ${JSON.stringify(name)}". Our friend group's game list: ${JSON.stringify(list)}.
+Is it one of the games on the list? Answer that game's name exactly as written in the list only if it
+is clearly the same game (an edition, expansion, client, launcher or longer name of it, like "World of
+Warcraft Classic" for "World of Warcraft"). If it's anything else (another game, an app like an editor
+or a browser, or you aren't sure), answer null.`,
+      { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } }, required: ["game"] },
+    );
+    if (!r) continue; // no answer to be had today: claimed, so tomorrow it's tried again
+    const game = list.find((g) => g.toLowerCase() === r.game?.toLowerCase()) ?? null;
+    await env.db.update(activityGuesses).set({ game, answered: true }).where(eq(activityGuesses.activity, name));
+    if (game) await env.db.insert(gameAliases).values({ activity: name, game, added_by: "gemini" }).onConflictDoNothing();
+    learned.push({ activity: name, game });
+  }
+  return learned;
 }
 
 /** The one game everyone who's playing something we know is playing (null: none, or a mix). */

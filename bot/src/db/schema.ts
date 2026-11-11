@@ -315,3 +315,14 @@ export const readyRooms = pgTable(
   },
   (t) => [primaryKey({ columns: [t.day, t.game] })],
 );
+
+/**
+ * 🧠 What Gemini said a Discord game name is (spontaneous.ts): asked once per name, in the
+ * background. `game` null with `answered` = not one of ours; not answered = ask again tomorrow.
+ */
+export const activityGuesses = pgTable("activity_guesses", {
+  activity: citext("activity").primaryKey(),
+  game: citext("game"),
+  answered: boolean().notNull().default(false),
+  at: unix("at").notNull(),
+});

@@ -7,7 +7,9 @@ import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import * as activity from "../src/activity.js";
 import { interaction } from "../src/interactions.js";
-import { fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "../src/db/schema.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
+import * as gemini from "../src/gemini.js";
+import * as gn from "../src/gamenight.js";
 import { loadConfig } from "../src/env.js";
 import { testDb, testEnv } from "./pg.js";
 
@@ -26,7 +28,7 @@ beforeAll(async () => {
 });
 afterAll(() => t.close());
 beforeEach(async () => {
-  for (const tbl of [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms]) await t.db.delete(tbl);
+  for (const tbl of [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms, activityGuesses, settings]) await t.db.delete(tbl);
   calls = [];
   override = null;
   presence._reset();
@@ -595,4 +597,86 @@ test("an auto-move whose room won't open keeps the gathering quiet and says so",
   expect(said).toContain("moving the Lobby into the game we're playing failed");
   expect((await prompt()).state).toBe("failed");
   expect(posted("lobby")).toEqual([]);
+});
+
+// ---------------------------------------------------------------- 🧠 Gemini places names Discord uses
+
+/** Answer Gemini calls with `game` (or fail them), counting how many were made. */
+function geminiSays(answer: string | null | "fail") {
+  const asked: string[] = [];
+  const prev = override;
+  override = (c) => {
+    if (c.path.includes("generativelanguage.googleapis.com")) {
+      asked.push(JSON.stringify(c.body));
+      if (answer === "fail") return json({ error: { message: "overloaded" } }, 503);
+      return json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ game: answer }) }] } }] });
+    }
+    return prev?.(c);
+  };
+  return asked;
+}
+
+test("a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room", async () => {
+  const e = { ...env, PRESENCES: true, GEMINI_API_KEY: "k" };
+  const asked = geminiSays("World of Warcraft");
+  expect(await spontaneous.learn(e, ["World of Warcraft: Forever"])).toEqual([{ activity: "World of Warcraft: Forever", game: "World of Warcraft" }]);
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toContain("World of Warcraft: Forever");
+  // known now: no second question
+  expect(await spontaneous.learn(e, ["World of Warcraft: Forever", "World of Warcraft"])).toEqual([]);
+  expect(asked).toHaveLength(1);
+  const t0 = now();
+  playing("a", "World of Warcraft: Forever");
+  playing("b", "World of Warcraft: Forever");
+  await at(t0, { a: "lobby", b: "lobby" });
+  await spontaneous.react(e, where, t0 + 30);
+  expect((await prompt()).state).toBe("moved");
+});
+
+test("Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either", async () => {
+  const e = { ...env, PRESENCES: true, GEMINI_API_KEY: "k" };
+  geminiSays(null);
+  expect(await spontaneous.learn(e, ["Visual Studio Code"])).toEqual([{ activity: "Visual Studio Code", game: null }]);
+  expect(await t.db.select().from(gameAliases)).toEqual([]);
+  playing("a", "Visual Studio Code");
+  playing("b", "Visual Studio Code");
+  await at(now(), { a: "lobby", b: "lobby" });
+  await spontaneous.react(e, where, now() + 30);
+  expect((await prompt()).activity).toBeNull();
+});
+
+test("an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update", async () => {
+  const e = { ...env, PRESENCES: true, GEMINI_API_KEY: "k" };
+  geminiSays("Some Game We Never Added");
+  expect(await spontaneous.learn(e, ["Peak"])).toEqual([{ activity: "Peak", game: null }]);
+  const asked = geminiSays("fail");
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  const t0 = now();
+  expect(await spontaneous.learn(e, ["Lethal Company"], t0)).toEqual([]);
+  expect(await spontaneous.learn(e, ["Lethal Company"], t0 + 3600)).toEqual([]);
+  expect(asked).toHaveLength(1);
+  expect(await spontaneous.learn(e, ["Lethal Company"], t0 + 86400)).toEqual([]);
+  log.mockRestore();
+  expect(asked).toHaveLength(2);
+});
+
+test("no key, no questions", async () => {
+  const asked = geminiSays("World of Warcraft");
+  expect(await spontaneous.learn(env, ["World of Warcraft: Forever"])).toEqual([]);
+  expect(asked).toEqual([]);
+});
+
+test("Gemini's daily budget is kept in the database and stops asking once it's spent", async () => {
+  const e = { ...env, GEMINI_API_KEY: "k" };
+  const asked = geminiSays("World of Warcraft");
+  const schema = { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } } };
+  await t.db.insert(settings).values({ key: "gemini_budget", value: { day: gn.local(env).day, used: gemini.DAILY - 1 } });
+  expect(await gemini.ask(e, "q", schema)).toEqual({ game: "World of Warcraft" });
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  expect(await gemini.ask(e, "q", schema)).toBeNull();
+  log.mockRestore();
+  expect(asked).toHaveLength(1);
+  // a new day, a new budget
+  await t.db.update(settings).set({ value: { day: "2000-01-01", used: 99 } });
+  expect(await gemini.ask(e, "q", schema)).toEqual({ game: "World of Warcraft" });
 });

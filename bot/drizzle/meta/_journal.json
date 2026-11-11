@@ -85,6 +85,13 @@
       "when": 1794387985356,
       "tag": "0011_lobby_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794398083351,
+      "tag": "0012_activity_guesses",
+      "breakpoints": true
     }
   ]
 }

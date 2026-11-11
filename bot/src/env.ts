@@ -22,6 +22,8 @@ export interface Env {
   ALERT_USER_ID?: string; // 🚨 who gets a DM when something breaks (alerts.ts); unset on the test bot
   /** 🎮 Ask Discord what people are playing (the presence intent, on in the Developer Portal too). */
   PRESENCES?: boolean;
+  /** 🧠 Gemini, free tier (gemini.ts): judgment calls only; unset means none are made. */
+  GEMINI_API_KEY?: string;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -67,5 +69,6 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
     VOICE_CATEGORY_ID: e.VOICE_CATEGORY_ID!,
     ALERT_USER_ID: e.ALERT_USER_ID || undefined,
     PRESENCES: e.PRESENCES === "1",
+    GEMINI_API_KEY: e.GEMINI_API_KEY || undefined,
   };
 }

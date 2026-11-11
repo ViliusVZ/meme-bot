@@ -95,6 +95,11 @@ export function start(env: Env) {
     if (!ps.has(user) || stopped) return;
     console.log("playing", user, names.length ? names.join(" | ") : "(nothing)"); // what Discord calls each game
     void enqueue("playing", () => lobby());
+    // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing waits)
+    void spontaneous
+      .learn(env, names)
+      .then((l) => l.length && console.log("learned", JSON.stringify(l)))
+      .catch((e) => console.log("learning a game name failed", e));
   });
 
   /** The gateway (re)connected and sent a fresh snapshot: catch up on everything. */

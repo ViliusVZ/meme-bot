@@ -8,7 +8,7 @@ self-contained: read this file, then the plan, then the code it names. Build one
 | 01 | [Spontaneous play](01-spontaneous-play.md): the Lobby question, auto-move, unplanned nights count | **shipped 2026-11-11**, all 3 phases | nothing |
 | 02 | [WoW: Forever news](02-wow-forever-news.md): a quiet #wow-news channel | small | nothing |
 | 03 | [The bot speaks](03-bot-voice.md): jingle, spoken roasts, the spoken Lobby question | large, risky | 01 phase 1 for one of its three moments |
-| 04 | [AI roast trial](04-ai-roast-trial.md): a sample sheet from a free model, then go/no-go | tiny | a key from the user |
+| 04 | [AI roast trial](04-ai-roast-trial.md): a sample sheet from a free model, then go/no-go | **no-go 2026-11-11**: keep the hand-written pools | done |
 
 Suggested order: 01 phase 1, 02, 01 phase 2, 04 (any time the user has two minutes for the key), 03.
 
