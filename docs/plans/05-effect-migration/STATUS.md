@@ -5,7 +5,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: **HTTP step: written** (app.ts on HttpRouter, `AppStatus`, `build()` kept as the transition's adapter with `inject`/`listen`/`close`; all tests and recordings identical, uncommitted at the time of writing); still to do: test 13, break-its, commit, the live check on the test bot. Its design: `app.ts` becomes an
+- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: **HTTP step done** (`27b8e7e`; test 13 `d5705d9`, `2b77fb3`; the verifier moved to `verify.ts`); the live check on the test bot running (`http-27b8e7e`). Next: step 4, Ticker + start timers (tests 8, 9). The HTTP design, for reference: `app.ts` becomes an
   `HttpRouter` (effect/http) on `NodeHttpServer` (@effect/platform-node), same routes and answers:
   GET /health (503 + `{ok:false, shuttingDown:true}` while shutting down; db `SELECT 1`, 503
   `{ok:false, db}` on failure; else `{ok, leader, clock: sinceTick, gateway: presence ready,
@@ -163,7 +163,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
