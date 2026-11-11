@@ -1,1 +1,10 @@
-{}
+{
+ "two copies starting at once migrate once; a restart applies nothing": {
+  "calls": [],
+  "db": {}
+ },
+ "an old-style migrations table (Drizzle 0.45) is upgraded in place, nothing re-run": {
+  "calls": [],
+  "db": {}
+ }
+}

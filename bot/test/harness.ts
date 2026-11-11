@@ -345,7 +345,8 @@ export function harness(o: Options = {}): Harness {
       }
     }
     const calls = racing ? (racing.calls ? raceCalls(current.calls, racing.bodies) : []) : settleOrder(current.calls.map((c) => `${c.method} ${c.url} ${c.hash}`));
-    if (calls.length || Object.keys(db).length) recordings[key] = { calls, db };
+    // every test gets an entry, even one that did nothing: "nothing" is behaviour too
+    recordings[key] = { calls, db };
     if (full) fulls[key] = { calls: current.full, db: dbFull };
     inner = realFetch;
     random?.mockRestore();

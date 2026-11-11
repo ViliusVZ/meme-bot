@@ -1,1 +1,22 @@
-{}
+{
+ "every missing variable is named in one message, as before": {
+  "calls": [],
+  "db": {}
+ },
+ "defaults, numbers and the player list; the old Env keeps its strings": {
+  "calls": [],
+  "db": {}
+ },
+ "a secret never appears in logs or when the config is printed": {
+  "calls": [],
+  "db": {}
+ },
+ "overrides reach background work: a quiet call's deferred ping is quiet too": {
+  "calls": [],
+  "db": {}
+ },
+ "stand-in players given to an admin call are the players deep code sees": {
+  "calls": [],
+  "db": {}
+ }
+}
