@@ -14,7 +14,12 @@ const allowedFile = `${root}test/recordings.allowed.json`;
 const allowed = existsSync(allowedFile) ? JSON.parse(readFileSync(allowedFile, "utf8")) : {};
 
 const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8", maxBuffer: 64 << 20 });
-const baseFiles = git("ls-tree", "--name-only", `${base}:bot/test/__recordings__`).split("\n").filter((f) => f.endsWith(".json"));
+const baseFiles = git("ls-tree", "--full-tree", "--name-only", `${base}:bot/test/__recordings__`).split("\n").filter((f) => f.endsWith(".json"));
+// a baseline with nothing in it would make this gate pass without checking anything
+if (!baseFiles.length) {
+  console.error(`recordings: ${base} has no recordings (wrong ref?)`);
+  process.exit(1);
+}
 const problems = [];
 let checked = 0;
 for (const f of baseFiles) {
