@@ -1440,5 +1440,24 @@
    "expect.toEqual({ tracked: true })",
    "expect.toEqual([\"qa-1\", \"qa-2\"])"
   ]
+ },
+ "interruption.test.ts": {
+  "top level": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"Palworld\", false])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"open\", true, now()])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"eta\", now() + 900, true])",
+   "expect.toEqual([null, null])",
+   "expect.toEqual([])",
+   "expect.toEqual([false, \"🎮 <@a> and <@b> are in **World of Warcraft** → <#wow>\"])"
+  ],
+  "test `${name}: interrupted during the ${step}, everything is done, once`": [
+   "expect.toHaveLength(1)"
+  ]
  }
 }

@@ -1,0 +1,147 @@
+{
+ "a new game room (placeholder → channel → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a new game room (placeholder → channel → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:1987cbc41d60"
+  }
+ },
+ "a new game room (placeholder → channel → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:688304fcd078"
+  }
+ },
+ "a new game room (placeholder → channel → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:1987cbc41d60"
+  }
+ },
+ "the Lobby question (claim → post → its message id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:044207406a3e"
+  }
+ },
+ "the Lobby question (claim → post → its message id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 14489fe5b08a"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "lobby_prompts": "1:b7f95ed8159b",
+   "voice_segments": "2:c8467aa29024"
+  }
+ },
+ "the Lobby question (claim → post → its message id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 60be5fb92f40"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "lobby_prompts": "1:4129c5e5a9b6",
+   "voice_segments": "2:1672b8143f48"
+  }
+ },
+ "the Lobby question (claim → post → its message id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 5265e01e4e76"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "lobby_prompts": "1:31d2a67a9a76",
+   "voice_segments": "2:03b8cdfeb31a"
+  }
+ },
+ "a late slip (the ETA → the slip → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:cc0a4abfad8c",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a late slip (the ETA → the slip → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
+  ],
+  "db": {
+   "game_nights": "1:cc0a4abfad8c",
+   "games": "8:44c5a8b0c098",
+   "night_attendance": "1:283ec37b2e53"
+  }
+ },
+ "a late slip (the ETA → the slip → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
+  ],
+  "db": {
+   "game_nights": "1:cc0a4abfad8c",
+   "games": "8:44c5a8b0c098",
+   "night_attendance": "1:a305c1cdd1af"
+  }
+ },
+ "a late slip (the ETA → the slip → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
+  ],
+  "db": {
+   "game_nights": "1:cc0a4abfad8c",
+   "games": "8:44c5a8b0c098",
+   "night_attendance": "1:283ec37b2e53"
+  }
+ },
+ "a session's quiet line (claim → post → its message id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:46ba4ed324cf"
+  }
+ },
+ "a session's quiet line (claim → post → its message id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:ce7450f49330"
+  }
+ },
+ "a session's quiet line (claim → post → its message id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:cb2f9bec790d"
+  }
+ },
+ "a session's quiet line (claim → post → its message id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:ce7450f49330"
+  }
+ }
+}
