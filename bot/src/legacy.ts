@@ -33,6 +33,13 @@ export async function run<A, E>(env: Env, effect: Effect.Effect<A, E, AppService
   throw Cause.squash(exit.cause); // LEGACY-BRIDGE
 } // LEGACY-BRIDGE
 
+/** Promise code calling Effect code that needs no per-call overrides (tests' helpers, shutdown). */
+export async function runDetached<A, E>(effect: Effect.Effect<A, E, AppServices>): Promise<A> { // LEGACY-BRIDGE
+  const exit = await installed().runPromiseExit(effect); // LEGACY-BRIDGE
+  if (Exit.isSuccess(exit)) return exit.value; // LEGACY-BRIDGE
+  throw Cause.squash(exit.cause); // LEGACY-BRIDGE
+} // LEGACY-BRIDGE
+
 /** The same, for synchronous services (presence and channel lookups are synchronous in the old code). */
 export function runSync<A, E>(effect: Effect.Effect<A, E, AppServices>): A { // LEGACY-BRIDGE
   const exit = installed().runSyncExit(effect); // LEGACY-BRIDGE

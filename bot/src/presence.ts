@@ -2,119 +2,143 @@
 // snapshot on every connect) and VOICE_STATE_UPDATE (every join, leave and move), so lookups are
 // instant and free. Until a snapshot has arrived (startup, or a copy that isn't the leader) it's
 // "not ready" and callers fall back to asking Discord over REST.
+//
+// 🎮 What people are playing: only with the presence intent (PRESENCES=1). Kept in memory only,
+// never stored: "Playing …" activity names per user, straight from Discord.
+import { Context, Effect, Layer, Ref, Schema } from "effect";
+import { runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
-const states = new Map<string, string>(); // user → voice channel (absent = not in voice)
-let ready = false; // connected and up to date
-let known = false; // we've had a snapshot (changes are meaningful even mid-resume)
+/** A subscriber threw: logged, and the others still hear about the change. */
+class ListenerFailed extends Schema.TaggedError<ListenerFailed>()("ListenerFailed", { detail: Schema.String }) {}
 
 type Listener = (user: string, from: string | null, to: string | null) => void;
-const listeners: Listener[] = [];
-
-/** A full snapshot of the guild's voice states (on connect / reconnect). */
-export function snapshot(voiceStates: { user_id: string; channel_id: string | null }[]) {
-  const before = new Map(states);
-  states.clear();
-  for (const v of voiceStates) if (v.channel_id) states.set(v.user_id, v.channel_id);
-  ready = true;
-  known = true;
-  // anything that changed while we weren't looking is reported like a live change
-  for (const u of new Set([...before.keys(), ...states.keys()])) {
-    const from = before.get(u) ?? null;
-    const to = states.get(u) ?? null;
-    if (from !== to) emit(u, from, to);
-  }
-}
-
-/** One VOICE_STATE_UPDATE. */
-export function update(user: string, channel: string | null) {
-  const from = states.get(user) ?? null;
-  if (channel) states.set(user, channel);
-  else states.delete(user);
-  // a resume replays missed events in order, so changes count even before it completes
-  if (known && from !== channel) emit(user, from, channel);
-}
-
-/** The gateway dropped: stop trusting lookups until it resumes or sends a new snapshot. */
-export function invalidate() {
-  ready = false;
-}
-
-/** The gateway resumed (missed events replayed): lookups are good again. */
-export function revalidate() {
-  if (known) ready = true;
-}
-
-export const isReady = () => ready;
-export const hasSnapshot = () => known;
-
-/** The user's voice channel (null: not in voice), or undefined when we can't know right now. */
-export function channelOf(user: string): string | null | undefined {
-  return ready ? (states.get(user) ?? null) : undefined;
-}
-
-/** The last known channel, even mid-resume (live.ts, which only acts once there's a snapshot). */
-export const lastKnown = (user: string) => states.get(user) ?? null;
-
-/** Subscribe to changes; returns the unsubscribe. */
-export function onChange(fn: Listener) {
-  listeners.push(fn);
-  return () => {
-    const i = listeners.indexOf(fn);
-    if (i >= 0) listeners.splice(i, 1);
-  };
-}
-
-function emit(user: string, from: string | null, to: string | null) {
-  for (const fn of listeners) {
-    try {
-      fn(user, from, to);
-    } catch (e) {
-      console.log("presence listener failed", e);
-    }
-  }
-}
-
-// ---------------------------------------------------------------- 🎮 what people are playing
-// Only with the presence intent (PRESENCES=1). Kept in memory only, never stored: "Playing …"
-// activity names per user, straight from Discord.
-
-const games = new Map<string, string[]>();
 type PlayingListener = (user: string, names: string[]) => void;
-const playingListeners: PlayingListener[] = [];
 
-/** One presence (GUILD_CREATE's list or a PRESENCE_UPDATE): their "Playing …" names. */
-export function setActivities(user: string, activities: { type: number; name: string }[] | undefined) {
-  const names = (activities ?? []).filter((a) => a.type === 0 && a.name).map((a) => a.name);
-  const before = games.get(user) ?? [];
-  if (names.length) games.set(user, names);
-  else games.delete(user);
-  if (before.join("|") === names.join("|")) return;
-  for (const fn of playingListeners) {
-    try {
-      fn(user, names);
-    } catch (e) {
-      console.log("playing listener failed", e);
-    }
+type State = {
+  states: Map<string, string>; // user → voice channel (absent = not in voice)
+  ready: boolean; // connected and up to date
+  known: boolean; // we've had a snapshot (changes are meaningful even mid-resume)
+  games: Map<string, string[]>;
+};
+const empty = (): State => ({ states: new Map(), ready: false, known: false, games: new Map() });
+
+export class Presence extends Context.Service<
+  Presence,
+  {
+    /** A full snapshot of the guild's voice states (on connect / reconnect). */
+    snapshot(voiceStates: ReadonlyArray<{ user_id: string; channel_id: string | null }>): Effect.Effect<void>;
+    /** One VOICE_STATE_UPDATE. */
+    update(user: string, channel: string | null): Effect.Effect<void>;
+    /** The gateway dropped: stop trusting lookups until it resumes or sends a new snapshot. */
+    readonly invalidate: Effect.Effect<void>;
+    /** The gateway resumed (missed events replayed): lookups are good again. */
+    readonly revalidate: Effect.Effect<void>;
+    readonly isReady: Effect.Effect<boolean>;
+    readonly hasSnapshot: Effect.Effect<boolean>;
+    /** The user's voice channel (null: not in voice), or undefined when we can't know right now. */
+    channelOf(user: string): Effect.Effect<string | null | undefined>;
+    /** The last known channel, even mid-resume (live.ts, which only acts once there's a snapshot). */
+    lastKnown(user: string): Effect.Effect<string | null>;
+    /** Subscribe to changes; gives back the unsubscribe. */
+    onChange(fn: Listener): Effect.Effect<() => void>;
+    /** One presence (GUILD_CREATE's list or a PRESENCE_UPDATE): their "Playing …" names. */
+    setActivities(user: string, activities: ReadonlyArray<{ type: number; name: string }> | undefined): Effect.Effect<void>;
+    /** What they're playing right now (empty: nothing we can see). */
+    playing(user: string): Effect.Effect<string[]>;
+    onPlaying(fn: PlayingListener): Effect.Effect<() => void>;
+    /** Tests only (until phase 5 builds the state fresh per test). */
+    readonly reset: Effect.Effect<void>; // LEGACY-BRIDGE
   }
+>()("meme-bot/presence") {
+  static readonly layer = Layer.effect(
+    Presence,
+    Effect.gen(function* () {
+      const state = yield* Ref.make(empty());
+      // listeners are called synchronously, in order, as the old module did (live.ts queues the work)
+      const listeners: Listener[] = [];
+      const playingListeners: PlayingListener[] = [];
+      const call = <A extends unknown[]>(fns: ((...a: A) => void)[], args: A, what: string) =>
+        Effect.forEach([...fns], (fn) =>
+          Effect.try({ try: () => fn(...args), catch: (e) => new ListenerFailed({ detail: String(e) }) }).pipe(Effect.catch((e) => Effect.logWarning(`${what} listener failed ${e.detail}`))),
+        );
+      const emit = (user: string, from: string | null, to: string | null) => call(listeners, [user, from, to], "presence");
+      const subscribe = <F>(list: F[], fn: F) =>
+        Effect.sync(() => {
+          list.push(fn);
+          return () => {
+            const i = list.indexOf(fn);
+            if (i >= 0) list.splice(i, 1);
+          };
+        });
+
+      return Presence.of({
+        snapshot: (voiceStates) =>
+          Effect.gen(function* () {
+            const before = new Map((yield* Ref.get(state)).states);
+            const states = new Map<string, string>();
+            for (const v of voiceStates) if (v.channel_id) states.set(v.user_id, v.channel_id);
+            yield* Ref.update(state, (s) => ({ ...s, states, ready: true, known: true }));
+            // anything that changed while we weren't looking is reported like a live change
+            for (const u of new Set([...before.keys(), ...states.keys()])) {
+              const from = before.get(u) ?? null;
+              const to = states.get(u) ?? null;
+              if (from !== to) yield* emit(u, from, to);
+            }
+          }),
+        update: (user, channel) =>
+          Effect.gen(function* () {
+            const s = yield* Ref.get(state);
+            const from = s.states.get(user) ?? null;
+            const states = new Map(s.states);
+            if (channel) states.set(user, channel);
+            else states.delete(user);
+            yield* Ref.set(state, { ...s, states });
+            // a resume replays missed events in order, so changes count even before it completes
+            if (s.known && from !== channel) yield* emit(user, from, channel);
+          }),
+        invalidate: Ref.update(state, (s) => ({ ...s, ready: false })),
+        revalidate: Ref.update(state, (s) => (s.known ? { ...s, ready: true } : s)),
+        isReady: Effect.map(Ref.get(state), (s) => s.ready),
+        hasSnapshot: Effect.map(Ref.get(state), (s) => s.known),
+        channelOf: (user) => Effect.map(Ref.get(state), (s) => (s.ready ? (s.states.get(user) ?? null) : undefined)),
+        lastKnown: (user) => Effect.map(Ref.get(state), (s) => s.states.get(user) ?? null),
+        onChange: (fn) => subscribe(listeners, fn),
+        setActivities: (user, activities) =>
+          Effect.gen(function* () {
+            const names = (activities ?? []).filter((a) => a.type === 0 && a.name).map((a) => a.name);
+            const s = yield* Ref.get(state);
+            const before = s.games.get(user) ?? [];
+            const games = new Map(s.games);
+            if (names.length) games.set(user, names);
+            else games.delete(user);
+            yield* Ref.set(state, { ...s, games });
+            if (before.join("|") === names.join("|")) return;
+            yield* call(playingListeners, [user, names], "playing");
+          }),
+        playing: (user) => Effect.map(Ref.get(state), (s) => s.games.get(user) ?? []),
+        onPlaying: (fn) => subscribe(playingListeners, fn),
+        reset: Effect.gen(function* () { // LEGACY-BRIDGE
+          yield* Ref.set(state, empty()); // LEGACY-BRIDGE
+          listeners.length = 0; // LEGACY-BRIDGE
+          playingListeners.length = 0; // LEGACY-BRIDGE
+        }), // LEGACY-BRIDGE
+      });
+    }),
+  );
 }
 
-/** What they're playing right now (empty: nothing we can see). */
-export const playing = (user: string) => games.get(user) ?? [];
-
-export function onPlaying(fn: PlayingListener) {
-  playingListeners.push(fn);
-  return () => {
-    const i = playingListeners.indexOf(fn);
-    if (i >= 0) playingListeners.splice(i, 1);
-  };
-}
-
+// the old functions, for the code that isn't on Effect yet (all synchronous, as they always were)
+export const snapshot = (voiceStates: { user_id: string; channel_id: string | null }[]) => runSync(Presence.use((p) => p.snapshot(voiceStates))); // LEGACY-BRIDGE
+export const update = (user: string, channel: string | null) => runSync(Presence.use((p) => p.update(user, channel))); // LEGACY-BRIDGE
+export const invalidate = () => runSync(Presence.use((p) => p.invalidate)); // LEGACY-BRIDGE
+export const revalidate = () => runSync(Presence.use((p) => p.revalidate)); // LEGACY-BRIDGE
+export const isReady = () => runSync(Presence.use((p) => p.isReady)); // LEGACY-BRIDGE
+export const hasSnapshot = () => runSync(Presence.use((p) => p.hasSnapshot)); // LEGACY-BRIDGE
+export const channelOf = (user: string) => runSync(Presence.use((p) => p.channelOf(user))); // LEGACY-BRIDGE
+export const lastKnown = (user: string) => runSync(Presence.use((p) => p.lastKnown(user))); // LEGACY-BRIDGE
+export const onChange = (fn: Listener) => runSync(Presence.use((p) => p.onChange(fn))); // LEGACY-BRIDGE
+export const setActivities = (user: string, activities: { type: number; name: string }[] | undefined) => runSync(Presence.use((p) => p.setActivities(user, activities))); // LEGACY-BRIDGE
+export const playing = (user: string) => runSync(Presence.use((p) => p.playing(user))); // LEGACY-BRIDGE
+export const onPlaying = (fn: PlayingListener) => runSync(Presence.use((p) => p.onPlaying(fn))); // LEGACY-BRIDGE
 /** Tests only. */
-export function _reset() {
-  states.clear();
-  games.clear();
-  ready = false;
-  known = false;
-  listeners.length = 0;
-  playingListeners.length = 0;
-}
+export const _reset = () => runSync(Presence.use((p) => p.reset)); // LEGACY-BRIDGE

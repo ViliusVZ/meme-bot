@@ -15,6 +15,7 @@ import * as gateway from "./gateway.js";
 import * as live from "./live.js";
 import * as scheduler from "./scheduler.js";
 import * as alerts from "./alerts.js";
+import * as lifecycle from "./lifecycle.js"; // LEGACY-BRIDGE
 
 // one runtime for the transition: the Effect services, which the code that still takes `env` reaches
 // through legacy.ts. Reading the configuration fails startup with every missing variable named.
@@ -27,9 +28,7 @@ alerts.setup(env);
 
 await legacy.run(env, runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)))); // LEGACY-BRIDGE
 
-let leader = false;
-let shuttingDown = false;
-const app = build(env, { leader: () => leader, shuttingDown: () => shuttingDown });
+const app = build(env, { leader: lifecycle.isLeader, shuttingDown: lifecycle.isShuttingDown }); // LEGACY-BRIDGE
 await app.listen({ host: "0.0.0.0", port: config.port });
 console.log(`listening on :${config.port}`);
 
@@ -42,7 +41,7 @@ async function lead() {
     const lostP = new Promise<void>((ok) => (lost = ok));
     const lock = await acquireLeadership(pool, () => lost(), stopLeading.signal);
     if (!lock) return;
-    leader = true;
+    lifecycle.setLeader(true); // LEGACY-BRIDGE
     console.log("leader: took over");
     const done = new AbortController();
     const watcher = live.start(env);
@@ -57,7 +56,7 @@ async function lead() {
     const gw = connectGateway(() => void watcher.resync(), done.signal);
     // lead until we lose the lock (connection died) or shut down
     await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
-    leader = false;
+    lifecycle.setLeader(false); // LEGACY-BRIDGE
     done.abort();
     await (await gw)?.close().catch((e) => console.log("gateway close", e));
     await Promise.all([clock.stop(), watcher.stop()]).catch((e) => console.log("leader: stop failed", e));
@@ -91,8 +90,8 @@ const leading = lead();
 
 // ---------------------------------------------------------------- shutdown
 async function shutdown(signal: string) {
-  if (shuttingDown) return;
-  shuttingDown = true;
+  if (lifecycle.isShuttingDown()) return; // LEGACY-BRIDGE
+  lifecycle.markShuttingDown(); // LEGACY-BRIDGE
   console.log(`${signal}: shutting down`);
   // whatever hangs below, we're gone in 35 s (Docker would kill us at 40 anyway; a self-restart has no Docker to)
   setTimeout(() => process.exit(1), 35_000).unref();
