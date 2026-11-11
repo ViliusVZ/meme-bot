@@ -1,0 +1,1124 @@
+{
+ "activity.test.ts": {
+  "test \"Lobby → game room together is one call; game and hangout time split\"": [
+   "expect.toBe(1)",
+   "expect.toBe(at(2) - at(0.02))",
+   "expect.toBe(1.5 * H)",
+   "expect.toBe(at(0.5) - at(0.02))",
+   "expect.toEqual([ [\"a\", 2 * H], [\"b\", at(2) - at(0.02)], [\"c\", H], ])",
+   "expect.toBe(\"a\")"
+  ],
+  "test \"a 10-minute break makes two calls; a 2-minute one doesn't\"": [
+   "expect.toBe(2)",
+   "expect.toBe(1)"
+  ],
+  "test \"sitting in voice alone is voice time, not a call\"": [
+   "expect.toBe(0)",
+   "expect.toBe(0)",
+   "expect.toBe(H)"
+  ],
+  "test \"two people in different channels aren't together\"": [
+   "expect.toBe(0)"
+  ],
+  "test \"a call over the period boundary only counts the part inside\"": [
+   "expect.toBe(3 * H)"
+  ],
+  "test \"outsiders' voice time is ignored\"": [
+   "expect.toBe(0)",
+   "expect.toBe(false)"
+  ],
+  "test \"segments that ended unseen (old checks, or a restart) count a minute past their last sighting\"": [
+   "expect.toBe(H)"
+  ],
+  "test \"game nights are counted by game\"": [
+   "expect.toEqual([1, 1, 1, 1])"
+  ],
+  "test \"the stats card reads right\"": [
+   "expect.toMatch(/Together · \\*\\*2h 30m\\*\\*/)",
+   "expect.toMatch(/📦 R\\.E\\.P\\.O\\. \\*\\*2h 30m\\*\\*/)",
+   "expect.toMatch(/🥇 <@a> \\*\\*2h 30m\\*\\*/)",
+   "expect.toMatch(/busiest day \\*\\*Friday\\*\\*/)",
+   "expect.toMatch(/usually starting around \\*\\*19:00\\*\\*/)"
+  ],
+  "test \"voice time alone: no '0m together' headline; a shared card says who shared it\"": [
+   "expect.not.toMatch(/Together · /)",
+   "expect.toMatch(/No calls with two or more of you yet/)",
+   "expect.toContain(\"Shared by <@a>\")"
+  ],
+  "test \"a quiet period says so\"": [
+   "expect.toMatch(/Nothing yet/)"
+  ],
+  "test \"durations\"": [
+   "expect.toEqual([\"5m\", \"1h 02m\", \"10h 00m\"])"
+  ],
+  "test \"weeks run Monday 00:00 to Monday 00:00, local time\"": [
+   "expect.toBe(Date.parse(\"2026-11-01T22:00:00Z\") / 1000)",
+   "expect.toBe(7 * 86400)",
+   "expect.toBe(w.from)"
+  ],
+  "test \"months and years, across DST\"": [
+   "expect.toBe(Date.parse(\"2026-09-30T21:00:00Z\") / 1000)",
+   "expect.toBe(Date.parse(\"2026-10-31T22:00:00Z\") / 1000)",
+   "expect.toBe(Date.parse(\"2026-12-31T22:00:00Z\") / 1000)",
+   "expect.toBe(Date.parse(\"2025-12-31T22:00:00Z\") / 1000)"
+  ],
+  "test \"Monday 10:00: last week's recap is posted once; quiet weeks are skipped\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({ \"games-week:2026-11-02\": \"posted\" })",
+   "expect.toBe(1)",
+   "expect.toMatch(/Weekly recap · 2 Nov – 8 Nov/)",
+   "expect.toMatch(/2h 00m/)",
+   "expect.toEqual({})",
+   "expect.toEqual({ \"games-week:2026-11-09\": \"quiet, skipped\" })",
+   "expect.toBe(1)"
+  ],
+  "test \"joins, moves and leaves are recorded to the second\"": [
+   "expect.toEqual([ [\"a\", LOBBY, 0, 65, false], [\"b\", LOBBY, 7, 90, false], [\"a\", REPO, 65, null, true], ])"
+  ],
+  "test \"heartbeats extend a segment; a long silence (the bot was away) ends it unseen\"": [
+   "expect.toBe(1)",
+   "expect.toBe(at(0) + 120)",
+   "expect.toBe(2)",
+   "expect.toEqual([false, null, at(0) + 180])",
+   "expect.toBe(true)"
+  ],
+  "test \"a racing duplicate check doesn't open a second segment\"": [
+   "expect.toBe(1)"
+  ]
+ },
+ "alerts.test.ts": {
+  "test \"a failure DMs the owner: what broke, where, the error, and how to read the logs\"": [
+   "expect.toMatchObject({ method: \"POST\", path: \"/users/@me/channels\", body: { recipient_id: \"owner\" } })",
+   "expect.toContain(\"🚨 **posting the game-night card** failed · 2026-11-09\")",
+   "expect.toContain(\"403 Missing Access\")",
+   "expect.toContain(\"ssh vps app-logs meme-bot 1h\")",
+   "expect.toEqual({ parse: [] })"
+  ],
+  "test \"the same problem again within 3 hours is counted, not re-sent, then mentioned\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toContain(\"(2 more times since the last DM about it)\")",
+   "expect.toHaveLength(3)"
+  ],
+  "test \"a burst is capped at 5 DMs per 10 minutes; the next one says how many were held back\"": [
+   "expect.toHaveLength(5)",
+   "expect.toHaveLength(6)",
+   "expect.toContain(\"2 other problems were held back\")"
+  ],
+  "test \"without an owner (the test bot) failures are only logged\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"background work that fails is reported\"": [
+   "expect.toContain(\"🚨 **card refresh** failed\")"
+  ],
+  "test \"the Discord gateway gets 5 minutes to reconnect before a DM, and one DM per outage\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({ gatewayDown: 5 })",
+   "expect.toEqual({})",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"staying connected to Discord\")",
+   "expect.toEqual({})"
+  ],
+  "test \"the admin test DM reaches whoever it's sent to\"": [
+   "expect.toEqual({ sent: \"someone\" })",
+   "expect.toEqual([\"/users/@me/channels\", \"/channels/dm-someone/messages\"])",
+   "expect.toContain(\"🧪 Test alert\")",
+   "expect.toEqual({ skipped: \"no ALERT_USER_ID and no user given\" })"
+  ]
+ },
+ "flows.test.ts": {
+  "test \"17:00 posts one card per day, however many times it runs\"": [
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBeTruthy()",
+   "expect.toMatchObject({ started: false })",
+   "expect.toBe(before)"
+  ],
+  "test \"three people planning the same day at once: one card, and only whoever claimed it is in\"": [
+   "expect.toBe(1)",
+   "expect.toEqual([[n.started_by, \"yes\"]])",
+   "expect.toBe(\"ask\")"
+  ],
+  "test \"the whole night: secret answers → game → time → locked in → started on the dot\"": [
+   "expect.toContain(\"🤫 Answers stay secret\")",
+   "expect.toBe(64)",
+   "expect.toContain(\"You're **in**\")",
+   "expect.not.toContain(\"Are we playing\")",
+   "expect.toEqual([ [\"Change to Maybe\", 1], [\"Change to Not today\", 4], ])",
+   "expect.toBe(0)",
+   "expect.toBe(\"game\")",
+   "expect.not.toContain(\"← <@a>\")",
+   "expect.toBe(\"game\")",
+   "expect.toEqual([\"R.E.P.O.\"])",
+   "expect.toEqual([\"time\", \"R.E.P.O.\"])",
+   "expect.toContain(\"R.E.P.O.** ← <@a> <@b>\")",
+   "expect.toBe(true)",
+   "expect.toEqual([\"set\", at20])",
+   "expect.toBeTruthy()",
+   "expect.toBe(gn.wallToUnix(env, 2026, 11, 6, 23, 0))",
+   "expect.toBe(0)",
+   "expect.toContain(\"Slowpoke of the night: <@b>\")",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(1)"
+  ],
+  "test \"a clash pings once, and never locks\"": [
+   "expect.toBe(\"time\")",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toContain(\"Doesn't fit yet\")"
+  ],
+  "test \"a three-way split reveals the picks and stays open for a re-vote; two agreeing settles it\"": [
+   "expect.toBe(\"game\")",
+   "expect.toContain(\"Split vote\")",
+   "expect.toContain(\"R.E.P.O.** ← <@a>\")",
+   "expect.toBe(1)",
+   "expect.toEqual([\"time\", \"Phasmophobia\"])"
+  ],
+  "test \"a split that never resolves: last call for everyone, then the night's off (nobody roasted)\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([\"off\", null])",
+   "expect.toContain(\"couldn't agree\")"
+  ],
+  "test \"polls: secret until everyone's voted, then most votes wins; your answer is highlighted on your copy\"": [
+   "expect.not.toContain(\"█\")",
+   "expect.toBe(64)",
+   "expect.toEqual([3, 2, 2])",
+   "expect.toContain(\"Decided: Yes\")",
+   "expect.toContain(\"<@a> <@b>\")",
+   "expect.toContain(\"already decided\")"
+  ],
+  "test \"polls: tapping your vote again takes it back; a split stays open until one answer leads\"": [
+   "expect.toContain(\"Took your vote back\")",
+   "expect.toContain(\"Split vote\")",
+   "expect.toContain(\"█\")",
+   "expect.toContain(\"Still split\")",
+   "expect.toContain(\"Decided: B\")"
+  ],
+  "test \"reopen starts the day over; reset wipes it\"": [
+   "expect.toBe(\"game\")",
+   "expect.toBe(\"off\")",
+   "expect.toEqual([\"ask\", \"b\"])",
+   "expect.toEqual([[\"b\", \"yes\"]])",
+   "expect.toEqual({ reset: true })",
+   "expect.toBeNull()"
+  ],
+  "test \"midnight closes an unfinished card; the roast waits for the morning\"": [
+   "expect.toEqual([DAY])",
+   "expect.toBe(\"off\")",
+   "expect.toEqual({ b: \"ghost\", c: \"ghost\" })",
+   "expect.toBe(Date.parse(\"2026-11-07T07:30:00Z\") / 1000)",
+   "expect.toEqual([])",
+   "expect.toEqual([DAY])",
+   "expect.toEqual([])"
+  ],
+  "test \"a no stays secret until everyone's answered, then the night's off and the no-sayer is roasted\"": [
+   "expect.toBe(\"ask\")",
+   "expect.toContain(\"🤫 Answers stay secret\")",
+   "expect.toContain(\"Vote by\")",
+   "expect.toEqual([\"off\", { b: \"no\" }])",
+   "expect.toMatch(/^🔥 \\*\\*Tonight's game night is off\\*\\* · <@b> ❌ said no\\n> .*<@b>/)",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toContain(\"How everyone voted\")",
+   "expect.toContain(\"Reopen\")"
+  ],
+  "test \"3 h after voting opens: last call at 2.5 h, then non-voters (and no-sayers) are roasted\"": [
+   "expect.toBe(false)",
+   "expect.toBe(1)",
+   "expect.toMatch(/^<@c> ⏳ Last call: 29 min/)",
+   "expect.toBe(1)",
+   "expect.toEqual([\"off\", { b: \"no\", c: \"ghost\" }])",
+   "expect.toContain(\"<@b> ❌ said no · <@c> 👻 didn't vote in time\")"
+  ],
+  "test \"🤔 a maybe holds it for 2 h once everyone's answered, then the unsure get an hour to answer\"": [
+   "expect.toMatchObject({ stage: \"ask\", maybes: 0, paused_until: null })",
+   "expect.toContain(\"🤫 Answers stay secret\")",
+   "expect.toContain(\"You said **maybe**\")",
+   "expect.toEqual([\"ask\", 1, at19])",
+   "expect.toContain(\"✅ <@a> ✅ <@b> 🤔 <@c>\")",
+   "expect.toContain(\"**On hold**\")",
+   "expect.not.toContain(\"Vote by\")",
+   "expect.toMatch(/^<@a> <@b> 🤔 <@c> isn't sure yet, so it's on hold until/)",
+   "expect.toEqual([\"a\", \"b\"])",
+   "expect.toBe(at19)",
+   "expect.toEqual([\"ask\", 1, null, at19])",
+   "expect.toBe(1)",
+   "expect.toMatch(/^<@c> ⏰ Decision time: are you in tonight\\?/)",
+   "expect.toEqual([\"c\"])",
+   "expect.toContain(\"✅ <@a> ✅ <@b> ⏳ <@c>\")",
+   "expect.toContain(`Vote by <t:${at19 + 3600}:t>`)",
+   "expect.toBe(true)",
+   "expect.toBe(\"game\")"
+  ],
+  "test \"🤔 a second maybe holds it 1 h more; then it's yes or no, and no answer gets you roasted\"": [
+   "expect.toEqual([2, gn.wallToUnix(env, 2026, 11, 6, 20, 0)])",
+   "expect.toContain(\"This is the last hold\")",
+   "expect.toBe(true)",
+   "expect.toContain(\"⏰ Final call! Are we playing today?\")",
+   "expect.toBe(false)",
+   "expect.toBe(false)",
+   "expect.toContain(\"No more maybes\")",
+   "expect.toContain(\"Final call: are you in tonight? No more maybes.\")",
+   "expect.toEqual([expect.stringMatching(/^<@c> ⏳ Last call: 29 min/)])",
+   "expect.toEqual([\"off\", { c: \"ghost\" }])"
+  ],
+  "test \"🤔 a no beats a maybe, also during a hold; reopening starts the holds over\"": [
+   "expect.toEqual([\"off\", 0, { b: \"no\" }])",
+   "expect.toContain(\"🤔 <@c>\")",
+   "expect.toBe(1)",
+   "expect.toEqual([\"off\", null, { b: \"no\" }])",
+   "expect.toMatchObject({ stage: \"ask\", maybes: 0, paused_until: null })"
+  ],
+  "test \"🤔 a maybe who turns yes during the hold starts it right away; holds never end in the small hours\"": [
+   "expect.toMatchObject({ stage: \"game\", paused_until: null })",
+   "expect.toBe(gn.wallToUnix(env, 2026, 11, 7, 9, 30))"
+  ],
+  "test \"game and time picks have the same deadline\"": [
+   "expect.toEqual({ b: \"ghost\", c: \"ghost\" })"
+  ],
+  "test \"all three out: the bot sulks alone\"": [
+   "expect.toMatch(/^🔥 \\*\\*Nobody's in, so tonight's game night is off\\*\\*\\n> /)",
+   "expect.toBe(true)"
+  ],
+  "test \"bailing with 🚪 gets you roasted, also after the night was locked in\"": [
+   "expect.toEqual({ b: \"out\" })",
+   "expect.toContain(\"<@b> 🚪 bailed\")"
+  ],
+  "test \"deadlines: never in the small hours, and planned days get until noon on the day\"": [
+   "expect.toBe(at(\"2026-11-07T07:30:00Z\"))",
+   "expect.toBe(at(\"2026-11-06T18:00:00Z\"))",
+   "expect.toBe(at(\"2026-11-06T10:00:00Z\"))",
+   "expect.toBe(at(\"2026-11-07T10:00:00Z\"))"
+  ],
+  "test \"reopening drops a roast still waiting for the morning\"": [
+   "expect.toEqual([\"ask\", null, null])"
+  ],
+  "test \"roast lines rotate: no repeats until the pool is used up\"": [
+   "expect.toBe(lines.length)"
+  ],
+  "test \"roast rotation is shared: a line used on one person doesn't come up for another in the same cycle\"": [
+   "expect.toBe(drawn.length)",
+   "expect.toBe(duo.length)",
+   "expect.toBe(1)"
+  ],
+  "test \"roast rotation: a full cycle, then a fresh one that doesn't open with the last line\"": [
+   "expect.toBe(p.lines.length)",
+   "expect.not.toBe(cycle[cycle.length - 1])"
+  ],
+  "test \"roast rotation survives edits: stale queue entries (old indices, removed lines) are dropped\"": [
+   "expect.toContain(line)"
+  ],
+  "test \"every line is unique within its family (rotation goes by the text)\"": [
+   "expect.toBe(fam.length)"
+  ],
+  "test \"meme call-outs share one bag too\"": [
+   "expect.toBe(drawn.length)"
+  ],
+  "test \"roast pools: personal lines join the right pools\"": [
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(roasts.poolFor([L, K]).key)",
+   "expect.toBe(\"trio\")",
+   "expect.not.toMatch(/\\{\\w+\\}/)"
+  ],
+  "test \"rooms: one room per game even when two open at once; archived after 15 empty minutes\"": [
+   "expect.toBe(b.channelId)",
+   "expect.toBe(1)",
+   "expect.toEqual({ archived: [], nextDue: now + 15 * 60 })",
+   "expect.toEqual([\"r.e.p.o.\"])",
+   "expect.toEqual([a.channelId, true])"
+  ],
+  "test \"latecomers: pulled in from the Lobby once; a slip after 10 minutes otherwise\"": [
+   "expect.toEqual({ moved: [\"a\"] })",
+   "expect.toBe(true)",
+   "expect.toEqual({ slipped: [\"b\", \"c\"] })",
+   "expect.toEqual({})",
+   "expect.toBe(\"eta\")",
+   "expect.toContain(\"not your late slip\")"
+  ],
+  "test \"memes: one daily per day even when posted twice at once; votes toggle; streaks\"": [
+   "expect.toEqual([\"t3_b\"])",
+   "expect.toBe(\"new\")",
+   "expect.toBe(\"changed\")",
+   "expect.toEqual({ lol: 1 })",
+   "expect.toEqual({ lol: [\"a\"] })",
+   "expect.toBe(\"removed\")",
+   "expect.toBe(1)",
+   "expect.toBeNull()",
+   "expect.toEqual([\"t3_b\", 6, 2])",
+   "expect.toEqual([1, 1, 1])",
+   "expect.toBe(true)",
+   "expect.toBe(false)"
+  ],
+  "test \"games are case-insensitive, most played first\"": [
+   "expect.toBe(\"Phasmophobia\")",
+   "expect.toBe(\"Lethal Company\")",
+   "expect.toEqual([\"Palworld\", \"R.E.P.O.\", \"Phasmophobia\", \"Lethal Company\"])",
+   "expect.toBe(3)"
+  ],
+  "test \"all of us or none of us: a bail after the start calls the night off for everyone\"": [
+   "expect.toEqual([\"off\", { b: \"out\" }])",
+   "expect.toBe(true)",
+   "expect.toMatch(/^🔥 \\*\\*📦 R\\.E\\.P\\.O\\. tonight is off\\*\\* · <@b> 🚪 bailed\\n> /)",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toContain(\"game night's off\")",
+   "expect.toContain(\"<@b> bailed\")",
+   "expect.toContain(\"Game night's off\")"
+  ],
+  "test \"the card's 🚪 after the start does the same\"": [
+   "expect.toEqual({ c: \"out\" })",
+   "expect.toBe(1)"
+  ],
+  "test \"starting or planning by hand pings the other two; stage changes ping everyone\"": [
+   "expect.toBe(\"<@b> <@c> 🎮 <@a> wants to play tonight! Are you in? ⬆️\")",
+   "expect.toBe(true)"
+  ],
+  "test \"your copy: your own leave-by is 'You', and starts that clash with it are greyed out\"": [
+   "expect.toContain(\"You have to leave by **20:30**\")",
+   "expect.toContain(\"Someone has to leave by\")",
+   "expect.toBeUndefined()",
+   "expect.toBe(true)"
+  ],
+  "test \"polls: one vote can't be closed into a decision\"": [
+   "expect.toContain(\"One vote isn't a decision\")",
+   "expect.toBe(true)"
+  ],
+  "test \"⏰ running late before the start: we wait, so the start moves to the latest ETA (and back)\"": [
+   "expect.toContain(\"Running late?\")",
+   "expect.toContain(`gn:${DAY}:late:15`)",
+   "expect.toContain(\"start moved to **20:15**\")",
+   "expect.toEqual([start + 15 * 60, start])",
+   "expect.toContain(\"<@a> is running 15 min late, so we start at **20:15**\")",
+   "expect.not.toContain(\"⚠️\")",
+   "expect.toEqual([\"b\", \"c\"])",
+   "expect.toBe(new Date((start + 15 * 60) * 1000).toISOString())",
+   "expect.toBe(start + 30 * 60)",
+   "expect.toContain(\"⚠️ That leaves 45 min before <@c> has to leave\")",
+   "expect.toContain(\"⏰ Running late: <@a> +15 min · <@b> +30 min · start moved from 20:00\")",
+   "expect.toContain(\"start stays at **20:30**\")",
+   "expect.toBe(before)",
+   "expect.toContain(\"Taken back\")",
+   "expect.toBe(start + 15 * 60)",
+   "expect.toContain(\"<@b> will be on time after all\")",
+   "expect.toBeUndefined()",
+   "expect.toBe(DAY)"
+  ],
+  "test \"⏰ after the start it's an ETA on your slip; said-late people who still don't show get a slip\"": [
+   "expect.toContain(\"ETA\")",
+   "expect.toEqual([\"eta\", start + 18 * 60, true])",
+   "expect.toContain(\"Tap your ETA\")",
+   "expect.toContain(\"already here\")",
+   "expect.toEqual({ arrived: [\"a\"] })",
+   "expect.toEqual({ slipped: [\"c\"] })",
+   "expect.toBe(\"late\")"
+  ],
+  "test \"⏰ late only makes sense on a locked-in night\"": [
+   "expect.toContain(\"Nothing's locked in yet\")"
+  ],
+  "test \"weekends: the daily card goes out at 14:00 on Saturday and Sunday, 17:00 on weekdays\"": [
+   "expect.toEqual([17, 14, 14, 17])",
+   "expect.toMatchObject({ started: true, day: \"2026-11-07\" })",
+   "expect.toEqual({ skipped: \"not poll hour\" })"
+  ],
+  "test \"😴 snooze: no automatic cards until it runs out; starting by hand still works; wake ends it early\"": [
+   "expect.toContain(\"Snoozed for 3 days\")",
+   "expect.toBe(\"2026-11-09\")",
+   "expect.toContain(\"<@a> snoozed game night planning for 3 days\")",
+   "expect.toEqual([\"b\", \"c\"])",
+   "expect.toBe(gn.wallToUnix(env, 2026, 11, 9, 17, 0))",
+   "expect.toEqual({ skipped: \"snoozed\" })",
+   "expect.toEqual({ skipped: \"snoozed\" })",
+   "expect.toMatchObject({ started: true })",
+   "expect.toMatchObject({ started: true, day: \"2026-11-09\" })",
+   "expect.toBeNull()",
+   "expect.toBe(\"2026-12-10\")",
+   "expect.toContain(\"Planning is snoozed\")",
+   "expect.toContain(\"snz:wake\")",
+   "expect.toEqual([2, 2, 1, 3])",
+   "expect.toContain(\"Back on\")",
+   "expect.toContain(\"<@a> woke game night planning back up\")",
+   "expect.toBeNull()",
+   "expect.not.toContain(\"snz:wake\")",
+   "expect.toContain(\"isn't snoozed\")"
+  ],
+  "test \"😴 a week, counted from the next card due\"": [
+   "expect.toBe(\"2026-11-14\")",
+   "expect.toBe(gn.wallToUnix(env, 2026, 11, 14, 14, 0))"
+  ],
+  "test \"a tap on an out-of-date copy says what changed; the card follows the start\"": [
+   "expect.toBe(\"The game's already picked: **Palworld** 🎮\")",
+   "expect.toContain(\"past that step\")",
+   "expect.toContain(\"The time's already set: **20:00**\")",
+   "expect.toContain(\"we wait for you\")",
+   "expect.toContain(\"Tap your ETA\")"
+  ],
+  "test \"⏰ edge cases: a take-back after the planned time starts it now; late-sayers get the usual grace\"": [
+   "expect.toBe(start + 3600)",
+   "expect.toBe(start + 41 * 60)",
+   "expect.toBe(DAY)",
+   "expect.not.toContain(\"b\")",
+   "expect.toContain(\"b\")"
+  ],
+  "test \"⏰ a start moved after the timer looked doesn't get claimed at the old time\"": [
+   "expect.toBe(false)",
+   "expect.toBe(false)",
+   "expect.toBe(false)"
+  ],
+  "test \"😴 during the poll hour, a card not posted yet still counts as today's\"": [
+   "expect.toBe(\"2026-11-09\")",
+   "expect.toBe(Date.parse(\"2026-11-06T15:21:00Z\") / 1000)"
+  ],
+  "test \"private panels follow the card: one person's vote moves everyone's open panel on\"": [
+   "expect.toBe(4)",
+   "expect.toBe(4)",
+   "expect.toEqual([ [\"a\", \"tok-a-card\"], [\"b\", \"tok-b-card\"], ])",
+   "expect.toBe(\"game\")",
+   "expect.toEqual([\"/webhooks/app/tok-a-card/messages/@original\", \"/webhooks/app/tok-b-card/messages/@original\"])",
+   "expect.toContain(`gn:${DAY}:game`)",
+   "expect.toBe(0)",
+   "expect.toBe(7)",
+   "expect.toBe(\"time\")",
+   "expect.toBeGreaterThan(0)",
+   "expect.toContain(`gn:${DAY}:custom`)"
+  ],
+  "test \"a tap on your own panel keeps its note when the panels sync\"": [
+   "expect.toContain(\"already picked\")",
+   "expect.toBeGreaterThan(0)",
+   "expect.toContain(\"already picked\")",
+   "expect.toBe(`tok-a-${pa}`)"
+  ],
+  "test \"panels past Discord's 15 minutes, or dismissed, are let go\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([\"c\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"private poll copies follow the poll too: once it's decided, everyone's copy shows the result\"": [
+   "expect.toBe(4)",
+   "expect.toEqual([`poll:${id}`, `poll:${id}`])",
+   "expect.toEqual([\"/webhooks/app/ptok-a/messages/@original\", \"/webhooks/app/ptok-b/messages/@original\"])",
+   "expect.toContain(\"✅ Decided: Yes\")"
+  ]
+ },
+ "maybe-matrix.test.ts": {
+  "fn check": [
+   "expect.toBe(\"game\")",
+   "expect.toEqual([P])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"off\", out.who])",
+   "expect.toBe(1)",
+   "expect.toContain(\"Reopen\")",
+   "expect.toEqual([\"ask\", round, until])",
+   "expect.toContain(`${v[p] === \"yes\" ? \"✅\" : \"🤔\"} <@${p}>`)",
+   "expect.toContain(\"**On hold**\")",
+   "expect.not.toContain(\"Vote by\")",
+   "expect.toEqual([\"I'm in\", \"Maybe\", \"Not today\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toBe(1)",
+   "expect.toEqual(sure)",
+   "expect.toBe(`${mention(sure)} 🤔 ${out.unsure.map((p) => `<@${p}>`).join(\" & \")} ${out.unsure.length > 1 ? \"aren't\" : \"isn't\"} sure yet, so it's on hold until <t:${until}:t> (<t:${until}:R>). Then I'll ask again ⬆️`)",
+   "expect.toEqual(panel(v[p], false))",
+   "expect.toEqual([])",
+   "expect.toEqual([\"ask\", round - 1, null])",
+   "expect.toContain(`${!v[p] ? \"⏳\" : hidden ? \"🗳️\" : { yes: \"✅\", maybe: \"🤔\", no: \"❌\" }[v[p]!]} <@${p}>`)",
+   "expect.toContain(`Vote by <t:${opened + WINDOW[round]}:t>`)",
+   "expect.toEqual(round === 3 ? [\"I'm in\", \"Not today\"] : [\"I'm in\", \"Maybe\", \"Not today\"])",
+   "expect.toContain(\"⏰ Final call! Are we playing today?\")",
+   "expect.toEqual(panel(v[p], round === 3))",
+   "expect.toEqual([])"
+  ],
+  "fn deadline": [
+   "expect.toEqual([])",
+   "expect.toEqual([[missing, mention(missing)]])",
+   "expect.toEqual([\"off\", atDeadline(v)])",
+   "expect.toBe(1)"
+  ],
+  "fn resume": [
+   "expect.toEqual([\"ask\", round - 1, null, OPENS[round]])",
+   "expect.toEqual([unsure])",
+   "expect.toContain(`Answer by <t:${OPENS[round] + 3600}:t>`)"
+  ],
+  "fn cast": [
+   "expect.toContain(\"No more maybes\")"
+  ],
+  "test \"the last two answers at the same moment put it on hold once\"": [
+   "expect.toEqual([1, T(\"19:00\")])",
+   "expect.toBeLessThanOrEqual(1)"
+  ],
+  "test \"reopening after a final-call no starts over: round 1, secret, maybes allowed\"": [
+   "expect.toBe(\"off\")",
+   "expect.toEqual([\"ask\", 0, null])",
+   "expect.toContain(\"🤫 Answers stay secret\")",
+   "expect.toEqual([\"I'm in\", \"Maybe\", \"Not today\"])"
+  ],
+  "test \"midnight during a hold closes the card quietly (nobody to roast)\"": [
+   "expect.toEqual([\"off\", null, null])"
+  ],
+  "test \"midnight with the unsure still to answer after a hold: quiet if their hour only just started, roasted after a full hour\"": [
+   "expect.toEqual([\"off\", who])"
+  ],
+  "test \"taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why\"": [
+   "expect.toEqual([4, 64])",
+   "expect.toContain(\"You said **maybe**\")",
+   "expect.toEqual([\"Change to I'm in\", \"Change to Not today\"])",
+   "expect.toBe(7)",
+   "expect.toEqual([\"Change to Maybe\", \"Change to Not today\"])",
+   "expect.toBe(7)",
+   "expect.toContain(\"No more maybes: this is the final call.\")",
+   "expect.toEqual([\"Change to Not today\"])"
+  ],
+  "test \"a maybe on any later step, from an outsider, or on a closed card is turned away\"": [
+   "expect.toContain(\"trio\")",
+   "expect.toContain(\"past that step\")",
+   "expect.toContain(\"Game night's off\")"
+  ]
+ },
+ "paths.test.ts": {
+  "test \"HTTP: health, signatures, admin auth, ingest\"": [
+   "expect.toEqual([200, { type: 1 }])",
+   "expect.toBe(401)",
+   "expect.toEqual([200, true])",
+   "expect.toBe(401)",
+   "expect.toBe(401)",
+   "expect.toEqual({ ok: true })",
+   "expect.toBe(\"request\")",
+   "expect.toBe(1)",
+   "expect.toBe(503)"
+  ],
+  "test \"/meme summons a pool meme once, and says so when the well is dry\"": [
+   "expect.toContain(\"Summoned by <@a>\")",
+   "expect.toContain(\"well is dry\")"
+  ],
+  "test \"the one-hour re-nudge, a card deleted by hand, refreshing open cards, the plan picker\"": [
+   "expect.toEqual([\"b\", \"c\"])",
+   "expect.toBeNull()",
+   "expect.toEqual([DAY])",
+   "expect.toBeTruthy()",
+   "expect.toContain(\"Plan a game night\")",
+   "expect.toContain(\"🗳️\")"
+  ],
+  "test \"exact starts: a failed start ping releases the claim for a retry\"": [
+   "expect.toEqual([DAY])",
+   "expect.not.toHaveProperty(\"reminded\")",
+   "expect.toBe(false)",
+   "expect.toHaveProperty(\"reminded\", DAY)"
+  ],
+  "test \"a roast that fails to post is retried\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([DAY])"
+  ],
+  "test \"late slips: a failed post releases the claim; the slip renders\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toContain(\"Running late?\")",
+   "expect.toContain(\"<#room1>\")"
+  ],
+  "test \"daily post: a failed post gives the meme back to the pool\"": [
+   "expect.rejects.toThrow()",
+   "expect.toBeNull()",
+   "expect.toMatchObject({ posted: \"t3_d\" })"
+  ],
+  "test \"Meme of the Week: top voter and longest streak, posted once\"": [
+   "expect.toEqual({ posted: \"week:2026-11-08\" })",
+   "expect.toContain(\"Most votes: <@a> (1)\")",
+   "expect.toMatchObject({ skipped: \"already posted\" })",
+   "expect.toEqual({ user_id: \"a\", n: 1 })",
+   "expect.toEqual({ user_id: \"a\", streak: 1 })"
+  ],
+  "test \"polls remember their message\"": [
+   "expect.toEqual([\"ch\", \"msg\", [\"👍 Yes\", \"👎 No\"]])"
+  ],
+  "test \"rooms: a hand-deleted room is recreated; a failed creation leaves no placeholder\"": [
+   "expect.not.toBe(first.channelId)",
+   "expect.rejects.toThrow()",
+   "expect.toEqual([\"R.E.P.O.\"])"
+  ],
+  "test \"rooms: busy keeps the event alive, empty wraps it up and ends the event\"": [
+   "expect.toBe(t0 + 1800)",
+   "expect.toBe(true)",
+   "expect.toEqual([\"R.E.P.O.\"])",
+   "expect.toBe(true)",
+   "expect.toBeNull()",
+   "expect.toBe(false)"
+  ],
+  "test \"rooms: an event ended by hand (or deleted) is let go quietly; other refusals still alert\"": [
+   "expect.toBe(alerted)",
+   "expect.toBe(alerted ? t0 + 300 : null)",
+   "expect.toHaveLength(alerted ? 2 : 1)"
+  ],
+  "test \"room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day deletion\"": [
+   "expect.toMatchObject({ forgotten: [\"Gone\"], revived: [\"Busy\"], deleted: [\"Stale\", \"Vanished\"] })",
+   "expect.toEqual([[\"busy\", null]])"
+  ],
+  "test \"rooms: another click finishing the same room between our look and our claim\"": [
+   "expect.toEqual([\"real-racer\", true])",
+   "expect.toEqual([\"real-racer\"])",
+   "expect.toBe(false)"
+  ],
+  "test \"room upkeep: reviving a room whose channel vanished just forgets it\"": [
+   "expect.toMatchObject({ forgotten: [\"Ghost\"] })",
+   "expect.toEqual([])"
+  ],
+  "test \"clicking the card opens your private copy; clicking your copy updates it in place\"": [
+   "expect.toBe(4)",
+   "expect.toBe(64)",
+   "expect.toBe(7)",
+   "expect.toBe(7)",
+   "expect.toContain(\"⚠️ Nothing's locked in yet\")"
+  ],
+  "test \"🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay\"": [
+   "expect.toEqual({ deleted: 3, kept: 1 })",
+   "expect.toEqual([msgs[1].id, msgs[2].id].sort())",
+   "expect.toBe(true)",
+   "expect.toMatchObject({ message_id: null, nudge_id: null })",
+   "expect.toEqual({})"
+  ],
+  "test \"a meme vote shows who voted what under the bar, without pinging\"": [
+   "expect.toContain(\"🔥 <@b> · 😂 <@a>\")",
+   "expect.toEqual({ parse: [] })"
+  ],
+  "test \"😐 meme slackers: called out at 19:00, once a day, at most every 3 days each\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([\"b\"])",
+   "expect.toEqual({ called: [\"b\"] })",
+   "expect.toMatch(/^😐 .*<@b>/)",
+   "expect.not.toMatch(/\\{\\w+\\}/)",
+   "expect.toEqual({ users: [\"b\"] })",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({ called: [\"b\"] })"
+  ],
+  "test \"admin: redraw every posted meme with its voters\"": [
+   "expect.toEqual({ updated: 1, failed: [] })",
+   "expect.toContain(\"💀 <@c>\")"
+  ]
+ },
+ "reddit.test.ts": {
+  "test \"image posts come out ranked, with titles decoded\"": [
+   "expect.toBeGreaterThan(20)",
+   "expect.toMatch(/^t3_\\w+$/)",
+   "expect.toMatch(/^https:\\/\\/i\\.redd\\.it\\/.+\\.(png|jpe?g|gif|webp)$/)",
+   "expect.toMatch(/^https:\\/\\/www\\.reddit\\.com\\/r\\/ProgrammerHumor\\/comments\\//)",
+   "expect.toMatch(/^\\/u\\//)",
+   "expect.toMatch(/^\\d{4}-\\d\\d-\\d\\dT/)",
+   "expect.not.toMatch(/&(amp|quot|#\\d+);/)",
+   "expect.toEqual([...ranks].sort((a, b) => a! - b!))"
+  ],
+  "test \"a feed with a single entry still parses\"": [
+   "expect.toEqual([ { id: \"t3_abc\", title: \"Tom & Jerry 's code\", image: \"https://i.redd.it/abc.png\", link: \"https://www.reddit.com/r/ProgrammerHumor/comments/abc/x/\", author: \"/u/x\", published: \"2026-11-04T10:00:00+00:00\", rank: 1 }, ])"
+  ],
+  "test \"a restart doesn't fetch again: the last refill's time is in the database\"": [
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(false)",
+   "expect.toBeGreaterThan(0)",
+   "expect.toBeLessThan(1000)",
+   "expect.toBe(1)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)",
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(false)",
+   "expect.toBe(2)"
+  ],
+  "test \"a failed refill waits 10 minutes before trying again, also across a restart\"": [
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(false)",
+   "expect.toMatchObject({ ok: 0, tried: Date.parse(\"2026-11-10T12:00:00Z\") })",
+   "expect.toEqual({})",
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(false)",
+   "expect.toBe(2)"
+  ],
+  "test \"a failed refill DMs only once the pool has gone 12 hours without fresh memes\"": [
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(false)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"**fetching memes from Reddit** failed\")",
+   "expect.toContain(`no fresh memes since <t:${ok / 1000}:R>`)"
+  ]
+ },
+ "resilience.test.ts": {
+  "test \"the clock says how long since its last minute, and nothing once it stops\"": [
+   "expect.toHaveLength(1)",
+   "expect.toBe(0)",
+   "expect.toBe(20)",
+   "expect.toHaveLength(2)",
+   "expect.toBeGreaterThanOrEqual(Date.parse(\"2026-11-09T17:01:00Z\"))",
+   "expect.toBeLessThan(2)",
+   "expect.toMatchObject({ ok: true, leader: true, clock: expect.any(Number), version: \"dev\" })",
+   "expect.toBeNull()"
+  ],
+  "test \"a minute stuck for 5 minutes is reported once, so the bot can restart itself\"": [
+   "expect.toEqual([])",
+   "expect.toBe(240)",
+   "expect.toEqual([5])",
+   "expect.toEqual([5])"
+  ],
+  "test \"a query stuck on a lock gives up after 30 s instead of hanging its job\"": [
+   "expect.toEqual({ st: \"30s\", idle: \"1min\" })"
+  ]
+ },
+ "spontaneous.test.ts": {
+  "test \"two of us in the Lobby for 30 s get one silent question; a 29-second visit gets none\"": [
+   "expect.toBeNull()",
+   "expect.toBe(t0 + 35)",
+   "expect.toBe(t0 + 70)",
+   "expect.toEqual([])",
+   "expect.toBeTruthy()",
+   "expect.toEqual({ parse: [] })",
+   "expect.toContain(\"Playing something?\")",
+   "expect.toContain(\":g:R.E.P.O.\")",
+   "expect.toContain(\":chill\")",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"open\")"
+  ],
+  "test \"recent games come first on the question\"": [
+   "expect.toEqual([\"World of Warcraft\", \"R.E.P.O.\"])"
+  ],
+  "test \"first tap wins: the room opens, the Lobby comes along, the question goes; a late tap hears who won\"": [
+   "expect.toBe(true)",
+   "expect.toBe(\"World of Warcraft\")",
+   "expect.toEqual([room.channel_id, room.channel_id])",
+   "expect.toMatchObject({ state: \"picked\", by: \"a\", game: \"World of Warcraft\" })",
+   "expect.toBe(\"<@a> already picked **World of Warcraft** 🙂\")",
+   "expect.toHaveLength(1)",
+   "expect.toBeUndefined()"
+  ],
+  "test \"two taps at the same moment open one room\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a room that won't open gives the question back\"": [
+   "expect.toContain(\"Couldn't open the room\")",
+   "expect.toBe(\"open\")"
+  ],
+  "test \"“Just hanging out” clears the question and keeps the Lobby quiet until the gathering breaks up\"": [
+   "expect.toBe(\"dismissed\")",
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toBeUndefined()",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"“Other…” opens the full room picker\"": [
+   "expect.toContain(\"room:open\")",
+   "expect.toMatchObject({ data: { content: expect.stringContaining(\"trio\") } })"
+  ],
+  "test \"an unanswered question goes after 10 minutes and isn't asked again that gathering\"": [
+   "expect.toBe(t0 + 30 + spontaneous.PROMPT_TTL)",
+   "expect.toMatchObject({ expired: expect.any(Number) })",
+   "expect.toBe(\"expired\")",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a question that fails to post leaves the gathering quiet; the next gathering can ask\"": [
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"failed\")",
+   "expect.toBe(\"open\")"
+  ],
+  "test \"a planned night owns the Lobby: none while one starts within 15 min or is on\"": [
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"someone already in a game room: no question (joiners get pulled there instead)\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"no snapshot from the gateway: live.ts doesn't react at all\"": [
+   "expect.toBe(false)"
+  ],
+  "test \"joining the Lobby while one game room is in use pulls you in once, with a way back\"": [
+   "expect.toEqual({ channel_id: \"wow\" })",
+   "expect.toBe(\"👋 Pulled <@a> in from the Lobby: <@b> is here.\")",
+   "expect.toBe(1 << 12)",
+   "expect.toContain(\"lob:back:a\")",
+   "expect.toBe(false)",
+   "expect.toMatchObject({ channel_id: \"wow\", delete_at: t0 + 10 + spontaneous.NOTE_TTL })",
+   "expect.not.toHaveProperty(\"notes\")",
+   "expect.toMatchObject({ notes: 1 })",
+   "expect.toBe(true)",
+   "expect.toEqual([])"
+  ],
+  "test \"no pull when you came out of that room, when two rooms are in use, or during a planned night\"": [
+   "expect.toBe(false)"
+  ],
+  "test \"↩ Back to the Lobby moves them back and keeps the Lobby quiet\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([{ channel_id: \"lobby\" }, { channel_id: \"lobby\" }])",
+   "expect.toBe(true)",
+   "expect.toEqual([])",
+   "expect.toBe(\"undone\")",
+   "expect.toContain(\"Nobody to move back\")"
+  ],
+  "test \"the ↩ button is the trio's, and goes through the interaction\"": [
+   "expect.toMatchObject({ type: 6 })",
+   "expect.toBe(true)"
+  ],
+  "test \"an unplanned session: quiet line at 2 min, a game night at 10, wrapped up 15 min after it drops below two\"": [
+   "expect.toBeUndefined()",
+   "expect.toMatchObject({ day: DAY, started_at: t0 + 10, who: [\"a\", \"b\"] })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ content: \"🎮 <@a> and <@b> are in **World of Warcraft** → <#wow>\", flags: 1 << 12, allowed_mentions: { parse: [] } })",
+   "expect.toBe(3)",
+   "expect.toMatchObject({ counted: true })",
+   "expect.toBe(4)",
+   "expect.toBe(\"🎮 <@a>, <@b> and <@c> are in **World of Warcraft** → <#wow>\")",
+   "expect.toMatchObject({ finished: [\"World of Warcraft\"] })",
+   "expect.toBe(\"🎮 <@a>, <@b> and <@c> played **World of Warcraft** for 47 min\")",
+   "expect.toMatchObject({ finished: true, counted: true, together_secs: 2800 })",
+   "expect.toBe(4)",
+   "expect.toMatchObject({ played: 1, unplanned: 1 })",
+   "expect.toBe(1)",
+   "expect.toContain(\"🎉 1 game night played (1 unplanned)\")"
+  ],
+  "test \"a short session doesn't count, and its line goes\"": [
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)",
+   "expect.toMatchObject({ counted: false, finished: true, message_id: null })",
+   "expect.toBe(3)"
+  ],
+  "test \"all three of us there: no line (nobody's missing), still a game night\"": [
+   "expect.toEqual([])",
+   "expect.toMatchObject({ counted: true })"
+  ],
+  "test \"a short break doesn't end it; back within 15 min is the same session\"": [
+   "expect.toMatchObject({ finished: false, together_secs: 300, counted: true })"
+  ],
+  "test \"the room vanishing mid-session wraps it up without an alert\"": [
+   "expect.toMatchObject({ finished: [\"World of Warcraft\"] })",
+   "expect.not.toContain(\"failed\")"
+  ],
+  "test \"a failed line is tried again; a line swept away at 03:00 doesn't upset anything\"": [
+   "expect.toBeNull()",
+   "expect.not.toBeNull()",
+   "expect.toMatchObject({ finished: true, counted: true })"
+  ],
+  "test \"the day's planned night starting with the same game takes the session over: one night, not two\"": [
+   "expect.toBe(4)",
+   "expect.toBe(4)",
+   "expect.toMatchObject({ absorbed: true, counted: false, finished: true })",
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toMatchObject({ day: DAY, absorbed: true, counted: false })",
+   "expect.toBe(4)"
+  ],
+  "test \"after the day's planned night, playing that game again the same day isn't a second night\"": [
+   "expect.toMatchObject({ counted: false })",
+   "expect.toBe(5)"
+  ],
+  "test \"absorbing with nothing to absorb is a no-op\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"words\"": [
+   "expect.toBe(\"<@a>\")",
+   "expect.toBe(\"1 min\")",
+   "expect.toBe(\"1 h 20 min\")",
+   "expect.toBe(\"2 h\")"
+  ],
+  "test \"two in the Lobby playing the same game skip the question: straight to its room, with ↩\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toBe(\"World of Warcraft\")",
+   "expect.toHaveLength(2)",
+   "expect.toBe(\"🎮 Saw <@a> and <@b> in **World of Warcraft**, so I brought you over.\")",
+   "expect.toContain(\"lob:back:a,b\")",
+   "expect.toBe(\"moved\")",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"different games, or only one of us in a known game: ask, that game first\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"World of Warcraft\", \"R.E.P.O.\"])"
+  ],
+  "test \"a name Discord uses that we don't know is learned with one tap, never silently\"": [
+   "expect.toMatchObject({ state: \"open\", activity: \"World of Warcraft: Forever\" })",
+   "expect.toBe(\"Discord says you were playing *World of Warcraft: Forever*. Is that **World of Warcraft**?\")",
+   "expect.toContain(`lob:${p.id}:alias`)",
+   "expect.toBe(\"👍 From now on, two of you in *World of Warcraft: Forever* go straight to **World of Warcraft**.\")",
+   "expect.toBe(\"moved\")",
+   "expect.toBe(\"🤷\")"
+  ],
+  "test \"two of us playing the same game before anyone's in voice: its room is ready under the Lobby, once a day\"": [
+   "expect.toEqual([])",
+   "expect.toBe(true)",
+   "expect.toBe(false)",
+   "expect.toBe(false)",
+   "expect.toMatchObject({ archived_at: null, last_seen: null })",
+   "expect.toEqual([])"
+  ],
+  "test \"no ready room when one of the players is already in voice, a night is on its way, or detection is off\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"a room that can't be got ready gives the day's claim back\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"what someone's playing: only “Playing …”, and a listener hears only real changes\"": [
+   "expect.toEqual([[\"World of Warcraft\"], []])",
+   "expect.toEqual([])"
+  ],
+  "test \"game detection is off unless PRESENCES=1\"": [
+   "expect.toBe(false)",
+   "expect.toBe(true)"
+  ],
+  "test \"an auto-move whose room won't open keeps the gathering quiet and says so\"": [
+   "expect.toContain(\"moving the Lobby into the game we're playing failed\")",
+   "expect.toBe(\"failed\")",
+   "expect.toEqual([])"
+  ],
+  "test \"a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room\"": [
+   "expect.toEqual([{ activity: \"World of Warcraft: Forever\", game: \"World of Warcraft\" }])",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"World of Warcraft: Forever\")",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"moved\")"
+  ],
+  "test \"Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either\"": [
+   "expect.toEqual([{ activity: \"Visual Studio Code\", game: null }])",
+   "expect.toEqual([])",
+   "expect.toBeNull()"
+  ],
+  "test \"an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update\"": [
+   "expect.toEqual([{ activity: \"Peak\", game: null }])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"no key, no questions\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"Gemini's daily budget is kept in the database and stops asking once it's spent\"": [
+   "expect.toEqual({ game: \"World of Warcraft\" })",
+   "expect.toBeNull()",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ game: \"World of Warcraft\" })"
+  ]
+ },
+ "time.test.ts": {
+  "test \"winter offset is UTC+2\"": [
+   "assert.equal(_, Date.parse(\"2026-11-03T15:00:00Z\") / 1000)"
+  ],
+  "test \"summer offset is UTC+3\"": [
+   "assert.equal(_, Date.parse(\"2026-07-01T14:00:00Z\") / 1000)"
+  ],
+  "test \"DST start day (29 Mar 2026), evening\"": [
+   "assert.equal(_, Date.parse(\"2026-03-29T17:00:00Z\") / 1000)"
+  ],
+  "test \"DST end day (25 Oct 2026), evening\"": [
+   "assert.equal(_, Date.parse(\"2026-10-25T18:00:00Z\") / 1000)"
+  ],
+  "test \"local day/hour across DST\"": [
+   "assert.equal(_, 17)",
+   "assert.equal(_, 17)",
+   "assert.equal(_, \"2026-11-04\")"
+  ],
+  "test \"time stage at 14:00 → afternoon presets\"": [
+   "assert.deepEqual(_, [\"15:00\", \"15:30\", \"16:00\", \"17:00\", \"18:00\"])"
+  ],
+  "test \"time stage at 17:00 → evening presets\"": [
+   "assert.deepEqual(_, [\"18:00\", \"18:30\", \"19:00\", \"20:00\", \"21:00\"])"
+  ],
+  "test \"time stage at 17:20 → starts at 18:30\"": [
+   "assert.equal(_, \"18:30\")"
+  ],
+  "test \"passed presets disappear\"": [
+   "assert.deepEqual(_, [\"19:00\", \"20:00\", \"21:00\"])"
+  ],
+  "test \"too few left → regenerated from now\"": [
+   "assert.deepEqual(_, [\"18:00\", \"18:30\", \"19:00\", \"20:00\", \"21:00\"])"
+  ],
+  "test \"custom votes are offered as buttons\"": [
+   "assert.deepEqual(_, [ \"18:00\", \"18:30\", \"19:00\", \"20:00\", \"20:15\", \"21:00\", ])"
+  ],
+  "test \"late night → after-midnight presets\"": [
+   "assert.deepEqual(_, [\"00:00\", \"00:30\", \"01:00\", \"02:00\", \"03:00\"])"
+  ],
+  "test \"parse 20:30 / 2030 / 20.30 / 20h30 / 20\"": [
+   "assert.equal(_, \"20:30\", s)",
+   "assert.equal(_, \"20:00\")"
+  ],
+  "test \"parse rejects nonsense and past\"": [
+   "assert.match(_, /Couldn't read/)",
+   "assert.match(_, /Couldn't read/)",
+   "assert.match(_, /already passed/)"
+  ],
+  "test \"parse 01:00 late at night means after midnight\"": [
+   "assert.equal(_, Date.parse(\"2026-11-03T23:00:00Z\") / 1000)"
+  ],
+  "test \"parse respects summer time\"": [
+   "assert.equal(_, Date.parse(\"2026-07-01T17:00:00Z\") / 1000)"
+  ],
+  "test \"planned day → that day's 16:00-21:00\"": [
+   "assert.deepEqual(_, [ \"2026-11-06T14:00\", \"2026-11-06T15:00\", \"2026-11-06T16:00\", \"2026-11-06T17:00\", \"2026-11-06T18:00\", \"2026-11-06T19:00\", ])"
+  ],
+  "test \"custom time on a planned day\"": [
+   "assert.equal(_, Date.parse(\"2026-11-06T17:30:00Z\") / 1000)",
+   "assert.equal(_, Date.parse(\"2026-11-06T23:00:00Z\") / 1000)"
+  ],
+  "test \"weekday names\"": [
+   "assert.equal(_, \"Friday\")"
+  ],
+  "test \"every voted time keeps a button, even with many custom picks\"": [
+   "assert.ok(_, `at most 8 buttons, got ${opts.length}`)",
+   "assert.ok(_, `voted ${v} missing`)"
+  ],
+  "test \"no leave-by: start at the latest pick\"": [
+   "assert.deepEqual(_, [true, +T(20), null, null])"
+  ],
+  "test \"leave-by with room to play: fits, ends at the earliest leave-by\"": [
+   "assert.deepEqual(_, [true, +T(19), +T(22), null])"
+  ],
+  "test \"exactly one hour together is enough\"": [
+   "assert.equal(_, null)"
+  ],
+  "test \"under an hour together is a clash naming who and when\"": [
+   "assert.deepEqual(_, { leaver: \"a\", leaveBy: +T(20.5), late: [\"c\"], lateFrom: +T(20), bumped: false })"
+  ],
+  "test \"leaving before the start is a clash\"": [
+   "assert.ok(_)"
+  ],
+  "test \"the earliest leave-by is the one that matters\"": [
+   "assert.equal(_, \"b\")",
+   "assert.deepEqual(_, [\"c\"])"
+  ],
+  "test \"several late starters are all named\"": [
+   "assert.deepEqual(_, [\"b\", \"c\"])"
+  ],
+  "test \"partial picks: not ready, but an early clash warning shows\"": [
+   "assert.equal(_, false)",
+   "assert.equal(_, \"b\")"
+  ],
+  "test \"no picks yet: nothing to clash\"": [
+   "assert.deepEqual(_, [false, null, +T(19), null])"
+  ],
+  "test \"passed picks are bumped to `soonest`, and that can clash\"": [
+   "assert.equal(_, +T(18))",
+   "assert.equal(_, true)"
+  ],
+  "test \"ask/game cards close at midnight\"": [
+   "assert.equal(_, true)",
+   "assert.equal(_, true)"
+  ],
+  "test \"time cards stay open after midnight for 🌙 starts\"": [
+   "assert.equal(_, false)",
+   "assert.equal(_, false)",
+   "assert.equal(_, true)"
+  ],
+  "test \"today's and future cards are never over\"": [
+   "assert.equal(_, false)",
+   "assert.equal(_, false)"
+  ],
+  "test \"after-midnight custom time on DST-end night stays a wall-clock time\"": [
+   "assert.equal(_, \"01:30\")"
+  ]
+ }
+}
