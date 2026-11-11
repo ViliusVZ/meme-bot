@@ -811,6 +811,13 @@
    "expect.toBe(true)",
    "expect.toContain(\"merging the unplanned session into the night failed\")",
    "expect.not.toContain(\"the start ping failed\")"
+  ],
+  "test \"late: someone who arrived and wandered back to the Lobby is left there\"": [
+   "expect.toBe(false)"
+  ],
+  "test \"late: a latecomer the bot can't move into the room isn't counted as here\"": [
+   "expect.toContain(\"latecomer upkeep failed\")",
+   "expect.toEqual([])"
   ]
  },
  "reddit.test.ts": {

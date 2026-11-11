@@ -442,5 +442,24 @@
    "games": "8:1134d6e24e08",
    "rooms": "1:97ffae361dcd"
   }
+ },
+ "late: someone who arrived and wandered back to the Lobby is left there": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:adc07981488b",
+   "games": "8:1134d6e24e08",
+   "night_attendance": "1:2f76ddafe5d8",
+   "rooms": "1:be996a3dd2c9"
+  }
+ },
+ "late: a latecomer the bot can't move into the room isn't counted as here": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 8c59c3946348"
+  ],
+  "db": {
+   "game_nights": "1:adc07981488b",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:be996a3dd2c9"
+  }
  }
 }

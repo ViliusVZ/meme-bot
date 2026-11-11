@@ -564,3 +564,25 @@ test("a start whose unplanned session can't be merged still happens", async () =
   expect(said).toContain("merging the unplanned session into the night failed");
   expect(said).not.toContain("the start ping failed");
 });
+
+test("late: someone who arrived and wandered back to the Lobby is left there", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 300, reminded: true, message_id: "card" });
+  await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: now() - 400 });
+  await t.db.insert(nightAttendance).values({ day: DAY, user_id: "a", state: "arrived", arrived_at: now() - 200 });
+  presence.snapshot([{ user_id: "a", channel_id: "lobby" }]);
+  await late.watch(env);
+  expect(calls.some((c) => c.method === "PATCH" && c.path === "/guilds/guild/members/a")).toBe(false);
+});
+
+test("late: a latecomer the bot can't move into the room isn't counted as here", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 300, reminded: true, message_id: "card" });
+  await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: now() - 400 });
+  presence.snapshot([{ user_id: "a", channel_id: "lobby" }]);
+  h.override = (c) => (c.method === "PATCH" && c.path === "/guilds/guild/members/a" ? json({ message: "Missing Permissions", code: 50013 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  await late.watch(env);
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  expect(said).toContain("latecomer upkeep failed");
+  expect(await t.db.select().from(nightAttendance).where(eq(nightAttendance.user_id, "a"))).toEqual([]);
+});
