@@ -1554,5 +1554,20 @@
    "expect.toEqual([])",
    "expect.toEqual([\"late\"])"
   ]
+ },
+ "hub.test.ts": {
+  "test \"🕹️ the game list shows every game; the remove menu offers the least played first\"": [
+   "expect.toContain(`**Game ${String(i).padStart(2, \"0\")}**`)",
+   "expect.toHaveLength(25)",
+   "expect.toBe(\"Game 00\")",
+   "expect.toBe(\"Game 24\")"
+  ],
+  "test \"/help and the HQ panel point at the right channels\"": [
+   "expect.toContain(`### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`)",
+   "expect.toContain(`### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`)",
+   "expect.toContain(`### 😂 Memes · <#${env.CHANNEL_ID}>`)",
+   "expect.toBeTruthy()",
+   "expect.toBeFalsy()"
+  ]
  }
 }

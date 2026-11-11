@@ -1,0 +1,12 @@
+{
+ "🕹️ the game list shows every game; the remove menu offers the least played first": {
+  "calls": [],
+  "db": {
+   "games": "30:171756b9f5f8"
+  }
+ },
+ "/help and the HQ panel point at the right channels": {
+  "calls": [],
+  "db": {}
+ }
+}
