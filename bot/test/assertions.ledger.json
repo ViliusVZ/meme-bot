@@ -1651,5 +1651,24 @@
    "expect.toBeTruthy()",
    "expect.toBeFalsy()"
   ]
+ },
+ "interactions.test.ts": {
+  "test \"a poll is the trio's: someone else's tap is turned away and counts for nothing\"": [
+   "expect.toBe(\"This one's for the trio 😅\")",
+   "expect.toEqual([])"
+  ],
+  "test \"changing a vote on the daily meme doesn't count as another day's vote\"": [
+   "expect.toEqual([1, \"Bee\"])"
+  ],
+  "test \"the stats panel only goes back in time, and at most ten years\"": [
+   "expect.toContain(\"This week ·\")",
+   "expect.toContain(\"st:week:-521\")"
+  ],
+  "test \"a retired tiebreaker button says so\"": [
+   "expect.toBe(\"Tiebreakers are retired 🔁 A split means a re-vote now: pick again on the card.\")"
+  ],
+  "test \"a game room form left blank asks for a name\"": [
+   "expect.toBe(\"Give the room a name 🙃\")"
+  ]
  }
 }
