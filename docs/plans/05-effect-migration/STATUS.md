@@ -8,7 +8,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
-  Panels, Gemini, Snooze, Voice. Next: Attendance; deploy, `qa_rooms.py`.
+  Panels, Gemini, Snooze, Voice, Attendance. Next: deploy `effect` to the test bot, `qa_rooms.py`;
+  then Spontaneous, Reddit.
   Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
   phases 0+1 on `main` when production is clear.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -57,7 +58,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
-| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice, Attendance |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -143,6 +144,10 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 (next commit after `f0e40c9`) attendance (Attendances): broken: the slip id not saved
+  (red), rendering before the ETA is written (red). Stayed green, tests added (`f0e40c9`), red
+  since: a failed voice lookup as in the room, a failed slip edit failing the tap, retiring the
+  slip of someone who made it.
 - 2026-11-11 `21033ad` voice (Voice): broken: last_seen not written after a move (recordings
   red), a 404 voice state as a failure (red), a hand-deleted room as still there (red), the event
   not ended (red), the placeholder kept after a failed creation (red). Stayed green, tests added
