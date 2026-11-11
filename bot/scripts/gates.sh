@@ -3,8 +3,8 @@
 #   bash scripts/gates.sh
 # Runs against TEST_DATABASE_URL (a local Postgres is much faster than the tunnel; see STATUS.md).
 # The floors (tests, query sites) live in scripts/gates.json: the test count only ever goes up.
-# G4 and G5 compare with the commit tagged `baseline` (the phase 0 recordings and ledger) as well
-# as with what is committed.
+# G4 and G5 compare with the commit tagged `baseline` (the phase 0 recordings and ledger) and with
+# HEAD (what is committed).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 floors=scripts/gates.json
@@ -26,8 +26,8 @@ if (r.numPassedTests < f.tests) { console.error(`tests: ${r.numPassedTests} < fl
 if (r.numPassedTests > f.tests) { f.tests = r.numPassedTests; require("fs").writeFileSync("'$floors'", JSON.stringify(f, null, 1) + "\n"); }
 console.log(`G2: ${r.numPassedTests} passed (floor ${f.tests})`);
 ' || red "G2 counts"
-if [ -n "$(git status --porcelain -- test/__recordings__)" ]; then git status --short -- test/__recordings__; red "G4 recordings differ"; fi
-node scripts/recordings.mjs --base baseline || red "G4 recordings vs the baseline"
+# every recording at the baseline and at HEAD is produced again, unchanged; new ones may be added
+node scripts/recordings.mjs || red "G4 recordings"
 echo "G4: recordings identical"
 
 echo "== G3 queries"
