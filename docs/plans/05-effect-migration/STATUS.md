@@ -43,11 +43,14 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Numbers
 
+Live QA baseline: the test bot on `618cf73` (the old code), 2026-11-11 16:13-17:30 Vilnius, every
+suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-baseline/`.
+
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files |
 |---|---|---|
 | `async` | 197 | 5 |
-| `await` | 664 | 19 |
+| `await` | 664 | 18 |
 | `.then(` | 23 | 1 |
 | `.catch(` | 59 | 3 |
 | `try {` | 38 | 2 |
@@ -59,11 +62,11 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | `console.` | 37 | 15 |
 | `Date.now/new Date` | 82 | 0 |
 | `Math.random` | 1 | 0 |
-| `process.env` | 4 | 0 |
+| `process.env` | 3 | 0 |
 | `: any` | 12 | 0 |
 | `as any` | 2 | 0 |
 | `_reset` | 4 | 0 |
-| `LEGACY-BRIDGE` | 0 | 0 |
+| `LEGACY-BRIDGE` | 94 | 8 |
 | `Effect.promise` | 0 | 0 |
 | `Effect.tryPromise` | 0 | 0 |
 | `runPromise` | 0 | 0 |
@@ -71,10 +74,10 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | `Effect.orDie` | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 |
 | `@ts-` | 0 | 0 |
-| **total** | **1158** | **64** |
+| **total** | **1251** | **71** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, interactions.ts 76, app.ts 51, main.ts 46, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 27, cleanup.ts 19, gateway.ts 18, alerts.ts 17, memeshame.ts 17, gemini.ts 15, panels.ts 15, games.ts 8, roasts.ts 8, background.ts 7, localtime.ts 5, presence.ts 5, nights.ts 3, hub.ts 2, channels.ts 1, env.ts 1.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 81, interactions.ts 76, main.ts 53, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 27, cleanup.ts 19, gateway.ts 18, alerts.ts 17, memeshame.ts 17, gemini.ts 15, panels.ts 15, env.ts 12, games.ts 8, roasts.ts 8, background.ts 7, localtime.ts 5, presence.ts 5, nights.ts 3, hub.ts 2, channels.ts 1, runtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -86,17 +89,17 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | Recordings differing | 0 | |
 | Assertion ledger | 741 assertions (728 at the start, 13 from the Discord-error tests) | |
 | Leftovers (G6 total; per-pattern table below) | 1158 outside boundary files, 64 inside (after the phase 0 moves) | |
-| `qa_all.py` | | |
-| `qa_timing.py` | | |
-| `qa_rooms.py` | | |
-| `qa_stats.py` | | |
-| `qa_spontaneous.py` | | |
-| `qa_late_ui.py` | | |
-| `qa_leaveby.py` | | |
-| `qa_slowpoke.py` | | |
-| `qa_maybe_matrix.py` | | |
-| Tap handling, median / 95th percentile (ms) | | |
-| Memory after 1 h (MB) | | |
+| `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | |
+| `qa_timing.py` | 13 passed, 0 failed | |
+| `qa_rooms.py` | 10 checks, no failures | |
+| `qa_stats.py` | 17 passed, 0 failed | |
+| `qa_spontaneous.py` | 14 checks, "all good" | |
+| `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | |
+| `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | |
+| `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | |
+| `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | |
+| Tap handling, median / 95th percentile (ms) | pending: real taps in the T3 browser (Discord logged out at 16:20) | |
+| Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | |
 
 ## Versions in use
 
