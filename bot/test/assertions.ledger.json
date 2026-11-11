@@ -507,6 +507,23 @@
    "expect.toBe(true)",
    "expect.toBe(false)",
    "expect.toBe(false)"
+  ],
+  "test \"a nudge someone deleted by hand doesn't stop the next one\"": [
+   "expect.toBeTruthy()",
+   "expect.toBe(\"game\")",
+   "expect.toBeTruthy()",
+   "expect.not.toBe(first)",
+   "expect.toContain(\"Everyone's in! What are we playing?\")"
+  ],
+  "test \"start times stay secret until everyone has picked\"": [
+   "expect.toBe(\"time\")",
+   "expect.toContain(\"🗳️ <@a>\")",
+   "expect.not.toContain(\"from **20:00**\")",
+   "expect.toContain(\"Picks stay secret\")"
+  ],
+  "test \"🏁 the leave-by box comes filled in with your current one\"": [
+   "expect.toContain('\"value\":\"22:30\"')",
+   "expect.not.toContain('\"value\":\"')"
   ]
  },
  "maybe-matrix.test.ts": {

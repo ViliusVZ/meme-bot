@@ -807,5 +807,54 @@
    "settings": "1:07068715fc07",
    "users": "1:fe20f3ead3e7"
   }
+ },
+ "a nudge someone deleted by hand doesn't stop the next one": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+  ],
+  "db": {
+   "game_night_votes": "3:81b6639c3de1",
+   "game_nights": "1:aeb14b8a1195",
+   "games": "3:9ab5c6db5dcb",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "start times stay secret until everyone has picked": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+  ],
+  "db": {
+   "game_night_votes": "7:74a6b703082b",
+   "game_nights": "1:0437c89fac68",
+   "games": "3:3ecadab07603",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "🏁 the leave-by box comes filled in with your current one": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+  ],
+  "db": {
+   "game_night_votes": "7:c0352806c2ae",
+   "game_nights": "1:0437c89fac68",
+   "games": "3:832105a74845",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
  }
 }

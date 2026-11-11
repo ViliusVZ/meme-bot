@@ -15,7 +15,7 @@ import * as memeshame from "../src/memeshame.js";
 import * as snooze from "../src/snooze.js";
 import { interaction } from "../src/interactions.js";
 import { drain } from "../src/background.js";
-import { harness, routes, type TestDb } from "./harness.js";
+import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";
 
 const h = harness({
@@ -953,4 +953,38 @@ test("😴 asked ahead: the last snoozed day sleeps, the day it runs out is back
   expect(await snooze.isSnoozed(env, "2026-11-08")).toBe(true);
   expect(await snooze.isSnoozed(env, "2026-11-09")).toBe(false);
   expect(await snooze.isSnoozed(env, "2026-11-10")).toBe(false);
+});
+
+test("a nudge someone deleted by hand doesn't stop the next one", async () => {
+  await gn.startNight(env, "a"); // b and c hear that a wants to play
+  const first = (await night())!.nudge_id!;
+  expect(first).toBeTruthy();
+  h.override = (c) => (c.method === "DELETE" && c.path === `/channels/gn/messages/${first}` ? json({ message: "Unknown Message", code: 10008 }, 404) : undefined);
+  for (const u of ["b", "c"]) await act(u, "yes");
+  const n = (await night())!;
+  expect(n.stage).toBe("game");
+  expect(n.nudge_id).toBeTruthy();
+  expect(n.nudge_id).not.toBe(first);
+  expect(posts().at(-1)!.body.content).toContain("Everyone's in! What are we playing?");
+});
+
+test("start times stay secret until everyone has picked", async () => {
+  await gn.startNight(env, "a");
+  for (const u of ["b", "c"]) await act(u, "yes");
+  for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
+  expect((await night())!.stage).toBe("time");
+  await act("a", "time", String(gn.wallToUnix(env, 2026, 11, 6, 20, 0)));
+  const card = text(await gn.render(env, DAY));
+  expect(card).toContain("🗳️ <@a>");
+  expect(card).not.toContain("from **20:00**");
+  expect(card).toContain("Picks stay secret");
+});
+
+test("🏁 the leave-by box comes filled in with your current one", async () => {
+  await gn.startNight(env, "a");
+  for (const u of ["b", "c"]) await act(u, "yes");
+  for (const u of ["a", "b", "c"]) await act(u, "game", "Palworld");
+  await act("b", "until", "22:30");
+  expect(JSON.stringify(await gn.leaveByModal(env, DAY, "b"))).toContain('"value":"22:30"');
+  expect(JSON.stringify(await gn.leaveByModal(env, DAY, "c"))).not.toContain('"value":"');
 });
