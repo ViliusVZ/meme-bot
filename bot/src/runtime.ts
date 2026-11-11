@@ -17,10 +17,11 @@ import { Games } from "./games.js";
 import { Nights } from "./nights.js";
 import { Memes } from "./memes.js";
 import { Roasts } from "./roasts.js";
+import { Panels } from "./panels.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
-  | LocalTime | Games | Nights | Memes | Roasts;
+  | LocalTime | Games | Nights | Memes | Roasts | Panels;
 
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
@@ -47,7 +48,7 @@ const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, fa
 /** Everything the app runs on, given where its configuration comes from. */
 export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOptions = {}) =>
   // bottom to top (architecture.md §4): each line may use only the lines below it
-  Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer).pipe(
+  Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer).pipe(
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
     Layer.provideMerge(Alerts.layer),
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer)),
