@@ -22,11 +22,12 @@ import { Gemini } from "./gemini.js";
 import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Attendances } from "./attendance.js";
+import { Reddit } from "./reddit.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
   | LocalTime | Games | Nights | Memes | Roasts | Panels | Gemini
-  | Snoozes | Voice | Attendances;
+  | Snoozes | Voice | Attendances | Reddit;
 
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
@@ -54,7 +55,7 @@ const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, fa
 export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOptions = {}) =>
   // bottom to top (architecture.md §4): each line may use only the lines below it
   Layer.mergeAll(Attendances.layer).pipe(
-    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Voice.layer)),
+    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Voice.layer, Reddit.layer)),
     Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer)),
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
     Layer.provideMerge(Alerts.layer),
