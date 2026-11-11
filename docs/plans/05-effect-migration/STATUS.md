@@ -52,37 +52,37 @@ Live QA baseline: the test bot on `618cf73` (the old code), 2026-11-11 16:13-17:
 suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-baseline/`.
 
 <!-- leftovers -->
-| Pattern | Outside boundary files | In boundary files |
-|---|---|---|
-| `async` | 183 | 5 |
-| `await` | 645 | 18 |
-| `.then(` | 20 | 1 |
-| `.catch(` | 58 | 3 |
-| `try {` | 35 | 2 |
-| `new Promise` | 6 | 7 |
-| `setTimeout/Interval` | 13 | 8 |
-| `AbortController` | 1 | 2 |
-| `AbortSignal` | 5 | 2 |
-| `fetch(` | 2 | 0 |
-| `console.` | 31 | 15 |
-| `Date.now/new Date` | 73 | 0 |
-| `Math.random` | 1 | 0 |
-| `process.env` | 2 | 0 |
-| `: any` | 11 | 0 |
-| `as any` | 2 | 0 |
-| `_reset` | 1 | 0 |
-| `LEGACY-BRIDGE` | 187 | 14 |
-| `Effect.promise` | 0 | 0 |
-| `Effect.tryPromise` | 0 | 0 |
-| `runPromise` | 0 | 0 |
-| `runFork` | 0 | 0 |
-| `Effect.orDie` | 0 | 0 |
-| `@effect-diagnostics` | 0 | 0 |
-| `@ts-` | 0 | 0 |
-| **total** | **1276** | **77** |
+| Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
+|---|---|---|---|
+| `async` | 164 | 5 | 5 |
+| `await` | 614 | 18 | 7 |
+| `.then(` | 18 | 1 | 2 |
+| `.catch(` | 56 | 3 | 2 |
+| `try {` | 33 | 2 | 0 |
+| `new Promise` | 6 | 7 | 0 |
+| `setTimeout/Interval` | 13 | 8 | 0 |
+| `AbortController` | 1 | 2 | 0 |
+| `AbortSignal` | 5 | 2 | 0 |
+| `fetch(` | 2 | 0 | 0 |
+| `console.` | 31 | 15 | 0 |
+| `Date.now/new Date` | 69 | 0 | 1 |
+| `Math.random` | 0 | 0 | 0 |
+| `process.env` | 2 | 0 | 1 |
+| `: any` | 11 | 0 | 0 |
+| `as any` | 2 | 0 | 0 |
+| `_reset` | 1 | 0 | 3 |
+| `LEGACY-BRIDGE` | 219 | 15 | 0 |
+| `Effect.promise` | 0 | 0 | 2 |
+| `Effect.tryPromise` | 0 | 0 | 0 |
+| `runPromise` | 0 | 0 | 1 |
+| `runFork` | 0 | 0 | 0 |
+| `Effect.orDie` | 0 | 0 | 0 |
+| `@effect-diagnostics` | 0 | 0 | 0 |
+| `@ts-` | 0 | 0 | 0 |
+| **total** | **1247** | **78** | **24** |
 
 Import cycles: none.
-Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 59, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, memes.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, db/index.ts 27, discord.ts 25, presence.ts 21, cleanup.ts 19, gateway.ts 18, memeshame.ts 17, alerts.ts 15, gemini.ts 15, panels.ts 15, env.ts 12, channels.ts 10, roasts.ts 8, background.ts 6, games.ts 6, lifecycle.ts 5, nights.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: gamenight.ts 278, spontaneous.ts 155, voice.ts 103, legacy.ts 86, interactions.ts 76, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, attendance.ts 33, late.ts 32, reddit.ts 32, jobs.ts 31, polls.ts 29, scheduler.ts 28, snooze.ts 28, discord.ts 25, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, gemini.ts 15, env.ts 12, channels.ts 10, panels.ts 7, background.ts 6, games.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -180,6 +180,29 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   harness writes its file even when empty. Exceptions to the baseline go in
   `test/recordings.allowed.json`, each with a reason, and are listed here.
 
+- **2026-11-11, gate changes in phase 3 (from its audit):**
+  - G6 (`leftovers.mjs`): lines marked `LEGACY-BRIDGE` are counted in a column of their own
+    ("in transition code"), not as old-style code; that column may grow until phase 5 and must be
+    empty at `--final`. `: any`, `as any`, `Effect.orDie`, `@ts-` and `@effect-diagnostics` are
+    refused on marked lines too.
+  - G4 (`recordings.mjs`): every recording at the tag `baseline` and at HEAD must be produced again
+    unchanged, key by key; new test files and new tests may add recordings (verification.md §3
+    said "`git status` shows the recordings untouched", which can't allow a new test's recording).
+  - G3 (`qcov.py`): the pattern also counts the Effect database's queries (`db.select…`); still
+    210 sites. A one-line exported arrow (`export const f = (env) => env.db…`) was counted as run
+    because its declaration runs at module load, so moving such a query into a service can expose
+    an untested query (it did: `unclaimRecap`, now tested).
+- **2026-11-11, setup changes in phase 3:** the harness builds the app's runtime once per test
+  file, from that file's env (a test that changes `GUILD_ID`, `DISCORD_APP_ID` or the token per
+  call isn't seen by the services; none does); its pool keeps the 5 s acquire timeout until the
+  tests run under TestClock (phase 6, spike S7). `resilience.test.ts` and `time.test.ts` use the
+  harness for its runtime.
+- **2026-11-11, small behaviour differences found by the phase 3 audit, kept:** an empty optional
+  variable (`PORT`, `POST_HOUR_UTC`, `GAME_POLL_HOUR`, `TIMEZONE`, `SUBREDDIT`) now gets its default
+  (the old code kept `""`, so `Number("")` gave hour 0); a failed body read on a Discord 4xx gives
+  empty text (the old code threw another error); the "X failed" log line prints its context with
+  `String()`, and "presence listener failed" loses the stack.
+
 ## Declared exceptions
 
 Every place the recorder or a test's setup is looser or different than "record everything in
@@ -238,7 +261,7 @@ timeout), with the evidence.
 - **`ignoreEffectWarningsInTscExitCode: true`** (tsconfig), so the old-code warnings don't fail G1
   until they flip to errors at the end of phase 5; then the option goes. Rules that default to
   warning and matter now (`duplicatePackage`, `layerMergeAllWithDependencies`) are set to error.
-- **Leader loss detection (audit of phase 2):** today `pg`'s `end` event ends the term at once;
+- **Leader loss detection (audit of phase 2; supersedes the "5 s ping" wording above):** today `pg`'s `end` event ends the term at once;
   the Effect client reports nothing until a statement fails. The term pings every **1 s** (not 5)
   with a 2 s timeout and TCP keepalive on, so two copies lead at the same time for about a second
   at most (the other copy's lock poll is 1 s anyway). Every guard is in the database, so a brief
@@ -267,6 +290,19 @@ timeout), with the evidence.
   promise chain read the clock in the same tick as the report, so the meaning is unchanged).
 - **`legacy.runDetached`** for promise code calling Effect code that needs no per-call overrides
   (the tests' `_settle`, `drain`); `legacy.run` carries the old env's QUIET and PLAYERS.
+- **The alert sender is a sixth boundary** (architecture.md §6 amended): it catches everything a
+  send lets through, logs it and goes on, as the old promise chain's `.catch` did, because a
+  defect there must not stop every later alert.
+- **Discord: the whole attempt is timed** (request and reading the answer, as `AbortSignal.timeout`
+  covered `r.json()`); a 2xx that can't be read fails at once as `DiscordUnexpected` (the old code
+  threw at once and never re-sent a request that had gone through). The passthrough upper-cases
+  the method (`dc.py get …` worked through fetch). Found by the phase 3 audit; tested.
+- **The migrator's connection has the pool's limits** (statement_timeout 30 s, idle in transaction
+  60 s): a migration stuck behind a lock during a deploy fails startup after 30 s instead of
+  stalling the copy still serving. Found by the phase 3 audit.
+- **`withOverrides`** merges an override into the current ones; providing `Overrides` replaces the
+  whole value, which would drop an outer call's stand-in players. **`allowedMentions`** is the
+  quiet-aware "who may be pinged" every ping uses.
 
 - **Leader lock:** a one-connection `PgClient.makeClient` in the term's scope, pinged every 5 s
   (spike S2: `sql.reserve` returns its connection to the pool still holding the lock; a killed
