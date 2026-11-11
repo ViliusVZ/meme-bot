@@ -9,12 +9,12 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
   Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous; `qa_rooms.py` on the test bot
-  (`07dd493`): 10 checks, no failures. Next: `qa_spontaneous.py` (running on `e47a7b9`); then
-  **architecture §15 for the moved services before GameNight**: make the claim → post → record
-  regions uninterruptible (Voice `openRoom` placeholder → channel → id; Spontaneous `ask`,
-  `postLine`, `readyRoom`, `autoMove`, `pullIn`; Attendance `declare`; check Memes/Panels/Roasts
-  for any sequence inside a service) and write test 6 (interrupt at each step: nothing done and
-  no claim, or everything done; a claim released only on a typed failure). Then GameNight.
+  (`07dd493`): 10 checks, no failures; `qa_spontaneous.py` (`e47a7b9`): 14 checks, "all good".
+  Architecture §15 in the moved services (`13b7a83`): every claim → post → record region
+  uninterruptible; test 6 is `test/interruption.test.ts` (`ddee640`), one table entry per
+  sequence: GameNight's sequences (the card, the start ping, roasts) are added there as they move.
+  Memes, Panels, Roasts hold no claim → post sequence inside a service (the daily meme's lives in
+  `jobs.ts`/`gamenight.ts` callers, still promise code). Next: GameNight, in several commits.
   Phases 0+1 are on `main` and in production (below). Browser tap timings and the browser tap
   test: deferred by the owner.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -142,7 +142,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | `qa_timing.py` | 13 passed, 0 failed | |
 | `qa_rooms.py` | 10 checks, no failures | 10 checks, no failures (`07dd493`, phase 4 after Voice and Attendance) |
 | `qa_stats.py` | 17 passed, 0 failed | |
-| `qa_spontaneous.py` | 14 checks, "all good" | |
+| `qa_spontaneous.py` | 14 checks, "all good" | 14 checks, "all good" (`e47a7b9`, phase 4 after Spontaneous and Reddit) |
 | `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | |
 | `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | |
 | `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | |
