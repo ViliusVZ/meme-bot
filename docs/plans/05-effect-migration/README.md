@@ -1,39 +1,45 @@
 # 05 · Move the whole bot to Effect
 
-> **Owner's change of plan, 2026-11-11 (overrides every file in this folder where they disagree).**
-> The bot is not mission-critical; if production breaks, the owner asks for a fix. The migration
-> is done in hours, not days: optimise for finishing.
+> **The owner's changes, 2026-11-11 (they override every file in this folder where they disagree).**
+> Every check in this plan is done, as written. What is gone is calendar time: nothing waits on a
+> clock or on something happening by itself. Checks run one after another until the work is
+> finished; where a check needed real time to pass, the thing is forced to happen on the test bot
+> (Bot Test Lab) and what it produces is checked.
 >
-> **Removed:** every calendar wait (no "one evening in production", no 48-hour soak, no waiting
-> for a morning). The cutover question: the go is given in advance; when the work is done and
-> green, merge to `main` and deploy to production, then tell the owner it is live. Waiting for
-> plan 02: if it isn't on `origin/main` when the baseline is taken, take the baseline without it;
-> when it lands, merge it in like any other change (port it to Effect if its module has moved,
-> record its tests, re-run `drizzle-kit up` if its migration arrives in the old folder format).
-> Separate production landings for phases 0 and 1: all work is on one branch, `effect`, shipped
-> once at the end; phase 1 stays as a step, proven by the tests and one test-bot deploy. The
-> rollback rehearsals, the fault drills, `scripts/soak_watch.py`, the tap-timing and memory
-> comparisons. The audit after every phase: one audit, before the cutover. "Break it on purpose"
-> only for modules with a claim → post → record sequence. Phase notes: one message at the end,
-> plus one if genuinely stuck. `qa_maybe_matrix.py` (the 401-case vitest matrix covers it).
->
-> **Kept:** the recordings, the assertion ledger, the type and diagnostic gates, the tests and
-> query coverage, run before every commit. RUN.md §5 (never weaken a check). The phase 2 spikes,
-> done quickly; if one fails, pick the sound alternative and note it; stop only if there is none.
-> Everything in `architecture.md` and "done" as defined below: less ceremony, not a smaller
-> migration. The new tests in `verification.md` §7 (test 16 uses a 60 s job timeout, no log
-> research). Before the cutover: deploy the branch to the test bot and run `qa_all.py`,
-> `qa_timing.py`, `qa_rooms.py`, `qa_stats.py`, `qa_spontaneous.py`; if they match their
-> baseline, ship. The browser tap test if Discord is logged in in the T3 browser; otherwise skip
-> it and say so. The rules that protect the trio: QA only against the test bot; no pings to real
-> people from tests; claims stay in the database; no production deploy while someone is in voice
-> or a night is about to start (check; if so, retry in 30 minutes); never touch `C:\p\meme-bot`
-> or secrets. After the cutover, if production breaks, fix forward or revert, whichever is
-> quicker, and tell the owner.
->
-> **Stopping:** only when truly stuck with no sound alternative, or when a Discord login is
-> needed for something that can't be skipped. Otherwise the run doesn't end until production runs
-> the migrated bot. The backstop task stays.
+> - **No clock gates.** "One evening in production" after phases 0 and 1 is gone: a phase is done
+>   when its checks are done. Anything phrased as "wait until", "the next morning" or "check
+>   again in N hours" means: do the next thing now. The only waits left are on work that is
+>   actually running (a test run, a CI build, a QA suite), and on the rule against deploying to
+>   production while someone is in voice or a night is about to start. If that rule blocks a
+>   production deploy, carry on with the next phase and land it when it's clear.
+> - **The 48-hour soak becomes a forced soak** in one sitting on the test bot (`verification.md`
+>   §10). Each scheduled thing is made to happen through the admin routes and the QA helpers: the
+>   daily poll card, the daily meme, a Reddit refill, the 03:00 sweep, the meme-shame call-out, the
+>   weekly and monthly recaps, a game-night start on the second, a room wrap-up, the Lobby
+>   question, a restart in the middle of each. For each: it happened exactly once, forcing it a
+>   second time does nothing, and a restart in between neither loses nor repeats it. A few hundred
+>   minute ticks run back to back while `soak_watch.py` watches `/health`, the logs and memory,
+>   during the drills and QA suites. Where forcing needs a hook the admin routes don't have, it is
+>   proven with a `TestClock` test instead and noted in `STATUS.md`. No test-only routes are added
+>   to the bot.
+> - **No cutover question.** The go is given in advance. When phase 8's checks have passed, merge
+>   and deploy to production, verify it, and tell the owner it is live.
+> - **Plan 02 (news) is not waited for.** The baseline is taken with what is on `origin/main`;
+>   news is merged in when it lands, like any other change (ported to Effect if its layer has
+>   moved, its tests recorded, `drizzle-kit up` re-run if its migration arrives in the old format).
+> - **One branch, `effect`,** in the worktree `C:\p\meme-bot-effect`. Phases 0 and 1 may land on
+>   production in order, each as soon as its own checks pass (a fast-forward of `main` to that
+>   commit), or ride along with the cutover if the deploy rule blocks at that moment. Don't wait
+>   either way.
+> - **Test 16** sets job timeouts from real numbers: production's `minute … ms` log lines, read-only.
+> - Everything else is as written, including all fault drills, both rollback rehearsals, the audit
+>   after every phase, "break it on purpose" for every module, the tap-timing and memory
+>   comparisons, `soak_watch.py`, every QA suite including `qa_maybe_matrix.py`, the browser tap
+>   (if Discord is logged out in the T3 browser, say so at once and carry on), and the phase note
+>   to the owner after every phase (tell, don't ask, keep going).
+> - Unchanged rules that protect the trio: QA and all forcing only against the test bot; no pings
+>   to real people; no duplicates; never touch `C:\p\meme-bot` or secrets; RUN.md §5. Stop for the
+>   owner only when truly stuck with no sound alternative.
 
 
 Read `../README.md` first (the house rules still apply). Then read, in this order:

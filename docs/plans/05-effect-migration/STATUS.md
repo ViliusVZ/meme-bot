@@ -7,7 +7,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 - **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect` (one branch for everything,
-  owner's change of plan 2026-11-11)
+  owner's changes 2026-11-11)
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
 - **Next step:** phase 0 step 1 (qcov.py into the repo, then the assertion ledger)
 - **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
@@ -66,12 +66,16 @@ One line per module: date, commit, the three break-it changes tried (`verificati
 
 ## Deviations from the plan
 
-- **2026-11-11, the owner's change of plan** (README.md top block; RUN.md §3 and phases.md
-  amended, pointers at the top of RUN, verification, phases): no calendar waits, no soak, drills,
-  rollback rehearsals, tap-timing or memory comparisons, no `soak_watch.py`, no
-  `qa_maybe_matrix.py`; one branch `effect`, shipped once at the end, the go given in advance;
-  plan 02 not waited for; one audit before the cutover; break-it only for claim → post → record
-  modules; one message to the owner at the end. Test 16 uses a 60 s job timeout.
+- **2026-11-11, the owner's changes** (README.md top block, pointers at the top of RUN,
+  verification and phases; RUN.md §3 rewritten for one branch). A first message cut many checks;
+  a correction the same day restored every one of them. What remains changed: no clock gates
+  (no "evening in production", no waiting for a morning or N hours); the 48-hour soak is a forced
+  soak in one sitting on the test bot (each scheduled thing forced through admin routes and QA
+  helpers, exactly once, idempotent, restart-safe; a few hundred minute ticks under
+  `soak_watch.py`; what can't be forced is proven with a `TestClock` test and listed here); one
+  branch `effect`, phases 0 and 1 landing on `main` as fast-forwards when their checks pass (or
+  with the cutover if the deploy rule blocks); plan 02 not waited for; the cutover go given in
+  advance; test 16's timeouts from production's `minute … ms` log lines.
 
 ## Declared exceptions
 

@@ -1,9 +1,9 @@
 # 05 · Running it to the end
 
-> **Owner's change of plan, 2026-11-11:** see the block at the top of `README.md`. It overrides
-> this file wherever they disagree (no calendar waits, one `effect` branch shipped once at the
-> end, no soak, drills or rollback rehearsals, one audit before the cutover, the go given in
-> advance).
+> **The owner's changes, 2026-11-11:** see the block at the top of `README.md`. It overrides this
+> file wherever they disagree: every check is done, but nothing waits on a clock (the soak is
+> forced in one sitting on the test bot, no "evening in production"), one `effect` branch, plan 02
+> not waited for, and the cutover go given in advance.
 
 
 For the Opus session that carries this plan out. The owner agreed to the whole plan on
@@ -49,8 +49,10 @@ start the next phase in the same stretch of work.
 ## 3. Branches
 
 All phases happen on one branch, `effect`, in the worktree `C:\p\meme-bot-effect` (owner's
-change of plan, 2026-11-11). Nothing lands on `main` before the cutover, which is one merge
-commit (`git revert -m 1` undoes it). The last old-style commit (the end of phase 1, Drizzle 1.0
+changes, 2026-11-11). Phases 0 and 1 may land on `main` in order, each as a fast-forward to its
+last commit (`git push origin <commit>:main`) as soon as its checks pass and the deploy rule
+allows, or ride along with the cutover. The cutover is one merge commit (`git revert -m 1`
+undoes it). The last old-style commit (the end of phase 1, Drizzle 1.0
 under the old code) is tagged `pre-effect` on the branch; it is the rollback target and the
 source of the baseline recordings.
 

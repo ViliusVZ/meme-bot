@@ -1,9 +1,9 @@
 # 05 · Phases
 
-> **Owner's change of plan, 2026-11-11:** see the block at the top of `README.md`. It overrides
-> this file wherever they disagree (no calendar waits, one `effect` branch shipped once at the
-> end, no soak, drills or rollback rehearsals, one audit before the cutover, the go given in
-> advance).
+> **The owner's changes, 2026-11-11:** see the block at the top of `README.md`. It overrides this
+> file wherever they disagree: every check is done, but nothing waits on a clock (the soak is
+> forced in one sitting on the test bot, no "evening in production"), one `effect` branch, plan 02
+> not waited for, and the cutover go given in advance.
 
 
 Ten phases. Phases 0 and 1 change the old code and ship to production like any other change
@@ -60,7 +60,7 @@ progress on 2026-11-11) is on `origin/main`; rebase onto it first, so the baseli
 6. **The remaining scripts** (`leftovers.mjs`, `soak_watch.py`), each with its self-check.
 7. **Numbers**: tests, query sites, every live QA suite on the test bot, tap timings, memory.
    Into `STATUS.md`.
-8. ~~Ship it~~ (owner, 2026-11-11: nothing ships before the cutover; phase 0 stays on `effect`).
+8. Ship it under the house deploy rules.
 
 **Exit:** tests, ledger, recordings and query coverage green on `main`; recordings identical over
 three runs; numbers recorded; production running this commit for one evening. (Phase 1's branch
@@ -79,11 +79,11 @@ into production on its own, weeks before the cutover, where a problem is easy to
 3. All gates. The recordings and the query count must be identical: the upgrade changes no
    behaviour.
 4. Deploy the branch to the test bot only. Run `qa_all.py` and `qa_timing.py`.
-5. ~~**Rehearse going back:**~~ (removed by the owner, 2026-11-11) deploy the previous `main` commit over it on the test bot. The old
+5. **Rehearse going back:** deploy the previous `main` commit over it on the test bot. The old
    migrator must start cleanly although 1.0 has added two columns to the migrations table, and
    `qa_all.py` must pass. Deploy the branch again.
-6. ~~Land it on `main`~~ (owner, 2026-11-11: it stays on `effect`; one test-bot deploy proves it).
-7. Tag the commit `pre-effect` (no waiting for an evening). It is the last old-style commit and
+6. Land it on `main` under the house deploy rules. Watch one evening in production.
+7. Once that evening was clean, tag the commit `pre-effect`. It is the last old-style commit and
    the rollback target. (The `effect` branch is cut from this commit right after it lands;
    phase 2 doesn't wait for the tag.)
 
@@ -243,11 +243,6 @@ QA suite equals its baseline.
 **Exit:** all gates, with the new tests.
 
 ## Phase 8 · Test bot: QA, drills, soak
-
-Owner, 2026-11-11: only the live QA remains: `qa_all.py`, `qa_timing.py`, `qa_rooms.py`,
-`qa_stats.py`, `qa_spontaneous.py` on the test bot, plus the browser tap if Discord is logged in.
-No drills, no soak, no rollback rehearsal, no question to the owner; then phase 9 at once, under
-the house deploy checks (nobody in voice, no night about to start; else retry in 30 minutes).
 
 `verification.md` §8 (fault drills), §9 (live QA and the browser tap), §10 (the 48-hour soak) and
 the rollback rehearsal in §11. Every result goes into `STATUS.md`.

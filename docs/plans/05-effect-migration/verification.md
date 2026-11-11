@@ -1,9 +1,9 @@
 # 05 · How the migration proves itself
 
-> **Owner's change of plan, 2026-11-11:** see the block at the top of `README.md`. It overrides
-> this file wherever they disagree (no calendar waits, one `effect` branch shipped once at the
-> end, no soak, drills or rollback rehearsals, one audit before the cutover, the go given in
-> advance).
+> **The owner's changes, 2026-11-11:** see the block at the top of `README.md`. It overrides this
+> file wherever they disagree: every check is done, but nothing waits on a clock (the soak is
+> forced in one sitting on the test bot, no "evening in production"), one `effect` branch, plan 02
+> not waited for, and the cutover go given in advance.
 
 
 The migration rewrites the code and the tests that guard it. That is the main danger: a test
