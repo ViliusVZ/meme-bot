@@ -1232,5 +1232,55 @@
   "test \"the old pool and the Effect one see the same schema\"": [
    "expect.toContain(\"Written by the old pool\")"
   ]
+ },
+ "discord.test.ts": {
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test `${name} → ${tag}${finished ? \", finished\" : \"\"}`": [
+   "assert.strictEqual(_, tag)",
+   "assert.strictEqual(_, fields.code)",
+   "assert.strictEqual(_, fields.status)",
+   "assert.strictEqual(_, f.body.message)",
+   "assert.strictEqual(_, finished)"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"a 403 whose path holds 10065 is a refusal, not 'not in voice'\"": [
+   "assert.strictEqual(_, \"DiscordRejected\")"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"an expired interaction token: the webhook answer says it didn't land, after one attempt\"": [
+   "assert.deepStrictEqual(_, [false, 401])",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"today's error text survives for the old callers (404 with Discord's raw answer)\"": [
+   "assert.match(_, /^GET \\/guilds\\/g\\/voice-states\\/u -> 404 \\{\"message\":\"Unknown Voice State\",\"code\":10065\\}$/)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a POST that gets a 5xx is sent once, and the caller hears it gave up\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a POST whose connection fails is sent once too\"": [
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a GET is tried 4 times, 300 ms, 600 ms and 1.2 s apart, then gives up\"": [
+   "assert.strictEqual(_, 4)",
+   "assert.deepStrictEqual(_, [300, 600, 1200])",
+   "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a GET recovers when a later attempt works\"": [
+   "assert.strictEqual(_, 3)",
+   "assert.deepStrictEqual(_, { id: \"c\" })"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 429 waits retry_after plus 100 ms, capped at 10 s, also for a POST\"": [
+   "assert.deepStrictEqual(_, [2600, 10_100])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a hung call times out at 10 s and counts as a failed attempt\"": [
+   "assert.deepStrictEqual(_, [10_000 + 300])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 4xx is final: no retry\"": [
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"interaction webhooks: a 404 (not processed yet) is tried again 400 ms, 800 ms, 1.2 s later\"": [
+   "assert.deepStrictEqual(_, [400, 800, 1200])",
+   "assert.isTrue(_)"
+  ]
  }
 }
