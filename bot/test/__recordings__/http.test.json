@@ -1,0 +1,38 @@
+{
+ "GET /health: the good case, and 503 while shutting down": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "GET /: the greeting": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "POST /interactions: a ping, a bad signature, a body that isn't JSON, a body over 1 MB": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "POST /ingest: a bad token, then the good case": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "admin routes: a bad token, an unknown action, an internal failure": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "an unknown route answers like Fastify's 404": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ }
+}

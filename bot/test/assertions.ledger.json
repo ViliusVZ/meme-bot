@@ -1670,5 +1670,36 @@
   "test \"a game room form left blank asks for a name\"": [
    "expect.toBe(\"Give the room a name 🙃\")"
   ]
+ },
+ "http.test.ts": {
+  "test \"GET /health: the good case, and 503 while shutting down\"": [
+   "expect.toBe(200)",
+   "expect.toMatchObject({ ok: true, leader: true, gateway: false, background: 0 })",
+   "expect.toEqual([503, { ok: false, shuttingDown: true }])"
+  ],
+  "test \"GET /: the greeting\"": [
+   "expect.toEqual([200, \"Meme Bot 3000 🔥\"])"
+  ],
+  "test \"POST /interactions: a ping, a bad signature, a body that isn't JSON, a body over 1 MB\"": [
+   "expect.toEqual([200, { type: 1 }])",
+   "expect.toEqual([401, \"bad signature\"])",
+   "expect.toBe(500)",
+   "expect.toHaveProperty(\"error\")",
+   "expect.toBe(500)",
+   "expect.toEqual({ error: \"FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large\" })"
+  ],
+  "test \"POST /ingest: a bad token, then the good case\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([200, { ingested: 0, daily: null }])"
+  ],
+  "test \"admin routes: a bad token, an unknown action, an internal failure\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([400, { error: \"action?\" }])",
+   "expect.toBe(500)",
+   "expect.toHaveProperty(\"error\")"
+  ],
+  "test \"an unknown route answers like Fastify's 404\"": [
+   "expect.toEqual([404, { message: \"Route GET:/nope not found\", error: \"Not Found\", statusCode: 404 }])"
+  ]
  }
 }
