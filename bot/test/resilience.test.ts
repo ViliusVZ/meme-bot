@@ -1,18 +1,15 @@
 // Resilience: the leader's clock notices when it's stuck (and /health shows how it's ticking), and the
 // bot's database connections give up on a stuck query instead of hanging the job behind it.
-import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import * as scheduler from "../src/scheduler.js";
 import { connect } from "../src/db/index.js";
 import { build } from "../src/app.js";
-import { testDb, testEnv, url } from "./pg.js";
+import { testEnv, url } from "./pg.js";
+import { harness, type TestDb } from "./harness.js";
 
-let t: Awaited<ReturnType<typeof testDb>>;
-beforeAll(async () => {
-  t = await testDb();
-});
-afterAll(async () => {
-  await t.close();
-});
+const h = harness();
+let t: TestDb;
+beforeAll(() => void ({ t } = h));
 afterEach(() => {
   vi.useRealTimers();
 });

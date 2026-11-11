@@ -1,0 +1,20 @@
+{
+ "the clock says how long since its last minute, and nothing once it stops": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a minute stuck for 5 minutes is reported once, so the bot can restart itself": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a query stuck on a lock gives up after 30 s instead of hanging its job": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ }
+}
