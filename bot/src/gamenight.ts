@@ -19,7 +19,7 @@
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer } from "effect";
+import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer, Match } from "effect";
 import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
 import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
@@ -608,124 +608,141 @@ const actOn = Effect.fnUntraced(function* (day: string, user: string, action: st
     return say("That poll has closed. Start a new one with **/playtoday** 🎮", true);
   }
 
-  switch (action) {
-    case "yes":
-    case "no":
-    case "maybe":
-      // an out-of-date panel: say where things stand instead of silently jumping ahead
-      if (n.stage !== "ask")
-        return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
-      if (action === "maybe" && finalCall(n)) return say("No more maybes: this is the final call. ✅ In or ✖️ out?", true);
-      yield* vote(day, "ask", user, action);
-      break;
-    case "game":
-      if (n.stage !== "game") return say(n.stage === "off" ? "Game night's off 🫡" : n.game ? `The game's already picked: **${n.game}** 🎮` : "We're not picking games yet 🙂", true);
-      if (!value) return ok;
-      yield* vote(day, "game", user, value);
-      break;
-    case "suggest": {
-      if (n.stage !== "game") return say("Game picking is already over for today.", true);
-      const name = yield* (yield* Games).add(value ?? "", user);
-      if (!name) return say("Give the game a name 🙃");
-      yield* vote(day, "game", user, name);
-      break;
-    }
-    case "time":
-    case "custom": {
-      if (n.stage !== "time")
-        return say(n.stage === "set" ? `The time's already set: **${timeLabel(w, n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
-      const t = action === "custom" ? parseTimeFor(w, value ?? "", day) : Number(value);
-      if (typeof t === "string") return say(t);
-      if (!Number.isFinite(t)) return ok;
-      if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔", true);
-      if (t < w.now + 60) return say(`**${clock(w, t)}** has already passed ⏰ Pick a later time.`, true);
-      const mine = (yield* votes(day, "time"))[user];
-      // clicking your current pick again takes it back
-      if (action === "time" && mine === String(t)) {
-        yield* unvote(day, "time", user);
-        break;
-      }
-      const until = (yield* votes(day, "until"))[user];
-      if (until && Number(until) - t < MIN_TOGETHER) {
-        return say(
-          `You said you have to leave by **${timeLabel(w, Number(until), day)}**, so starting at **${timeLabel(w, t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
-        );
-      }
-      yield* vote(day, "time", user, String(t));
-      break;
-    }
-    case "until": {
-      // 🏁 optional "I have to leave by…"; an empty form clears it
-      if (n.stage !== "time") return say("Time picking is already over for this night.", true);
-      if (!(value ?? "").trim()) {
-        yield* unvote(day, "until", user);
-        break;
-      }
-      const t = parseTimeFor(w, value ?? "", day);
-      if (typeof t === "string") return say(t);
-      if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔");
-      if (t < w.now + MIN_TOGETHER) return say(`Leaving by **${clock(w, t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
-      const start = (yield* votes(day, "time"))[user];
-      if (start && t - Number(start) < MIN_TOGETHER) {
-        return say(
-          `Your start is **${timeLabel(w, Number(start), day)}**, so a leave-by of **${timeLabel(w, t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
-        );
-      }
-      yield* vote(day, "until", user, String(t));
-      break;
-    }
-    case "out":
-      if (n.stage === "set" && (n.start_at ?? 0) < w.now - 4 * 3600) return say("That game night is already history 🕰️");
-      if (n.stage === "off" || n.stage === "ask") return ok;
-      // all of us or none of us: a bail calls it off for everyone, even after the start
-      if (yield* callNightOff(n, { [user]: "out" })) yield* later(afterBail(n));
-      return ok;
-    case "late": {
-      // ⏰ "I'll be late by…" on the locked-in card
-      if (n.stage !== "set") return say(n.stage === "off" ? "Game night's off, no need to hurry 🫡" : "Nothing's locked in yet, so you can't be late 😄 Pick a later time instead.");
-      const mins = Number(value);
-      if (![5, 15, 30, 60].includes(mins)) return ok;
-      return yield* runningLate(n, user, mins, later);
-    }
-    case "reopen": {
-      // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
-      if (n.stage !== "off") return ok;
-      if (day < today(w)) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
-      const r = yield* db
-        .update(gameNights)
-        .set({
-          stage: "ask",
-          stage_at: w.now,
-          game: null,
-          start_at: null,
-          event_id: null,
-          event_end: null,
-          reminded: false,
-          note: null,
-          conflict: null,
-          renudged: null,
-          warned: null,
-          started_by: user,
-          maybes: 0,
-          paused_until: null,
-          // a roast still waiting for the morning is dropped: they made up
-          roast: null,
-          roast_due: null,
-          roasted_at: null,
-          planned_start: null,
-        })
-        .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
-        .returning({ day: gameNights.day });
-      if (!r.length) return ok; // someone else reopened it a moment ago
-      yield* db.transaction((tx) => clearDay(tx, day));
-      yield* vote(day, "ask", user, "yes");
-      const tonight = day === today(w) ? "tonight" : `on ${weekdayOf(day)}`;
-      yield* later(nudge(day, ps.filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${tonight}? ⬆️`));
-      break;
-    }
-    default:
-      return say("That button is from an older version of me. Try **/playtoday** 🤖");
-  }
+  // null: the tap changed something, so the night moves forward if the votes allow it
+  const outcome: Outcome | null = yield* Match.value(action).pipe(
+    Match.whenOr("yes", "no", "maybe", () =>
+      Effect.gen(function* () {
+        // an out-of-date panel: say where things stand instead of silently jumping ahead
+        if (n.stage !== "ask")
+          return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
+        if (action === "maybe" && finalCall(n)) return say("No more maybes: this is the final call. ✅ In or ✖️ out?", true);
+        yield* vote(day, "ask", user, action);
+        return null;
+      }),
+    ),
+    Match.when("game", () =>
+      Effect.gen(function* () {
+        if (n.stage !== "game") return say(n.stage === "off" ? "Game night's off 🫡" : n.game ? `The game's already picked: **${n.game}** 🎮` : "We're not picking games yet 🙂", true);
+        if (!value) return ok;
+        yield* vote(day, "game", user, value);
+        return null;
+      }),
+    ),
+    Match.when("suggest", () =>
+      Effect.gen(function* () {
+        if (n.stage !== "game") return say("Game picking is already over for today.", true);
+        const name = yield* (yield* Games).add(value ?? "", user);
+        if (!name) return say("Give the game a name 🙃");
+        yield* vote(day, "game", user, name);
+        return null;
+      }),
+    ),
+    Match.whenOr("time", "custom", () =>
+      Effect.gen(function* () {
+        if (n.stage !== "time")
+          return say(n.stage === "set" ? `The time's already set: **${timeLabel(w, n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
+        const t = action === "custom" ? parseTimeFor(w, value ?? "", day) : Number(value);
+        if (typeof t === "string") return say(t);
+        if (!Number.isFinite(t)) return ok;
+        if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔", true);
+        if (t < w.now + 60) return say(`**${clock(w, t)}** has already passed ⏰ Pick a later time.`, true);
+        const mine = (yield* votes(day, "time"))[user];
+        // clicking your current pick again takes it back
+        if (action === "time" && mine === String(t)) {
+          yield* unvote(day, "time", user);
+          return null;
+        }
+        const until = (yield* votes(day, "until"))[user];
+        if (until && Number(until) - t < MIN_TOGETHER) {
+          return say(
+            `You said you have to leave by **${timeLabel(w, Number(until), day)}**, so starting at **${timeLabel(w, t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
+          );
+        }
+        yield* vote(day, "time", user, String(t));
+        return null;
+      }),
+    ),
+    Match.when("until", () =>
+      Effect.gen(function* () {
+        // 🏁 optional "I have to leave by…"; an empty form clears it
+        if (n.stage !== "time") return say("Time picking is already over for this night.", true);
+        if (!(value ?? "").trim()) {
+          yield* unvote(day, "until", user);
+          return null;
+        }
+        const t = parseTimeFor(w, value ?? "", day);
+        if (typeof t === "string") return say(t);
+        if (!onNightDay(w, day, t)) return say("That time isn't on this game night's day 🤔");
+        if (t < w.now + MIN_TOGETHER) return say(`Leaving by **${clock(w, t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
+        const start = (yield* votes(day, "time"))[user];
+        if (start && t - Number(start) < MIN_TOGETHER) {
+          return say(
+            `Your start is **${timeLabel(w, Number(start), day)}**, so a leave-by of **${timeLabel(w, t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
+          );
+        }
+        yield* vote(day, "until", user, String(t));
+        return null;
+      }),
+    ),
+    Match.when("out", () =>
+      Effect.gen(function* () {
+        if (n.stage === "set" && (n.start_at ?? 0) < w.now - 4 * 3600) return say("That game night is already history 🕰️");
+        if (n.stage === "off" || n.stage === "ask") return ok;
+        // all of us or none of us: a bail calls it off for everyone, even after the start
+        if (yield* callNightOff(n, { [user]: "out" })) yield* later(afterBail(n));
+        return ok;
+      }),
+    ),
+    Match.when("late", () =>
+      Effect.gen(function* () {
+        // ⏰ "I'll be late by…" on the locked-in card
+        if (n.stage !== "set") return say(n.stage === "off" ? "Game night's off, no need to hurry 🫡" : "Nothing's locked in yet, so you can't be late 😄 Pick a later time instead.");
+        const mins = Number(value);
+        if (![5, 15, 30, 60].includes(mins)) return ok;
+        return yield* runningLate(n, user, mins, later);
+      }),
+    ),
+    Match.when("reopen", () =>
+      Effect.gen(function* () {
+        // changed your mind after a cancel? Start that day's poll over (same card, fresh votes)
+        if (n.stage !== "off") return ok;
+        if (day < today(w)) return say("That day is over 🕰️ Start a new one with **/playtoday**.");
+        const r = yield* db
+          .update(gameNights)
+          .set({
+            stage: "ask",
+            stage_at: w.now,
+            game: null,
+            start_at: null,
+            event_id: null,
+            event_end: null,
+            reminded: false,
+            note: null,
+            conflict: null,
+            renudged: null,
+            warned: null,
+            started_by: user,
+            maybes: 0,
+            paused_until: null,
+            // a roast still waiting for the morning is dropped: they made up
+            roast: null,
+            roast_due: null,
+            roasted_at: null,
+            planned_start: null,
+          })
+          .where(and(eq(gameNights.day, day), eq(gameNights.stage, "off")))
+          .returning({ day: gameNights.day });
+        if (!r.length) return ok; // someone else reopened it a moment ago
+        yield* db.transaction((tx) => clearDay(tx, day));
+        yield* vote(day, "ask", user, "yes");
+        const tonight = day === today(w) ? "tonight" : `on ${weekdayOf(day)}`;
+        yield* later(nudge(day, ps.filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${tonight}? ⬆️`));
+        return null;
+      }),
+    ),
+    Match.orElse(() => Effect.succeed(say("That button is from an older version of me. Try **/playtoday** 🤖"))),
+  );
+  if (outcome) return outcome;
   yield* settle(day, user, later);
   return { update: true };
 });
@@ -1308,200 +1325,205 @@ const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, no
   const starter = n.started_by ? ` · ${day > today(w) ? "planned" : "started"} by ${mention(n.started_by)}` : "";
   const deadline = deadlineFor(w, n);
   const closes = `-# ⏳ Vote by ${ts(deadline, day === today(w) ? "t" : "f")} (${ts(deadline, "R")}). No vote by then = night's off and you get roasted 🔥`;
-  let body: unknown[];
-
-  switch (n.stage) {
-    case "ask": {
-      const v = yield* votes(day, "ask");
-      const isToday = day === today(w);
-      const hidden = yield* secret(n);
-      const last = finalCall(n);
-      const unsure = ps.filter((p) => v[p] === "maybe");
-      const waiting = ps.filter((p) => !v[p] || (last && v[p] === "maybe"));
-      const whom = waiting.length ? ` for ${waiting.map(mention).join(" ")}` : "";
-      let status: string;
-      if (hidden)
-        status = `🤫 Answers stay secret until everyone's answered · waiting on ${waiting.length} more · it's on when all ${ps.length} say yes · not sure yet? 🤔 Maybe puts it on hold for 2 h`;
-      else if (n.paused_until)
-        status = `Sure already? Change your answer any time: all ✅ and we're on. ${n.maybes < HOLDS.length ? "Still unsure after this? One more 🤔 holds it 1 more hour, then it's yes or no." : "This is the last hold: after it, it's ✅ or ✖️."}`;
-      else if (last) status = `⏰ Final call${whom}: it's ✅ or ✖️ now, no more maybes.`;
-      else if (n.maybes) status = `⏰ Decision time${whom}: in or out? Still not sure? 🤔 Maybe once more holds it 1 more hour (the last one).`;
-      // revealed with nobody unsure means everyone answered and someone can't (all yes would have moved on)
-      else status = `😴 Not ${isToday ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${isToday ? "today" : weekdayOf(day)}).`;
-      const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
-      const question = isToday ? "Are we playing today?" : `📅 Are we playing on ${weekdayOf(day)}?`;
-      // your answer stays coloured, the others grey out
-      const pick = (choice: string, style: number) => (me && v[me] && v[me] !== choice ? 2 : style);
-      body = [
-        text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}`),
-        text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
-        ...(n.paused_until
-          ? [text(`⏸️ **On hold** until ${stamp(w, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
-          : []),
-        text(`-# ${status}${starter}${hidden || (n.maybes && !n.paused_until) ? `\n${closes}` : ""}`),
-        row(
-          button(pick("yes", 3), "✅", "I'm in", id("yes")),
-          ...(last ? [] : [button(pick("maybe", 1), "🤔", "Maybe", id("maybe"))]),
-          button(pick("no", 4), "✖️", isToday ? "Not today" : "Can't", id("no")),
-        ),
-      ];
-      break;
-    }
-    case "game": {
-      const v = yield* votes(day, "game");
-      const list = yield* games.list();
-      // everyone's voted and we're still here: it's split, so the picks are out and you re-vote
-      const split = ps.every((p) => v[p]);
-      const picks = split ? yield* gameVotesLine(day) : null;
-      body = [
-        text(`## 🕹️ What are we playing? · ${date}\n${split ? "### 🔁 Split vote! Re-vote until two of you agree" : `✅ All ${ps.length} are in!`}`),
-        text(split ? `🗳️ ${picks}` : ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
-        text(
-          split
-            ? `-# Everyone picked something different. Talk it out, then pick again: two of you on the same game and it's settled.\n${closes.replace("No vote by then = night's off and you get roasted 🔥", "Still split by then = night's off")}`
-            : `-# 🤫 Votes stay secret until everyone's voted · then most votes wins · a split means a re-vote\n${closes}`,
-        ),
-        // a dropdown needs at least one option; with an empty game list, suggesting is the way in
-        ...(list.length
-          ? [
-              row({
-                type: 3,
-                custom_id: id("game"),
-                placeholder: split ? "🔁 Change your pick…" : "🎯 Pick a game…",
-                options: list.map((g) => ({
-                  label: g.name,
-                  value: g.name,
-                  emoji: { name: g.emoji ?? "🎮" },
-                  description: g.plays ? `Played ${g.plays}×` : undefined,
-                  // your vote shows as picked
-                  default: !!me && v[me]?.toLowerCase() === g.name.toLowerCase(),
-                })),
-              }),
-            ]
-          : [text("*The game list is empty. ➕ Suggest one!*")]),
-        row(button(1, "➕", "Suggest a game", id("suggest")), out),
-      ];
-      break;
-    }
-    case "time": {
-      const v = yield* votes(day, "time");
-      const until = yield* votes(day, "until");
-      const f = fit(ps, v, until, soonest(w));
-      const at = (t: number) => `**${timeLabel(w, t, day)}**`;
-      const hidden = yield* secret(n);
-      const lead = f.start === null || hidden ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
-      const lines = hidden
-        ? [ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")]
-        : ps.map((p) => {
-            const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
-            return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
-          });
-      const waiting = ps.filter((p) => !v[p]);
-      const leaver = f.end !== null ? ps.find((p) => Number(until[p]) === f.end)! : null;
-      const deadline = f.end !== null ? ` · start by ${at(f.end - MIN_TOGETHER)} so we get an hour before ${mention(leaver!)} leaves` : "";
-      let status: string;
-      if (hidden) {
-        // a leave-by is shown without its owner, so nobody picks a start that's too late
-        const who = me && Number(until[me]) === f.end ? "You have" : "Someone has";
-        const limit = f.end !== null ? `\n-# 🏁 ${who} to leave by ${at(f.end)}, so start by ${at(f.end - MIN_TOGETHER)} to get an hour together.` : "";
-        status = `-# 🤫 Picks stay secret until everyone's chosen · tap the earliest time you can start (tap again to take it back) · have to leave early? Tap 🏁 Leave by${limit}`;
-      } else if (f.conflict) {
-        const c = f.conflict;
-        status = [
-          `### ⚠️ Doesn't fit yet`,
-          c.bumped
-            ? `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but the earliest we can still start is ${at(f.start!)}. That's under an hour together.`
-            : `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but ${c.late.map(mention).join(" & ")} can't start before ${at(c.lateFrom)}. That's under an hour together.`,
-          `-# Fix it: pick an earlier start, push your 🏁 leave-by, or tap 🚪 I'm out.`,
-        ].join("\n");
-      } else if (f.start === null) {
-        status = `-# Tap the earliest time you can start (tap again to take it back). Have to leave early? Tap 🏁 Leave by.${deadline}`;
-      } else if (!f.ready) {
-        status = `-# So far we'd start at ${at(f.start)}${f.end !== null ? ` and play until ${at(f.end)}` : ""} · waiting on ${waiting.map(mention).join(" ")}${deadline}`;
-      } else {
-        status = `-# Starting at ${at(f.start)}`;
-      }
-      // while secret, custom picks get no button of their own (that would give them away), except
-      // your own on your private copy
-      const shown = hidden ? (me && v[me] ? { [me]: v[me] } : {}) : v;
-      const mine = me ? Number(v[me]) : null;
-      const times = timeOptionsFor(w, n, shown).map((t) => {
-        const count = hidden ? 0 : ps.filter((p) => v[p] === String(t)).length;
-        const style = me ? (t === mine ? 3 : 2) : t === lead ? 3 : 2;
-        const b = button(style, null, `${timeLabel(w, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
-        // on your copy, starts that leave you under an hour before your own 🏁 leave-by are greyed out
-        const tooLate = me && until[me] && Number(until[me]) - t < MIN_TOGETHER && t !== mine;
-        return tooLate ? { ...b, disabled: true } : b;
-      });
-      const myLeave = me && until[me] ? `Leave by ${timeLabel(w, Number(until[me]), day)}` : "Leave by";
-      // the game vote is decided, so it's revealed
-      const gameVotes = n.note ? null : yield* gameVotesLine(day);
-      const notes = [...(gameVotes ? [`🗳️ ${gameVotes}`] : []), ...(n.note ? n.note.split("\n") : [])];
-      body = [
-        text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${yield* games.emojiFor(n.game!)} ${n.game} it is!`),
-        text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
-        text(`${status}${f.ready ? "" : `\n${closes}`}`),
-        ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(me && until[me] ? 1 : 2, "🏁", myLeave, id("leaveby")), out]),
-      ];
-      break;
-    }
-    case "set": {
-      // different times aren't a tie: we start when the last person is free. Credit them.
-      const v = yield* votes(day, "time");
-      const picks = ps.filter((p) => v[p]).map((p) => Number(v[p]));
-      const latest = Math.max(...picks);
-      const slowpokes = ps.filter((p) => Number(v[p]) === latest);
-      const flavour =
-        picks.length === ps.length && Math.min(...picks) < latest
-          ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(w, latest, day)}). Everyone else, warm up!`
-          : "";
-      const until = yield* votes(day, "until");
-      const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
-      const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
-      const timeVotes = yield* timeVotesLine(day);
-      const gameVotes = yield* gameVotesLine(day);
-      const endLine = end === null ? "" : `\n🏁 until **${timeLabel(w, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
-      // ⏰ who said they'd be late (before the start; after it, their slips say it)
-      const lateBy = n.reminded ? {} : yield* (yield* Attendances).etas(day);
-      const planned = n.planned_start ?? n.start_at!;
-      const lateLine = Object.keys(lateBy).length
-        ? `\n⏰ Running late: ${ps
-            .filter((p) => lateBy[p])
-            .map((p) => `${mention(p)} +${Math.round((lateBy[p] - planned) / 60)} min`)
-            .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(w, planned, day)}` : ""}`
-        : "";
-      const history = n.start_at! < w.now - 3 * 3600;
-      body = [
-        text(`## 🎉 Game night is ON · ${date}`),
-        text(
-          `### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 **${timeLabel(w, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
-        ),
-        ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
-        ...(history
-          ? []
-          : [
-              text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late: we wait for you, so the start moves for everyone (tap again to undo)"),
-              row(...[5, 15, 30, 60].map((m) => button(2, "🏃", m === 60 ? "+1 h" : `+${m} min`, id(`late:${m}`)))),
-            ]),
-        row(
-          ...(n.event_id
-            ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${config.guildId}/${n.event_id}` }]
+  let body: unknown[] = yield* Match.value(n.stage).pipe(
+    Match.when("ask", () =>
+      Effect.gen(function* () {
+        const v = yield* votes(day, "ask");
+        const isToday = day === today(w);
+        const hidden = yield* secret(n);
+        const last = finalCall(n);
+        const unsure = ps.filter((p) => v[p] === "maybe");
+        const waiting = ps.filter((p) => !v[p] || (last && v[p] === "maybe"));
+        const whom = waiting.length ? ` for ${waiting.map(mention).join(" ")}` : "";
+        let status: string;
+        if (hidden)
+          status = `🤫 Answers stay secret until everyone's answered · waiting on ${waiting.length} more · it's on when all ${ps.length} say yes · not sure yet? 🤔 Maybe puts it on hold for 2 h`;
+        else if (n.paused_until)
+          status = `Sure already? Change your answer any time: all ✅ and we're on. ${n.maybes < HOLDS.length ? "Still unsure after this? One more 🤔 holds it 1 more hour, then it's yes or no." : "This is the last hold: after it, it's ✅ or ✖️."}`;
+        else if (last) status = `⏰ Final call${whom}: it's ✅ or ✖️ now, no more maybes.`;
+        else if (n.maybes) status = `⏰ Decision time${whom}: in or out? Still not sure? 🤔 Maybe once more holds it 1 more hour (the last one).`;
+        // revealed with nobody unsure means everyone answered and someone can't (all yes would have moved on)
+        else status = `😴 Not ${isToday ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${isToday ? "today" : weekdayOf(day)}).`;
+        const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
+        const question = isToday ? "Are we playing today?" : `📅 Are we playing on ${weekdayOf(day)}?`;
+        // your answer stays coloured, the others grey out
+        const pick = (choice: string, style: number) => (me && v[me] && v[me] !== choice ? 2 : style);
+        return [
+          text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}`),
+          text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
+          ...(n.paused_until
+            ? [text(`⏸️ **On hold** until ${stamp(w, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
             : []),
-          button(2, "🚪", "Can't make it", id("out")),
-        ),
-      ];
-      break;
-    }
-    case "off":
-      body = [
-        text(`## 😴 No game night · ${date}`),
-        text(n.note ?? "Maybe tomorrow 🫡"),
-        ...(yield* revealOff(day)),
-        // still today (or a planned day ahead): let anyone who changed their mind start it over
-        ...(day >= today(w) ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
-      ];
-      break;
-  }
+          text(`-# ${status}${starter}${hidden || (n.maybes && !n.paused_until) ? `\n${closes}` : ""}`),
+          row(
+            button(pick("yes", 3), "✅", "I'm in", id("yes")),
+            ...(last ? [] : [button(pick("maybe", 1), "🤔", "Maybe", id("maybe"))]),
+            button(pick("no", 4), "✖️", isToday ? "Not today" : "Can't", id("no")),
+          ),
+        ];
+      }),
+    ),
+    Match.when("game", () =>
+      Effect.gen(function* () {
+        const v = yield* votes(day, "game");
+        const list = yield* games.list();
+        // everyone's voted and we're still here: it's split, so the picks are out and you re-vote
+        const split = ps.every((p) => v[p]);
+        const picks = split ? yield* gameVotesLine(day) : null;
+        return [
+          text(`## 🕹️ What are we playing? · ${date}\n${split ? "### 🔁 Split vote! Re-vote until two of you agree" : `✅ All ${ps.length} are in!`}`),
+          text(split ? `🗳️ ${picks}` : ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
+          text(
+            split
+              ? `-# Everyone picked something different. Talk it out, then pick again: two of you on the same game and it's settled.\n${closes.replace("No vote by then = night's off and you get roasted 🔥", "Still split by then = night's off")}`
+              : `-# 🤫 Votes stay secret until everyone's voted · then most votes wins · a split means a re-vote\n${closes}`,
+          ),
+          // a dropdown needs at least one option; with an empty game list, suggesting is the way in
+          ...(list.length
+            ? [
+                row({
+                  type: 3,
+                  custom_id: id("game"),
+                  placeholder: split ? "🔁 Change your pick…" : "🎯 Pick a game…",
+                  options: list.map((g) => ({
+                    label: g.name,
+                    value: g.name,
+                    emoji: { name: g.emoji ?? "🎮" },
+                    description: g.plays ? `Played ${g.plays}×` : undefined,
+                    // your vote shows as picked
+                    default: !!me && v[me]?.toLowerCase() === g.name.toLowerCase(),
+                  })),
+                }),
+              ]
+            : [text("*The game list is empty. ➕ Suggest one!*")]),
+          row(button(1, "➕", "Suggest a game", id("suggest")), out),
+        ];
+      }),
+    ),
+    Match.when("time", () =>
+      Effect.gen(function* () {
+        const v = yield* votes(day, "time");
+        const until = yield* votes(day, "until");
+        const f = fit(ps, v, until, soonest(w));
+        const at = (t: number) => `**${timeLabel(w, t, day)}**`;
+        const hidden = yield* secret(n);
+        const lead = f.start === null || hidden ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
+        const lines = hidden
+          ? [ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")]
+          : ps.map((p) => {
+              const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
+              return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
+            });
+        const waiting = ps.filter((p) => !v[p]);
+        const leaver = f.end !== null ? ps.find((p) => Number(until[p]) === f.end)! : null;
+        const deadline = f.end !== null ? ` · start by ${at(f.end - MIN_TOGETHER)} so we get an hour before ${mention(leaver!)} leaves` : "";
+        let status: string;
+        if (hidden) {
+          // a leave-by is shown without its owner, so nobody picks a start that's too late
+          const who = me && Number(until[me]) === f.end ? "You have" : "Someone has";
+          const limit = f.end !== null ? `\n-# 🏁 ${who} to leave by ${at(f.end)}, so start by ${at(f.end - MIN_TOGETHER)} to get an hour together.` : "";
+          status = `-# 🤫 Picks stay secret until everyone's chosen · tap the earliest time you can start (tap again to take it back) · have to leave early? Tap 🏁 Leave by${limit}`;
+        } else if (f.conflict) {
+          const c = f.conflict;
+          status = [
+            `### ⚠️ Doesn't fit yet`,
+            c.bumped
+              ? `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but the earliest we can still start is ${at(f.start!)}. That's under an hour together.`
+              : `${mention(c.leaver)} has to leave by ${at(c.leaveBy)}, but ${c.late.map(mention).join(" & ")} can't start before ${at(c.lateFrom)}. That's under an hour together.`,
+            `-# Fix it: pick an earlier start, push your 🏁 leave-by, or tap 🚪 I'm out.`,
+          ].join("\n");
+        } else if (f.start === null) {
+          status = `-# Tap the earliest time you can start (tap again to take it back). Have to leave early? Tap 🏁 Leave by.${deadline}`;
+        } else if (!f.ready) {
+          status = `-# So far we'd start at ${at(f.start)}${f.end !== null ? ` and play until ${at(f.end)}` : ""} · waiting on ${waiting.map(mention).join(" ")}${deadline}`;
+        } else {
+          status = `-# Starting at ${at(f.start)}`;
+        }
+        // while secret, custom picks get no button of their own (that would give them away), except
+        // your own on your private copy
+        const shown = hidden ? (me && v[me] ? { [me]: v[me] } : {}) : v;
+        const mine = me ? Number(v[me]) : null;
+        const times = timeOptionsFor(w, n, shown).map((t) => {
+          const count = hidden ? 0 : ps.filter((p) => v[p] === String(t)).length;
+          const style = me ? (t === mine ? 3 : 2) : t === lead ? 3 : 2;
+          const b = button(style, null, `${timeLabel(w, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
+          // on your copy, starts that leave you under an hour before your own 🏁 leave-by are greyed out
+          const tooLate = me && until[me] && Number(until[me]) - t < MIN_TOGETHER && t !== mine;
+          return tooLate ? { ...b, disabled: true } : b;
+        });
+        const myLeave = me && until[me] ? `Leave by ${timeLabel(w, Number(until[me]), day)}` : "Leave by";
+        // the game vote is decided, so it's revealed
+        const gameVotes = n.note ? null : yield* gameVotesLine(day);
+        const notes = [...(gameVotes ? [`🗳️ ${gameVotes}`] : []), ...(n.note ? n.note.split("\n") : [])];
+        return [
+          text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${yield* games.emojiFor(n.game!)} ${n.game} it is!`),
+          text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
+          text(`${status}${f.ready ? "" : `\n${closes}`}`),
+          ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(me && until[me] ? 1 : 2, "🏁", myLeave, id("leaveby")), out]),
+        ];
+      }),
+    ),
+    Match.when("set", () =>
+      Effect.gen(function* () {
+        // different times aren't a tie: we start when the last person is free. Credit them.
+        const v = yield* votes(day, "time");
+        const picks = ps.filter((p) => v[p]).map((p) => Number(v[p]));
+        const latest = Math.max(...picks);
+        const slowpokes = ps.filter((p) => Number(v[p]) === latest);
+        const flavour =
+          picks.length === ps.length && Math.min(...picks) < latest
+            ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(w, latest, day)}). Everyone else, warm up!`
+            : "";
+        const until = yield* votes(day, "until");
+        const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
+        const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
+        const timeVotes = yield* timeVotesLine(day);
+        const gameVotes = yield* gameVotesLine(day);
+        const endLine = end === null ? "" : `\n🏁 until **${timeLabel(w, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
+        // ⏰ who said they'd be late (before the start; after it, their slips say it)
+        const lateBy = n.reminded ? {} : yield* (yield* Attendances).etas(day);
+        const planned = n.planned_start ?? n.start_at!;
+        const lateLine = Object.keys(lateBy).length
+          ? `\n⏰ Running late: ${ps
+              .filter((p) => lateBy[p])
+              .map((p) => `${mention(p)} +${Math.round((lateBy[p] - planned) / 60)} min`)
+              .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(w, planned, day)}` : ""}`
+          : "";
+        const history = n.start_at! < w.now - 3 * 3600;
+        return [
+          text(`## 🎉 Game night is ON · ${date}`),
+          text(
+            `### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 **${timeLabel(w, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
+          ),
+          ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
+          ...(history
+            ? []
+            : [
+                text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late: we wait for you, so the start moves for everyone (tap again to undo)"),
+                row(...[5, 15, 30, 60].map((m) => button(2, "🏃", m === 60 ? "+1 h" : `+${m} min`, id(`late:${m}`)))),
+              ]),
+          row(
+            ...(n.event_id
+              ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${config.guildId}/${n.event_id}` }]
+              : []),
+            button(2, "🚪", "Can't make it", id("out")),
+          ),
+        ];
+      }),
+    ),
+    Match.when("off", () =>
+      Effect.gen(function* () {
+        return [
+          text(`## 😴 No game night · ${date}`),
+          text(n.note ?? "Maybe tomorrow 🫡"),
+          ...(yield* revealOff(day)),
+          // still today (or a planned day ahead): let anyone who changed their mind start it over
+          ...(day >= today(w) ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
+        ];
+      }),
+    ),
+    Match.exhaustive,
+  );
   if (me) {
     // your private panel: just your answer and the buttons to change it. The card above already
     // shows everyone's progress, so it isn't repeated here.
@@ -1536,48 +1558,58 @@ const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
   const isToday = n.day === today(w);
   const tonight = isToday ? "tonight" : `on ${weekdayOf(n.day)}`;
   const title = `### 🔒 Your vote · ${isToday ? "today" : weekdayOf(n.day)}`;
-  switch (n.stage) {
-    case "ask": {
-      const v = (yield* votes(n.day, "ask"))[me];
-      const later = n.paused_until
-        ? `I'll ask you again at ${stamp(w, n.paused_until)}.`
-        : `Once everyone's answered (and nobody said no), it goes on hold for ${HOLDS[Math.min(n.maybes, HOLDS.length - 1)] / 3600} h and I'll ask you again.`;
-      const line =
-        v === "yes"
-          ? `✅ You're **in** ${tonight}.`
-          : v === "no"
-            ? `✖️ You said **${isToday ? "not today" : "you can't"}**.`
-            : v === "maybe" && !finalCall(n)
-              ? `🤔 You said **maybe**. ${later}`
-              : finalCall(n)
-                ? `⏰ Final call: are you in ${tonight}? No more maybes.`
-                : n.maybes
-                  ? `⏰ Decision time: are you in ${tonight}?`
-                  : `Are you in ${tonight}?`;
-      return `${title}\n${line}`;
-    }
-    case "game": {
-      const v = (yield* votes(n.day, "game"))[me];
-      return `${title}\n${v ? `🗳️ You picked ${yield* games.emojiFor(v)} **${v}**` : "🎯 Pick a game:"}`;
-    }
-    case "time": {
-      const v = (yield* votes(n.day, "time"))[me];
-      const leaves = yield* votes(n.day, "until");
-      const until = leaves[me];
-      const start = v ? `🕐 You can start from **${timeLabel(w, Number(v), n.day)}**.` : "🕐 When can you start? Tap the earliest time:";
-      // someone else's leave-by limits your start too (who it is stays secret)
-      const end = Object.values(leaves).length ? Math.min(...Object.values(leaves).map(Number)) : null;
-      const theirs =
-        end !== null && Number(until) !== end
-          ? `\n-# 🏁 Someone has to leave by ${timeLabel(w, end, n.day)}, so start by ${timeLabel(w, end - MIN_TOGETHER, n.day)} to get an hour together.`
-          : "";
-      return `${title}\n${start}${until ? `\n🏁 You have to leave by **${timeLabel(w, Number(until), n.day)}**.` : ""}${theirs}`;
-    }
-    case "set":
-      return `${title}\n🎉 It's on: ${yield* games.emojiFor(n.game!)} **${n.game}** at **${timeLabel(w, n.start_at!, n.day)}**.${n.reminded ? "" : "\n-# ⏰ Running late? Tap how late:"}`;
-    default:
-      return `${title}\n😴 Game night's off.`;
-  }
+  return yield* Match.value(n.stage).pipe(
+    Match.when("ask", () =>
+      Effect.gen(function* () {
+        const v = (yield* votes(n.day, "ask"))[me];
+        const later = n.paused_until
+          ? `I'll ask you again at ${stamp(w, n.paused_until)}.`
+          : `Once everyone's answered (and nobody said no), it goes on hold for ${HOLDS[Math.min(n.maybes, HOLDS.length - 1)] / 3600} h and I'll ask you again.`;
+        const line =
+          v === "yes"
+            ? `✅ You're **in** ${tonight}.`
+            : v === "no"
+              ? `✖️ You said **${isToday ? "not today" : "you can't"}**.`
+              : v === "maybe" && !finalCall(n)
+                ? `🤔 You said **maybe**. ${later}`
+                : finalCall(n)
+                  ? `⏰ Final call: are you in ${tonight}? No more maybes.`
+                  : n.maybes
+                    ? `⏰ Decision time: are you in ${tonight}?`
+                    : `Are you in ${tonight}?`;
+        return `${title}\n${line}`;
+      }),
+    ),
+    Match.when("game", () =>
+      Effect.gen(function* () {
+        const v = (yield* votes(n.day, "game"))[me];
+        return `${title}\n${v ? `🗳️ You picked ${yield* games.emojiFor(v)} **${v}**` : "🎯 Pick a game:"}`;
+      }),
+    ),
+    Match.when("time", () =>
+      Effect.gen(function* () {
+        const v = (yield* votes(n.day, "time"))[me];
+        const leaves = yield* votes(n.day, "until");
+        const until = leaves[me];
+        const start = v ? `🕐 You can start from **${timeLabel(w, Number(v), n.day)}**.` : "🕐 When can you start? Tap the earliest time:";
+        // someone else's leave-by limits your start too (who it is stays secret)
+        const end = Object.values(leaves).length ? Math.min(...Object.values(leaves).map(Number)) : null;
+        const theirs =
+          end !== null && Number(until) !== end
+            ? `\n-# 🏁 Someone has to leave by ${timeLabel(w, end, n.day)}, so start by ${timeLabel(w, end - MIN_TOGETHER, n.day)} to get an hour together.`
+            : "";
+        return `${title}\n${start}${until ? `\n🏁 You have to leave by **${timeLabel(w, Number(until), n.day)}**.` : ""}${theirs}`;
+      }),
+    ),
+    Match.when("set", () =>
+      Effect.map(
+        games.emojiFor(n.game!),
+        (emoji) => `${title}\n🎉 It's on: ${emoji} **${n.game}** at **${timeLabel(w, n.start_at!, n.day)}**.${n.reminded ? "" : "\n-# ⏰ Running late? Tap how late:"}`,
+      ),
+    ),
+    Match.when("off", () => Effect.succeed(`${title}\n😴 Game night's off.`)),
+    Match.exhaustive,
+  );
 });
 
 /** Ephemeral "which day?" picker for planning ahead: today plus the next 6 days. */
