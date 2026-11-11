@@ -1,33 +1,25 @@
 // 🚨 Alert DMs: what the owner gets when something breaks, and how repeats and bursts are held back.
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeAll, beforeEach, expect, test, vi } from "vitest";
 import * as alerts from "../src/alerts.js";
 import * as presence from "../src/presence.js";
 import { defer, drain } from "../src/background.js";
+import { harness, json } from "./harness.js";
 import { testEnv } from "./pg.js";
+import type { Env } from "../src/env.js";
 
-type Call = { method: string; path: string; body: any };
-let calls: Call[] = [];
-const realFetch = globalThis.fetch;
-const env = testEnv({} as never, { ALERT_USER_ID: "owner" });
-
+const h = harness({
+  db: false,
+  env: { ALERT_USER_ID: "owner" },
+  discord: { firstId: 0, answer: (c) => json(c.path === "/users/@me/channels" ? { id: `dm-${c.body.recipient_id}` } : { id: "m" }) },
+  clock: "2026-11-09T17:00:00Z",
+});
+const calls = h.calls;
+let env: Env;
+beforeAll(() => void ({ env } = h));
 beforeEach(() => {
-  calls = [];
   alerts._reset();
   presence._reset();
   alerts.setup(env);
-  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
-    const path = String(url).replace("https://discord.com/api/v10", "");
-    const body = init.body ? JSON.parse(String(init.body)) : undefined;
-    calls.push({ method: init.method ?? "GET", path, body });
-    const data = path === "/users/@me/channels" ? { id: `dm-${body.recipient_id}` } : { id: "m" };
-    return new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
-  }) as typeof fetch;
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(Date.parse("2026-11-09T17:00:00Z"));
-});
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
 });
 
 const dms = () => calls.filter((c) => c.method === "POST" && c.path === "/channels/dm-owner/messages").map((c) => c.body.content as string);

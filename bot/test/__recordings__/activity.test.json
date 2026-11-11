@@ -1,0 +1,127 @@
+{
+ "Lobby → game room together is one call; game and hangout time split": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "5:f19a88916782"
+  }
+ },
+ "a 10-minute break makes two calls; a 2-minute one doesn't": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "4:67e7c2fcaff5"
+  }
+ },
+ "sitting in voice alone is voice time, not a call": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "1:8f608e95ba76"
+  }
+ },
+ "two people in different channels aren't together": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:4cd9118653d2"
+  }
+ },
+ "a call over the period boundary only counts the part inside": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:d3a66a17f589"
+  }
+ },
+ "outsiders' voice time is ignored": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:b6f09267e321"
+  }
+ },
+ "segments that ended unseen (old checks, or a restart) count a minute past their last sighting": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:1c6bef94680e"
+  }
+ },
+ "game nights are counted by game": {
+  "calls": [],
+  "db": {
+   "game_nights": "3:2f70bdce2a4f",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the stats card reads right": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "3:df7013bf2c2e"
+  }
+ },
+ "voice time alone: no '0m together' headline; a shared card says who shared it": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:c92940accf2e",
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "1:9d6b7d3607b9"
+  }
+ },
+ "a quiet period says so": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "durations": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "weeks run Monday 00:00 to Monday 00:00, local time": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "months and years, across DST": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "Monday 10:00: last week's recap is posted once; quiet weeks are skipped": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages c8847c5a9cae"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "recaps": "2:e9c5e8c6d061"
+  }
+ },
+ "joins, moves and leaves are recorded to the second": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "3:6bf4cdc913f5"
+  }
+ },
+ "heartbeats extend a segment; a long silence (the bot was away) ends it unseen": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:5dd50efa977c"
+  }
+ },
+ "a racing duplicate check doesn't open a second segment": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "1:de12cd236ca3"
+  }
+ }
+}

@@ -8,7 +8,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi 
 import * as gn from "../src/gamenight.js";
 import { interaction } from "../src/interactions.js";
 import { gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
-import { testDb, testEnv } from "./pg.js";
+import { harness, type TestDb } from "./harness.js";
+import type { Env } from "../src/env.js";
 
 type Answer = "yes" | "maybe" | "no" | null;
 type Votes = Record<string, Answer>;
@@ -20,32 +21,15 @@ const WINDOW = [0, 3 * 3600, 3600, 3600];
 const HOLD = [0, 2 * 3600, 3600];
 const LABEL = { yes: "I'm in", maybe: "Maybe", no: "Not today" } as const;
 
-let t: Awaited<ReturnType<typeof testDb>>;
-let env: ReturnType<typeof testEnv>;
-let calls: { method: string; path: string; body: any }[] = [];
-let nextId = 1000;
-const realFetch = globalThis.fetch;
-
-beforeAll(async () => {
-  t = await testDb();
-  env = testEnv(t.db);
+const h = harness({
+  tables: [gameNightVotes, nightAttendance, gameNights, roastBags, settings],
+  discord: { firstId: 1000 },
+  clock: T("17:00") * 1000,
 });
-afterAll(() => t.close());
-beforeEach(async () => {
-  for (const tbl of [gameNightVotes, nightAttendance, gameNights, roastBags, settings]) await t.db.delete(tbl);
-  calls = [];
-  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
-    const path = String(url).replace("https://discord.com/api/v10", "");
-    calls.push({ method: init.method ?? "GET", path, body: init.body ? JSON.parse(String(init.body)) : undefined });
-    return new Response(JSON.stringify({ id: String(nextId++) }), { status: 200, headers: { "Content-Type": "application/json" } });
-  }) as typeof fetch;
-  vi.useFakeTimers({ toFake: ["Date"] });
-  setNow(T("17:00"));
-});
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
-});
+const calls = h.calls;
+let t: TestDb;
+let env: Env;
+beforeAll(() => void ({ t, env } = h));
 
 // ---------------------------------------------------------------- harness
 
@@ -328,8 +312,12 @@ test("midnight with the unsure still to answer after a hold: quiet if their hour
 
 test("taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why", async () => {
   await gn.startNight(env);
-  const tap = (user: string, action: string, panel: boolean) =>
-    interaction({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:${action}`, component_type: 2 }, message: { flags: (1 << 15) | (panel ? 64 : 0) }, member: { user: { id: user, username: user } } }, env) as Promise<any>;
+  // each tap's background work (the panel's tracking and edits) lands before the next tap, as it would for a person
+  const tap = async (user: string, action: string, panel: boolean) => {
+    const out = (await interaction({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:${action}`, component_type: 2 }, message: { flags: (1 << 15) | (panel ? 64 : 0) }, member: { user: { id: user, username: user } } }, env)) as any;
+    await h.settle();
+    return out;
+  };
   const fromCard = await tap("a", "maybe", false);
   expect([fromCard.type, fromCard.data.flags & 64]).toEqual([4, 64]); // a new message only a sees
   expect(text(fromCard.data)).toContain("You said **maybe**");

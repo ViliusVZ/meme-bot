@@ -15,46 +15,27 @@ import * as memeshame from "../src/memeshame.js";
 import * as snooze from "../src/snooze.js";
 import { interaction } from "../src/interactions.js";
 import { drain } from "../src/background.js";
-import { testDb, testEnv } from "./pg.js";
+import { harness, routes, type TestDb } from "./harness.js";
+import type { Env } from "../src/env.js";
 
-let t: Awaited<ReturnType<typeof testDb>>;
-let env: ReturnType<typeof testEnv>;
-type Call = { method: string; path: string; body: any };
-let calls: Call[] = [];
-let nextId = 1000;
-const realFetch = globalThis.fetch;
-
-beforeAll(async () => {
-  t = await testDb();
-  env = testEnv(t.db);
-});
-afterAll(() => t.close());
-beforeEach(async () => {
-  for (const tbl of [panels, gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings]) await t.db.delete(tbl);
-  await t.db.insert(games).values([
-    { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
-    { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
-    { name: "Palworld", emoji: "🐑", added_at: "2026-11-03" },
-  ]);
-  calls = [];
-  presence._reset();
+const h = harness({
+  tables: [panels, gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings],
+  seed: (t) =>
+    t.db.insert(games).values([
+      { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },
+      { name: "Phasmophobia", emoji: "👻", added_at: "2026-11-03" },
+      { name: "Palworld", emoji: "🐑", added_at: "2026-11-03" },
+    ]),
   // Discord: record every call, answer like Discord would
-  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
-    const path = String(url).replace("https://discord.com/api/v10", "");
-    const body = init.body ? JSON.parse(String(init.body)) : undefined;
-    calls.push({ method: init.method ?? "GET", path, body });
-    const ok = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
-    if (path.includes("/voice-states/")) return new Response(JSON.stringify({ message: "Unknown Voice State", code: 10065 }), { status: 404 });
-    if (path.endsWith("/channels") && (init.method ?? "GET") === "GET") return ok([{ id: "lobby", type: 2, parent_id: "voice", position: 0, name: "Lobby" }]);
-    if ((init.method ?? "GET") === "GET" && /^\/channels\/\d+$/.test(path)) return ok({ id: path.split("/")[2] });
-    return ok({ id: String(nextId++) });
-  }) as typeof fetch;
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(Date.parse("2026-11-06T15:00:00Z")); // Friday 17:00 in Vilnius
+  discord: { firstId: 1000, routes: [routes.noVoiceState, routes.lobbyOnly, routes.channelExists] },
+  clock: "2026-11-06T15:00:00Z", // Friday 17:00 in Vilnius
 });
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
+const calls = h.calls;
+let t: TestDb;
+let env: Env;
+beforeAll(() => void ({ t, env } = h));
+beforeEach(() => {
+  presence._reset();
 });
 
 const DAY = "2026-11-06";
@@ -73,6 +54,7 @@ const act = async (user: string, action: string, value?: string) => {
 const night = () => gn.getNight(env, DAY);
 
 test("17:00 posts one card per day, however many times it runs", async () => {
+  h.race("two daily jobs at once; whether both get as far as posting depends on timing");
   const [a, b] = await Promise.all([gn.startNight(env), gn.startNight(env)]);
   expect([a, b].filter((r) => "started" in r && r.started).length).toBe(1);
   // if both got as far as posting, the loser deletes its copy at once
@@ -87,6 +69,7 @@ test("17:00 posts one card per day, however many times it runs", async () => {
 
 test("three people planning the same day at once: one card, and only whoever claimed it is in", async () => {
   const day = "2026-11-10";
+  h.race("three startNight calls at once; whichever claims the day first wins");
   const rs = await Promise.all(["a", "b", "c"].map((u) => gn.startNight(env, u, true, day)));
   expect(rs.filter((r) => "started" in r && r.started).length).toBe(1);
   const n = (await gn.getNight(env, day))!;
@@ -541,6 +524,7 @@ test("roast pools: personal lines join the right pools", () => {
 });
 
 test("rooms: one room per game even when two open at once; archived after 15 empty minutes", async () => {
+  h.race("two openRoom calls at once; which one's channel is kept depends on timing");
   presence.snapshot([]); // nobody in voice
   const [a, b] = await Promise.all([voice.openRoom(env, "R.E.P.O.", "📦", { by: "a" }), voice.openRoom(env, "r.e.p.o.", "📦", { by: "b" })]);
   expect(a.channelId).toBe(b.channelId);
@@ -882,7 +866,7 @@ test("private panels follow the card: one person's vote moves everyone's open pa
     ["a", "tok-a-card"],
     ["b", "tok-b-card"],
   ]);
-  calls = [];
+  calls.length = 0;
   // c's yes moves the night to picking a game: a's and b's panels show the game picker, no tap needed
   await tap("c", "yes");
   expect((await night())!.stage).toBe("game");
@@ -897,7 +881,7 @@ test("private panels follow the card: one person's vote moves everyone's open pa
   const pa = tracked.find((p) => p.user_id === "a")!.message_id;
   expect((await tap("a", "game", { panel: pa, value: "Palworld" })).type).toBe(7);
   await tap("b", "game", { value: "Palworld" });
-  calls = [];
+  calls.length = 0;
   await tap("c", "game", { value: "Palworld" });
   expect((await night())!.stage).toBe("time");
   const aPanel = panelEdits().filter((e) => e.path.includes("tok-a-"));
@@ -914,7 +898,7 @@ test("a tap on your own panel keeps its note when the panels sync", async () => 
   await act("a", "game", "Palworld");
   await act("b", "game", "Palworld");
   await act("c", "game", "Palworld");
-  calls = [];
+  calls.length = 0;
   // a's panel still had the game picker open somewhere: picking again says why, on the time picker
   const r = await tap("a", "game", { panel: pa, value: "R.E.P.O." });
   expect(text(r.data)).toContain("already picked");
@@ -929,7 +913,7 @@ test("panels past Discord's 15 minutes, or dismissed, are let go", async () => {
   await tap("a", "yes");
   await tap("b", "yes");
   vi.setSystemTime(Date.parse("2026-11-06T15:15:00Z")); // 15 min on: a's and b's taps can't edit anymore
-  calls = [];
+  calls.length = 0;
   await tap("c", "maybe");
   expect(panelEdits().filter((e) => !e.path.includes("tok-c-"))).toEqual([]);
   expect((await t.db.select().from(panels)).map((p) => p.user_id)).toEqual(["c"]);
@@ -955,7 +939,7 @@ test("private poll copies follow the poll too: once it's decided, everyone's cop
   expect((await vote("a", "0")).type).toBe(4); // a's private copy
   await vote("b", "0");
   expect((await t.db.select().from(panels)).map((p) => p.card)).toEqual([`poll:${id}`, `poll:${id}`]);
-  calls = [];
+  calls.length = 0;
   await vote("c", "1"); // 2 of 3: Yes wins, and a's and b's copies say so without another tap
   const edits = panelEdits().filter((e) => !e.path.includes("ptok-c"));
   expect(edits.map((e) => e.path).sort()).toEqual(["/webhooks/app/ptok-a/messages/@original", "/webhooks/app/ptok-b/messages/@original"]);

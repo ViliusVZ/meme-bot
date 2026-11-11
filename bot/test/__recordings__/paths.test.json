@@ -1,0 +1,267 @@
+{
+ "HTTP: health, signatures, admin auth, ingest": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "2:f1f78c1eee84"
+  }
+ },
+ "/meme summons a pool meme once, and says so when the well is dry": {
+  "calls": [
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "1:96694fc28802"
+  }
+ },
+ "the one-hour re-nudge, a card deleted by hand, refreshing open cards, the plan picker": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/5001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages c7a67dd47c74",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a"
+  ],
+  "db": {
+   "game_night_votes": "1:9f4b56233015",
+   "game_nights": "1:abb66d0ccbf0",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "exact starts: a failed start ping releases the claim for a retry": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 796b9d1a0158",
+   "GET https://discord.com/api/v10/channels/5000 -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 796b9d1a0158"
+  ],
+  "db": {
+   "game_nights": "1:f7f92083526b",
+   "games": "8:a906c10ebcec",
+   "rooms": "1:debbe1b49b61"
+  }
+ },
+ "a roast that fails to post is retried": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/5001 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 9edd12faf3e5",
+   "POST https://discord.com/api/v10/channels/gn/messages 4f94af6c5256",
+   "POST https://discord.com/api/v10/channels/gn/messages 44a1eadcc9d4"
+  ],
+  "db": {
+   "game_night_votes": "1:9f4b56233015",
+   "game_nights": "1:7fa4054dfd54",
+   "games": "8:a906c10ebcec",
+   "roast_bags": "1:9049d0c9cc25"
+  }
+ },
+ "late slips: a failed post releases the claim; the slip renders": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60"
+  ],
+  "db": {
+   "game_nights": "1:9007e630cc8c",
+   "games": "8:a906c10ebcec",
+   "night_attendance": "3:6cb0d3d3dbe4",
+   "rooms": "1:5129853fa77d"
+  }
+ },
+ "daily post: a failed post gives the meme back to the pool": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
+   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
+   "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 448d76a14709"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "memes": "1:83ce65a0dc53"
+  }
+ },
+ "Meme of the Week: top voter and longest streak, posted once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages ae2a9292838c"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "memes": "1:1c0cf36201d7",
+   "recaps": "1:d3b52386c9fe",
+   "users": "1:639f3c5e513d",
+   "votes": "1:204389feb4d5"
+  }
+ },
+ "polls remember their message": {
+  "calls": [],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "polls": "1:eb120a2f2368"
+  }
+ },
+ "rooms: a hand-deleted room is recreated; a failed creation leaves no placeholder": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "GET https://discord.com/api/v10/channels/5000 -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:aac686bdba67"
+  }
+ },
+ "rooms: busy keeps the event alive, empty wraps it up and ends the event": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 d3f0c1eae13b",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 4c7a43a17223",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 7f8e857dc4d8"
+  ],
+  "db": {
+   "game_nights": "1:58fddfe8311d",
+   "games": "8:a906c10ebcec",
+   "rooms": "1:bc5c77307e7d"
+  }
+ },
+ "rooms: an event ended by hand (or deleted) is let go quietly; other refusals still alert": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 d3f0c1eae13b",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 d3f0c1eae13b",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 d3f0c1eae13b",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 96b67709e748"
+  ],
+  "db": {
+   "game_nights": "1:7c3b78f5944b",
+   "games": "8:a906c10ebcec",
+   "rooms": "1:b02af87a2124"
+  }
+ },
+ "room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day deletion": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/channels/busy 67e735deaa36",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 1d0b8a2d9619",
+   "DELETE https://discord.com/api/v10/channels/stale -",
+   "DELETE https://discord.com/api/v10/channels/vanished -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:152fa8cbc13c"
+  }
+ },
+ "rooms: another click finishing the same room between our look and our claim": {
+  "calls": [],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:342f12ef659c"
+  }
+ },
+ "room upkeep: reviving a room whose channel vanished just forgets it": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/channels/ghostroom 67e735deaa36",
+   "GET https://discord.com/api/v10/guilds/guild/channels -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "clicking the card opens your private copy; clicking your copy updates it in place": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -"
+  ],
+  "db": {
+   "game_night_votes": "2:27349f3ce78d",
+   "game_nights": "1:5e721f5dbc69",
+   "games": "8:a906c10ebcec",
+   "panels": "3:7991996964d0"
+  }
+ },
+ "🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "POST https://discord.com/api/v10/channels/gn/messages/bulk-delete 7db740e83daf",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1560820894924800000 -"
+  ],
+  "db": {
+   "game_nights": "2:2779ea6932b9",
+   "games": "8:a906c10ebcec",
+   "panels": "3:7991996964d0",
+   "recaps": "1:7e69b80a481d"
+  }
+ },
+ "a meme vote shows who voted what under the bar, without pinging": {
+  "calls": [
+   "POST https://discord.com/api/v10/webhooks/app/tok c29a8f08b57d"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "memes": "1:f7a4cb2689f9",
+   "panels": "3:7991996964d0",
+   "users": "1:01f8403778c8",
+   "votes": "2:4ac6daab99f3"
+  }
+ },
+ "😐 meme slackers: called out at 19:00, once a day, at most every 3 days each": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages cb06d0e3c901",
+   "POST https://discord.com/api/v10/channels/memes/messages 7ddd5089f4ab"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "memes": "5:359eb4394653",
+   "panels": "3:7991996964d0",
+   "recaps": "5:2bdc6de660f9",
+   "roast_bags": "1:7dac5c6fc0c1",
+   "votes": "8:54eba2067553"
+  }
+ },
+ "admin: redraw every posted meme with its voters": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/memes/messages/m1 f2a5e39cf5d2"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "memes": "1:b34a7ab0c4f9",
+   "panels": "3:7991996964d0",
+   "votes": "1:3fabfdfb4bfd"
+  }
+ }
+}

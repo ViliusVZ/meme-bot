@@ -1,0 +1,49 @@
+{
+ "image posts come out ranked, with titles decoded": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a feed with a single entry still parses": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a restart doesn't fetch again: the last refill's time is in the database": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "84:05bab78b3688",
+   "settings": "1:0a152ae46342"
+  }
+ },
+ "a failed refill waits 10 minutes before trying again, also across a restart": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "84:05bab78b3688",
+   "settings": "1:7037bdc610b3"
+  }
+ },
+ "a failed refill DMs only once the pool has gone 12 hours without fresh memes": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm/messages 640d57b651c1"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "84:05bab78b3688",
+   "settings": "1:f8a34e0d0a7c"
+  }
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "gone things are 404s, and isNotFound says so": {
+  "calls": [
+   "GET https://discord.com/api/v10/x -",
+   "GET https://discord.com/api/v10/x -",
+   "GET https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -",
+   "GET https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -",
+   "GET https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -"
+  ],
+  "db": {}
+ },
+ "not in voice: Discord's Unknown Voice State reads as null": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/someone -"
+  ],
+  "db": {}
+ },
+ "today's text match can't tell a 403 whose path holds 10065 from 'not in voice'": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/10065 -"
+  ],
+  "db": {}
+ },
+ "an ended event: Discord's answer to pushing its end back holds INVALID_END_BY_STATUS": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -",
+   "PATCH https://discord.com/api/v10/x -"
+  ],
+  "db": {}
+ },
+ "a rate limit is waited out (retry_after) and retried, whatever the method": {
+  "calls": [
+   "POST https://discord.com/api/v10/x bf21a9e8fbc5",
+   "POST https://discord.com/api/v10/x bf21a9e8fbc5"
+  ],
+  "db": {}
+ }
+}

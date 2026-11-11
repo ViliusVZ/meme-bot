@@ -13,45 +13,21 @@ import * as channels from "../src/channels.js";
 import { build } from "../src/app.js";
 import { interaction } from "../src/interactions.js";
 import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable } from "../src/db/schema.js";
-import { testDb, testEnv } from "./pg.js";
+import { harness, json, routes, type TestDb } from "./harness.js";
+import type { Env } from "../src/env.js";
 
-let t: Awaited<ReturnType<typeof testDb>>;
-let env: ReturnType<typeof testEnv>;
-type Call = { method: string; path: string; body: any };
-let calls: Call[] = [];
-let nextId = 5000;
-/** Per-test overrides: return a Response to answer a call yourself. */
-let override: ((c: Call) => Response | undefined) | null = null;
-const realFetch = globalThis.fetch;
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
-
-beforeAll(async () => {
-  t = await testDb();
-  env = testEnv(t.db);
+const h = harness({
+  tables: [gameNightVotes, nightAttendance, rooms, gameNights, votes, memeTable, users, recaps, roastBags, pollTable],
+  discord: { firstId: 5000, routes: [routes.noVoiceState, routes.lobbyOnly] },
+  clock: "2026-11-06T15:00:00Z", // Friday 17:00 in Vilnius
 });
-afterAll(() => t.close());
-beforeEach(async () => {
-  for (const tbl of [gameNightVotes, nightAttendance, rooms, gameNights, votes, memeTable, users, recaps, roastBags, pollTable]) await t.db.delete(tbl);
-  calls = [];
-  override = null;
+const calls = h.calls;
+let t: TestDb;
+let env: Env;
+beforeAll(() => void ({ t, env } = h));
+beforeEach(() => {
   presence._reset();
   channels._reset();
-  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
-    const path = String(url).replace("https://discord.com/api/v10", "");
-    const c = { method: init.method ?? "GET", path, body: init.body ? JSON.parse(String(init.body)) : undefined };
-    calls.push(c);
-    const o = override?.(c);
-    if (o) return o;
-    if (path.includes("/voice-states/")) return json({ message: "Unknown Voice State", code: 10065 }, 404);
-    if (path.endsWith("/channels") && c.method === "GET") return json([{ id: "lobby", type: 2, parent_id: "voice", position: 0, name: "Lobby" }]);
-    return json({ id: String(nextId++) });
-  }) as typeof fetch;
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(Date.parse("2026-11-06T15:00:00Z")); // Friday 17:00 in Vilnius
-});
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
 });
 
 const DAY = "2026-11-06";
@@ -102,10 +78,10 @@ test("the one-hour re-nudge, a card deleted by hand, refreshing open cards, the 
   vi.setSystemTime((now() + 3601) * 1000);
   const done = await gn.maintain(env);
   expect(done[`renudged ${DAY}`]).toEqual(["b", "c"]);
-  override = (c) => (c.method === "PATCH" && c.path.includes("/messages/") ? json({ message: "Unknown Message" }, 404) : undefined);
+  h.override = (c) => (c.method === "PATCH" && c.path.includes("/messages/") ? json({ message: "Unknown Message" }, 404) : undefined);
   await gn.refreshOpen(env);
   expect((await night())!.message_id).toBeNull(); // forgotten, so it gets reposted
-  override = null;
+  h.override = null;
   expect(await gn.retryUnposted(env)).toEqual([DAY]);
   expect((await night())!.message_id).toBeTruthy();
   const picker = JSON.stringify(await gn.planPicker(env));
@@ -119,20 +95,20 @@ test("exact starts: a failed start ping releases the claim for a retry", async (
   await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "x" }).onConflictDoNothing();
   expect((await gn.upcomingStarts(env, start + 10)).map((n) => n.day)).toEqual([DAY]);
   vi.setSystemTime(start * 1000);
-  override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
   expect(await gn.maintain(env)).not.toHaveProperty("reminded");
   expect((await night())!.reminded).toBe(false);
-  override = null;
+  h.override = null;
   expect(await gn.maintain(env)).toHaveProperty("reminded", DAY);
 });
 
 test("a roast that fails to post is retried", async () => {
   await gn.startNight(env, "a");
-  override = (c) => (c.method === "POST" && c.path.endsWith("/messages") && c.body?.content?.startsWith("🔥") ? json({ message: "boom" }, 500) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/messages") && c.body?.content?.startsWith("🔥") ? json({ message: "boom" }, 500) : undefined);
   vi.setSystemTime(Date.parse("2026-11-06T18:00:00Z"));
   await gn.maintain(env).catch(noop);
   expect((await night())!.roasted_at).toBeNull();
-  override = null;
+  h.override = null;
   expect(await gn.dueRoasts(env)).toEqual([DAY]);
 });
 
@@ -142,10 +118,10 @@ test("late slips: a failed post releases the claim; the slip renders", async () 
   const start = now() - 700;
   await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, reminded: true });
   await t.db.insert(rooms).values({ channel_id: "room1", game: "R.E.P.O.", day: DAY, created_at: start });
-  override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
   expect(await late.watch(env)).toEqual({});
   expect(await t.db.select().from(nightAttendance)).toEqual([]);
-  override = null;
+  h.override = null;
   expect((await late.watch(env)).slipped).toEqual(["a", "b", "c"]);
   const slip = JSON.stringify(await late.render(env, DAY, "a"));
   expect(slip).toContain("Running late?");
@@ -157,10 +133,10 @@ test("late slips: a failed post releases the claim; the slip renders", async () 
 test("daily post: a failed post gives the meme back to the pool", async () => {
   vi.setSystemTime(Date.parse("2026-11-06T11:00:00Z"));
   await memes.ingest(env, [{ id: "t3_d", title: "D", image: "i", link: "l", author: "a", published: "2026-11-05T08:00:00Z", rank: 1 }]);
-  override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/messages") ? json({ message: "boom" }, 500) : undefined);
   await expect(jobs.postDaily(env)).rejects.toThrow();
   expect((await memes.getMeme(env, "t3_d"))!.post_kind).toBeNull();
-  override = null;
+  h.override = null;
   expect(await jobs.postDaily(env)).toMatchObject({ posted: "t3_d" });
 });
 
@@ -191,10 +167,10 @@ test("polls remember their message", async () => {
 test("rooms: a hand-deleted room is recreated; a failed creation leaves no placeholder", async () => {
   presence.snapshot([]);
   const first = await voice.openRoom(env, "R.E.P.O.", "📦", {});
-  override = (c) => (c.method === "GET" && c.path === `/channels/${first.channelId}` ? json({ message: "Unknown Channel" }, 404) : undefined);
+  h.override = (c) => (c.method === "GET" && c.path === `/channels/${first.channelId}` ? json({ message: "Unknown Channel" }, 404) : undefined);
   const second = await voice.openRoom(env, "R.E.P.O.", "📦", {});
   expect(second.channelId).not.toBe(first.channelId);
-  override = (c) => (c.method === "POST" && c.path.endsWith("/channels") ? json({ message: "boom" }, 500) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/channels") ? json({ message: "boom" }, 500) : undefined);
   await expect(voice.openRoom(env, "Palworld", "🐑", {})).rejects.toThrow();
   expect((await t.db.select().from(rooms)).map((r) => r.game)).toEqual(["R.E.P.O."]);
 });
@@ -212,7 +188,7 @@ test("rooms: busy keeps the event alive, empty wraps it up and ends the event", 
   expect((await night())!.event_end).toBeNull(); // ended for good
   // back in the same room the next evening (it's revived): there's no event left to push back
   await t.db.update(rooms).set({ archived_at: null }).where(eq(rooms.channel_id, "r1"));
-  calls = [];
+  calls.length = 0;
   await voice.checkRooms(env, new Set(["r1"]), t0 + 86400);
   expect(calls.some((c) => c.path.includes("/scheduled-events/"))).toBe(false);
 });
@@ -230,9 +206,9 @@ test("rooms: an event ended by hand (or deleted) is let go quietly; other refusa
     await t.db.delete(gameNights);
     await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 - 3600, reminded: true, event_id: "ev1", event_end: t0 + 300 });
     await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: t0 - 3600, last_seen: t0 - 60 });
-    calls = [];
+    calls.length = 0;
     log.mockClear();
-    override = (c) => (c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") ? json(answer, status) : undefined);
+    h.override = (c) => (c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") ? json(answer, status) : undefined);
     await voice.checkRooms(env, new Set(["r1"]), t0);
     await voice.checkRooms(env, new Set(["r1"]), t0 + 60);
     const said = log.mock.calls.flat().map(String).join(" ");
@@ -254,7 +230,7 @@ test("room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day delet
     { channel_id: "vanished", game: "Vanished", created_at: t0 - 9 * 86400, archived_at: t0 - 4 * 86400 },
   ]);
   const list = ["busy", "stale", "vanished"].map((id, i) => ({ id, type: 2, parent_id: "archive", position: i + 1, name: id }));
-  override = (c) => {
+  h.override = (c) => {
     if (c.method === "GET" && c.path.endsWith("/channels")) return json([{ id: "lobby", type: 2, parent_id: "voice", position: 0, name: "Lobby" }, { id: "archive", type: 4, position: 9, name: "🗄️ Recent games" }, ...list]);
     if (c.method === "DELETE" && c.path === "/channels/vanished") return json({ message: "Unknown Channel" }, 404);
     return undefined;
@@ -281,7 +257,7 @@ test("rooms: another click finishing the same room between our look and our clai
 
 test("room upkeep: reviving a room whose channel vanished just forgets it", async () => {
   await t.db.insert(rooms).values({ channel_id: "ghostroom", game: "Ghost", created_at: now() - 9999, archived_at: now() - 100 });
-  override = (c) => {
+  h.override = (c) => {
     if (c.method === "GET" && c.path.endsWith("/channels")) return json([{ id: "ghostroom", type: 2, parent_id: "archive", position: 1, name: "x" }]);
     if (c.method === "PATCH" && c.path === "/channels/ghostroom") return json({ message: "Unknown Channel" }, 404);
     return undefined;
@@ -295,9 +271,11 @@ test("clicking the card opens your private copy; clicking your copy updates it i
   await gn.startNight(env, "a");
   const click = (flags: number) => ({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:yes`, component_type: 2 }, message: { flags }, member: { user: { id: "b", username: "b" } } });
   const fromCard = (await interaction(click(1 << 15), env)) as any;
+  await h.settle();
   expect(fromCard.type).toBe(4); // a new message…
   expect(fromCard.data.flags & 64).toBe(64); // …only b sees
   const fromCopy = (await interaction(click((1 << 15) | 64), env)) as any;
+  await h.settle();
   expect(fromCopy.type).toBe(7); // edits b's copy
   // a refusal on your panel shows in the panel, not as one more message
   const late = { ...click((1 << 15) | 64), data: { custom_id: `gn:${DAY}:late:15`, component_type: 2 } };
@@ -325,7 +303,7 @@ test("🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people
     { day: "2026-11-05", stage: "off", message_id: msgs[1].id, nudge_id: msgs[2].id },
     { day: "2026-11-07", stage: "ask", message_id: msgs[6].id },
   ]);
-  override = (c) => {
+  h.override = (c) => {
     if (c.path === "/users/@me") return json({ id: "bot" });
     if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json(c.path.includes("before=") ? [] : msgs);
     return undefined;

@@ -1,0 +1,51 @@
+{
+ "a failure DMs the owner: what broke, where, the error, and how to read the logs": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 34aaa8ed4c0a"
+  ],
+  "db": {}
+ },
+ "the same problem again within 3 hours is counted, not re-sent, then mentioned": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 523128e3c182",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages f2e364fea942",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 7e597be1797d"
+  ],
+  "db": {}
+ },
+ "a burst is capped at 5 DMs per 10 minutes; the next one says how many were held back": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 6b9d8ea011c3",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages c4160eff7a65",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 64a8d49d78a5",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages b05124772ec7",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 00152d8e7beb",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 8310ca243a5b"
+  ],
+  "db": {}
+ },
+ "background work that fails is reported": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages cf7d53aad575"
+  ],
+  "db": {}
+ },
+ "the Discord gateway gets 5 minutes to reconnect before a DM, and one DM per outage": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/dm-owner/messages 006be8cfc6f2"
+  ],
+  "db": {}
+ },
+ "the admin test DM reaches whoever it's sent to": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels 9124e538ae81",
+   "POST https://discord.com/api/v10/channels/dm-someone/messages ba724bda325a"
+  ],
+  "db": {}
+ }
+}

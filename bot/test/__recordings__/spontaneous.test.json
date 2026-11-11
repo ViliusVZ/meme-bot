@@ -1,0 +1,444 @@
+{
+ "two of us in the Lobby for 30 s get one silent question; a 29-second visit gets none": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 569d23c6a149"
+  ],
+  "db": {
+   "games": "2:9315baed2696",
+   "lobby_prompts": "1:5c859201730c",
+   "voice_segments": "4:2e1e6c960ced"
+  }
+ },
+ "recent games come first on the question": {
+  "calls": [],
+  "db": {
+   "games": "2:42dbc72862fa",
+   "rooms": "1:0ffdc8f9a424"
+  }
+ },
+ "first tap wins: the room opens, the Lobby comes along, the question goes; a late tap hears who won": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 3fb348fd20d5",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
+  ],
+  "db": {
+   "games": "2:ce8cb772470e",
+   "lobby_prompts": "1:7184c4fe88ea",
+   "rooms": "1:04a2f60e99fc",
+   "sessions": "1:8a2879e1b485",
+   "voice_segments": "4:8194608a62df"
+  }
+ },
+ "two taps at the same moment open one room": {
+  "calls": [],
+  "db": {
+   "games": "2",
+   "lobby_prompts": "1",
+   "rooms": "1",
+   "voice_segments": "2"
+  }
+ },
+ "a room that won't open gives the question back": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 1f2d2de237ed",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3"
+  ],
+  "db": {
+   "games": "2:ce1fa1be4e2a",
+   "lobby_prompts": "1:cac05ccc5838",
+   "voice_segments": "2:5f497dc7521b"
+  }
+ },
+ "“Just hanging out” clears the question and keeps the Lobby quiet until the gathering breaks up": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages c42f050e0112",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -",
+   "POST https://discord.com/api/v10/channels/lobby/messages 22caca406e79"
+  ],
+  "db": {
+   "games": "2:95dc357c4cdc",
+   "lobby_prompts": "2:bea8a7789728",
+   "voice_segments": "9:a66ee4a71238"
+  }
+ },
+ "“Other…” opens the full room picker": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages b6d14a5db0d8"
+  ],
+  "db": {
+   "games": "2:c0de98d6902b",
+   "lobby_prompts": "1:2733252567b5",
+   "voice_segments": "2:fedd6aa43ead"
+  }
+ },
+ "an unanswered question goes after 10 minutes and isn't asked again that gathering": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 87450822fe19",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
+  ],
+  "db": {
+   "games": "2:ba99b0efffe6",
+   "lobby_prompts": "1:197333f80fbb",
+   "voice_segments": "4:f1a8fc3ea4d5"
+  }
+ },
+ "a question that fails to post leaves the gathering quiet; the next gathering can ask": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages f1c1666412da",
+   "POST https://discord.com/api/v10/channels/lobby/messages 6902196e09d5"
+  ],
+  "db": {
+   "games": "2:a8111a04d9c5",
+   "lobby_prompts": "2:872b0f346ab2",
+   "voice_segments": "3:70237a72ef8a"
+  }
+ },
+ "a planned night owns the Lobby: none while one starts within 15 min or is on": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 1c8d986c9342"
+  ],
+  "db": {
+   "game_nights": "1:106549a43dcf",
+   "games": "2:dd3b738f7c62",
+   "lobby_prompts": "1:91b12a44379d",
+   "voice_segments": "2:fb0ca9185717"
+  }
+ },
+ "someone already in a game room: no question (joiners get pulled there instead)": {
+  "calls": [],
+  "db": {
+   "games": "2:b5447c9e1b7c",
+   "rooms": "1:7fc380c049e5",
+   "voice_segments": "3:8ef7a9877211"
+  }
+ },
+ "no snapshot from the gateway: live.ts doesn't react at all": {
+  "calls": [],
+  "db": {
+   "games": "2:8f018fe5815e"
+  }
+ },
+ "joining the Lobby while one game room is in use pulls you in once, with a way back": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 9c3fc2946156",
+   "POST https://discord.com/api/v10/channels/wow/messages 4697a51049a8",
+   "DELETE https://discord.com/api/v10/channels/wow/messages/9001 -"
+  ],
+  "db": {
+   "games": "2:6596188bd4f6",
+   "rooms": "1:24cc6bfc3127",
+   "voice_segments": "2:37739aa9a233"
+  }
+ },
+ "no pull when you came out of that room, when two rooms are in use, or during a planned night": {
+  "calls": [],
+  "db": {
+   "games": "2:96fd2f8fa827",
+   "rooms": "2:c9c31c42e49c",
+   "sessions": "1:549989afac54",
+   "voice_segments": "5:e27ecf3d77ad"
+  }
+ },
+ "↩ Back to the Lobby moves them back and keeps the Lobby quiet": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a efb15453a805",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b efb15453a805",
+   "DELETE https://discord.com/api/v10/channels/wow/messages/n1 -"
+  ],
+  "db": {
+   "games": "2:62aaea3e8149",
+   "lobby_prompts": "1:3e213e789046",
+   "rooms": "1:7fc380c049e5",
+   "sessions": "1:da4dff40fbd7",
+   "voice_segments": "4:14418e0420b1"
+  }
+ },
+ "the ↩ button is the trio's, and goes through the interaction": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a efb15453a805",
+   "DELETE https://discord.com/api/v10/channels/wow/messages/q1 -"
+  ],
+  "db": {
+   "games": "2:c64341804791",
+   "lobby_prompts": "1:c82e1dba5ede",
+   "rooms": "1:7fc380c049e5",
+   "voice_segments": "1:b4f73eddd2d0"
+  }
+ },
+ "an unplanned session: quiet line at 2 min, a game night at 10, wrapped up 15 min after it drops below two": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/9000 657ce5095840",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/9000 731c0717c4ee"
+  ],
+  "db": {
+   "games": "2:3bf2338187ad",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:be36f7e6daa6",
+   "voice_segments": "6:73593529e448"
+  }
+ },
+ "a short session doesn't count, and its line goes": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -"
+  ],
+  "db": {
+   "games": "2:68790acaa821",
+   "rooms": "1:7dfe54e7a548",
+   "sessions": "1:cadf49d09047",
+   "voice_segments": "4:94fda3372f87"
+  }
+ },
+ "all three of us there: no line (nobody's missing), still a game night": {
+  "calls": [],
+  "db": {
+   "games": "2:81971d5cb565",
+   "rooms": "1:7dfe54e7a548",
+   "sessions": "1:45bb76ed963e",
+   "voice_segments": "6:363e12b90aa3"
+  }
+ },
+ "a short break doesn't end it; back within 15 min is the same session": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
+  ],
+  "db": {
+   "games": "2:4a5c30577e42",
+   "rooms": "1:7dfe54e7a548",
+   "sessions": "1:86a8e70240d8",
+   "voice_segments": "7:a61a66d1a208"
+  }
+ },
+ "the room vanishing mid-session wraps it up without an alert": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/9000 b005712a160a"
+  ],
+  "db": {
+   "games": "2:7b0e43233728",
+   "sessions": "1:221b2f465950",
+   "voice_segments": "4:aca2ec5fca45"
+  }
+ },
+ "a failed line is tried again; a line swept away at 03:00 doesn't upset anything": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/9000 9f2f3e7c7506"
+  ],
+  "db": {
+   "games": "2:7bb8015b2255",
+   "rooms": "1:7dfe54e7a548",
+   "sessions": "1:802be9059a83",
+   "voice_segments": "3:ae793140113b"
+  }
+ },
+ "the day's planned night starting with the same game takes the session over: one night, not two": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -"
+  ],
+  "db": {
+   "game_nights": "1:81d00a7a10e9",
+   "games": "2:9be8a21efaac",
+   "rooms": "1:194a281e9d11",
+   "sessions": "1:b6fa78777a26",
+   "voice_segments": "8:56ae6bada635"
+  }
+ },
+ "after the day's planned night, playing that game again the same day isn't a second night": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8c4bc799ccb8"
+  ],
+  "db": {
+   "game_nights": "1:7311dc1aa78c",
+   "games": "2:5468b65480dd",
+   "rooms": "1:2a8e63cec4b5",
+   "sessions": "1:67587a4bd143",
+   "voice_segments": "4:4f20b5547b6e"
+  }
+ },
+ "absorbing with nothing to absorb is a no-op": {
+  "calls": [],
+  "db": {
+   "games": "2:7e9123449ca5"
+  }
+ },
+ "words": {
+  "calls": [],
+  "db": {
+   "games": "2:3bdd54474f58"
+  }
+ },
+ "two in the Lobby playing the same game skip the question: straight to its room, with ↩": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 47a990a61f75",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 4830af9bdf1a",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 4830af9bdf1a",
+   "POST https://discord.com/api/v10/channels/9000/messages 6bfc99582b2c",
+   "POST https://discord.com/api/v10/channels/lobby/messages 2116922e48d6"
+  ],
+  "db": {
+   "fleeting": "1:fc1daf7cf081",
+   "games": "2:307b04814fc1",
+   "lobby_prompts": "1:329af55b2c80",
+   "voice_segments": "2:97549809ae82"
+  }
+ },
+ "different games, or only one of us in a known game: ask, that game first": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages d944c6165bb9",
+   "POST https://discord.com/api/v10/channels/lobby/messages f8ff59bc6d86"
+  ],
+  "db": {
+   "games": "2:1bf312aea2b5",
+   "lobby_prompts": "1:03c34e65ba89",
+   "voice_segments": "2:eceefa5f6db9"
+  }
+ },
+ "a name Discord uses that we don't know is learned with one tap, never silently": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages b4312a984022",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 72d19f01bf9c",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 8696226594b9",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 8696226594b9",
+   "POST https://discord.com/api/v10/channels/9006/messages 6bfc99582b2c"
+  ],
+  "db": {
+   "fleeting": "1:762ba748d134",
+   "game_aliases": "1:0bb2f84a3f4c",
+   "games": "2:0598414cdf52",
+   "lobby_prompts": "2:59d424276ab6",
+   "rooms": "1:1aadc081c30e",
+   "voice_segments": "4:bad09e9a6948"
+  }
+ },
+ "two of us playing the same game before anyone's in voice: its room is ready under the Lobby, once a day": {
+  "calls": [
+   "GET https://discord.com/api/v10/channels/wow -",
+   "PATCH https://discord.com/api/v10/channels/wow 67e735deaa36",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 7e3265389b8c"
+  ],
+  "db": {
+   "games": "2:75602431dc4f",
+   "ready_rooms": "1:fe6f5438c133",
+   "rooms": "1:719af8eaeae7"
+  }
+ },
+ "no ready room when one of the players is already in voice, a night is on its way, or detection is off": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:f6f39aa05b7f",
+   "games": "2:ac4e33561e61"
+  }
+ },
+ "a room that can't be got ready gives the day's claim back": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3"
+  ],
+  "db": {
+   "games": "2:6dc8ffd213a4"
+  }
+ },
+ "what someone's playing: only “Playing …”, and a listener hears only real changes": {
+  "calls": [],
+  "db": {
+   "games": "2:6794612acf94"
+  }
+ },
+ "game detection is off unless PRESENCES=1": {
+  "calls": [],
+  "db": {
+   "games": "2:dee0118b85ff"
+  }
+ },
+ "an auto-move whose room won't open keeps the gathering quiet and says so": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3"
+  ],
+  "db": {
+   "games": "2:31b6e3664b95",
+   "lobby_prompts": "1:cad4a902448f",
+   "voice_segments": "2:ecb0a69c5d7e"
+  }
+ },
+ "a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent fc0a0d3e93cd",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 47a990a61f75",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 4830af9bdf1a",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 4830af9bdf1a",
+   "POST https://discord.com/api/v10/channels/9000/messages 6bfc99582b2c"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "1:fc1daf7cf081",
+   "game_aliases": "1:130fae3e9565",
+   "games": "2:ea1d256f0698",
+   "lobby_prompts": "1:0020a1019a2d",
+   "rooms": "1:4e11b6de6ef9",
+   "settings": "1:09832b24f6e7",
+   "voice_segments": "2:cc3ffb2a182e"
+  }
+ },
+ "Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 53a0137d8505",
+   "POST https://discord.com/api/v10/channels/lobby/messages 220bd7991fbf"
+  ],
+  "db": {
+   "activity_guesses": "1:897fd1fe95b7",
+   "games": "2:5e1dfd246dc8",
+   "lobby_prompts": "1:231b5c6dc912",
+   "settings": "1:09832b24f6e7",
+   "voice_segments": "2:e6e1d6e6520b"
+  }
+ },
+ "an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 7ce1d37b0b9c",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent cf96c20f196f",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent cf96c20f196f"
+  ],
+  "db": {
+   "activity_guesses": "2:22b3a950cf3a",
+   "games": "2:1cc1574d068c",
+   "settings": "1:c5adb279bab0"
+  }
+ },
+ "no key, no questions": {
+  "calls": [],
+  "db": {
+   "games": "2:cc9c7c084c8d"
+  }
+ },
+ "Gemini's daily budget is kept in the database and stops asking once it's spent": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 07d6b7fc20c9",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 07d6b7fc20c9"
+  ],
+  "db": {
+   "games": "2:b51874aa91c9",
+   "settings": "1:09832b24f6e7"
+  }
+ }
+}

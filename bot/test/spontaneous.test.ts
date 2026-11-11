@@ -11,47 +11,26 @@ import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts
 import * as gemini from "../src/gemini.js";
 import * as gn from "../src/gamenight.js";
 import { loadConfig } from "../src/env.js";
-import { testDb, testEnv } from "./pg.js";
+import { harness, json, routes, type TestDb } from "./harness.js";
+import type { Env } from "../src/env.js";
 
-let t: Awaited<ReturnType<typeof testDb>>;
-let env: ReturnType<typeof testEnv>;
-type Call = { method: string; path: string; body: any };
-let calls: Call[] = [];
-let nextId = 9000;
-let override: ((c: Call) => Response | undefined) | null = null;
-const realFetch = globalThis.fetch;
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
-
-beforeAll(async () => {
-  t = await testDb();
-  env = testEnv(t.db);
+const h = harness({
+  tables: [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms, activityGuesses, settings],
+  seed: (t) =>
+    t.db.insert(games).values([
+      { name: "World of Warcraft", emoji: "🐉", added_at: "x", plays: 3 },
+      { name: "R.E.P.O.", emoji: "📦", added_at: "x", plays: 5 },
+    ]),
+  discord: { firstId: 9000, routes: [routes.lobbyOnly] },
+  clock: "2026-11-10T19:00:00Z", // Tuesday 21:00 in Vilnius
 });
-afterAll(() => t.close());
-beforeEach(async () => {
-  for (const tbl of [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms, activityGuesses, settings]) await t.db.delete(tbl);
-  calls = [];
-  override = null;
+const calls = h.calls;
+let t: TestDb;
+let env: Env;
+beforeAll(() => void ({ t, env } = h));
+beforeEach(() => {
   presence._reset();
   channels._reset();
-  globalThis.fetch = (async (url: string, init: RequestInit = {}) => {
-    const path = String(url).replace("https://discord.com/api/v10", "");
-    const c = { method: init.method ?? "GET", path, body: init.body ? JSON.parse(String(init.body)) : undefined };
-    calls.push(c);
-    const o = override?.(c);
-    if (o) return o;
-    if (path.endsWith("/channels") && c.method === "GET") return json([{ id: "lobby", type: 2, parent_id: "voice", position: 0, name: "Lobby" }]);
-    return json({ id: String(nextId++) });
-  }) as typeof fetch;
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(Date.parse("2026-11-10T19:00:00Z")); // Tuesday 21:00 in Vilnius
-  await t.db.insert(games).values([
-    { name: "World of Warcraft", emoji: "🐉", added_at: "x", plays: 3 },
-    { name: "R.E.P.O.", emoji: "📦", added_at: "x", plays: 5 },
-  ]);
-});
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
 });
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -110,7 +89,7 @@ test("first tap wins: the room opens, the Lobby comes along, the question goes; 
   await at(t0, { a: "lobby", b: "lobby" });
   await at(t0 + 30);
   const id = (await prompt()).id;
-  calls = [];
+  calls.length = 0;
   await tap(`lob:${id}:g:World of Warcraft`, "a");
   await vi.waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toBe(true));
   const [room] = await t.db.select().from(rooms);
@@ -126,6 +105,7 @@ test("first tap wins: the room opens, the Lobby comes along, the question goes; 
 });
 
 test("two taps at the same moment open one room", async () => {
+  h.race("two taps on the Lobby question at once; whichever claims it opens the room");
   await at(now(), { a: "lobby", b: "lobby" });
   await at(now() + 30);
   const id = (await prompt()).id;
@@ -138,7 +118,7 @@ test("a room that won't open gives the question back", async () => {
   await at(now(), { a: "lobby", b: "lobby" });
   await at(now() + 30);
   const id = (await prompt()).id;
-  override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   expect(await spontaneous.answer(env, id, "a", "g", "World of Warcraft")).toContain("Couldn't open the room");
   log.mockRestore();
@@ -186,7 +166,7 @@ test("an unanswered question goes after 10 minutes and isn't asked again that ga
 
 test("a question that fails to post leaves the gathering quiet; the next gathering can ask", async () => {
   const t0 = now();
-  override = (c) => (c.method === "POST" && c.path === "/channels/lobby/messages" ? json({ message: "Missing Access" }, 403) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path === "/channels/lobby/messages" ? json({ message: "Missing Access" }, 403) : undefined);
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   await at(t0, { a: "lobby", b: "lobby" });
   await at(t0 + 30);
@@ -194,7 +174,7 @@ test("a question that fails to post leaves the gathering quiet; the next gatheri
   log.mockRestore();
   expect(posted("lobby")).toHaveLength(1);
   expect((await prompt()).state).toBe("failed");
-  override = null;
+  h.override = null;
   await at(t0 + 100, { b: null });
   await at(t0 + 200, { b: "lobby" });
   await at(t0 + 230);
@@ -247,7 +227,7 @@ test("joining the Lobby while one game room is in use pulls you in once, with a 
   expect(noteMsg.body.flags).toBe(1 << 12);
   expect(JSON.stringify(noteMsg.body.components)).toContain("lob:back:a");
   // back in the Lobby on their own later: not pulled again
-  calls = [];
+  calls.length = 0;
   await at(t0 + 60, { a: "lobby" }, { user: "a", from: null, to: "lobby" });
   expect(calls.some((c) => c.path === "/guilds/guild/members/a")).toBe(false);
   // the note removes itself after two minutes
@@ -389,12 +369,12 @@ test("the room vanishing mid-session wraps it up without an alert", async () => 
 test("a failed line is tried again; a line swept away at 03:00 doesn't upset anything", async () => {
   const t0 = now();
   await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 });
-  override = (c) => (c.method === "POST" && c.path === "/channels/gn/messages" ? json({ message: "boom" }, 403) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path === "/channels/gn/messages" ? json({ message: "boom" }, 403) : undefined);
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   await at(t0, { a: "wow", b: "wow" });
   await at(t0 + 130);
   expect((await session()).message_id).toBeNull();
-  override = (c) => (c.method === "PATCH" && c.path.startsWith("/channels/gn/messages/") ? json({ message: "Unknown Message" }, 404) : undefined);
+  h.override = (c) => (c.method === "PATCH" && c.path.startsWith("/channels/gn/messages/") ? json({ message: "Unknown Message" }, 404) : undefined);
   await at(t0 + 190);
   expect((await session()).message_id).not.toBeNull();
   await at(t0 + 700, { b: null });
@@ -533,7 +513,7 @@ test("two of us playing the same game before anyone's in voice: its room is read
   // (the third hanging out in the Lobby meanwhile changes nothing: the two playing aren't in voice)
   // nobody came: it archives itself after an hour like any never-joined room, and isn't brought back again today
   await t.db.update(rooms).set({ archived_at: t0 + 3600 });
-  calls = [];
+  calls.length = 0;
   await spontaneous.react(e, where, t0 + 3700);
   expect(calls).toEqual([]);
 });
@@ -556,7 +536,7 @@ test("a room that can't be got ready gives the day's claim back", async () => {
   const e = { ...env, PRESENCES: true };
   playing("a", "World of Warcraft");
   playing("b", "World of Warcraft");
-  override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   await spontaneous.react(e, where, now());
   log.mockRestore();
@@ -589,7 +569,7 @@ test("an auto-move whose room won't open keeps the gathering quiet and says so",
   playing("a", "World of Warcraft");
   playing("b", "World of Warcraft");
   await at(t0, { a: "lobby", b: "lobby" });
-  override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
+  h.override = (c) => (c.method === "POST" && c.path === "/guilds/guild/channels" ? json({ message: "boom" }, 400) : undefined);
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   await spontaneous.react(e, where, t0 + 30);
   const said = log.mock.calls.flat().map(String).join(" ");
@@ -604,8 +584,8 @@ test("an auto-move whose room won't open keeps the gathering quiet and says so",
 /** Answer Gemini calls with `game` (or fail them), counting how many were made. */
 function geminiSays(answer: string | null | "fail") {
   const asked: string[] = [];
-  const prev = override;
-  override = (c) => {
+  const prev = h.override;
+  h.override = (c) => {
     if (c.path.includes("generativelanguage.googleapis.com")) {
       asked.push(JSON.stringify(c.body));
       if (answer === "fail") return json({ error: { message: "overloaded" } }, 503);

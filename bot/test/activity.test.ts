@@ -3,7 +3,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import * as act from "../src/activity.js";
 import { gameNights, games, recaps, voiceSegments } from "../src/db/schema.js";
-import { testDb, testEnv } from "./pg.js";
+import { harness, type TestDb } from "./harness.js";
+import type { Env } from "../src/env.js";
 
 const H = 3600;
 const T0 = Date.parse("2026-11-06T17:00:00Z") / 1000; // Friday 19:00 in Vilnius
@@ -11,22 +12,14 @@ const at = (h: number) => T0 + Math.round(h * H); // hours after Friday 19:00
 const LOBBY = "lobby";
 const REPO = "repo-room";
 
-let t: Awaited<ReturnType<typeof testDb>>;
-let env: ReturnType<typeof testEnv>;
-beforeAll(async () => {
-  t = await testDb();
-  env = testEnv(t.db);
-  await t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" }).onConflictDoNothing(); // also seeded
+const h = harness({
+  setup: (t) => t.db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" }).onConflictDoNothing(), // also seeded
+  tables: [voiceSegments, gameNights, recaps],
+  clock: (T0 + 24 * H) * 1000, // "now" is the next day, so nothing is cut off at now
 });
-afterAll(() => t.close());
-beforeEach(async () => {
-  await t.db.delete(voiceSegments);
-  await t.db.delete(gameNights);
-  await t.db.delete(recaps);
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime((T0 + 24 * H) * 1000); // "now" is the next day, so nothing is cut off at now
-});
-afterEach(() => vi.useRealTimers());
+let t: TestDb;
+let env: Env;
+beforeAll(() => void ({ t, env } = h));
 
 /** A segment from h1 to h2 (hours after 19:00), seen leaving (ended_at) unless `unseen`. */
 const seg = (user: string, channel: string, h1: number, h2: number, game: string | null = null, unseen = false) => ({

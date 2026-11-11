@@ -6,7 +6,8 @@ import { eq } from "drizzle-orm";
 import { maybeRefill, parseFeed, refilling, _reset } from "../src/reddit.js";
 import { settings } from "../src/db/index.js";
 import * as alerts from "../src/alerts.js";
-import { testDb, testEnv } from "./pg.js";
+import { testEnv } from "./pg.js";
+import { harness, type TestDb } from "./harness.js";
 
 const FEED = readFileSync(new URL("./fixtures/feed.xml", import.meta.url), "utf8");
 
@@ -37,18 +38,9 @@ test("a feed with a single entry still parses", () => {
 
 // ---------------------------------------------------------------- refills
 
-let t: Awaited<ReturnType<typeof testDb>>;
-const realFetch = globalThis.fetch;
-beforeAll(async () => {
-  t = await testDb();
-});
-afterAll(async () => {
-  await t.close();
-});
-afterEach(() => {
-  globalThis.fetch = realFetch;
-  vi.useRealTimers();
-});
+const h = harness();
+let t: TestDb;
+beforeAll(() => void ({ t } = h));
 
 test("a restart doesn't fetch again: the last refill's time is in the database", async () => {
   const env = testEnv(t.db);

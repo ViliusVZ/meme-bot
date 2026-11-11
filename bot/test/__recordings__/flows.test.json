@@ -1,0 +1,791 @@
+{
+ "17:00 posts one card per day, however many times it runs": {
+  "calls": [],
+  "db": {
+   "game_nights": "1",
+   "games": "3"
+  }
+ },
+ "three people planning the same day at once: one card, and only whoever claimed it is in": {
+  "calls": [],
+  "db": {
+   "game_night_votes": "1",
+   "game_nights": "1",
+   "games": "3"
+  }
+ },
+ "the whole night: secret answers → game → time → locked in → started on the dot": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 6eb44ab48c3c",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events c094b9f06775",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 98f2dcdad617",
+   "POST https://discord.com/api/v10/channels/gn/messages 3f5a253944a3",
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aacb2d4eddce",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/1007 1ce399d6e936",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages d23730372f70",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 8ee6bc0343ef"
+  ],
+  "db": {
+   "game_night_votes": "10:b693c06fa372",
+   "game_nights": "1:15f08fd7ef15",
+   "games": "3:a8cea4dabe62",
+   "rooms": "1:f91762d530d5"
+  }
+ },
+ "a clash pings once, and never locks": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "POST https://discord.com/api/v10/channels/gn/messages bef01ae7876f"
+  ],
+  "db": {
+   "game_night_votes": "10:acc0964f120b",
+   "game_nights": "1:18295b1c1be1",
+   "games": "3:7c5ac7adc9fd"
+  }
+ },
+ "a three-way split reveals the picks and stays open for a re-vote; two agreeing settles it": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages fed9b7d1a87f",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "POST https://discord.com/api/v10/channels/gn/messages d45177baf08f"
+  ],
+  "db": {
+   "game_night_votes": "6:d1b5950ab97e",
+   "game_nights": "1:aea65de10af1",
+   "games": "3:2cb543eed1b6"
+  }
+ },
+ "a split that never resolves: last call for everyone, then the night's off (nobody roasted)": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages fed9b7d1a87f",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "POST https://discord.com/api/v10/channels/gn/messages ec76dfebec33",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1007 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 bbe621b4d008"
+  ],
+  "db": {
+   "game_night_votes": "6:1b66b1bd5e16",
+   "game_nights": "1:57fa6c4cf07b",
+   "games": "3:963f7c4e7a5b"
+  }
+ },
+ "polls: secret until everyone's voted, then most votes wins; your answer is highlighted on your copy": {
+  "calls": [],
+  "db": {
+   "games": "3:35dbe7dd1c78",
+   "poll_votes": "3:6e3539d52a3d",
+   "polls": "1:922e4d521195"
+  }
+ },
+ "polls: tapping your vote again takes it back; a split stays open until one answer leads": {
+  "calls": [],
+  "db": {
+   "games": "3:77c019e8ac9f",
+   "poll_votes": "3:b66f00f686ea",
+   "polls": "1:92302ffe992e"
+  }
+ },
+ "reopen starts the day over; reset wipes it": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 56c69c729134",
+   "POST https://discord.com/api/v10/channels/gn/messages 7719bfbb8099",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1000 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -"
+  ],
+  "db": {
+   "games": "3:e99b739640e8",
+   "roast_bags": "1:4526f5969259"
+  }
+ },
+ "midnight closes an unfinished card; the roast waits for the morning": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 c681214b9ffa",
+   "POST https://discord.com/api/v10/channels/gn/messages 3b538eedd899"
+  ],
+  "db": {
+   "game_night_votes": "1:9f4b56233015",
+   "game_nights": "1:87b99c9ff60f",
+   "games": "3:7a0a5460caad",
+   "roast_bags": "1:27eb7dd0207c"
+  }
+ },
+ "a no stays secret until everyone's answered, then the night's off and the no-sayer is roasted": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages c5452963e8b2"
+  ],
+  "db": {
+   "game_night_votes": "3:2dbe603e3951",
+   "game_nights": "1:25c8d22eb4e0",
+   "games": "3:f6e1f12bba99",
+   "roast_bags": "1:1ed692e2ead4"
+  }
+ },
+ "3 h after voting opens: last call at 2.5 h, then non-voters (and no-sayers) are roasted": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 07170e123b7b",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 0d0b51214691",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 514284e51363",
+   "POST https://discord.com/api/v10/channels/gn/messages e72ebe4bcf27"
+  ],
+  "db": {
+   "game_night_votes": "2:c6e0460e61aa",
+   "game_nights": "1:fa2c3ea5d4d3",
+   "games": "3:c1b80a36da66",
+   "roast_bags": "1:c1aef6fbfc6e"
+  }
+ },
+ "🤔 a maybe holds it for 2 h once everyone's answered, then the unsure get an hour to answer": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 37ca16c0b416",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages ed58fe481309",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+  ],
+  "db": {
+   "game_night_votes": "3:1a9bc240a1a6",
+   "game_nights": "1:91abf42eefb0",
+   "games": "3:e6542f6c3596"
+  }
+ },
+ "🤔 a second maybe holds it 1 h more; then it's yes or no, and no answer gets you roasted": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 37ca16c0b416",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages ed58fe481309",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 58be4ce58e17",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 32a0ca4935f9",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1008 -",
+   "POST https://discord.com/api/v10/channels/gn/messages f6c1cf88c41b",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1011 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 0d0b51214691",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1013 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 99e4a1dee3e1",
+   "POST https://discord.com/api/v10/channels/gn/messages 8b490d31fa7a"
+  ],
+  "db": {
+   "game_night_votes": "2:27349f3ce78d",
+   "game_nights": "1:9b365b265fee",
+   "games": "3:21fa96597e79",
+   "roast_bags": "1:622f10465588"
+  }
+ },
+ "🤔 a no beats a maybe, also during a hold; reopening starts the holds over": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages dfe59a60f1fa",
+   "POST https://discord.com/api/v10/channels/gn/messages 777f18fd4220",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1004 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 67272359a320",
+   "POST https://discord.com/api/v10/channels/gn/messages 777f18fd4220"
+  ],
+  "db": {
+   "game_night_votes": "1:9f4b56233015",
+   "game_nights": "1:a8e3d3702acc",
+   "games": "3:53b0937451a4",
+   "roast_bags": "1:684593658d52"
+  }
+ },
+ "🤔 a maybe who turns yes during the hold starts it right away; holds never end in the small hours": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages fc3be1749975",
+   "POST https://discord.com/api/v10/channels/gn/messages ae9e8c8c4119",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1007 -",
+   "POST https://discord.com/api/v10/channels/gn/messages ea901dcae026"
+  ],
+  "db": {
+   "game_night_votes": "6:c6b30653db8d",
+   "game_nights": "2:9ec41e5719dc",
+   "games": "3:65fad9e897d0"
+  }
+ },
+ "game and time picks have the same deadline": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 c56ea491f8b4",
+   "POST https://discord.com/api/v10/channels/gn/messages 2fccf8f95d3d"
+  ],
+  "db": {
+   "game_night_votes": "4:43234d39d942",
+   "game_nights": "1:e2e47b5b3041",
+   "games": "3:b04c72994157",
+   "roast_bags": "1:1c06f223a73d"
+  }
+ },
+ "all three out: the bot sulks alone": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 09452b9c0077",
+   "POST https://discord.com/api/v10/channels/gn/messages eed8c18e4c6c"
+  ],
+  "db": {
+   "game_nights": "1:bebc43d2b761",
+   "games": "3:75cf5458f1fb",
+   "roast_bags": "1:b05398bdf4aa"
+  }
+ },
+ "bailing with 🚪 gets you roasted, also after the night was locked in": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 75e159d413a1"
+  ],
+  "db": {
+   "game_night_votes": "3:81b6639c3de1",
+   "game_nights": "1:78178ff4c389",
+   "games": "3:dfec98d0f410",
+   "roast_bags": "1:53373eda7cff"
+  }
+ },
+ "deadlines: never in the small hours, and planned days get until noon on the day": {
+  "calls": [],
+  "db": {
+   "games": "3:338d297ba3ad"
+  }
+ },
+ "reopening drops a roast still waiting for the morning": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9edd12faf3e5",
+   "POST https://discord.com/api/v10/channels/gn/messages 6c4b8acf2ab7",
+   "POST https://discord.com/api/v10/channels/gn/messages 7d7c94916ab3"
+  ],
+  "db": {
+   "game_night_votes": "1:0d99e47d2d8d",
+   "game_nights": "1:f0576fe4bf38",
+   "games": "3:bbf9a24708ec",
+   "roast_bags": "1:13370d8e9a81"
+  }
+ },
+ "roast lines rotate: no repeats until the pool is used up": {
+  "calls": [],
+  "db": {
+   "games": "3:3398269233f2",
+   "roast_bags": "1:5f44b65c2910"
+  }
+ },
+ "roast rotation is shared: a line used on one person doesn't come up for another in the same cycle": {
+  "calls": [],
+  "db": {
+   "games": "3:504242d5cbd3",
+   "roast_bags": "2:6cd3591ad7a4"
+  }
+ },
+ "roast rotation: a full cycle, then a fresh one that doesn't open with the last line": {
+  "calls": [],
+  "db": {
+   "games": "3:bf178308f1a0",
+   "roast_bags": "1:cba634ee2dbc"
+  }
+ },
+ "roast rotation survives edits: stale queue entries (old indices, removed lines) are dropped": {
+  "calls": [],
+  "db": {
+   "games": "3:511071c073a4",
+   "roast_bags": "1:5c09a2f4a459"
+  }
+ },
+ "every line is unique within its family (rotation goes by the text)": {
+  "calls": [],
+  "db": {
+   "games": "3:9d4953b63f89"
+  }
+ },
+ "meme call-outs share one bag too": {
+  "calls": [],
+  "db": {
+   "games": "3:33ee600d5b85",
+   "roast_bags": "1:721f9bad6088"
+  }
+ },
+ "roast pools: personal lines join the right pools": {
+  "calls": [],
+  "db": {
+   "games": "3:725da48e94ba"
+  }
+ },
+ "rooms: one room per game even when two open at once; archived after 15 empty minutes": {
+  "calls": [],
+  "db": {
+   "games": "3",
+   "rooms": "1"
+  }
+ },
+ "latecomers: pulled in from the Lobby once; a slip after 10 minutes otherwise": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 92073870b827",
+   "POST https://discord.com/api/v10/channels/gn/messages 8e89da9c8c74",
+   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4"
+  ],
+  "db": {
+   "game_nights": "1:b7cd49a0c3ee",
+   "games": "3:e435afab42b9",
+   "night_attendance": "3:bd4b6565403a",
+   "rooms": "1:4d416dd22288"
+  }
+ },
+ "memes: one daily per day even when posted twice at once; votes toggle; streaks": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 4efc7d87b35c",
+   "POST https://discord.com/api/v10/channels/memes/messages/1000/threads 640a237ea8c8"
+  ],
+  "db": {
+   "games": "3:06cbd7e5d720",
+   "memes": "2:436b884a2097",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7",
+   "votes": "2:022e9da22621"
+  }
+ },
+ "games are case-insensitive, most played first": {
+  "calls": [],
+  "db": {
+   "games": "3:e7dc07975160",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "all of us or none of us: a bail after the start calls the night off for everyone": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 48100cc75766",
+   "POST https://discord.com/api/v10/channels/gn/messages 8e89da9c8c74",
+   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f33c1f2018f5",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 7f8e857dc4d8",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 2824cf1a8262",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1001 419e64c457b5",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1002 f9f2eba54b24",
+   "POST https://discord.com/api/v10/channels/gn/messages e7a1b22acf00"
+  ],
+  "db": {
+   "game_nights": "1:fda4cf23ed6f",
+   "games": "3:59962c45ab0b",
+   "night_attendance": "3:5d14f8421342",
+   "recaps": "1:ca0ac4fbb65a",
+   "roast_bags": "1:cdcb954492d6",
+   "rooms": "1:4d416dd22288",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "the card's 🚪 after the start does the same": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8908ccd61088"
+  ],
+  "db": {
+   "game_nights": "1:6f19409294a6",
+   "games": "3:3c148bd117ef",
+   "recaps": "1:ca0ac4fbb65a",
+   "roast_bags": "1:291bbce8ec07",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "starting or planning by hand pings the other two; stage changes ping everyone": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+  ],
+  "db": {
+   "game_night_votes": "3:81b6639c3de1",
+   "game_nights": "1:caf8a349d9ef",
+   "games": "3:db1706497317",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "your copy: your own leave-by is 'You', and starts that clash with it are greyed out": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+  ],
+  "db": {
+   "game_night_votes": "7:39ca01bf2e8d",
+   "game_nights": "1:0437c89fac68",
+   "games": "3:398bb5d6ca23",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "polls: one vote can't be closed into a decision": {
+  "calls": [],
+  "db": {
+   "games": "3:08e7c85801ae",
+   "poll_votes": "2:5c06193dfde2",
+   "polls": "1:aa9bcda0046d",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ running late before the start: we wait, so the start moves to the latest ETA (and back)": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 2d5865c99e8c",
+   "POST https://discord.com/api/v10/channels/gn/messages 60db2fc9be55",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 4d159d060b37",
+   "POST https://discord.com/api/v10/channels/gn/messages 8ad0a04ba71d",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 2d5865c99e8c",
+   "POST https://discord.com/api/v10/channels/gn/messages b0e8941e2613",
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 2dfbd610df7f",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 1ce399d6e936",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 45d75cc81980",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 339f8818a81a"
+  ],
+  "db": {
+   "game_night_votes": "1:957663d21547",
+   "game_nights": "1:bc4f90849cc0",
+   "games": "3:952f8467ece1",
+   "night_attendance": "2:0d56c52fe1e4",
+   "recaps": "1:ca0ac4fbb65a",
+   "rooms": "1:d60598f25785",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ after the start it's an ETA on your slip; said-late people who still don't show get a slip": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 0f7dd1b73384",
+   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4"
+  ],
+  "db": {
+   "game_nights": "1:b7cd49a0c3ee",
+   "games": "3:77e4ed1cc90d",
+   "night_attendance": "3:92affa7b15f5",
+   "recaps": "1:ca0ac4fbb65a",
+   "rooms": "1:4d416dd22288",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ late only makes sense on a locked-in night": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d"
+  ],
+  "db": {
+   "game_night_votes": "1:9f4b56233015",
+   "game_nights": "1:ffe8401cec7b",
+   "games": "3:2072380d9cc8",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "weekends: the daily card goes out at 14:00 on Saturday and Sunday, 17:00 on weekdays": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 72a797d80e83"
+  ],
+  "db": {
+   "game_nights": "1:45c6db6b64a6",
+   "games": "3:ac4603ec2863",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "😴 snooze: no automatic cards until it runs out; starting by hand still works; wake ends it early": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b",
+   "POST https://discord.com/api/v10/channels/gn/messages f5d0257ff699",
+   "POST https://discord.com/api/v10/channels/gn/messages ebd602f123fe",
+   "POST https://discord.com/api/v10/channels/gn/messages 4cd065238956",
+   "POST https://discord.com/api/v10/channels/gn/messages f6d525d10f77",
+   "POST https://discord.com/api/v10/channels/gn/messages 2c593f28dd17"
+  ],
+  "db": {
+   "game_night_votes": "1:efd5f0471b7c",
+   "game_nights": "2:6cb4469cfc47",
+   "games": "3:9930528d6aad",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "😴 a week, counted from the next card due": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 5cedb635e593"
+  ],
+  "db": {
+   "games": "3:6740a4b99011",
+   "recaps": "1:ca0ac4fbb65a",
+   "settings": "1:879eeedaca77",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "a tap on an out-of-date copy says what changed; the card follows the start": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events f08393e0ce38",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 8669b5f4fa6e",
+   "POST https://discord.com/api/v10/channels/gn/messages e31e0fda8a9a",
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aacb2d4eddce",
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/1007 1ce399d6e936",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 3ca357603f10",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 f6dd55e12bc3"
+  ],
+  "db": {
+   "game_night_votes": "9:6ca6fe81e234",
+   "game_nights": "1:0586ff85d147",
+   "games": "3:904455adfaaa",
+   "recaps": "1:ca0ac4fbb65a",
+   "rooms": "1:cea1734c8219",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ edge cases: a take-back after the planned time starts it now; late-sayers get the usual grace": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 967e4c5486ee",
+   "POST https://discord.com/api/v10/channels/gn/messages 05aa5bf2836b",
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 79dd27e10a8e",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 23921a12bfa8",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 88ebc297d0ba",
+   "POST https://discord.com/api/v10/channels/gn/messages a79f42cfe298",
+   "POST https://discord.com/api/v10/channels/gn/messages b6f053637a52",
+   "POST https://discord.com/api/v10/channels/gn/messages 68f35f6dcb4e"
+  ],
+  "db": {
+   "game_nights": "1:47286b738fd6",
+   "games": "3:1f92a083cd86",
+   "night_attendance": "3:515a9024f753",
+   "recaps": "1:ca0ac4fbb65a",
+   "rooms": "2:7a50bd92b3ed",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ a start moved after the timer looked doesn't get claimed at the old time": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:9bcf1a0e8c45",
+   "games": "3:dc22ecdc83ef",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "😴 during the poll hour, a card not posted yet still counts as today's": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b",
+   "POST https://discord.com/api/v10/channels/gn/messages 3d57c55d75b7"
+  ],
+  "db": {
+   "games": "3:5fbef8d0c2de",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "private panels follow the card: one person's vote moves everyone's open panel on": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115",
+   "GET https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 940da67714d3",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "GET https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "GET https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9ec672072226",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 6dd09e08a556",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-1001/messages/@original fb5de75ce332",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
+   "GET https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 f423cf114c77",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-1001/messages/@original fb5de75ce332",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original fb5de75ce332",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original fb5de75ce332",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1008 -",
+   "GET https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 8af1fc4ff83a",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-1001/messages/@original c43a69a96c92",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original c43a69a96c92",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original c43a69a96c92",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original c43a69a96c92",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original c43a69a96c92"
+  ],
+  "db": {
+   "game_night_votes": "6:6b9c64cdba6c",
+   "game_nights": "1:158b63497fca",
+   "games": "3:d1fe49a1911b",
+   "panels": "5:55b89bf7db90",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "a tap on your own panel keeps its note when the panels sync": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115",
+   "GET https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 940da67714d3",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "GET https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "GET https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9ec672072226",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original a7025dcc90a1",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1008 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 8af1fc4ff83a",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-1001/messages/@original eab68b8d1e94",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original c43a69a96c92",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original c43a69a96c92"
+  ],
+  "db": {
+   "game_night_votes": "6:6b9c64cdba6c",
+   "game_nights": "1:7ad08e8c497a",
+   "games": "3:dcdc90a87620",
+   "panels": "3:ba39135ed786",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "panels past Discord's 15 minutes, or dismissed, are let go": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115",
+   "GET https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 940da67714d3",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "GET https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
+   "POST https://discord.com/api/v10/channels/gn/messages 3179678e3319",
+   "GET https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 20abf054d6bc",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/1000 20abf054d6bc",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5"
+  ],
+  "db": {
+   "game_night_votes": "3:2f4d964c7ea8",
+   "game_nights": "1:f78b806c076f",
+   "games": "3:8292c7bd9588",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "private poll copies follow the poll too: once it's decided, everyone's copy shows the result": {
+  "calls": [
+   "GET https://discord.com/api/v10/webhooks/app/ptok-a/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/poll-msg 513aa3c1d899",
+   "PATCH https://discord.com/api/v10/webhooks/app/ptok-a/messages/@original 83103f641d8a",
+   "GET https://discord.com/api/v10/webhooks/app/ptok-b/messages/@original -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/poll-msg a71f62d7257b",
+   "PATCH https://discord.com/api/v10/webhooks/app/ptok-a/messages/@original 83103f641d8a",
+   "PATCH https://discord.com/api/v10/webhooks/app/ptok-a/messages/@original a54a7eb95630",
+   "PATCH https://discord.com/api/v10/webhooks/app/ptok-b/messages/@original 83103f641d8a",
+   "PATCH https://discord.com/api/v10/webhooks/app/ptok-b/messages/@original a54a7eb95630"
+  ],
+  "db": {
+   "games": "3:17f4e66e9fff",
+   "panels": "2:a4233d3673c9",
+   "poll_votes": "3:74d5fcc08398",
+   "polls": "1:08001eab1cb6",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ }
+}
