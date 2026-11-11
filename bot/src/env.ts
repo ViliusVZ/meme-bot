@@ -1,5 +1,8 @@
 // Configuration from the environment, plus the shared handles every module gets as `env`.
+import { Cause, ConfigProvider, Effect, Exit, Redacted } from "effect"; // LEGACY-BRIDGE
 import type { Db } from "./db/index.js";
+import { readConfig } from "./config.js"; // LEGACY-BRIDGE
+import { envFields } from "./legacy.js"; // LEGACY-BRIDGE
 
 export interface Env {
   db: Db;
@@ -30,48 +33,16 @@ export interface Env {
 
 export type Config = Omit<Env, "db" | "QUIET"> & { DATABASE_URL: string; PORT: number };
 
-const REQUIRED = [
-  "DATABASE_URL",
-  "DISCORD_TOKEN",
-  "DISCORD_PUBLIC_KEY",
-  "DISCORD_APP_ID",
-  "INGEST_SECRET",
-  "ADMIN_SECRET",
-  "GUILD_ID",
-  "CHANNEL_ID",
-  "GAME_CHANNEL_ID",
-  "PLAYERS",
-  "LOBBY_CHANNEL_ID",
-  "VOICE_CATEGORY_ID",
-] as const;
-
-export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
-  const missing = REQUIRED.filter((k) => !e[k]);
-  if (missing.length) throw new Error(`missing environment: ${missing.join(", ")}`);
-  return {
-    DATABASE_URL: e.DATABASE_URL!,
-    PORT: Number(e.PORT ?? 3000),
-    DISCORD_TOKEN: e.DISCORD_TOKEN!,
-    DISCORD_PUBLIC_KEY: e.DISCORD_PUBLIC_KEY!,
-    DISCORD_APP_ID: e.DISCORD_APP_ID!,
-    INGEST_SECRET: e.INGEST_SECRET!,
-    ADMIN_SECRET: e.ADMIN_SECRET!,
-    GUILD_ID: e.GUILD_ID!,
-    CHANNEL_ID: e.CHANNEL_ID!,
-    SUBREDDIT: e.SUBREDDIT ?? "ProgrammerHumor",
-    POST_HOUR_UTC: e.POST_HOUR_UTC ?? "10",
-    GAME_CHANNEL_ID: e.GAME_CHANNEL_ID!,
-    PLAYERS: e.PLAYERS!,
-    TIMEZONE: e.TIMEZONE ?? "Europe/Vilnius",
-    GAME_POLL_HOUR: e.GAME_POLL_HOUR ?? "17",
-    GAME_POLL_HOUR_WEEKEND: e.GAME_POLL_HOUR_WEEKEND ?? "14",
-    LOBBY_CHANNEL_ID: e.LOBBY_CHANNEL_ID!,
-    VOICE_CATEGORY_ID: e.VOICE_CATEGORY_ID!,
-    ALERT_USER_ID: e.ALERT_USER_ID || undefined,
-    PRESENCES: e.PRESENCES === "1",
-    GEMINI_API_KEY: e.GEMINI_API_KEY || undefined,
-  };
-}
+/** The environment, read by Config (config.ts); the old shape, for the code that still takes `env`. */
+export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config { // LEGACY-BRIDGE
+  const exit = Effect.runSyncExit(readConfig.pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(e))))); // LEGACY-BRIDGE
+  if (Exit.isFailure(exit)) { // LEGACY-BRIDGE
+    const e = Cause.squash(exit.cause); // LEGACY-BRIDGE
+    throw new Error(e instanceof Error ? e.message : String(e)); // "missing environment: A, B", as always // LEGACY-BRIDGE
+  } // LEGACY-BRIDGE
+  const c = exit.value; // LEGACY-BRIDGE
+  return { DATABASE_URL: Redacted.value(c.databaseUrl), PORT: c.port, ...envFields(c) }; // LEGACY-BRIDGE
+} // LEGACY-BRIDGE
 
 /** The trio's user ids (moved here from gamenight.ts: everything below it needs them). */
 export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);

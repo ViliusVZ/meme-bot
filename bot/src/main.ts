@@ -3,7 +3,11 @@
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
 import { fileURLToPath } from "node:url";
 import { connect, runMigrations, acquireLeadership } from "./db/index.js";
-import { loadConfig, type Env } from "./env.js";
+import { ManagedRuntime, Redacted } from "effect"; // LEGACY-BRIDGE
+import type { Env } from "./env.js";
+import { AppConfig } from "./config.js";
+import { appLayer } from "./runtime.js";
+import * as legacy from "./legacy.js"; // LEGACY-BRIDGE
 import { build } from "./app.js";
 import { drain } from "./background.js";
 import * as gateway from "./gateway.js";
@@ -11,9 +15,13 @@ import * as live from "./live.js";
 import * as scheduler from "./scheduler.js";
 import * as alerts from "./alerts.js";
 
-const config = loadConfig();
-const { pool, db } = connect(config.DATABASE_URL);
-const env: Env = { ...config, db };
+// one runtime for the transition: the Effect services, which the code that still takes `env` reaches
+// through legacy.ts. Reading the configuration fails startup with every missing variable named.
+const runtime = ManagedRuntime.make(appLayer(AppConfig.layer)); // LEGACY-BRIDGE
+legacy.install(runtime); // LEGACY-BRIDGE
+const config = await runtime.runPromise(AppConfig); // LEGACY-BRIDGE
+const { pool, db } = connect(Redacted.value(config.databaseUrl)); // LEGACY-BRIDGE
+const env: Env = { ...legacy.envFields(config), db }; // LEGACY-BRIDGE
 alerts.setup(env);
 
 await runMigrations(pool, fileURLToPath(new URL("../drizzle", import.meta.url)));
@@ -21,8 +29,8 @@ await runMigrations(pool, fileURLToPath(new URL("../drizzle", import.meta.url)))
 let leader = false;
 let shuttingDown = false;
 const app = build(env, { leader: () => leader, shuttingDown: () => shuttingDown });
-await app.listen({ host: "0.0.0.0", port: config.PORT });
-console.log(`listening on :${config.PORT}`);
+await app.listen({ host: "0.0.0.0", port: config.port });
+console.log(`listening on :${config.port}`);
 
 // ---------------------------------------------------------------- leadership
 const stopLeading = new AbortController();
