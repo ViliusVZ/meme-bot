@@ -27,8 +27,39 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   (every translated Promise.all states it: memes 4, the rest unbounded over ≤3 players or a few
   starts; presence's forEach replaces a plain loop, sequential as before). Next: `Match` (the
   stage switches in gamenight's render and your-vote, act's action, Activity's period kind, and
-  the small action/choice comparisons in Spontaneous.answer, LateSlips.act, Polls.act); then the
-  phase 4 audit (fresh subagent) and the phase note. How it's staged: the moved code is module-level
+  the small action/choice comparisons in Spontaneous.answer, LateSlips.act, Polls.act): done
+  (`bb296ea`, `cf8b260`, `8dc4b1e`, `23ea186`, `3ddb611`). Phase 4 exit holds (only the entry
+  files, the signature verifier and the leader lock are promise-style).
+- **Phase 4 audit (9c3e6fa..3ddb611) done; its findings, being closed (tick each when done):**
+  1. [ ] Claim → act sequences still interruptible: cleanup nightly (claim → deletes → clear ids),
+     Spontaneous.answer (picked → room → delete), gamenight nudge (post → nudge_id), the warn and
+     re-nudge claims in maintainNight, resumeNight, lockIn (event → id → ping), spontaneous
+     finishSession, count, closePrompt. Make each uninterruptible.
+  2. [ ] Test 6 entries missing: recaps, meme-shame, ready room, auto-move, pull-in (+ the new
+     regions from 1 where a test can reach them). STATUS said "one entry per sequence": make true.
+  3. [ ] claimStart gives the claim back when the plays update fails after the ping (a second
+     ping next minute): old code too, but §15.2 says release only on the post's failure → release
+     only when the start ping didn't go out; record as a decision; test.
+  4. [ ] Per-item loops (maintain per night, late per player, trackSessions per room, voice per
+     room, lockIn's event block) catch typed errors only (§6), so a defect (the `!` on a vanished
+     night row) aborts the whole job: turn the vanished-row cases into a typed NightGone so they
+     stay per item; fix the comments; record the §6 decision.
+  5. [ ] `bot/scripts/import-d1.ts` imports the deleted `runMigrations`: fix or retire, record.
+  6. [ ] reddit's refill fiber uses catchCause: declare it as background work (§6 boundary).
+  7. [ ] §6 record rule: list the DiscordNotFound/DiscordRejected handlers that only log/ignore.
+  8. [ ] Phase 5 note: the daily meme, meme recaps and /meme (still promise code) must become one
+     uninterruptible Effect each when they move.
+  9. [ ] Process: the G6 transition column under "Declared exceptions" too; note that 78d83a6
+     and 85ab8cf put test 6 entries in the code's commit, and c97fb91 converted three config tests
+     to it.effect in place (assertions unchanged).
+  10. [ ] Minor: the event-live PATCH fork must finish even if the moves fail (forkDetach);
+     preciseStarts: one start's failure must not interrupt the others (mode "result"); Activity's
+     Match on kind must keep the old fallback for an unchecked admin kind; Panels' lock map must
+     be pruned (and the unused promise bridge removed); readyRoom/autoMove/answer regions include
+     openRoom's wait (record: bounded by the 35 s exit, as the old code was); record the small
+     undeclared differences (roast emoji inside the giveback, malformed snooze/reddit rows as
+     empty, a listing that fails its schema fails the sweep, an empty legacy Gemini key spends
+     budget, an unreadable webhook answer treated as none). How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
