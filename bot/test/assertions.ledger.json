@@ -1533,6 +1533,11 @@
    "expect.toBeNull()",
    "expect.toEqual([])",
    "expect.toBe(now())"
+  ],
+  "fn lateSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"late\"])"
   ]
  }
 }

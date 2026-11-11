@@ -261,5 +261,53 @@
    "games": "8:20142a6ccc67",
    "roast_bags": "1:35b4871d9cc9"
   }
+ },
+ "the late watcher's slip (its claim → the slip → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:19f0b8d0ba42",
+   "games": "8:20142a6ccc67",
+   "roast_bags": "1:35b4871d9cc9",
+   "rooms": "1:41c643dac21f"
+  }
+ },
+ "the late watcher's slip (its claim → the slip → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
+  ],
+  "db": {
+   "game_nights": "1:19f0b8d0ba42",
+   "games": "8:20142a6ccc67",
+   "night_attendance": "1:31e53117721e",
+   "roast_bags": "1:35b4871d9cc9",
+   "rooms": "1:41c643dac21f"
+  }
+ },
+ "the late watcher's slip (its claim → the slip → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
+  ],
+  "db": {
+   "game_nights": "1:19f0b8d0ba42",
+   "games": "8:20142a6ccc67",
+   "night_attendance": "1:47c012ad1d2e",
+   "roast_bags": "1:35b4871d9cc9",
+   "rooms": "1:41c643dac21f"
+  }
+ },
+ "the late watcher's slip (its claim → the slip → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
+  ],
+  "db": {
+   "game_nights": "1:19f0b8d0ba42",
+   "games": "8:20142a6ccc67",
+   "night_attendance": "1:31e53117721e",
+   "roast_bags": "1:35b4871d9cc9",
+   "rooms": "1:41c643dac21f"
+  }
  }
 }

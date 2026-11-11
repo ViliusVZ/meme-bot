@@ -14,6 +14,7 @@ import type { AppServices } from "../src/runtime.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Attendances } from "../src/attendance.js";
 import { GameNight } from "../src/gamenight.js";
+import { LateSlips } from "../src/late.js";
 import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
@@ -220,6 +221,31 @@ function nightSequences(): Record<string, Sequence> {
   };
 }
 Object.assign(sequences, nightSequences());
+
+/** The late watcher's slip (LateSlips). */
+function lateSequences(): Record<string, Sequence> {
+  return {
+    "the late watcher's slip (its claim → the slip → its id)": {
+      setup: async () => {
+        await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 900, reminded: true, message_id: "card" });
+        await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: now() - 1000 });
+      },
+      run: () => LateSlips.use((l) => l.watch),
+      claim: { table: "night_attendance", op: "INSERT" },
+      record: { table: "night_attendance", op: "UPDATE", when: "NEW.message_id IS NOT NULL" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: async () => {
+        expect(await t.db.select().from(nightAttendance)).toEqual([]);
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        const slips = (await t.db.select().from(nightAttendance)).filter((r) => r.message_id);
+        expect(slips.map((r) => r.state)).toEqual(["late"]);
+      },
+    },
+  };
+}
+Object.assign(sequences, lateSequences());
 
 for (const [name, s] of Object.entries(sequences)) {
   test(`${name}: interrupted before its claim, nothing is done`, async () => {
