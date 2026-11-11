@@ -26,8 +26,11 @@ const overridesOf = (env: Env) => ({ quiet: env.QUIET ?? false, players: env.PLA
 /** The Gemini key an old `env` carries (tests set one per call: `{ ...env, GEMINI_API_KEY: "k" }`). */
 export const LegacyGeminiKey = Context.Reference<string | undefined | null>("meme-bot/legacy/LegacyGeminiKey", { defaultValue: () => null }); // LEGACY-BRIDGE
 
+/** Game detection as an old `env` has it (tests turn it on per call: `{ ...env, PRESENCES: true }`). */
+export const LegacyPresences = Context.Reference<boolean | null>("meme-bot/legacy/LegacyPresences", { defaultValue: () => null }); // LEGACY-BRIDGE
+
 const withEnv = <A, E, R>(env: Env, effect: Effect.Effect<A, E, R>) => // LEGACY-BRIDGE
-  effect.pipe(Effect.provideService(Overrides, overridesOf(env)), Effect.provideService(LegacyEnv, env), Effect.provideService(LegacyGeminiKey, env.GEMINI_API_KEY)); // LEGACY-BRIDGE
+  effect.pipe(Effect.provideService(Overrides, overridesOf(env)), Effect.provideService(LegacyEnv, env), Effect.provideService(LegacyGeminiKey, env.GEMINI_API_KEY), Effect.provideService(LegacyPresences, env.PRESENCES ?? false)); // LEGACY-BRIDGE
 
 /** Promise code calling Effect code: the overrides the old `env` carries come along. Rejects with the error itself. */
 export async function run<A, E>(env: Env, effect: Effect.Effect<A, E, AppServices | LegacyEnv>): Promise<A> { // LEGACY-BRIDGE
