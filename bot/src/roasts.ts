@@ -9,8 +9,11 @@
 //
 // Placeholders: {who} the culprit, {a} {b} the two culprits, {V} {K} {L} a specific person.
 import { eq, sql } from "drizzle-orm";
+import { Context, Effect, Layer, Random } from "effect";
 import type { Env } from "./env.js";
 import { roastBags } from "./db/index.js";
+import { Db, type DbError } from "./db/db.js";
+import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const V = "306836805825593344"; // Vithis: programmer, built this bot
 const K = "212567787896307713"; // Koral: Venipak courier, has the kurjeriai crew
@@ -175,47 +178,71 @@ export function fill(line: string, users: string[]) {
     .replaceAll("{L}", mention(L));
 }
 
-function shuffled<T>(xs: T[]) {
-  const out = [...xs];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
-/** The next line for these culprits, from their family's shared shuffle-bag. */
-export async function next(env: Env, users: string[]) {
-  const { key, all, lines } = poolFor(users);
-  return fill(await draw(env, key, all, lines), users);
-}
-
-/**
- * Draw from a family's shared shuffle-bag: the first line still in the bag that's in `fits`. Once
- * none of the lines that fit are left, the whole family starts a fresh cycle. Within a cycle no
- * line comes up twice, for anyone. The bag holds the lines themselves, so editing a pool can't
- * shift what's queued: removed lines drop out, new ones join at the next cycle.
- */
-export async function draw(env: Env, family: string, all: string[], fits: string[]) {
-  if (!fits.length) throw new Error(`no lines fit in ${family}`);
-  const inFamily = new Set(all);
-  const ok = new Set(fits);
-  return env.db.transaction(async (tx) => {
-    // the row lock keeps two draws at once from taking the same line
-    await tx.insert(roastBags).values({ pool: family, queue: [], last_line: null }).onConflictDoNothing();
-    const [bag] = await tx.select().from(roastBags).where(eq(roastBags.pool, family)).for("update");
-    let queue = bag.queue.filter((l): l is string => typeof l === "string" && inFamily.has(l));
-    let at = queue.findIndex((l) => ok.has(l));
-    if (at === -1) {
-      // cycle done (for this culprit): refill, and don't open with the line the chat saw last
-      queue = shuffled(all);
-      at = queue.findIndex((l) => ok.has(l) && l !== bag.last_line);
-      if (at === -1) at = queue.findIndex((l) => ok.has(l));
+/** A fresh order, drawn from Random (one draw per swap, as Math.random was: tests replay it). */
+const shuffled = <T>(xs: T[]) =>
+  Effect.gen(function* () {
+    const out = [...xs];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor((yield* Random.next) * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
     }
-    const [line] = queue.splice(at, 1);
-    await tx.update(roastBags).set({ queue, last_line: line, updated_at: sql`now()` }).where(eq(roastBags.pool, family));
-    return line;
+    return out;
   });
+
+export class Roasts extends Context.Service<
+  Roasts,
+  {
+    /** The next line for these culprits, from their family's shared shuffle-bag. */
+    next(users: ReadonlyArray<string>): Effect.Effect<string, DbError>;
+    /**
+     * Draw from a family's shared shuffle-bag: the first line still in the bag that's in `fits`. Once
+     * none of the lines that fit are left, the whole family starts a fresh cycle. Within a cycle no
+     * line comes up twice, for anyone. The bag holds the lines themselves, so editing a pool can't
+     * shift what's queued: removed lines drop out, new ones join at the next cycle.
+     */
+    draw(family: string, all: ReadonlyArray<string>, fits: ReadonlyArray<string>): Effect.Effect<string, DbError>;
+  }
+>()("meme-bot/roasts") {
+  static readonly layer = Layer.effect(
+    Roasts,
+    Effect.gen(function* () {
+      const db = yield* Db;
+      const draw = Effect.fn("Roasts.draw")(function* (family: string, all: ReadonlyArray<string>, fits: ReadonlyArray<string>) {
+        if (!fits.length) return yield* Effect.die(new Error(`no lines fit in ${family}`)); // a pool with nothing for them: a bug
+        const inFamily = new Set(all);
+        const ok = new Set(fits);
+        return yield* db.transaction((tx) =>
+          Effect.gen(function* () {
+            // the row lock keeps two draws at once from taking the same line
+            yield* tx.insert(roastBags).values({ pool: family, queue: [], last_line: null }).onConflictDoNothing();
+            const [bag] = yield* tx.select().from(roastBags).where(eq(roastBags.pool, family)).for("update");
+            let queue = bag.queue.filter((l): l is string => typeof l === "string" && inFamily.has(l));
+            let at = queue.findIndex((l) => ok.has(l));
+            if (at === -1) {
+              // cycle done (for this culprit): refill, and don't open with the line the chat saw last
+              queue = yield* shuffled([...all]);
+              at = queue.findIndex((l) => ok.has(l) && l !== bag.last_line);
+              if (at === -1) at = queue.findIndex((l) => ok.has(l));
+            }
+            const [line] = queue.splice(at, 1);
+            yield* tx.update(roastBags).set({ queue, last_line: line, updated_at: sql`now()` }).where(eq(roastBags.pool, family));
+            return line;
+          }),
+        );
+      });
+      return Roasts.of({
+        draw,
+        next: Effect.fn("Roasts.next")(function* (users: ReadonlyArray<string>) {
+          const { key, all, lines } = poolFor([...users]);
+          return fill(yield* draw(key, all, lines), [...users]);
+        }),
+      });
+    }),
+  );
 }
+
+// the old functions, for the code that isn't on Effect yet
+export const next = (env: Env, users: string[]) => run(env, Roasts.use((r) => r.next(users))); // LEGACY-BRIDGE
+export const draw = (env: Env, family: string, all: string[], fits: string[]) => run(env, Roasts.use((r) => r.draw(family, all, fits))); // LEGACY-BRIDGE
 
 export const _pools = { SOLO, PERSONAL, DUO, PAIRS, TRIO, SOLO_ALL, DUO_ALL };
