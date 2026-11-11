@@ -1313,5 +1313,28 @@
    "assert.deepStrictEqual(_, [\"1\"])",
    "assert.strictEqual(_, null)"
   ]
+ },
+ "memes.test.ts": {
+  "test \"a voting streak grows day by day, counts once a day, and starts over after a missed day\"": [
+   "expect.toBe(1)",
+   "expect.toBeNull()",
+   "expect.toBe(2)",
+   "expect.toBe(3)",
+   "expect.toBe(1)",
+   "expect.toEqual([1, 3, \"2026-11-10\"])"
+  ],
+  "test \"a streak shows while it's alive: voted today or yesterday\"": [
+   "expect.toBe(4)",
+   "expect.toBe(0)",
+   "expect.toBe(0)"
+  ],
+  "test \"a recap with no votes gives its claim back, and so does one whose post fails\"": [
+   "expect.toEqual({ skipped: \"no votes\", period: \"week:2026-11-06\" })",
+   "expect.toEqual([])",
+   "expect.rejects.toThrow(\"gave up: 500\")",
+   "expect.toEqual([])",
+   "expect.toEqual({ posted: \"week:2026-11-06\" })",
+   "expect.toEqual([\"week:2026-11-06\"])"
+  ]
  }
 }
