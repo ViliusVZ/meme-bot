@@ -575,6 +575,16 @@
    "expect.toContain(\"trio\")",
    "expect.toContain(\"past that step\")",
    "expect.toContain(\"Game night's off\")"
+  ],
+  "test \"taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why (each tap done before the next)\"": [
+   "expect.toEqual([4, 64])",
+   "expect.toContain(\"You said **maybe**\")",
+   "expect.toEqual([\"Change to I'm in\", \"Change to Not today\"])",
+   "expect.toBe(7)",
+   "expect.toEqual([\"Change to Maybe\", \"Change to Not today\"])",
+   "expect.toBe(7)",
+   "expect.toContain(\"No more maybes: this is the final call.\")",
+   "expect.toEqual([\"Change to Not today\"])"
   ]
  },
  "paths.test.ts": {
@@ -696,6 +706,13 @@
   "test \"admin: redraw every posted meme with its voters\"": [
    "expect.toEqual({ updated: 1, failed: [] })",
    "expect.toContain(\"💀 <@c>\")"
+  ],
+  "test \"clicking the card opens your private copy; clicking your copy updates it in place (each tap done before the next)\"": [
+   "expect.toBe(4)",
+   "expect.toBe(64)",
+   "expect.toBe(7)",
+   "expect.toBe(7)",
+   "expect.toContain(\"⚠️ Nothing's locked in yet\")"
   ]
  },
  "reddit.test.ts": {
@@ -1146,6 +1163,23 @@
   "test \"a rate limit is waited out (retry_after) and retried, whatever the method\"": [
    "expect.toEqual({ id: \"ok\" })",
    "expect.toBe(2)"
+  ],
+  "test \"an expired interaction token: one attempt, no retries, the caller gets the refusal\"": [
+   "expect.toBe(401)",
+   "expect.toBe(1)"
+  ]
+ },
+ "migrations.test.ts": {
+  "test \"two copies starting at once migrate once; a restart applies nothing\"": [
+   "expect.toEqual(readdirSync(source).sort())",
+   "expect.toBeGreaterThan(15)",
+   "expect.toBe(migrationCount)",
+   "expect.toBe(before)"
+  ],
+  "test \"an old-style migrations table (Drizzle 0.45) is upgraded in place, nothing re-run\"": [
+   "expect.toEqual(readdirSync(source).sort())",
+   "expect.toEqual(Object.values(when))",
+   "expect.toBe(before)"
   ]
  }
 }

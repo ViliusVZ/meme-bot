@@ -39,5 +39,11 @@
    "POST https://discord.com/api/v10/x bf21a9e8fbc5"
   ],
   "db": {}
+ },
+ "an expired interaction token: one attempt, no retries, the caller gets the refusal": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 42b0ffcd0c97"
+  ],
+  "db": {}
  }
 }

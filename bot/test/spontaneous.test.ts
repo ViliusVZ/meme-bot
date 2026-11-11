@@ -105,7 +105,7 @@ test("first tap wins: the room opens, the Lobby comes along, the question goes; 
 });
 
 test("two taps at the same moment open one room", async () => {
-  h.race("two taps on the Lobby question at once; whichever claims it opens the room");
+  h.race("two taps on the Lobby question at once; whichever claims it opens the room", { mask: { lobby_prompts: ["id", "message_id", "by", "game"], rooms: ["channel_id", "created_by", "game"] }, bodies: false });
   await at(now(), { a: "lobby", b: "lobby" });
   await at(now() + 30);
   const id = (await prompt()).id;

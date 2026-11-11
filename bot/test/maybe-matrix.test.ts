@@ -311,6 +311,26 @@ test("midnight with the unsure still to answer after a hold: quiet if their hour
 });
 
 test("taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why", async () => {
+  h.race("each tap starts its panel's tracking in the background, and the next tap comes before it has landed", { mask: { panels: ["message_id"] }, calls: false });
+  await gn.startNight(env);
+  const tap = (user: string, action: string, panel: boolean) =>
+    interaction({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:${action}`, component_type: 2 }, message: { flags: (1 << 15) | (panel ? 64 : 0) }, member: { user: { id: user, username: user } } }, env) as Promise<any>;
+  const fromCard = await tap("a", "maybe", false);
+  expect([fromCard.type, fromCard.data.flags & 64]).toEqual([4, 64]); // a new message only a sees
+  expect(text(fromCard.data)).toContain("You said **maybe**");
+  expect(labels(fromCard.data)).toEqual(["Change to I'm in", "Change to Not today"]);
+  const fromPanel = await tap("a", "yes", true);
+  expect(fromPanel.type).toBe(7); // edits a's panel in place
+  expect(labels(fromPanel.data)).toEqual(["Change to Maybe", "Change to Not today"]);
+  // to the final call, then a's old panel still has a Maybe button
+  await t.db.update(gameNights).set({ maybes: 2 });
+  const stale = await tap("a", "maybe", true);
+  expect(stale.type).toBe(7);
+  expect(text(stale.data)).toContain("No more maybes: this is the final call.");
+  expect(labels(stale.data)).toEqual(["Change to Not today"]);
+});
+
+test("taps: Maybe on the card opens your panel, on your panel updates it, and a stale one says why (each tap done before the next)", async () => {
   await gn.startNight(env);
   // each tap's background work (the panel's tracking and edits) lands before the next tap, as it would for a person
   const tap = async (user: string, action: string, panel: boolean) => {

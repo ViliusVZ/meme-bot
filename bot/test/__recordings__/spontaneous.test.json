@@ -35,12 +35,18 @@
   }
  },
  "two taps at the same moment open one room": {
-  "calls": [],
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels <body>",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels <body>",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a <body>",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b <body>",
+   "POST https://discord.com/api/v10/guilds/guild/channels <body>"
+  ],
   "db": {
-   "games": "2",
-   "lobby_prompts": "1",
-   "rooms": "1",
-   "voice_segments": "2"
+   "games": "2:e1f48dbf0609",
+   "lobby_prompts": "1:3f7cdb5f4fcb",
+   "rooms": "1:39912eb97b44",
+   "voice_segments": "2:790c55560ae0"
   }
  },
  "a room that won't open gives the question back": {
@@ -396,7 +402,7 @@
    "games": "2:ea1d256f0698",
    "lobby_prompts": "1:0020a1019a2d",
    "rooms": "1:4e11b6de6ef9",
-   "settings": "1:09832b24f6e7",
+   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:cc3ffb2a182e"
   }
  },
@@ -409,7 +415,7 @@
    "activity_guesses": "1:897fd1fe95b7",
    "games": "2:5e1dfd246dc8",
    "lobby_prompts": "1:231b5c6dc912",
-   "settings": "1:09832b24f6e7",
+   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:e6e1d6e6520b"
   }
  },
@@ -422,7 +428,7 @@
   "db": {
    "activity_guesses": "2:22b3a950cf3a",
    "games": "2:1cc1574d068c",
-   "settings": "1:c5adb279bab0"
+   "settings": "1:ba1296990210"
   }
  },
  "no key, no questions": {
@@ -438,7 +444,7 @@
   ],
   "db": {
    "games": "2:b51874aa91c9",
-   "settings": "1:09832b24f6e7"
+   "settings": "1:e7df305b4690"
   }
  }
 }
