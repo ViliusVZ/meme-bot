@@ -1147,5 +1147,18 @@
    "expect.toEqual({ id: \"ok\" })",
    "expect.toBe(2)"
   ]
+ },
+ "migrations.test.ts": {
+  "test \"two copies starting at once migrate once; a restart applies nothing\"": [
+   "expect.toEqual(readdirSync(source).sort())",
+   "expect.toBeGreaterThan(15)",
+   "expect.toBe(migrationCount)",
+   "expect.toBe(before)"
+  ],
+  "test \"an old-style migrations table (Drizzle 0.45) is upgraded in place, nothing re-run\"": [
+   "expect.toEqual(readdirSync(source).sort())",
+   "expect.toEqual(Object.values(when))",
+   "expect.toBe(before)"
+  ]
  }
 }
