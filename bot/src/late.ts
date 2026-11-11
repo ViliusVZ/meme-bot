@@ -11,7 +11,7 @@
 // latest ETA (we wait for everyone); after it, it's an ETA on your slip. Someone who said they'd be
 // late and still isn't here 10 min after their ETA gets a slip like everyone else.
 import { and, eq, gt, isNull, lte } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 import type { Env } from "./env.js";
 import { gameNights, nightAttendance, rooms } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
@@ -148,16 +148,26 @@ export class LateSlips extends Context.Service<
           const [night] = yield* db.select({ stage: gameNights.stage }).from(gameNights).where(eq(gameNights.day, day));
           if (night?.stage !== "set") return { notice: "Game night's off, no need to hurry 🫡" };
           if (row.state === "arrived") return { notice: "You're already here 👋" };
-          if (choice === "out") {
-            // all of us or none of us: the night's off (this also retires every slip, this one included)
-            yield* attendances.put(day, owner, { state: "absent" });
-            yield* gameNight.bailFromSlip(day, owner);
-          } else {
-            const mins = Number(choice);
-            if (![5, 15, 30].includes(mins)) return { notice: "🤷" };
-            yield* attendances.put(day, owner, { state: "eta", eta: (yield* nowSec) + mins * 60 });
-          }
-          return { notice: undefined };
+          const notice = yield* Match.value(choice).pipe(
+            Match.when("out", () =>
+              Effect.gen(function* () {
+                // all of us or none of us: the night's off (this also retires every slip, this one included)
+                yield* attendances.put(day, owner, { state: "absent" });
+                yield* gameNight.bailFromSlip(day, owner);
+                return undefined;
+              }),
+            ),
+            // an ETA: 5, 15 or 30 minutes from now
+            Match.orElse(() =>
+              Effect.gen(function* () {
+                const mins = Number(choice);
+                if (![5, 15, 30].includes(mins)) return "🤷";
+                yield* attendances.put(day, owner, { state: "eta", eta: (yield* nowSec) + mins * 60 });
+                return undefined;
+              }),
+            ),
+          );
+          return { notice };
         }),
       });
     }),
