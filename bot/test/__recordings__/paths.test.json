@@ -8,11 +8,12 @@
  },
  "/meme summons a pool meme once, and says so when the well is dry": {
   "calls": [
+   "-- background reads --",
    "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "memes": "1:96694fc28802"
+   "memes": "1:0537cb4232a3"
   }
  },
  "the one-hour re-nudge, a card deleted by hand, refreshing open cards, the plan picker": {
@@ -64,7 +65,7 @@
    "game_night_votes": "1:9f4b56233015",
    "game_nights": "1:7fa4054dfd54",
    "games": "8:a906c10ebcec",
-   "roast_bags": "1:9049d0c9cc25"
+   "roast_bags": "1:831c0c1cbc92"
   }
  },
  "late slips: a failed post releases the claim; the slip renders": {
@@ -195,22 +196,33 @@
   }
  },
  "clicking the card opens your private copy; clicking your copy updates it in place": {
+  "calls": [],
+  "db": {
+   "game_night_votes": "2:27349f3ce78d",
+   "game_nights": "1:5e721f5dbc69",
+   "games": "8:a906c10ebcec",
+   "panels": "3:724a883e6bff"
+  }
+ },
+ "clicking the card opens your private copy; clicking your copy updates it in place (each tap done before the next)": {
   "calls": [
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
-   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
-   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
    "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
    "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
    "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
+   "-- background reads --",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
    "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -"
   ],
   "db": {
    "game_night_votes": "2:27349f3ce78d",
    "game_nights": "1:5e721f5dbc69",
    "games": "8:a906c10ebcec",
-   "panels": "3:7991996964d0"
+   "panels": "3:c0fc222fa785"
   }
  },
  "🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay": {
@@ -223,7 +235,6 @@
   "db": {
    "game_nights": "2:2779ea6932b9",
    "games": "8:a906c10ebcec",
-   "panels": "3:7991996964d0",
    "recaps": "1:7e69b80a481d"
   }
  },
@@ -234,7 +245,6 @@
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "1:f7a4cb2689f9",
-   "panels": "3:7991996964d0",
    "users": "1:01f8403778c8",
    "votes": "2:4ac6daab99f3"
   }
@@ -247,9 +257,8 @@
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "5:359eb4394653",
-   "panels": "3:7991996964d0",
    "recaps": "5:2bdc6de660f9",
-   "roast_bags": "1:7dac5c6fc0c1",
+   "roast_bags": "1:f1f27b14f179",
    "votes": "8:54eba2067553"
   }
  },
@@ -260,7 +269,6 @@
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "1:b34a7ab0c4f9",
-   "panels": "3:7991996964d0",
    "votes": "1:3fabfdfb4bfd"
   }
  }

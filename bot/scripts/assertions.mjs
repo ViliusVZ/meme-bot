@@ -11,6 +11,7 @@
 // The value under test is left out on purpose: that is the call expression, which may change.
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import ts from "typescript";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -100,20 +101,26 @@ if (!existsSync(ledgerFile)) {
   process.exit(1);
 }
 const before = JSON.parse(readFileSync(ledgerFile, "utf8"));
+// --base <ref>: also hold the ledger to the one at that commit (the tag `baseline` in gates.sh),
+// so a commit that rewrites the committed ledger still can't change what the baseline asserted
+const baseRef = process.argv.includes("--base") ? process.argv[process.argv.indexOf("--base") + 1] : null;
+const references = [["committed", before]];
+if (baseRef) references.push([baseRef, JSON.parse(execFileSync("git", ["show", `${baseRef}:bot/test/assertions.ledger.json`], { cwd: root, encoding: "utf8", maxBuffer: 64 << 20 }))]);
 const problems = [];
 let checked = 0;
 // a test may move to another file (the harness consolidation), so look it up by key everywhere
 const now = new Map();
 for (const [f, e] of Object.entries(ledger)) for (const [k, a] of Object.entries(e)) now.set(k, [...(now.get(k) ?? []), { f, a }]);
-for (const [f, e] of Object.entries(before)) {
+for (const [label, reference] of references)
+for (const [f, e] of Object.entries(reference)) {
   for (const [k, a] of Object.entries(e)) {
     checked += a.length;
     const cands = now.get(k) ?? [];
     const same = cands.find((c) => c.f === f) ?? (cands.length === 1 ? cands[0] : undefined);
-    if (!same) problems.push(`${f} › ${k}: gone`);
+    if (!same) problems.push(`${f} › ${k}: gone (vs ${label})`);
     else if (JSON.stringify(same.a) !== JSON.stringify(a)) {
       const i = a.findIndex((x, j) => x !== same.a[j]);
-      problems.push(`${f} › ${k}: assertion ${i + 1} was\n    ${a[i]}\n  now\n    ${same.a[i] ?? "(missing)"}`);
+      problems.push(`${f} › ${k} (vs ${label}): assertion ${i + 1} was\n    ${a[i]}\n  now\n    ${same.a[i] ?? "(missing)"}`);
     }
   }
 }

@@ -70,25 +70,42 @@ export type Harness = {
   override: Route | null;
   /**
    * Declare that this test races on purpose (several callers at once, one wins), so which one wins
-   * isn't fixed, nor how many calls it takes (two may both post, then one deletes): only the
-   * database's row counts are recorded, which are the same whoever wins. Give the
-   * reason; each use is listed in STATUS.md under "Declared exceptions".
+   * isn't fixed, nor how many calls it takes (two may both post, then the loser deletes its copy).
+   * What doesn't depend on the winner is still recorded: a create the bot itself deletes again in
+   * the same test is dropped together with its delete, ids in URLs are masked, the calls are
+   * sorted, and the database is hashed with only the named winner-dependent columns masked
+   * (`bodies: false` also drops body hashes, for bodies that name the winner; `calls: false` drops
+   * the calls, for a race whose number of calls depends on timing). Give the reason;
+   * each use is listed in STATUS.md under "Declared exceptions".
    */
-  race(reason: string): void;
+  race(reason: string, opts?: { mask?: Record<string, string[]>; bodies?: boolean; calls?: boolean }): void;
   /** Wait for background work (followups, panel edits) to finish, as a real user's next tap would. */
   settle(): Promise<void>;
 };
 
 /**
  * Unordered call groups (verification.md §2a): places where the bot sends several calls at once,
- * so their order isn't behaviour. Each is a run of consecutive calls matching the pattern, sorted
- * before recording. Every group is listed in STATUS.md under "Declared exceptions".
+ * so their order isn't behaviour. Each is a run of consecutive calls matching the pattern, put in
+ * URL order before recording; the sort is stable, so two edits of the same copy keep their order.
+ * Every group is listed in STATUS.md under "Declared exceptions".
  */
 const UNORDERED: { name: string; pattern: RegExp }[] = [
-  // panels.ts push(): every live private copy of a card is re-rendered and edited at once
+  // panels.ts push(): every live private copy of a card or poll is re-rendered and edited at once
   { name: "panel copies", pattern: /^PATCH https:\/\/discord\.com\/api\/v10\/webhooks\/[^/]+\/[^/]+\/messages\/@original / },
 ];
-function settleOrder(calls: string[]): string[] {
+const urlOf = (call: string) => call.split(" ")[1];
+/** The look-up of a private copy's message (interactions.ts / panels.ts, `originalMessage`). */
+const ORIGINAL = /^\/webhooks\/[^/]+\/[^/]+\/messages\/@original$/;
+/**
+ * Background reads (also declared in STATUS.md): after a tap, the copy's message is looked up in
+ * the background (a GET with no body) while the tap's own work goes on, so where the read lands
+ * among the other calls is timing. These reads are recorded as their own list, in their order,
+ * after the other calls; everything they lead to (the panels row, later edits) is still recorded.
+ */
+const BACKGROUND_READ = /^GET https:\/\/discord\.com\/api\/v10\/webhooks\/[^/]+\/[^/]+\/messages\/@original -$/;
+function settleOrder(all: string[]): string[] {
+  const calls = all.filter((c) => !BACKGROUND_READ.test(c));
+  const reads = all.filter((c) => BACKGROUND_READ.test(c));
   const out: string[] = [];
   for (let i = 0; i < calls.length; ) {
     const g = UNORDERED.find((u) => u.pattern.test(calls[i]));
@@ -98,10 +115,26 @@ function settleOrder(calls: string[]): string[] {
     }
     let j = i;
     while (j < calls.length && g.pattern.test(calls[j])) j++;
-    out.push(...calls.slice(i, j).sort());
+    out.push(...calls.slice(i, j).sort((a, b) => (urlOf(a) < urlOf(b) ? -1 : urlOf(a) > urlOf(b) ? 1 : 0)));
     i = j;
   }
-  return out;
+  return reads.length ? [...out, "-- background reads --", ...reads] : out;
+}
+
+type Entry = { method: string; url: string; hash: string; created?: string };
+/** A declared race: drop creates the bot deleted again itself, mask ids, sort. */
+function raceCalls(calls: Entry[], bodies: boolean): string[] {
+  const gone = new Set<number>();
+  calls.forEach((c, i) => {
+    if (c.method !== "DELETE") return;
+    const id = c.url.split("/").pop();
+    const made = calls.findIndex((x, j) => j < i && !gone.has(j) && x.created === id);
+    if (made >= 0) gone.add(made).add(i);
+  });
+  return calls
+    .filter((_, i) => !gone.has(i))
+    .map((c) => `${c.method} ${c.url.replace(/\b\d{3,}\b/g, "<id>")} ${bodies ? c.hash : "<body>"}`)
+    .sort();
 }
 
 /** A body as text, whatever form fetch was given it in. */
@@ -145,8 +178,19 @@ function seeded(seed: number) {
 }
 const seedOf = (name: string) => parseInt(createHash("sha1").update(name).digest("hex").slice(0, 8), 16);
 
-// Columns that take the database's own now(): not the bot's behaviour, so not recorded.
+// Columns that default to the database's own now() (one update in roasts.ts also sets now()). That
+// value is the real time, not the bot's behaviour, so it is masked; when the bot writes the column
+// itself (gemini.ts, reddit.ts and snooze.ts set it from the fake clock) the value is kept.
 const NOW_COLUMNS: Record<string, string[]> = { roast_bags: ["updated_at"], settings: ["updated_at"] };
+// Date is faked in most tests; this is the wall clock the database's now() follows
+const realNow = () => performance.timeOrigin + performance.now();
+function maskNow(tbl: string, row: string): string {
+  const cols = NOW_COLUMNS[tbl];
+  if (!cols) return row;
+  const r = JSON.parse(row) as Record<string, unknown>;
+  for (const c of cols) if (typeof r[c] === "string" && Math.abs(Date.parse(r[c] as string) - realNow()) < 10 * 60_000) r[c] = "<the database's now()>";
+  return JSON.stringify(r);
+}
 
 type Recording = { calls: string[]; db: Record<string, string> };
 type Full = { calls: { method: string; url: string; body: unknown }[]; db: Record<string, unknown[]> };
@@ -157,17 +201,18 @@ export function harness(o: Options = {}): Harness {
   const full = process.env.RECORD === "full";
   const recordings: Record<string, Recording> = {};
   const fulls: Record<string, Full> = {};
-  let current: { calls: string[]; full: Full["calls"] } = { calls: [], full: [] };
+  let current: { calls: Entry[]; full: Full["calls"] } = { calls: [], full: [] };
   let tables: string[] = [];
   let nextId = 0;
+  let nextCopyId = 0;
   let random: { mockRestore(): void } | undefined;
-  let racing = false;
+  let racing: { mask: Record<string, string[]>; bodies: boolean; calls: boolean } | null = null;
   h.settle = async () => {
     if ((await drain(10_000)) > 0) throw new Error("background work still running after 10 s");
   };
-  h.race = (reason) => {
+  h.race = (reason, opts = {}) => {
     if (!reason) throw new Error("race() needs a reason");
-    racing = true;
+    racing = { mask: opts.mask ?? {}, bodies: opts.bodies ?? true, calls: opts.calls ?? true };
   };
 
   // The recorder sits in front of whatever fetch a test installs (some tests swap it, or wrap the
@@ -178,17 +223,27 @@ export function harness(o: Options = {}): Harness {
   let inner: typeof fetch = realFetch;
   let depth = 0;
   const recorder = (target: typeof fetch): typeof fetch => (input, init) => {
+    let entry: Entry | undefined;
     if (depth === 0) {
       const req = input instanceof Request ? input : undefined;
       const url = req ? req.url : String(input);
       const method = (init?.method ?? req?.method ?? "GET").toUpperCase();
       const text = bodyText(init?.body);
-      current.calls.push(`${method} ${url} ${text === undefined ? "-" : hash(canonical(text))}`);
+      entry = { method, url, hash: text === undefined ? "-" : hash(canonical(text)) };
+      current.calls.push(entry);
       if (full) current.full.push({ method, url, body: text === undefined ? null : JSON.parse(canonical(JSON.stringify(text))) });
     }
     depth++;
     try {
-      return target(input, init);
+      const res = target(input, init);
+      // what a POST created (in a declared race, a create the bot deletes again cancels out)
+      const made = entry?.method === "POST" ? entry : undefined;
+      if (made)
+        void Promise.resolve(res)
+          .then((r) => r.clone().json() as Promise<{ id?: unknown } | null>)
+          .then((d) => void (made.created = typeof d?.id === "string" ? d.id : undefined))
+          .catch(() => {});
+      return res;
     } finally {
       depth--;
     }
@@ -207,7 +262,11 @@ export function harness(o: Options = {}): Harness {
       if (res) return res;
     }
     const id = () => String(nextId++);
-    return o.discord!.answer ? o.discord!.answer(c, id) : json({ id: id() });
+    if (o.discord!.answer) return o.discord!.answer(c, id);
+    // a private copy's message, looked up in the background right after the tap: its ids come from
+    // their own range, so when the lookup lands doesn't shift the ids of everything else
+    if (c.method === "GET" && ORIGINAL.test(c.path)) return json({ id: String(nextCopyId++) });
+    return json({ id: id() });
   };
 
   beforeAll(async () => {
@@ -229,7 +288,8 @@ export function harness(o: Options = {}): Harness {
     Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: realFetch });
     const dir = fileURLToPath(new URL("./__recordings__/", import.meta.url));
     mkdirSync(dir, { recursive: true });
-    if (Object.keys(recordings).length) writeFileSync(`${dir}${file.replace(/\.ts$/, ".json")}`, JSON.stringify(recordings, null, 1) + "\n");
+    // always written, even empty: a test file that stops recording must show up as a change
+    writeFileSync(`${dir}${file.replace(/\.ts$/, ".json")}`, JSON.stringify(recordings, null, 1) + "\n");
     if (full) {
       mkdirSync(`${dir}full`, { recursive: true });
       writeFileSync(`${dir}full/${file.replace(/\.ts$/, ".json")}`, JSON.stringify(fulls, null, 1) + "\n");
@@ -243,6 +303,7 @@ export function harness(o: Options = {}): Harness {
     h.calls.length = 0;
     h.override = null;
     nextId = o.discord?.firstId ?? 0;
+    nextCopyId = (o.discord?.firstId ?? 0) + 700_000;
     if (o.discord) inner = stub;
     random = vi.spyOn(Math, "random").mockImplementation(seeded(seedOf(expect.getState().currentTestName ?? "")));
     if (o.clock !== undefined) {
@@ -250,7 +311,7 @@ export function harness(o: Options = {}): Harness {
       vi.setSystemTime(typeof o.clock === "string" ? Date.parse(o.clock) : o.clock);
     }
     current = { calls: [], full: [] };
-    racing = false;
+    racing = null;
   });
   afterEach(async () => {
     // the recording is of a finished test: let deferred work (followups, panel edits) land first
@@ -262,18 +323,19 @@ export function harness(o: Options = {}): Harness {
     const dbFull: Record<string, unknown[]> = {};
     if (tables.length) {
       // one round trip for every table: the tunnel's latency adds up over 580 tests
-      const q = tables
-        .map((tbl) => `SELECT '${tbl}' AS tbl, (to_jsonb(r)${(NOW_COLUMNS[tbl] ?? []).map((c) => ` - '${c}'`).join("")})::text AS row FROM "${tbl}" r`)
-        .join(" UNION ALL ");
+      const masked = (tbl: string) => (racing?.mask[tbl] ?? []).map((c) => ` - '${c}'`).join("");
+      const q = tables.map((tbl) => `SELECT '${tbl}' AS tbl, (to_jsonb(r)${masked(tbl)})::text AS row FROM "${tbl}" r`).join(" UNION ALL ");
       const r = await h.t.pool.query<{ tbl: string; row: string }>(`SELECT tbl, row FROM (${q}) x ORDER BY tbl COLLATE "C", row COLLATE "C"`);
       const byTable = new Map<string, string[]>();
-      for (const x of r.rows) byTable.set(x.tbl, [...(byTable.get(x.tbl) ?? []), x.row]);
-      for (const [tbl, rows] of byTable) {
-        db[tbl] = racing ? `${rows.length}` : `${rows.length}:${hash(rows.join("\n"))}`;
+      for (const x of r.rows) byTable.set(x.tbl, [...(byTable.get(x.tbl) ?? []), maskNow(x.tbl, x.row)]);
+      for (const [tbl, unsorted] of byTable) {
+        const rows = [...unsorted].sort();
+        db[tbl] = `${rows.length}:${hash(rows.join("\n"))}`;
         if (full) dbFull[tbl] = rows.map((x) => JSON.parse(x));
       }
     }
-    if (current.calls.length || Object.keys(db).length) recordings[key] = { calls: racing ? [] : settleOrder(current.calls), db };
+    const calls = racing ? (racing.calls ? raceCalls(current.calls, racing.bodies) : []) : settleOrder(current.calls.map((c) => `${c.method} ${c.url} ${c.hash}`));
+    if (calls.length || Object.keys(db).length) recordings[key] = { calls, db };
     if (full) fulls[key] = { calls: current.full, db: dbFull };
     inner = realFetch;
     random?.mockRestore();

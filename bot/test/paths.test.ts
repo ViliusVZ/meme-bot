@@ -12,12 +12,12 @@ import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { build } from "../src/app.js";
 import { interaction } from "../src/interactions.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, panels } from "../src/db/schema.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";
 
 const h = harness({
-  tables: [gameNightVotes, nightAttendance, rooms, gameNights, votes, memeTable, users, recaps, roastBags, pollTable],
+  tables: [gameNightVotes, nightAttendance, rooms, gameNights, votes, memeTable, users, recaps, roastBags, pollTable, panels],
   discord: { firstId: 5000, routes: [routes.noVoiceState, routes.lobbyOnly] },
   clock: "2026-11-06T15:00:00Z", // Friday 17:00 in Vilnius
 });
@@ -268,6 +268,22 @@ test("room upkeep: reviving a room whose channel vanished just forgets it", asyn
 });
 
 test("clicking the card opens your private copy; clicking your copy updates it in place", async () => {
+  h.race("each tap starts its copy's tracking in the background, and the next tap comes before it has landed", { mask: { panels: ["message_id"] }, calls: false });
+  await gn.startNight(env, "a");
+  const click = (flags: number) => ({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:yes`, component_type: 2 }, message: { flags }, member: { user: { id: "b", username: "b" } } });
+  const fromCard = (await interaction(click(1 << 15), env)) as any;
+  expect(fromCard.type).toBe(4); // a new message…
+  expect(fromCard.data.flags & 64).toBe(64); // …only b sees
+  const fromCopy = (await interaction(click((1 << 15) | 64), env)) as any;
+  expect(fromCopy.type).toBe(7); // edits b's copy
+  // a refusal on your panel shows in the panel, not as one more message
+  const late = { ...click((1 << 15) | 64), data: { custom_id: `gn:${DAY}:late:15`, component_type: 2 } };
+  const refused = (await interaction(late, env)) as any;
+  expect(refused.type).toBe(7);
+  expect(JSON.stringify(refused.data)).toContain("⚠️ Nothing's locked in yet");
+});
+
+test("clicking the card opens your private copy; clicking your copy updates it in place (each tap done before the next)", async () => {
   await gn.startNight(env, "a");
   const click = (flags: number) => ({ type: 3, token: "tok", data: { custom_id: `gn:${DAY}:yes`, component_type: 2 }, message: { flags }, member: { user: { id: "b", username: "b" } } });
   const fromCard = (await interaction(click(1 << 15), env)) as any;
