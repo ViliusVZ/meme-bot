@@ -414,5 +414,33 @@
    "game_nights": "1:f221fac91328",
    "games": "8:745dc9153deb"
   }
+ },
+ "the start ping goes out on the start's second, not before": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels <body>",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card <body>",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels <body>",
+   "POST https://discord.com/api/v10/channels/gn/messages <body>",
+   "POST https://discord.com/api/v10/guilds/guild/channels <body>"
+  ],
+  "db": {
+   "game_nights": "1:85c4766e3562",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:853eba14b193"
+  }
+ },
+ "a start whose unplanned session can't be merged still happens": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+  ],
+  "db": {
+   "game_nights": "1:de3146d5e8ef",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:97ffae361dcd"
+  }
  }
 }

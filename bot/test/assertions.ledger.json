@@ -801,6 +801,16 @@
   "test \"the start times on an open card are refreshed every quarter hour\"": [
    "expect.toBe(0)",
    "expect.toBe(1)"
+  ],
+  "test \"the start ping goes out on the start's second, not before\"": [
+   "expect.toBe(true)",
+   "expect.toBeGreaterThanOrEqual(start * 1000)"
+  ],
+  "test \"a start whose unplanned session can't be merged still happens\"": [
+   "expect.toMatchObject({ reminded: DAY })",
+   "expect.toBe(true)",
+   "expect.toContain(\"merging the unplanned session into the night failed\")",
+   "expect.not.toContain(\"the start ping failed\")"
   ]
  },
  "reddit.test.ts": {

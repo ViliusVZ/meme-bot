@@ -529,3 +529,38 @@ test("the start times on an open card are refreshed every quarter hour", async (
   await gn.maintain(env);
   expect(edits()).toBe(1);
 });
+
+test("the start ping goes out on the start's second, not before", async () => {
+  h.race("runs on the real clock, so its times differ from run to run", {
+    mask: { game_nights: ["start_at", "stage_at"], rooms: ["created_at", "last_seen"], night_attendance: ["arrived_at"] },
+    bodies: false,
+  });
+  vi.useRealTimers();
+  const start = Math.floor(Date.now() / 1000) + 1;
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: start, message_id: "card", reminded: false });
+  presence.snapshot([]);
+  let pingAt = 0;
+  h.override = (c) => {
+    if (c.method === "POST" && c.path === "/channels/gn/messages" && c.body.content?.includes("starts now")) pingAt = Date.now();
+    return undefined;
+  };
+  const [n] = await t.db.select().from(gameNights).where(eq(gameNights.day, DAY));
+  expect(await gn.startOnTime(env, n)).toBe(true);
+  expect(pingAt).toBeGreaterThanOrEqual(start * 1000);
+});
+
+test("a start whose unplanned session can't be merged still happens", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 60, message_id: "card", reminded: false });
+  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_fail() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'sessions are down'; END $$ LANGUAGE plpgsql`);
+  await t.pool.query(`CREATE TRIGGER qa_fail BEFORE UPDATE ON sessions FOR EACH STATEMENT EXECUTE FUNCTION qa_fail()`);
+  presence.snapshot([]);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  const done = await gn.maintain(env);
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  await t.pool.query("DROP TRIGGER qa_fail ON sessions");
+  expect(done).toMatchObject({ reminded: DAY });
+  expect((await night())!.reminded).toBe(true);
+  expect(said).toContain("merging the unplanned session into the night failed");
+  expect(said).not.toContain("the start ping failed");
+});
