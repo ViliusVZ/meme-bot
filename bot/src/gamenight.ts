@@ -19,7 +19,17 @@
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { Effect } from "effect";
 import type { Env } from "./env.js";
+import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
+import { Db } from "./db/db.js";
+import { Discord } from "./discord.js";
+import { Games } from "./games.js";
+import { Nights } from "./nights.js";
+import { Attendances } from "./attendance.js";
+import { localAt, wallToUnixIn, weekdayOf } from "./localtime.js";
+import { nowIso, nowSec as currentSec } from "./clock.js";
+import { run } from "./legacy.js"; // LEGACY-BRIDGE
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Stage, type Tx } from "./db/index.js";
 import { api, followup, EPHEMERAL, IS_COMPONENTS_V2, isNotFound } from "./discord.js";
 import * as panels from "./panels.js";
@@ -76,13 +86,22 @@ const say = (notice: string, update = false): Outcome => ({ notice, update });
 
 // ---------------------------------------------------------------- time
 
-const clock = (env: Env, sec: number) => local(env, new Date(sec * 1000)).hm;
+/** Where and when: the bot's time zone and the current unix second (pure helpers take it). */
+export type When = { readonly zone: string; readonly now: number };
+const when = Effect.gen(function* () {
+  return { zone: (yield* AppConfig).timezone, now: yield* currentSec } as When;
+});
+const W = (env: Env): When => ({ zone: env.TIMEZONE, now: nowSec() }); // LEGACY-BRIDGE
+const localOf = (w: When, sec = w.now) => localAt(w.zone, sec * 1000);
+const today = (w: When) => localOf(w).day;
+
+const clock = (w: When, sec: number) => localOf(w, sec).hm;
 /** A Discord timestamp: just the time if it's today, else the date too. */
-const stamp = (env: Env, sec: number) => ts(sec, local(env, new Date(sec * 1000)).day === local(env).day ? "t" : "f");
+const stamp = (w: When, sec: number) => ts(sec, localOf(w, sec).day === today(w) ? "t" : "f");
 
 /** "18:30", or "🌙 00:30" for after midnight. */
-function timeLabel(env: Env, sec: number, day: string) {
-  const l = local(env, new Date(sec * 1000));
+function timeLabel(w: When, sec: number, day: string) {
+  const l = localOf(w, sec);
   return l.day === day ? l.hm : `🌙 ${l.hm}`;
 }
 
@@ -94,12 +113,12 @@ function timeLabel(env: Env, sec: number, day: string) {
  * that day's afternoon/evening on the hour (16:00 … 21:00). Times anyone voted for (including
  * custom ones) are always offered so others can join them.
  */
-export function timeOptions(env: Env, n: Night, v: Votes) {
-  const t = nowSec();
+export function timeOptionsFor(w: When, n: Night, v: Votes) {
+  const t = w.now;
   let presets: number[];
-  if (n.day > local(env).day) {
+  if (n.day > today(w)) {
     const [y, m, d] = n.day.split("-").map(Number);
-    presets = [16, 17, 18, 19, 20, 21].map((h) => wallToUnix(env, y, m, d, h, 0));
+    presets = [16, 17, 18, 19, 20, 21].map((h) => wallToUnixIn(w.zone, y, m, d, h, 0));
   } else {
     const build = (base: number) => {
       const first = Math.ceil((base + LEAD) / HALF_HOUR) * HALF_HOUR;
@@ -114,26 +133,28 @@ export function timeOptions(env: Env, n: Night, v: Votes) {
   const room = Math.max(0, 8 - voted.length);
   return [...new Set([...voted, ...presets.filter((p) => !voted.includes(p)).slice(0, room)])].sort((a, b) => a - b);
 }
+export const timeOptions = (env: Env, n: Night, v: Votes) => timeOptionsFor(W(env), n, v); // LEGACY-BRIDGE
 
 /**
  * Parses "20", "20:15", "2015", "20.15" or "20h15" typed into the custom-time box, as a time on
  * the night's day. Early-morning hours (before 06:00) mean after midnight that night.
  */
-export function parseTime(env: Env, raw: string, day = local(env).day): number | string {
+export function parseTimeFor(w: When, raw: string, day = today(w)): number | string {
   const m = raw.trim().match(/^(\d{1,2})(?:\s*[:.h]?\s*(\d{2}))?$/i);
   if (!m || +m[1] > 23 || +(m[2] ?? 0) > 59) return "Couldn't read that time. Try something like **20:30**.";
   const [y, mo, d] = day.split("-").map(Number);
-  const today = day === local(env).day;
-  let t = wallToUnix(env, y, mo, d, +m[1], +(m[2] ?? 0));
-  if (+m[1] < 6 && (!today || t < nowSec())) {
+  const isToday = day === today(w);
+  let t = wallToUnixIn(w.zone, y, mo, d, +m[1], +(m[2] ?? 0));
+  if (+m[1] < 6 && (!isToday || t < w.now)) {
     // the small hours after the night: same wall time on the next calendar day (DST-safe)
     const next = new Date(Date.UTC(y, mo - 1, d + 1));
-    t = wallToUnix(env, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), +m[1], +(m[2] ?? 0));
+    t = wallToUnixIn(w.zone, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), +m[1], +(m[2] ?? 0));
   }
-  if (t < nowSec() + 120) return `**${clock(env, t)}** has already passed ⏰`;
-  if (today && t > nowSec() + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
+  if (t < w.now + 120) return `**${clock(w, t)}** has already passed ⏰`;
+  if (isToday && t > w.now + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
   return t;
 }
+export const parseTime = (env: Env, raw: string, day?: string) => parseTimeFor(W(env), raw, day); // LEGACY-BRIDGE
 
 /** The least time we must all get together, or the night doesn't fit. */
 export const MIN_TOGETHER = 3600;
@@ -152,7 +173,7 @@ export type Fit = {
  * leave and who can't start in time, so they can sort it out. No dice and no rock-paper-scissors:
  * nobody gets voted into a time they can't make.
  */
-export function fit(ps: string[], starts: Votes, untils: Votes, soonest: number): Fit {
+export function fit(ps: ReadonlyArray<string>, starts: Votes, untils: Votes, soonest: number): Fit {
   const picked = ps.filter((p) => starts[p]);
   const latestPick = picked.length ? Math.max(...picked.map((p) => Number(starts[p]))) : null;
   const start = latestPick === null ? null : Math.max(soonest, latestPick);
@@ -172,38 +193,100 @@ export function fit(ps: string[], starts: Votes, untils: Votes, soonest: number)
   return { ready: picked.length === ps.length, start, end: first?.t ?? null, conflict };
 }
 
+/** If everyone's picks have already passed, start a few minutes from now instead. */
+const soonest = (w: When) => Math.ceil((w.now + 120) / 300) * 300;
+
+/** A time belongs to a night if it's on that day or in the small hours after it. */
+function onNightDay(w: When, day: string, t: number) {
+  const [y, mo, d] = day.split("-").map(Number);
+  const dayStart = wallToUnixIn(w.zone, y, mo, d, 0, 0);
+  return t >= dayStart && t <= dayStart + 30 * 3600;
+}
+
+/** Unix seconds for MORNING on the local day of `t`. */
+function morningOf(w: When, t: number) {
+  const l = localOf(w, t);
+  return wallToUnixIn(w.zone, l.y, l.m, l.d, MORNING.hour, MORNING.minute);
+}
+
+/** Moves a time out of the small hours (00:00 until MORNING) to MORNING. */
+function awakeTime(w: When, t: number) {
+  return t < morningOf(w, t) ? morningOf(w, t) : t;
+}
+
+/**
+ * When the current stage's vote closes: 3 h after it opened (an hour after a 🤔 hold is up), but a
+ * night planned for a later day gets until at least noon on the day itself, and nothing closes in
+ * the small hours (it waits until 09:30, after the 09:00 last call).
+ */
+export function deadlineFor(w: When, n: Pick<Night, "day" | "stage_at"> & Partial<Pick<Night, "stage" | "maybes">>) {
+  const opened = n.stage_at ?? w.now;
+  let t = opened + (n.stage === "ask" && n.maybes ? AFTER_HOLD : VOTE_WINDOW);
+  if (n.day > localOf(w, opened).day) {
+    const [y, m, d] = n.day.split("-").map(Number);
+    t = Math.max(t, wallToUnixIn(w.zone, y, m, d, 12, 0));
+  }
+  return awakeTime(w, t);
+}
+export const voteDeadline = (env: Env, n: Pick<Night, "day" | "stage_at"> & Partial<Pick<Night, "stage" | "maybes">>) => deadlineFor(W(env), n); // LEGACY-BRIDGE
+
+/** After the last hold it's yes or no: no more maybes. */
+const finalCall = (n: Night) => n.stage === "ask" && n.maybes >= HOLDS.length && !n.paused_until;
+
+const closeNote = (stage: Stage) => (stage === "ask" ? "Not everyone was in. Maybe tomorrow 🫡" : "The day ended before we agreed. Maybe tomorrow 🫡");
+
+const REASON: Record<Reason, string> = { no: "❌ said no", ghost: "👻 didn't vote in time", out: "🚪 bailed" };
+
+function blame(who: Record<string, Reason>) {
+  return Object.entries(who)
+    .map(([u, r]) => `${mention(u)} ${REASON[r]}`)
+    .join(" · ");
+}
+
+function tally(ps: ReadonlyArray<string>, v: Votes) {
+  const counts = new Map<string, number>();
+  for (const p of ps) if (v[p]) counts.set(v[p], (counts.get(v[p]) ?? 0) + 1);
+  return counts;
+}
+
 // ---------------------------------------------------------------- storage
 
 /** Vote buckets: one per stage, plus "until" for optional 🏁 leave-by times (unix seconds). */
 type VoteStage = Stage | "until";
 
-async function votes(env: Env, day: string, stage: VoteStage): Promise<Votes> {
-  const r = await env.db
+const votes = Effect.fnUntraced(function* (day: string, stage: VoteStage) {
+  const db = yield* Db;
+  const r = yield* db
     .select({ user_id: gameNightVotes.user_id, choice: gameNightVotes.choice })
     .from(gameNightVotes)
     .where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, stage)));
-  return Object.fromEntries(r.map((v) => [v.user_id, v.choice]));
-}
+  return Object.fromEntries(r.map((v) => [v.user_id, v.choice])) as Votes;
+});
 
-const vote = (env: Env, day: string, stage: VoteStage, user: string, choice: string) =>
-  env.db
+const vote = Effect.fnUntraced(function* (day: string, stage: VoteStage, user: string, choice: string) {
+  const db = yield* Db;
+  yield* db
     .insert(gameNightVotes)
-    .values({ day, stage, user_id: user, choice, voted_at: now() })
+    .values({ day, stage, user_id: user, choice, voted_at: yield* nowIso })
     .onConflictDoUpdate({
       target: [gameNightVotes.day, gameNightVotes.stage, gameNightVotes.user_id],
       set: { choice: sql`excluded.choice`, voted_at: sql`excluded.voted_at` },
     });
+});
 
-const unvote = (env: Env, day: string, stage: VoteStage, user: string) =>
-  env.db.delete(gameNightVotes).where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, stage), eq(gameNightVotes.user_id, user)));
+const unvote = Effect.fnUntraced(function* (day: string, stage: VoteStage, user: string) {
+  const db = yield* Db;
+  yield* db.delete(gameNightVotes).where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, stage), eq(gameNightVotes.user_id, user)));
+});
 
 /** Compare-and-set on the stage, so concurrent clicks can only advance a night once. */
-async function advance(env: Env, day: string, from: Stage, to: Stage, set: { game?: string; start_at?: number; note?: string | null } = {}) {
-  const r = await env.db
+const advance = Effect.fnUntraced(function* (day: string, from: Stage, to: Stage, set: { game?: string; start_at?: number; note?: string | null } = {}) {
+  const db = yield* Db;
+  const r = yield* db
     .update(gameNights)
     .set({
       stage: to,
-      stage_at: nowSec(),
+      stage_at: yield* currentSec,
       ...(set.game != null ? { game: set.game } : {}),
       ...(set.start_at != null ? { start_at: set.start_at } : {}),
       ...(set.note != null ? { note: set.note } : {}),
@@ -212,13 +295,55 @@ async function advance(env: Env, day: string, from: Stage, to: Stage, set: { gam
     .where(and(eq(gameNights.day, day), eq(gameNights.stage, from)))
     .returning({ day: gameNights.day });
   return r.length > 0;
-}
+});
 
-function tally(env: Env, v: Votes) {
-  const counts = new Map<string, number>();
-  for (const p of players(env)) if (v[p]) counts.set(v[p], (counts.get(v[p]) ?? 0) + 1);
-  return counts;
-}
+/** Who sinks the night if the vote closed now: no-votes (asking stage) plus anyone who hasn't voted. */
+const culprits = Effect.fnUntraced(function* (n: Night) {
+  const v = yield* votes(n.day, n.stage);
+  const ps = yield* theTrio;
+  const who: Record<string, Reason> = {};
+  for (const p of ps) {
+    // on the final call a maybe that slipped in isn't an answer
+    if (!v[p] || (v[p] === "maybe" && finalCall(n))) who[p] = "ghost";
+    else if (n.stage === "ask" && v[p] === "no") who[p] = "no";
+  }
+  return { who, missing: ps.filter((p) => who[p] === "ghost") };
+});
+
+/**
+ * Stage changes only edit the card, which doesn't notify anyone. When a stage needs someone's
+ * input, ping them once; the previous nudge is deleted so the channel stays tidy.
+ */
+const nudge = Effect.fnUntraced(function* (day: string, who: ReadonlyArray<string>, content: string) {
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  const n = (yield* (yield* Nights).get(day))!;
+  yield* clearNudge(n);
+  if (!who.length) return;
+  const m = yield* (yield* Discord).createMessage(config.gameChannelId, {
+    content: `${who.map(mention).join(" ")} ${content}`,
+    allowed_mentions: yield* allowedMentions(who),
+    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+  });
+  yield* db.update(gameNights).set({ nudge_id: m.id }).where(eq(gameNights.day, day));
+});
+
+const clearNudge = Effect.fnUntraced(function* (n: Night) {
+  if (!n.nudge_id) return;
+  const config = yield* AppConfig;
+  const db = yield* Db;
+  yield* (yield* Discord).deleteMessage(config.gameChannelId, n.nudge_id).pipe(Effect.ignore);
+  yield* db.update(gameNights).set({ nudge_id: null }).where(and(eq(gameNights.day, n.day), eq(gameNights.nudge_id, n.nudge_id)));
+});
+
+// the promise code that hasn't moved yet calls these
+const votesP = (env: Env, day: string, stage: VoteStage) => run(env, votes(day, stage)); // LEGACY-BRIDGE
+const voteP = (env: Env, day: string, stage: VoteStage, user: string, choice: string) => run(env, vote(day, stage, user, choice)); // LEGACY-BRIDGE
+const unvoteP = (env: Env, day: string, stage: VoteStage, user: string) => run(env, unvote(day, stage, user)); // LEGACY-BRIDGE
+const advanceP = (env: Env, day: string, from: Stage, to: Stage, set?: { game?: string; start_at?: number; note?: string | null }) => run(env, advance(day, from, to, set)); // LEGACY-BRIDGE
+const culpritsP = (env: Env, n: Night) => run(env, culprits(n)); // LEGACY-BRIDGE
+const nudgeP = (env: Env, day: string, who: string[], content: string) => run(env, nudge(day, who, content)); // LEGACY-BRIDGE
+const clearNudgeP = (env: Env, n: Night) => run(env, clearNudge(n)); // LEGACY-BRIDGE
 
 // ---------------------------------------------------------------- 🤫 secret ballots
 // The card is the same for everyone, so it can't highlight *your* picks. Clicking it answers with
@@ -230,65 +355,66 @@ function tally(env: Env, v: Votes) {
 // time is in.
 
 /** Is this stage's vote still secret? Once revealed it stays revealed (a time clash sets `conflict`). */
-async function secret(env: Env, n: Night) {
-  const ps = players(env);
+const secret = Effect.fnUntraced(function* (n: Night) {
+  const ps = yield* theTrio;
   if (n.stage === "ask") {
     if (n.maybes) return false; // a 🤔 hold only starts once everyone's answered
-    const v = await votes(env, n.day, "ask");
+    const v = yield* votes(n.day, "ask");
     return !ps.every((p) => v[p]);
   }
   if (n.stage === "game") {
-    const v = await votes(env, n.day, "game");
+    const v = yield* votes(n.day, "game");
     return !ps.every((p) => v[p]);
   }
   if (n.stage === "time") {
     if (n.conflict) return false;
-    const v = await votes(env, n.day, "time");
+    const v = yield* votes(n.day, "time");
     return !ps.every((p) => v[p]);
   }
   return false;
-}
+});
 
 /** "👻 **Phasmophobia** ← @a @b · 🔫 **Valorant** ← @c", or null if nobody voted. */
-async function gameVotesLine(env: Env, day: string) {
-  const v = await votes(env, day, "game");
+const gameVotesLine = Effect.fnUntraced(function* (day: string) {
+  const v = yield* votes(day, "game");
   const by = new Map<string, string[]>();
-  for (const p of players(env)) if (v[p]) by.set(v[p], [...(by.get(v[p]) ?? []), p]);
+  for (const p of yield* theTrio) if (v[p]) by.set(v[p], [...(by.get(v[p]) ?? []), p]);
   if (!by.size) return null;
-  const label = await gameLabel(env);
+  const label = yield* (yield* Games).label;
   return [...by]
     .sort((a, b) => b[1].length - a[1].length)
     .map(([g, us]) => `**${label(g)}** ← ${us.map(mention).join(" ")}`)
     .join(" · ");
-}
+});
 
 /** "@a 18:00 · @b 19:00 (🏁 22:00) · @c no pick", or null if nobody picked anything. */
-async function timeVotesLine(env: Env, day: string) {
-  const v = await votes(env, day, "time");
-  const until = await votes(env, day, "until");
-  const ps = players(env);
+const timeVotesLine = Effect.fnUntraced(function* (day: string) {
+  const w = yield* when;
+  const v = yield* votes(day, "time");
+  const until = yield* votes(day, "until");
+  const ps = yield* theTrio;
   if (!ps.some((p) => v[p] || until[p])) return null;
   return ps
     .map((p) => {
-      const start = v[p] ? `**${timeLabel(env, Number(v[p]), day)}**` : "no pick";
-      return `${mention(p)} ${start}${until[p] ? ` (🏁 ${timeLabel(env, Number(until[p]), day)})` : ""}`;
+      const start = v[p] ? `**${timeLabel(w, Number(v[p]), day)}**` : "no pick";
+      return `${mention(p)} ${start}${until[p] ? ` (🏁 ${timeLabel(w, Number(until[p]), day)})` : ""}`;
     })
     .join(" · ");
-}
+});
 
 /** A night that ended without playing reveals whatever was voted before it stopped. */
-async function revealOff(env: Env, day: string) {
-  const game = await gameVotesLine(env, day);
-  const time = await timeVotesLine(env, day);
+const revealOff = Effect.fnUntraced(function* (day: string) {
+  const game = yield* gameVotesLine(day);
+  const time = yield* timeVotesLine(day);
   const lines = [...(game ? [`🕹️ ${game}`] : []), ...(time ? [`🕐 ${time}`] : [])];
   if (!lines.length) {
     // it never got past "are we playing?": who was in, who wasn't, who never answered
-    const v = await votes(env, day, "ask");
-    const ps = players(env);
+    const v = yield* votes(day, "ask");
+    const ps = yield* theTrio;
     if (ps.some((p) => v[p])) lines.push(ps.map((p) => `${ANSWER[v[p]] ?? "⏳"} ${mention(p)}`).join("　"));
   }
   return lines.length ? [text(`-# 🗳️ How everyone voted\n${lines.map((l) => `-# ${l}`).join("\n")}`)] : [];
-}
+});
 
 // ---------------------------------------------------------------- flow
 
@@ -316,7 +442,7 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
   }
   // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
   // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
-  if (by && n.started_by === by && n.stage === "ask" && !n.message_id) await vote(env, day, "ask", by, "yes");
+  if (by && n.started_by === by && n.stage === "ask" && !n.message_id) await voteP(env, day, "ask", by, "yes");
   // already posted, or someone else's card: just point at it
   if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
   // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
@@ -336,7 +462,7 @@ export async function startNight(env: Env, by?: string, anyHour = false, forDay?
     if (by) {
       // someone kicked it off by hand: the other two hear about it (the daily card is expected)
       const when = day === today ? "tonight" : `on ${weekday(env, day)}`;
-      await nudge(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => alerts.failed("the “wants to play” ping", e, day));
+      await nudgeP(env, day, players(env).filter((p) => p !== by), `🎮 ${mention(by)} wants to play ${when}! Are you in? ⬆️`).catch((e) => alerts.failed("the “wants to play” ping", e, day));
     }
     return { started: true, day, message_id: msg.id as string, stage: "ask" };
   } catch (e) {
@@ -377,8 +503,6 @@ export async function closeStale(env: Env) {
   return stale.map((s) => s.day);
 }
 
-const closeNote = (stage: Stage) => (stage === "ask" ? "Not everyone was in. Maybe tomorrow 🫡" : "The day ended before we agreed. Maybe tomorrow 🫡");
-
 /**
  * Closes a card that's past its time. From the minute job it re-renders the card itself; from a click
  * (`rerender` false) the stage is already flipped and the reply shows the closed card, so this
@@ -391,13 +515,13 @@ async function close(env: Env, day: string, rerender = true) {
     if (!OPEN.includes(n.stage)) return;
     // the day ran out: anyone who had an hour to vote and didn't (or said no) still gets roasted,
     // in the morning; a vote that only just opened closes quietly
-    const { who } = await culprits(env, n);
+    const { who } = await culpritsP(env, n);
     const fair = nowSec() - (n.stage_at ?? 0) >= RENUDGE_AFTER;
     if (!(await callOff(env, n, fair ? who : {}, fair && Object.keys(who).length ? undefined : closeNote(n.stage)))) return;
     await refresh(env, day);
     return;
   }
-  await clearNudge(env, n);
+  await clearNudgeP(env, n);
 }
 
 /**
@@ -439,7 +563,7 @@ export async function act(env: Env, day: string, user: string, action: string, v
   if (OPEN.includes(n.stage) && isOver(env, n)) {
     // close in the background; the reply below already shows the closed card
     defer(close(env, day, false));
-    await advance(env, day, n.stage, "off", { note: closeNote(n.stage) });
+    await advanceP(env, day, n.stage, "off", { note: closeNote(n.stage) });
     return say("That poll has closed. Start a new one with **/playtoday** 🎮", true);
   }
 
@@ -451,62 +575,62 @@ export async function act(env: Env, day: string, user: string, action: string, v
       if (n.stage !== "ask")
         return say(n.stage === "off" ? "Game night's off 🫡 Changed your mind? Tap 🔄 Reopen on the card." : "Everyone's answered already, we're past that step 🙂", true);
       if (action === "maybe" && finalCall(n)) return say("No more maybes: this is the final call. ✅ In or ✖️ out?", true);
-      await vote(env, day, "ask", user, action);
+      await voteP(env, day, "ask", user, action);
       break;
     case "game":
       if (n.stage !== "game") return say(n.stage === "off" ? "Game night's off 🫡" : n.game ? `The game's already picked: **${n.game}** 🎮` : "We're not picking games yet 🙂", true);
       if (!value) return ok;
-      await vote(env, day, "game", user, value);
+      await voteP(env, day, "game", user, value);
       break;
     case "suggest": {
       if (n.stage !== "game") return say("Game picking is already over for today.", true);
       const name = await addGame(env, value ?? "", user);
       if (!name) return say("Give the game a name 🙃");
-      await vote(env, day, "game", user, name);
+      await voteP(env, day, "game", user, name);
       break;
     }
     case "time":
     case "custom": {
       if (n.stage !== "time")
-        return say(n.stage === "set" ? `The time's already set: **${timeLabel(env, n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
+        return say(n.stage === "set" ? `The time's already set: **${timeLabel(W(env), n.start_at!, day)}** ⏰` : n.stage === "off" ? "Game night's off 🫡" : "We're not picking times yet 🙂", true);
       const t = action === "custom" ? parseTime(env, value ?? "", day) : Number(value);
       if (typeof t === "string") return say(t);
       if (!Number.isFinite(t)) return ok;
-      if (!onNightDay(env, day, t)) return say("That time isn't on this game night's day 🤔", true);
-      if (t < nowSec() + 60) return say(`**${clock(env, t)}** has already passed ⏰ Pick a later time.`, true);
-      const mine = (await votes(env, day, "time"))[user];
+      if (!onNightDay(W(env), day, t)) return say("That time isn't on this game night's day 🤔", true);
+      if (t < nowSec() + 60) return say(`**${clock(W(env), t)}** has already passed ⏰ Pick a later time.`, true);
+      const mine = (await votesP(env, day, "time"))[user];
       // clicking your current pick again takes it back
       if (action === "time" && mine === String(t)) {
-        await unvote(env, day, "time", user);
+        await unvoteP(env, day, "time", user);
         break;
       }
-      const until = (await votes(env, day, "until"))[user];
+      const until = (await votesP(env, day, "until"))[user];
       if (until && Number(until) - t < MIN_TOGETHER) {
         return say(
-          `You said you have to leave by **${timeLabel(env, Number(until), day)}**, so starting at **${timeLabel(env, t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
+          `You said you have to leave by **${timeLabel(W(env), Number(until), day)}**, so starting at **${timeLabel(W(env), t, day)}** leaves you under an hour. Change your 🏁 leave-by first if that's moved.`,
         );
       }
-      await vote(env, day, "time", user, String(t));
+      await voteP(env, day, "time", user, String(t));
       break;
     }
     case "until": {
       // 🏁 optional "I have to leave by…"; an empty form clears it
       if (n.stage !== "time") return say("Time picking is already over for this night.", true);
       if (!(value ?? "").trim()) {
-        await unvote(env, day, "until", user);
+        await unvoteP(env, day, "until", user);
         break;
       }
       const t = parseTime(env, value ?? "", day);
       if (typeof t === "string") return say(t);
-      if (!onNightDay(env, day, t)) return say("That time isn't on this game night's day 🤔");
-      if (t < nowSec() + MIN_TOGETHER) return say(`Leaving by **${clock(env, t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
-      const start = (await votes(env, day, "time"))[user];
+      if (!onNightDay(W(env), day, t)) return say("That time isn't on this game night's day 🤔");
+      if (t < nowSec() + MIN_TOGETHER) return say(`Leaving by **${clock(W(env), t)}** doesn't leave time to play 😅 Pick a later time, or tap 🚪 I'm out.`);
+      const start = (await votesP(env, day, "time"))[user];
       if (start && t - Number(start) < MIN_TOGETHER) {
         return say(
-          `Your start is **${timeLabel(env, Number(start), day)}**, so a leave-by of **${timeLabel(env, t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
+          `Your start is **${timeLabel(W(env), Number(start), day)}**, so a leave-by of **${timeLabel(W(env), t, day)}** is under an hour of play. Pick an earlier start first, or a later leave-by.`,
         );
       }
-      await vote(env, day, "until", user, String(t));
+      await voteP(env, day, "until", user, String(t));
       break;
     }
     case "out":
@@ -553,9 +677,9 @@ export async function act(env: Env, day: string, user: string, action: string, v
         .returning({ day: gameNights.day });
       if (!r.length) return ok; // someone else reopened it a moment ago
       await env.db.transaction((tx) => clearDay(tx, day));
-      await vote(env, day, "ask", user, "yes");
+      await voteP(env, day, "ask", user, "yes");
       const when = day === local(env).day ? "tonight" : `on ${weekday(env, day)}`;
-      defer(nudge(env, day, players(env).filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${when}? ⬆️`));
+      defer(nudgeP(env, day, players(env).filter((p) => p !== user), `🔄 ${mention(user)} reopened game night. Are you in ${when}? ⬆️`));
       break;
     }
     default:
@@ -589,7 +713,7 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
     .returning({ start: gameNights.start_at });
   if (!moved.length) return say(await attendance.declare(env, n.day, user, mins)); // it started a moment ago
   const start = moved[0].start!;
-  const at = (x: number) => timeLabel(env, x, n.day);
+  const at = (x: number) => timeLabel(W(env), x, n.day);
   if (start !== n.start_at) defer(startMoved(env, n, start, user, undo ? null : mins));
   if (undo) return say(`✅ Taken back: you'll be on time.${start !== n.start_at ? ` Start's back to **${at(start)}**.` : ""}`, true);
   return say(
@@ -602,7 +726,7 @@ async function runningLate(env: Env, n: Night, user: string, mins: number, defer
 
 /** The start moved because someone's late (or isn't any more): the event follows, the others hear. */
 async function startMoved(env: Env, n: Night, start: number, user: string, mins: number | null) {
-  const at = (x: number) => timeLabel(env, x, n.day);
+  const at = (x: number) => timeLabel(W(env), x, n.day);
   if (n.event_id && n.event_end) {
     // (no end: the event's already over, nothing to move)
     const evStart = Math.max(start, nowSec() + 60);
@@ -614,7 +738,7 @@ async function startMoved(env: Env, n: Night, start: number, user: string, mins:
     await env.db.update(gameNights).set({ event_end: evEnd }).where(eq(gameNights.day, n.day));
   }
   // a leave-by that now leaves under an hour together is worth a heads-up
-  const until = await votes(env, n.day, "until");
+  const until = await votesP(env, n.day, "until");
   const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
   const leavers = end === null ? [] : players(env).filter((p) => Number(until[p]) === end);
   const tight =
@@ -639,9 +763,9 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
   const ps = players(env);
 
   if (n.stage === "ask") {
-    const v = await votes(env, day, "ask");
-    if (ps.every((p) => v[p] === "yes") && (await advance(env, day, "ask", "game"))) {
-      defer(nudge(env, day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
+    const v = await votesP(env, day, "ask");
+    if (ps.every((p) => v[p] === "yes") && (await advanceP(env, day, "ask", "game"))) {
+      defer(nudgeP(env, day, ps, "✅ Everyone's in! What are we playing? ⬆️"));
     } else if (ps.every((p) => v[p]) && ps.some((p) => v[p] === "no")) {
       // everyone answered and somebody said no (a maybe can't save it): the votes come out, and so do the roasts
       const who = Object.fromEntries(ps.filter((p) => v[p] === "no").map((p) => [p, "no" as Reason]));
@@ -654,15 +778,15 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
 
   if (n.stage === "game") {
     // nothing is decided until everyone's voted (or the deadline calls it off)
-    const v = await votes(env, day, "game");
+    const v = await votesP(env, day, "game");
     if (!ps.every((p) => v[p])) return;
-    const counts = tally(env, v);
+    const counts = tally(players(env), v);
     const top = Math.max(...counts.values());
     const tied = [...counts].filter(([, c]) => c === top).map(([g]) => g);
     if (tied.length === 1) {
       const winner = tied[0];
-      if (await advance(env, day, "game", "time", { game: winner })) {
-        defer(nudge(env, day, ps, `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
+      if (await advanceP(env, day, "game", "time", { game: winner })) {
+        defer(nudgeP(env, day, ps, `🗳️ Everyone's voted: ${await emojiFor(env, winner)} **${winner}** it is! When can you start? ⬆️`));
       }
     } else {
       // a split: the picks are revealed (everyone's voted) and it stays open for a re-vote; one
@@ -672,13 +796,13 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
         .set({ renudged: "split" })
         .where(and(eq(gameNights.day, day), eq(gameNights.stage, "game"), or(isNull(gameNights.renudged), ne(gameNights.renudged, "split"))))
         .returning({ day: gameNights.day });
-      if (claimed.length) defer(nudge(env, day, ps, "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
+      if (claimed.length) defer(nudgeP(env, day, ps, "🔁 Split vote! Everyone picked something different. Talk it out and re-vote until two of you agree ⬆️"));
     }
     return;
   }
 
   if (n.stage === "time") {
-    const f = fit(ps, await votes(env, day, "time"), await votes(env, day, "until"), soonest());
+    const f = fit(ps, await votesP(env, day, "time"), await votesP(env, day, "until"), soonest(W(env)));
     if (!f.ready) return;
     if (f.conflict) {
       // ping the people involved once per distinct clash (not on every click)
@@ -690,22 +814,19 @@ async function settle(env: Env, day: string, actor: string, defer: Defer) {
         .returning({ day: gameNights.day });
       const who = [...new Set([f.conflict.leaver, ...f.conflict.late])].filter((p) => p !== actor);
       if (claimed.length && who.length) {
-        defer(nudge(env, day, who, "⚠️ The times don't fit together yet. Take a look ⬆️"));
+        defer(nudgeP(env, day, who, "⚠️ The times don't fit together yet. Take a look ⬆️"));
       }
       return;
     }
-    if (await advance(env, day, "time", "set", { start_at: f.start! })) defer(lockIn(env, day));
+    if (await advanceP(env, day, "time", "set", { start_at: f.start! })) defer(lockIn(env, day));
   }
 }
 
 // ---------------------------------------------------------------- 🤔 maybe
 
-/** After the last hold it's yes or no: no more maybes. */
-const finalCall = (n: Night) => n.stage === "ask" && n.maybes >= HOLDS.length && !n.paused_until;
-
 /** Everyone's answered, nobody said no, but someone isn't sure: put the answer on hold (once per round). */
 async function hold(env: Env, n: Night, unsure: string[], defer: Defer) {
-  const until = awakeTime(env, nowSec() + HOLDS[n.maybes]);
+  const until = awakeTime(W(env), nowSec() + HOLDS[n.maybes]);
   const claimed = await env.db
     .update(gameNights)
     .set({ maybes: n.maybes + 1, paused_until: until })
@@ -715,7 +836,7 @@ async function hold(env: Env, n: Night, unsure: string[], defer: Defer) {
   // the sure ones hear why they're waiting; the unsure get their ping when it's up
   const waiting = players(env).filter((p) => !unsure.includes(p));
   defer(
-    nudge(env, n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(env, until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
+    nudgeP(env, n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(W(env), until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
   );
 }
 
@@ -738,9 +859,9 @@ async function resume(env: Env, n: Night) {
   if (!unsure) return false;
   await refresh(env, n.day);
   const fresh = (await getNight(env, n.day))!;
-  const by = stamp(env, voteDeadline(env, fresh));
+  const by = stamp(W(env), voteDeadline(env, fresh));
   const when = n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`;
-  await nudge(
+  await nudgeP(
     env,
     n.day,
     unsure,
@@ -751,46 +872,14 @@ async function resume(env: Env, n: Night) {
   return true;
 }
 
-/** If everyone's picks have already passed, start a few minutes from now instead. */
-const soonest = () => Math.ceil((nowSec() + 120) / 300) * 300;
-
-/** A time belongs to a night if it's on that day or in the small hours after it. */
-function onNightDay(env: Env, day: string, t: number) {
-  const [y, mo, d] = day.split("-").map(Number);
-  const dayStart = wallToUnix(env, y, mo, d, 0, 0);
-  return t >= dayStart && t <= dayStart + 30 * 3600;
-}
-
-/**
- * Stage changes only edit the card, which doesn't notify anyone. When a stage needs someone's
- * input, ping them once; the previous nudge is deleted so the channel stays tidy.
- */
-async function nudge(env: Env, day: string, who: string[], content: string) {
-  const n = (await getNight(env, day))!;
-  await clearNudge(env, n);
-  if (!who.length) return;
-  const m = await api(env, "POST", `/channels/${env.GAME_CHANNEL_ID}/messages`, {
-    content: `${who.map(mention).join(" ")} ${content}`,
-    allowed_mentions: pings(env, who),
-    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-  });
-  await env.db.update(gameNights).set({ nudge_id: m.id }).where(eq(gameNights.day, day));
-}
-
-async function clearNudge(env: Env, n: Night) {
-  if (!n.nudge_id) return;
-  await api(env, "DELETE", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.nudge_id}`).catch(() => {});
-  await env.db.update(gameNights).set({ nudge_id: null }).where(and(eq(gameNights.day, n.day), eq(gameNights.nudge_id, n.nudge_id)));
-}
-
 /** The night is set: create a Discord event and ping everyone once. */
 async function lockIn(env: Env, day: string) {
   const n = (await getNight(env, day))!;
   const ps = players(env);
-  await clearNudge(env, n);
+  await clearNudgeP(env, n);
   try {
     const start = n.start_at! * 1000;
-    const until = Object.values(await votes(env, day, "until")).map(Number);
+    const until = Object.values(await votesP(env, day, "until")).map(Number);
     const end = until.length ? Math.min(...until) * 1000 : start + 3 * 3600e3;
     const evStart = Math.max(start, Date.now() + 60e3);
     const evEnd = Math.max(end, evStart + 15 * 60e3);
@@ -817,40 +906,6 @@ async function lockIn(env: Env, day: string) {
 
 // ---------------------------------------------------------------- 🔥 deadlines and roasts
 
-/** Unix seconds for MORNING on the local day of `t`. */
-function morningOf(env: Env, t: number) {
-  const l = local(env, new Date(t * 1000));
-  return wallToUnix(env, l.y, l.m, l.d, MORNING.hour, MORNING.minute);
-}
-
-/** Moves a time out of the small hours (00:00 until MORNING) to MORNING. */
-function awakeTime(env: Env, t: number) {
-  return t < morningOf(env, t) ? morningOf(env, t) : t;
-}
-
-/**
- * When the current stage's vote closes: 3 h after it opened (an hour after a 🤔 hold is up), but a
- * night planned for a later day gets until at least noon on the day itself, and nothing closes in
- * the small hours (it waits until 09:30, after the 09:00 last call).
- */
-export function voteDeadline(env: Env, n: Pick<Night, "day" | "stage_at"> & Partial<Pick<Night, "stage" | "maybes">>) {
-  const opened = n.stage_at ?? nowSec();
-  let t = opened + (n.stage === "ask" && n.maybes ? AFTER_HOLD : VOTE_WINDOW);
-  if (n.day > local(env, new Date(opened * 1000)).day) {
-    const [y, m, d] = n.day.split("-").map(Number);
-    t = Math.max(t, wallToUnix(env, y, m, d, 12, 0));
-  }
-  return awakeTime(env, t);
-}
-
-const REASON: Record<Reason, string> = { no: "❌ said no", ghost: "👻 didn't vote in time", out: "🚪 bailed" };
-
-function blame(who: Record<string, Reason>) {
-  return Object.entries(who)
-    .map(([u, r]) => `${mention(u)} ${REASON[r]}`)
-    .join(" · ");
-}
-
 /**
  * Call the night off (once: compare-and-set on the stage), with the culprits recorded for the roast.
  * The roast posts right away, or at 09:30 if it happened in the small hours. With nobody to
@@ -859,14 +914,14 @@ function blame(who: Record<string, Reason>) {
 async function callOff(env: Env, n: Night, who: Record<string, Reason>, note?: string) {
   const anyone = Object.keys(who).length > 0;
   const text = note ?? (anyone ? `🔥 Called off: ${blame(who)}.` : closeNote(n.stage));
-  if (!(await advance(env, n.day, n.stage, "off", { note: text }))) return false;
+  if (!(await advanceP(env, n.day, n.stage, "off", { note: text }))) return false;
   if (anyone) {
     await env.db
       .update(gameNights)
-      .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(env, nowSec()), roasted_at: null })
+      .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(W(env), nowSec()), roasted_at: null })
       .where(eq(gameNights.day, n.day));
   }
-  await clearNudge(env, (await getNight(env, n.day))!);
+  await clearNudgeP(env, (await getNight(env, n.day))!);
   return true;
 }
 
@@ -933,18 +988,6 @@ export async function dueRoasts(env: Env) {
   const posted: string[] = [];
   for (const { day } of due) if (await postRoast(env, day)) posted.push(day);
   return posted;
-}
-
-/** Who sinks the night if the vote closed now: no-votes (asking stage) plus anyone who hasn't voted. */
-async function culprits(env: Env, n: Night) {
-  const v = await votes(env, n.day, n.stage);
-  const who: Record<string, Reason> = {};
-  for (const p of players(env)) {
-    // on the final call a maybe that slipped in isn't an answer
-    if (!v[p] || (v[p] === "maybe" && finalCall(n))) who[p] = "ghost";
-    else if (n.stage === "ask" && v[p] === "no") who[p] = "no";
-  }
-  return { who, missing: players(env).filter((p) => who[p] === "ghost") };
 }
 
 /**
@@ -1069,7 +1112,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
       if (t >= n.paused_until && (await resume(env, n))) done[`resumed ${n.day}`] = true;
       return;
     }
-    const { who, missing } = await culprits(env, n);
+    const { who, missing } = await culpritsP(env, n);
     const deadline = voteDeadline(env, n);
     // everyone voted for a game but it's split: the clock still runs, for all three
     const split = n.stage === "game" && !missing.length;
@@ -1088,7 +1131,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
         .returning({ day: gameNights.day });
       if (claimed.length) {
         const left = Math.max(1, Math.round((deadline - t) / 60));
-        await nudge(env, n.day, players(env), `⏳ Still split: ${left} min for two of you to agree on a game, or the night's off ⬆️`);
+        await nudgeP(env, n.day, players(env), `⏳ Still split: ${left} min for two of you to agree on a game, or the night's off ⬆️`);
         done[`warned ${n.day}`] = "split";
       }
       return;
@@ -1110,12 +1153,12 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
         .returning({ day: gameNights.day });
       if (claimed.length) {
         const left = Math.max(1, Math.round((deadline - t) / 60));
-        await nudge(env, n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
+        await nudgeP(env, n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
         done[`warned ${n.day}`] = missing;
       }
       return;
     }
-    const v = await votes(env, n.day, n.stage);
+    const v = await votesP(env, n.day, n.stage);
     if (awake && missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
       const claimed = await env.db
         .update(gameNights)
@@ -1125,7 +1168,7 @@ async function maintainNight(env: Env, n: Night, t: number, awake: boolean, done
       if (claimed.length) {
         const when = n.day === local(env).day ? "tonight" : `on ${weekday(env, n.day)}`;
         const ask = { ask: `are you in ${when}?`, game: "pick a game so we can get going", time: "when can you start?" }[n.stage as "ask"];
-        await nudge(env, n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
+        await nudgeP(env, n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
         done[`renudged ${n.day}`] = missing;
       }
     }
@@ -1152,23 +1195,26 @@ const rows = (buttons: unknown[]) => Array.from({ length: Math.ceil(buttons.leng
  * The card. With a `viewer` it's their private copy: their picks highlighted, plus `notice` (what
  * just happened) on top. Without one it's the public card everyone sees.
  */
-export async function render(env: Env, day: string, viewer?: string, notice?: string) {
-  const n = (await getNight(env, day))!;
-  const ps = players(env);
+const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, notice?: string) {
+  const config = yield* AppConfig;
+  const games = yield* Games;
+  const w = yield* when;
+  const n = (yield* (yield* Nights).get(day))!;
+  const ps = yield* theTrio;
   const me = viewer && ps.includes(viewer) ? viewer : null;
   const date = ts(Math.floor(Date.parse(`${day}T12:00:00Z`) / 1000), "D");
   const id = (action: string) => `gn:${day}:${action}`;
   const out = button(2, "🚪", "I'm out", id("out"));
-  const starter = n.started_by ? ` · ${day > local(env).day ? "planned" : "started"} by ${mention(n.started_by)}` : "";
-  const deadline = voteDeadline(env, n);
-  const closes = `-# ⏳ Vote by ${ts(deadline, day === local(env).day ? "t" : "f")} (${ts(deadline, "R")}). No vote by then = night's off and you get roasted 🔥`;
+  const starter = n.started_by ? ` · ${day > today(w) ? "planned" : "started"} by ${mention(n.started_by)}` : "";
+  const deadline = deadlineFor(w, n);
+  const closes = `-# ⏳ Vote by ${ts(deadline, day === today(w) ? "t" : "f")} (${ts(deadline, "R")}). No vote by then = night's off and you get roasted 🔥`;
   let body: unknown[];
 
   switch (n.stage) {
     case "ask": {
-      const v = await votes(env, day, "ask");
-      const today = day === local(env).day;
-      const hidden = await secret(env, n);
+      const v = yield* votes(day, "ask");
+      const isToday = day === today(w);
+      const hidden = yield* secret(n);
       const last = finalCall(n);
       const unsure = ps.filter((p) => v[p] === "maybe");
       const waiting = ps.filter((p) => !v[p] || (last && v[p] === "maybe"));
@@ -1181,32 +1227,32 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       else if (last) status = `⏰ Final call${whom}: it's ✅ or ✖️ now, no more maybes.`;
       else if (n.maybes) status = `⏰ Decision time${whom}: in or out? Still not sure? 🤔 Maybe once more holds it 1 more hour (the last one).`;
       // revealed with nobody unsure means everyone answered and someone can't (all yes would have moved on)
-      else status = `😴 Not ${today ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${today ? "today" : weekday(env, day)}).`;
+      else status = `😴 Not ${isToday ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${isToday ? "today" : weekdayOf(day)}).`;
       const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
-      const question = today ? "Are we playing today?" : `📅 Are we playing on ${weekday(env, day)}?`;
+      const question = isToday ? "Are we playing today?" : `📅 Are we playing on ${weekdayOf(day)}?`;
       // your answer stays coloured, the others grey out
       const pick = (choice: string, style: number) => (me && v[me] && v[me] !== choice ? 2 : style);
       body = [
         text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}`),
         text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
         ...(n.paused_until
-          ? [text(`⏸️ **On hold** until ${stamp(env, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
+          ? [text(`⏸️ **On hold** until ${stamp(w, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
           : []),
         text(`-# ${status}${starter}${hidden || (n.maybes && !n.paused_until) ? `\n${closes}` : ""}`),
         row(
           button(pick("yes", 3), "✅", "I'm in", id("yes")),
           ...(last ? [] : [button(pick("maybe", 1), "🤔", "Maybe", id("maybe"))]),
-          button(pick("no", 4), "✖️", today ? "Not today" : "Can't", id("no")),
+          button(pick("no", 4), "✖️", isToday ? "Not today" : "Can't", id("no")),
         ),
       ];
       break;
     }
     case "game": {
-      const v = await votes(env, day, "game");
-      const list = await games(env);
+      const v = yield* votes(day, "game");
+      const list = yield* games.list();
       // everyone's voted and we're still here: it's split, so the picks are out and you re-vote
       const split = ps.every((p) => v[p]);
-      const picks = split ? await gameVotesLine(env, day) : null;
+      const picks = split ? yield* gameVotesLine(day) : null;
       body = [
         text(`## 🕹️ What are we playing? · ${date}\n${split ? "### 🔁 Split vote! Re-vote until two of you agree" : `✅ All ${ps.length} are in!`}`),
         text(split ? `🗳️ ${picks}` : ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")),
@@ -1238,16 +1284,18 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       break;
     }
     case "time": {
-      const v = await votes(env, day, "time");
-      const until = await votes(env, day, "until");
-      const f = fit(ps, v, until, soonest());
-      const at = (t: number) => `**${timeLabel(env, t, day)}**`;
-      const hidden = await secret(env, n);
+      const v = yield* votes(day, "time");
+      const until = yield* votes(day, "until");
+      const f = fit(ps, v, until, soonest(w));
+      const at = (t: number) => `**${timeLabel(w, t, day)}**`;
+      const hidden = yield* secret(n);
       const lead = f.start === null || hidden ? null : Math.max(...ps.filter((p) => v[p]).map((p) => Number(v[p])));
-      const lines = hidden ? [ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")] : ps.map((p) => {
-        const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
-        return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
-      });
+      const lines = hidden
+        ? [ps.map((p) => `${v[p] ? "🗳️" : "⏳"} ${mention(p)}`).join("　")]
+        : ps.map((p) => {
+            const leave = until[p] ? ` · 🏁 leaves ${at(Number(until[p]))}` : "";
+            return v[p] ? `🕐 ${mention(p)} from ${at(Number(v[p]))}${leave}` : `⏳ ${mention(p)}${leave}`;
+          });
       const waiting = ps.filter((p) => !v[p]);
       const leaver = f.end !== null ? ps.find((p) => Number(until[p]) === f.end)! : null;
       const deadline = f.end !== null ? ` · start by ${at(f.end - MIN_TOGETHER)} so we get an hour before ${mention(leaver!)} leaves` : "";
@@ -1277,20 +1325,20 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       // your own on your private copy
       const shown = hidden ? (me && v[me] ? { [me]: v[me] } : {}) : v;
       const mine = me ? Number(v[me]) : null;
-      const times = timeOptions(env, n, shown).map((t) => {
+      const times = timeOptionsFor(w, n, shown).map((t) => {
         const count = hidden ? 0 : ps.filter((p) => v[p] === String(t)).length;
         const style = me ? (t === mine ? 3 : 2) : t === lead ? 3 : 2;
-        const b = button(style, null, `${timeLabel(env, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
+        const b = button(style, null, `${timeLabel(w, t, day)}${count ? ` · ${count}` : ""}`, id(`time:${t}`));
         // on your copy, starts that leave you under an hour before your own 🏁 leave-by are greyed out
         const tooLate = me && until[me] && Number(until[me]) - t < MIN_TOGETHER && t !== mine;
         return tooLate ? { ...b, disabled: true } : b;
       });
-      const myLeave = me && until[me] ? `Leave by ${timeLabel(env, Number(until[me]), day)}` : "Leave by";
+      const myLeave = me && until[me] ? `Leave by ${timeLabel(w, Number(until[me]), day)}` : "Leave by";
       // the game vote is decided, so it's revealed
-      const gameVotes = n.note ? null : await gameVotesLine(env, day);
+      const gameVotes = n.note ? null : yield* gameVotesLine(day);
       const notes = [...(gameVotes ? [`🗳️ ${gameVotes}`] : []), ...(n.note ? n.note.split("\n") : [])];
       body = [
-        text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${await emojiFor(env, n.game!)} ${n.game} it is!`),
+        text(`## ⏰ What time? · ${date}\n${notes.map((l) => `-# ${l}\n`).join("")}### ${yield* games.emojiFor(n.game!)} ${n.game} it is!`),
         text(`Pick the **earliest** time you can start. We kick off when everyone's ready.\n${lines.join("\n")}`),
         text(`${status}${f.ready ? "" : `\n${closes}`}`),
         ...rows([...times, button(1, "✏️", "Other time", id("custom")), button(me && until[me] ? 1 : 2, "🏁", myLeave, id("leaveby")), out]),
@@ -1299,34 +1347,34 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
     }
     case "set": {
       // different times aren't a tie: we start when the last person is free. Credit them.
-      const v = await votes(env, day, "time");
+      const v = yield* votes(day, "time");
       const picks = ps.filter((p) => v[p]).map((p) => Number(v[p]));
       const latest = Math.max(...picks);
       const slowpokes = ps.filter((p) => Number(v[p]) === latest);
       const flavour =
         picks.length === ps.length && Math.min(...picks) < latest
-          ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(env, latest, day)}). Everyone else, warm up!`
+          ? `\n-# 🐢 Slowpoke of the night: ${slowpokes.map(mention).join(" & ")} (free from ${timeLabel(w, latest, day)}). Everyone else, warm up!`
           : "";
-      const until = await votes(env, day, "until");
+      const until = yield* votes(day, "until");
       const end = Object.values(until).length ? Math.min(...Object.values(until).map(Number)) : null;
       const leavers = end === null ? [] : ps.filter((p) => Number(until[p]) === end);
-      const timeVotes = await timeVotesLine(env, day);
-      const gameVotes = await gameVotesLine(env, day);
-      const endLine = end === null ? "" : `\n🏁 until **${timeLabel(env, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
+      const timeVotes = yield* timeVotesLine(day);
+      const gameVotes = yield* gameVotesLine(day);
+      const endLine = end === null ? "" : `\n🏁 until **${timeLabel(w, end, day)}** (${leavers.map(mention).join(" & ")} ${leavers.length > 1 ? "have" : "has"} to leave)`;
       // ⏰ who said they'd be late (before the start; after it, their slips say it)
-      const lateBy = n.reminded ? {} : await attendance.etas(env, day);
+      const lateBy = n.reminded ? {} : yield* (yield* Attendances).etas(day);
       const planned = n.planned_start ?? n.start_at!;
       const lateLine = Object.keys(lateBy).length
         ? `\n⏰ Running late: ${ps
             .filter((p) => lateBy[p])
             .map((p) => `${mention(p)} +${Math.round((lateBy[p] - planned) / 60)} min`)
-            .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(env, planned, day)}` : ""}`
+            .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(w, planned, day)}` : ""}`
         : "";
-      const history = n.start_at! < nowSec() - 3 * 3600;
+      const history = n.start_at! < w.now - 3 * 3600;
       body = [
         text(`## 🎉 Game night is ON · ${date}`),
         text(
-          `### ${await emojiFor(env, n.game!)} ${n.game}\n🕐 **${timeLabel(env, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
+          `### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 **${timeLabel(w, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
         ),
         ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
         ...(history
@@ -1337,7 +1385,7 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
             ]),
         row(
           ...(n.event_id
-            ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${env.GUILD_ID}/${n.event_id}` }]
+            ? [{ type: 2, style: 5, emoji: { name: "📅" }, label: "Event", url: `https://discord.com/events/${config.guildId}/${n.event_id}` }]
             : []),
           button(2, "🚪", "Can't make it", id("out")),
         ),
@@ -1348,103 +1396,103 @@ export async function render(env: Env, day: string, viewer?: string, notice?: st
       body = [
         text(`## 😴 No game night · ${date}`),
         text(n.note ?? "Maybe tomorrow 🫡"),
-        ...(await revealOff(env, day)),
+        ...(yield* revealOff(day)),
         // still today (or a planned day ahead): let anyone who changed their mind start it over
-        ...(day >= local(env).day ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
+        ...(day >= today(w) ? [row(button(2, "🔄", "Changed our minds? Reopen", id("reopen")))] : []),
       ];
       break;
   }
   if (me) {
     // your private panel: just your answer and the buttons to change it. The card above already
     // shows everyone's progress, so it isn't repeated here.
-    let controls = (body as any[]).filter((c) => c.type === 1);
+    type Row = { type: number; components: { custom_id: string; label: string }[] };
+    let controls = (body as Row[]).filter((c) => c.type === 1);
     if (n.stage === "ask") {
-      const mine = (await votes(env, day, "ask"))[me];
+      const mine = (yield* votes(day, "ask"))[me];
       // you've answered: the only thing left to do is switch
       if (mine)
         controls = [
           row(
             ...controls[0].components
-              .filter((b: any) => !b.custom_id.endsWith(`:${mine}`))
-              .map((b: any) => ({ ...b, style: ({ yes: 3, maybe: 1, no: 4 } as Record<string, number>)[b.custom_id.split(":").pop()], label: `Change to ${b.label}` })),
-          ),
+              .filter((b) => !b.custom_id.endsWith(`:${mine}`))
+              .map((b) => ({ ...b, style: ({ yes: 3, maybe: 1, no: 4 } as Record<string, number>)[b.custom_id.split(":").pop()!], label: `Change to ${b.label}` })),
+          ) as Row,
         ];
     }
-    body = [
-      ...(notice ? [text(notice)] : []),
-      text(await yourVote(env, n, me)),
-      ...controls,
-      text("-# 🔒 Only you can see this. Tap here to change your answer; the card shows everyone's progress."),
-    ];
+    body = [...(notice ? [text(notice)] : []), text(yield* yourVote(n, me)), ...controls, text("-# 🔒 Only you can see this. Tap here to change your answer; the card shows everyone's progress.")];
   }
   return {
     flags: IS_COMPONENTS_V2 | (me ? EPHEMERAL : 0),
-    allowed_mentions: { parse: [] },
+    allowed_mentions: { parse: [] as string[] },
     components: [{ type: 17, accent_color: COLORS[n.stage], components: body }],
   };
-}
+});
+export const render = (env: Env, day: string, viewer?: string, notice?: string) => run(env, renderCard(day, viewer, notice)); // LEGACY-BRIDGE
 
 /** The top of your private panel: what you've answered for the night's current step. */
-async function yourVote(env: Env, n: Night, me: string) {
-  const today = n.day === local(env).day;
-  const when = today ? "tonight" : `on ${weekday(env, n.day)}`;
-  const title = `### 🔒 Your vote · ${today ? "today" : weekday(env, n.day)}`;
+const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
+  const w = yield* when;
+  const games = yield* Games;
+  const isToday = n.day === today(w);
+  const tonight = isToday ? "tonight" : `on ${weekdayOf(n.day)}`;
+  const title = `### 🔒 Your vote · ${isToday ? "today" : weekdayOf(n.day)}`;
   switch (n.stage) {
     case "ask": {
-      const v = (await votes(env, n.day, "ask"))[me];
+      const v = (yield* votes(n.day, "ask"))[me];
       const later = n.paused_until
-        ? `I'll ask you again at ${stamp(env, n.paused_until)}.`
+        ? `I'll ask you again at ${stamp(w, n.paused_until)}.`
         : `Once everyone's answered (and nobody said no), it goes on hold for ${HOLDS[Math.min(n.maybes, HOLDS.length - 1)] / 3600} h and I'll ask you again.`;
       const line =
         v === "yes"
-          ? `✅ You're **in** ${when}.`
+          ? `✅ You're **in** ${tonight}.`
           : v === "no"
-            ? `✖️ You said **${today ? "not today" : "you can't"}**.`
+            ? `✖️ You said **${isToday ? "not today" : "you can't"}**.`
             : v === "maybe" && !finalCall(n)
               ? `🤔 You said **maybe**. ${later}`
               : finalCall(n)
-                ? `⏰ Final call: are you in ${when}? No more maybes.`
+                ? `⏰ Final call: are you in ${tonight}? No more maybes.`
                 : n.maybes
-                  ? `⏰ Decision time: are you in ${when}?`
-                  : `Are you in ${when}?`;
+                  ? `⏰ Decision time: are you in ${tonight}?`
+                  : `Are you in ${tonight}?`;
       return `${title}\n${line}`;
     }
     case "game": {
-      const v = (await votes(env, n.day, "game"))[me];
-      return `${title}\n${v ? `🗳️ You picked ${await emojiFor(env, v)} **${v}**` : "🎯 Pick a game:"}`;
+      const v = (yield* votes(n.day, "game"))[me];
+      return `${title}\n${v ? `🗳️ You picked ${yield* games.emojiFor(v)} **${v}**` : "🎯 Pick a game:"}`;
     }
     case "time": {
-      const v = (await votes(env, n.day, "time"))[me];
-      const leaves = await votes(env, n.day, "until");
+      const v = (yield* votes(n.day, "time"))[me];
+      const leaves = yield* votes(n.day, "until");
       const until = leaves[me];
-      const start = v ? `🕐 You can start from **${timeLabel(env, Number(v), n.day)}**.` : "🕐 When can you start? Tap the earliest time:";
+      const start = v ? `🕐 You can start from **${timeLabel(w, Number(v), n.day)}**.` : "🕐 When can you start? Tap the earliest time:";
       // someone else's leave-by limits your start too (who it is stays secret)
       const end = Object.values(leaves).length ? Math.min(...Object.values(leaves).map(Number)) : null;
       const theirs =
         end !== null && Number(until) !== end
-          ? `\n-# 🏁 Someone has to leave by ${timeLabel(env, end, n.day)}, so start by ${timeLabel(env, end - MIN_TOGETHER, n.day)} to get an hour together.`
+          ? `\n-# 🏁 Someone has to leave by ${timeLabel(w, end, n.day)}, so start by ${timeLabel(w, end - MIN_TOGETHER, n.day)} to get an hour together.`
           : "";
-      return `${title}\n${start}${until ? `\n🏁 You have to leave by **${timeLabel(env, Number(until), n.day)}**.` : ""}${theirs}`;
+      return `${title}\n${start}${until ? `\n🏁 You have to leave by **${timeLabel(w, Number(until), n.day)}**.` : ""}${theirs}`;
     }
     case "set":
-      return `${title}\n🎉 It's on: ${await emojiFor(env, n.game!)} **${n.game}** at **${timeLabel(env, n.start_at!, n.day)}**.${n.reminded ? "" : "\n-# ⏰ Running late? Tap how late:"}`;
+      return `${title}\n🎉 It's on: ${yield* games.emojiFor(n.game!)} **${n.game}** at **${timeLabel(w, n.start_at!, n.day)}**.${n.reminded ? "" : "\n-# ⏰ Running late? Tap how late:"}`;
     default:
       return `${title}\n😴 Game night's off.`;
   }
-}
+});
 
 /** Ephemeral "which day?" picker for planning ahead: today plus the next 6 days. */
-export async function planPicker(env: Env) {
-  const today = local(env).day;
-  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${today}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10));
-  const existing = await env.db
+const planPickerCard = Effect.gen(function* () {
+  const db = yield* Db;
+  const first = today(yield* when);
+  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${first}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10));
+  const existing = yield* db
     .select({ day: gameNights.day, stage: gameNights.stage })
     .from(gameNights)
     .where(and(gte(gameNights.day, days[0]), lte(gameNights.day, days[6])));
   const has = new Map(existing.map((n) => [n.day, n.stage]));
   const mark: Record<Stage, string> = { ask: "🗳️", game: "🕹️", time: "⏰", set: "🎉", off: "😴" };
   const buttons = days.map((d, i) => {
-    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : `${weekday(env, d).slice(0, 3)} ${Number(d.slice(8))}`;
+    const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : `${weekdayOf(d).slice(0, 3)} ${Number(d.slice(8))}`;
     const stage = has.get(d);
     return button(stage ? 2 : 1, stage ? mark[stage] : null, label, `plan:${d}`);
   });
@@ -1462,7 +1510,8 @@ export async function planPicker(env: Env) {
       },
     ],
   };
-}
+});
+export const planPicker = (env: Env) => run(env, planPickerCard); // LEGACY-BRIDGE
 
 const modal = (custom_id: string, title: string, input: object) => ({
   custom_id,
@@ -1477,23 +1526,25 @@ export const customTimeModal = (day: string) =>
   modal(`gn:${day}:custom`, "Pick your own start time", { label: "Earliest time you can start (HH:MM)", placeholder: "20:15", max_length: 5 });
 
 /** 🏁 "I have to leave by…", prefilled with your current one; submitting it empty clears it. */
-export async function leaveByModal(env: Env, day: string, user: string) {
-  const current = (await votes(env, day, "until"))[user];
+const leaveBy = Effect.fnUntraced(function* (day: string, user: string) {
+  const w = yield* when;
+  const current = (yield* votes(day, "until"))[user];
   return modal(`gn:${day}:until`, "When do you have to leave?", {
     label: "Leave by (HH:MM). Leave empty for no limit",
     placeholder: "22:30",
     max_length: 5,
     required: false,
-    ...(current ? { value: clock(env, Number(current)) } : {}),
+    ...(current ? { value: clock(w, Number(current)) } : {}),
   });
-}
+});
+export const leaveByModal = (env: Env, day: string, user: string) => run(env, leaveBy(day, user)); // LEGACY-BRIDGE
 
 /** Testing/maintenance: wipe a day's night (card, nudge, event, votes). */
 export async function resetNight(env: Env, day: string) {
   const n = await getNight(env, day);
   if (!n) return { reset: false };
   if (n.message_id) await api(env, "DELETE", `/channels/${env.GAME_CHANNEL_ID}/messages/${n.message_id}`).catch(() => {});
-  await clearNudge(env, n);
+  await clearNudgeP(env, n);
   if (n.event_id) await api(env, "DELETE", `/guilds/${env.GUILD_ID}/scheduled-events/${n.event_id}`).catch(() => {});
   await env.db.transaction(async (tx) => {
     await clearDay(tx, day);
