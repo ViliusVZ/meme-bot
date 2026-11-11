@@ -16,8 +16,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
   `f401685`, plan 02 still on `wow-news`, unmerged.
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
-- **Gotchas learned:** never write code containing `
-` through a Python heredoc (it becomes a
+- **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc (it becomes a
   real newline; use the Edit tool). `git checkout --` on a file added with `git add -N` empties
   it. Run long commands detached or in the background; a tool timeout kills its children.
 
@@ -143,8 +142,7 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   `startNight`), flows "rooms: one room per game even when two open at once" (two `openRoom`),
   spontaneous "two taps at the same moment open one room". Shown: the winner, and whether the
   loser got as far as posting, change with timing (tunnel run and jitter runs).
-- **Body normalisation:** stack frames (`
-    at …` lines) are dropped from request bodies before
+- **Body normalisation:** stack frames (indented `at …` lines) are dropped from request bodies before
   hashing; alert DMs quote the error's stack, whose frames depend on timing and code shape. The
   error's message line, the DM's wording and footer still count.
 - **Tests that wait for background work between taps** (setup, not assertions): paths "clicking
