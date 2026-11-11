@@ -5,28 +5,34 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00. Done: steps 1 (ledger), 2
-  (harness), 3 (no import cycles), 4 (recorder, deterministic), 5 (Discord error fixtures), 6
-  (`leftovers.mjs`, `soak_watch.py`, `gates.sh`, all self-checked). Left: step 7 (numbers: the
-  live QA suites on the test bot, tap timings, memory), step 8 (ship), the audit, the phase note.
-- **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect` (one branch for everything,
-  owner's changes 2026-11-11). Local Postgres for the gates: see "Deviations".
+- **Phase:** 2 done (spikes, report written); phase 0 and 1 have open items, run alongside:
+  - phase 0: the live QA baseline is running on the test bot against `618cf73` (old code), see
+    "Numbers"; then the tap baseline (needs the owner's Discord login in the T3 browser, which
+    was logged out at 16:20), memory, the phase note
+  - phase 1: deploy `drizzle-1` (`0efcba9`) to the test bot, `qa_all.py` + `qa_timing.py`, the
+    rollback rehearsal (previous `main` over it), then tag `pre-effect`; land phases 0+1 on `main`
+    when the deploy rule allows (or with the cutover)
+  - the phase 1 and phase 2 audits (fresh subagents) are still to run
+- **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`; `drizzle-1` points at the
+  phase 1 commit for test-bot deploys; tag `baseline` = phase 0 recordings and ledger (`1b83120`)
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
-- **Next step:** deploy `effect` to the test bot, run every QA suite for the baseline numbers
-- **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
-  `f401685`, plan 02 still on `wow-news`, unmerged.
+- **Next step:** phase 3 (foundations), after the drizzle-1 test-bot checks
+- **Waiting for:** the QA baseline run (background, about an hour); the owner's Discord login in
+  the T3 browser (tap timings and the browser test; everything else carries on)
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
-- **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc (it becomes a
-  real newline; use the Edit tool). `git checkout --` on a file added with `git add -N` empties
-  it. Run long commands detached or in the background; a tool timeout kills its children.
+- **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc
+  (use the Edit tool). `git checkout --` on a file added with `git add -N` empties it. Run long
+  commands detached or in the background; a tool timeout kills its children (the local Postgres
+  is started detached by `pg-start.ps1`). `git ls-tree` from a subdirectory filters its output
+  even for `ref:path` (use `--full-tree`).
 
 ## Phases
 
 | # | Phase | State | Finished | Notes |
 |---|---|---|---|---|
-| 0 | Baseline and preparation | not started | | |
-| 1 | Drizzle 1.0 under the old code | not started | | |
-| 2 | Toolchain and spikes | not started | | |
+| 0 | Baseline and preparation | in progress | | steps 1-6 done, audited, findings fixed; QA baseline running |
+| 1 | Drizzle 1.0 under the old code | in progress | | code + tests done (recordings identical on old and new code); test-bot checks next |
+| 2 | Toolchain and spikes | done | 2026-11-11 | all ten spikes pass; see spike-report.md |
 | 3 | Foundations | not started | | |
 | 4 | Feature services | not started | | |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
@@ -96,9 +102,9 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 | Package | Version | Since |
 |---|---|---|
-| `effect` and the `@effect/*` packages | | |
-| `drizzle-orm` / `drizzle-kit` | | |
-| `@effect/language-service` | | |
+| `effect` and the `@effect/*` packages | 4.1.4 (`effect`, `@effect/platform-node`, `@effect/sql-pg`, `@effect/vitest`) | 2026-11-11 |
+| `drizzle-orm` / `drizzle-kit` | 1.0.0-rc.5 (newest release candidate on 2026-11-11) | 2026-11-11 |
+| `@effect/language-service` | 0.87.5 | 2026-11-11 |
 
 ## Modules moved (phases 3–5)
 
@@ -137,41 +143,89 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   `drizzle`), so `test/migrations.test.ts` can run the real migrator on a throwaway schema; the
   test database role can't create databases.
 
+- **2026-11-11, phase 0, from the audit:** `channels.list` became `discord.listChannels` plus
+  `channels.cached()` (same behaviour: the cache when the gateway has sent one, else REST).
+  Commits `7d9d239` and `17ed083` were made with G6 red (the cycles were still there and
+  `leftovers.json` had the post-move counts): the work was split into commits afterwards. Not
+  rewritten; noted for bisecting.
+- **2026-11-11, G4 and G5 against a tagged baseline:** `scripts/recordings.mjs` and
+  `assertions.mjs --base baseline` compare with the commit tagged `baseline`, not only with the
+  last commit, so a commit that regenerates recordings or rewrites the ledger can't pass. G4
+  deletes the recordings before each run, so a test file that stops recording shows up. The
+  harness writes its file even when empty. Exceptions to the baseline go in
+  `test/recordings.allowed.json`, each with a reason, and are listed here.
+
 ## Declared exceptions
 
-- **Unordered call groups** in the recordings (`verification.md` §2a), in `test/harness.ts`
-  `UNORDERED`:
-  - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original`
-    calls is sorted. `panels.ts` `push()` edits every live copy of a card in one `Promise.all`;
-    shown order-only on 2026-11-11 (the b/c copies swapped between two otherwise identical runs).
-- **Declared races** (`h.race(reason)`: no calls recorded, database as row counts only), each a
-  test whose point is several callers at once: flows "17:00 posts one card per day, however many
-  times it runs" (two daily jobs), flows "three people planning the same day at once" (three
-  `startNight`), flows "rooms: one room per game even when two open at once" (two `openRoom`),
-  spontaneous "two taps at the same moment open one room". Shown: the winner, and whether the
-  loser got as far as posting, change with timing (tunnel run and jitter runs).
-- **Body normalisation:** stack frames (indented `at …` lines) are dropped from request bodies before
-  hashing; alert DMs quote the error's stack, whose frames depend on timing and code shape. The
-  error's message line, the DM's wording and footer still count.
-- **Tests that wait for background work between taps** (setup, not assertions): paths "clicking
-  the card opens your private copy…", matrix "taps: Maybe on the card opens your panel…". Without
-  it the next tap overlapped the previous tap's background work and the panel rows differed.
-- **Timing-sensitive tests** (deterministic under the gate's conditions, five identical runs, but
-  their recordings change under `JITTER=1`, because a tap's reply and its background work overlap
-  and the stub hands out ids in arrival order): flows "a tap on your own panel keeps its note when
-  the panels sync", "panels past Discord's 15 minutes, or dismissed, are let go", "private panels
-  follow the card: one person's vote moves everyone's open panel on". If the migration changes
-  their recordings, compare full dumps (`RECORD=full`): if only the interleaving and the ids that
-  follow from it differ, declare it here with the evidence; anything else is a bug.
-- **Assertion changes** (`verification.md` §2b): none yet
-- **Diagnostics switched off** in boundary files: none yet
+Every place the recorder or a test's setup is looser or different than "record everything in
+order". Evidence: the jitter runs (`JITTER=1` delays every stubbed answer and query by 0-4 ms);
+with all of these in place, three normal runs and a jitter run of the whole suite give identical
+recordings (see "Numbers").
+
+- **Unordered call groups** (`verification.md` §2a), `test/harness.ts` `UNORDERED`:
+  - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
+    in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`
+    edits every live copy of a card or a poll in one `Promise.all` (polls go through it too:
+    `polls.ts:129`). Shown order-only: the b/c copies swapped between two identical runs.
+- **Background reads:** `GET /webhooks/<app>/<token>/messages/@original` (looking up a private
+  copy's message right after the tap, in the background) is recorded as its own list after the
+  other calls, in its own order. The stub answers these with ids from their own range (first id +
+  700,000), so when the read lands doesn't shift the ids of everything else. Shown: three flows
+  panel tests and the paths copy test changed under jitter only through this read's position and
+  the ids that followed; stable with it.
+- **Declared races** (`h.race(reason, { mask, bodies, calls })`), each a test whose point is
+  several callers at once. A create the bot deletes again in the same test cancels out with its
+  delete, ids in URLs are masked, calls sorted; the database is hashed in full except the named
+  winner-dependent columns:
+  - flows "17:00 posts one card per day, however many times it runs": `game_nights.message_id`
+  - flows "three people planning the same day at once": `game_nights.started_by/message_id/
+    nudge_id`, `game_night_votes.user_id`, bodies not hashed (the nudge names the winner)
+  - flows "rooms: one room per game even when two open at once": `rooms.channel_id/game/
+    created_by`; no calls (how many lookups happen depends on timing)
+  - spontaneous "two taps at the same moment open one room": `lobby_prompts.id/message_id/by/
+    game`, `rooms.channel_id/created_by/game`, bodies not hashed (whoever claims first picks the
+    game)
+  - paths "clicking the card opens your private copy…" and matrix "taps: Maybe on the card opens
+    your panel…": their original bodies, unchanged, as races (the next tap comes before the
+    previous tap's background work has landed): `panels.message_id`, no calls. Each has a twin
+    "(each tap done before the next)" that waits between taps and is recorded in full.
+  Evidence: full dumps (`RECORD=full`) of normal and jitter runs differ only in those columns.
+- **Masked values:** `roast_bags.updated_at` and `settings.updated_at` only where the value is the
+  database's own `now()` (within 10 minutes of the real wall clock); where the bot writes the
+  column from the fake clock (`gemini.ts`, `reddit.ts`, `snooze.ts`) the value is recorded.
+- **Body normalisation:** JSON keys sorted before hashing (key order is not behaviour); stack-frame
+  lines (newline, indent, `at …`) removed from every string before hashing (alert DMs quote the
+  error's stack; no user-facing text contains such a line today).
+- **Setup changes:** the harness waits for background work to finish after every test before
+  recording (the old stubs let a test's late calls land in the next test's list); `paths` now
+  empties `panels` before each test (the racing copy test's rows leaked into five later tests);
+  the stub's id counter restarts per test (it ran on across a file).
+- **Assertion changes** (`verification.md` §2b): none
+- **Diagnostics switched off** in boundary files: none
 
 ## Decisions taken along the way
 
 Small technical choices the plan left open (which logger, the leader ping interval, each job's
 timeout), with the evidence.
 
+- **Leader lock:** a one-connection `PgClient.makeClient` in the term's scope, pinged every 5 s
+  (spike S2: `sql.reserve` returns its connection to the pool still holding the lock; a killed
+  backend fails the next statement at once, and nothing reports it without one).
+- **int8:** a client type registry decodes int8 to a number (spike S1; `@effect/sql-pg` has its
+  own protocol, so the old global `pg` parser doesn't apply).
+- **Logger:** `Logger.consoleLogFmt`, each message one string (spike S10).
+- **Test clock with a real database:** pool built and closed on the live clock, no acquire timeout
+  in tests; the "advance until done" helper jumps to `TestClock`'s next pending sleep (reads the
+  4.1.4 field `sleeps`; test-only) (spike S7).
+- **Test HTTP client:** tests provide `FetchHttpClient.Fetch`; the default captures
+  `globalThis.fetch` once (spike S5).
+
 ## Found on the way
+
+- **`/meme` picks with Postgres `random()`** (`interactions.ts:244`): not seeded in tests, so the
+  recordings only stay stable because the tests that reach it have one candidate.
+- **Not under the harness:** `resilience.test.ts` (fake timers, its own pool) and `time.test.ts`
+  (pure functions) have no recordings; their assertions are in the ledger.
 
 
 - **Rollback and migrations (Drizzle 1.0, found in phase 1):** the 1.0 migrator writes
