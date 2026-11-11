@@ -8,10 +8,10 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
-  Panels, Gemini, Snooze, Voice, Attendance, Reddit; `qa_rooms.py` on the test bot (`07dd493`):
-  10 checks, no failures. Next: Spontaneous; deploy, `qa_spontaneous.py`; then GameNight.
-  Still open from earlier phases: landing phases 0+1 on `main` (cleared for tonight, see the
-  owner's facts below). Browser tap timings and the browser tap test: deferred by the owner.
+  Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous; `qa_rooms.py` on the test bot
+  (`07dd493`): 10 checks, no failures. Next: deploy, `qa_spontaneous.py`; then GameNight.
+  Phases 0+1 are on `main` and in production (below). Browser tap timings and the browser tap
+  test: deferred by the owner.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
   (`aa49c52`): `0efcba9` (Drizzle 1.0) plus the phase 0 fixes cherry-picked, so the rollback
   target has the old code and the final phase 0 harness, and reproduces `baseline` exactly (all
@@ -35,8 +35,12 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
      path stays covered by its vitest tests; timings are compared without the browser, from the
      test bot's `interaction … ms` log lines during the QA suites, old code vs new. If the
      browser turns out to be logged in after all, do them.
-- **Waiting for:** nothing. (Landing phases 0+1, `pre-effect` = `aa49c52`: cleared by fact 1 if
-  nobody is in voice.)
+- **Waiting for:** nothing.
+- **Phases 0+1 landed on `main`** 2026-11-11 19:21 Vilnius (`f401685..aa49c52`, fast-forward), after a
+  read-only check that none of the trio was in voice (fact 1). Run 43067418533: test, build, test
+  bot, production all green. Production verified: health `version` aa49c52, leader, gateway ready,
+  no failed/error lines in the first 10 min, migrations table 13 rows, all named (the 1.0 upgrade
+  ran). The test bot was overwritten with aa49c52 by that run; `effect` goes back on it for QA.
 - **Blocked on the owner:** nothing. The cutover go was given in advance (2026-11-11).
 - **Gotchas learned:** never write code containing a backslash-n escape through a Python heredoc
   (use the Edit tool). `git checkout --` on a file added with `git add -N` empties it. Run long
@@ -60,8 +64,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - Commits: checks and code apart. New tests that pass on the old code first, then the code; or
   the code first with the new test set aside, then the test. `node scripts/assertions.mjs --add`
   after adding tests. Never `git stash` bare (a tagged stash plus apply by SHA, or copies).
-- Commit only on a green gate log: `bash scripts/gates.sh > ../.gates.log 2>&1; grep -q "^ALL
-  GATES GREEN" ../.gates.log && git commit …`. A pipe into `tail` hides the exit code (it let one
+- Commit only on a green gate log: `bash scripts/gates.sh > $SP/gates.log 2>&1; grep -q "^ALL
+  GATES GREEN" $SP/gates.log && git commit …` ($SP = the scratchpad). A pipe into `tail` hides the exit code (it let one
   commit through on a red G4 that was expected, the commit being amended).
 - Python heredocs eat backslashes: write scripts with the Write tool, or edit with Edit.
 
@@ -69,11 +73,11 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 | # | Phase | State | Finished | Notes |
 |---|---|---|---|---|
-| 0 | Baseline and preparation | in progress | | steps 1-6 done, audited, findings fixed; QA baseline running |
-| 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
+| 0 | Baseline and preparation | done, in production 2026-11-11 | 2026-11-11 | steps 1-6 done, audited, findings fixed; QA baseline done (numbers below); browser tap timings deferred by the owner (timings from `interaction … ms` log lines instead) |
+| 1 | Drizzle 1.0 under the old code | done, in production 2026-11-11 | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
-| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice, Attendance, Reddit |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -160,6 +164,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `40adbeb` spontaneous (Spontaneous): broken: the line id not saved (red), a swept
+  line as a failure (recordings red), the question not given back (red), a ready room with
+  detection off (red). Stayed green, tests added (`f2ec221`), red since: moving before the
+  pull-in claim, plays counted without the claim, a failed note failing the pull-in, a failed
+  move back stopping the others. (A first "swap" there only moved the early return; the claim
+  still ran first. A swap must move the side effect itself.)
 - 2026-11-11 `c12e747` reddit (Reddit: Ref + FiberHandle, retry Schedule): broken: the try not
   remembered (red), a failure stale at once (red), lastOk set before the refill (red). Stayed
   green, test added (`821e8e4`), red since: 503 not retried, the back-off doubled, a 429's reset
