@@ -53,6 +53,9 @@ export function runSync<A, E>(effect: Effect.Effect<A, E, AppServices>): A { // 
   throw Cause.squash(exit.cause); // LEGACY-BRIDGE
 } // LEGACY-BRIDGE
 
+/** The installed runtime's services (the old app object builds its routes on them). */
+export const appContext = () => installed().context(); // LEGACY-BRIDGE
+
 /** Effect code calling a function that still takes `env`: it gets one carrying this call's overrides. */
 export const legacyEnv = Effect.gen(function* () { // LEGACY-BRIDGE
   const env = yield* LegacyEnv; // LEGACY-BRIDGE

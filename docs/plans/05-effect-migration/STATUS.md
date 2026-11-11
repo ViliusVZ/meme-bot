@@ -178,35 +178,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 24 | 5 | 5 |
-| `await` | 52 | 18 | 7 |
-| `.then(` | 3 | 1 | 2 |
-| `.catch(` | 54 | 3 | 27 |
-| `try {` | 6 | 2 | 0 |
+| `async` | 11 | 6 | 8 |
+| `await` | 24 | 19 | 13 |
+| `.then(` | 3 | 1 | 3 |
+| `.catch(` | 56 | 3 | 27 |
+| `try {` | 2 | 2 | 0 |
 | `new Promise` | 2 | 7 | 0 |
 | `setTimeout/Interval` | 9 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 12 | 15 | 0 |
-| `Date.now/new Date` | 21 | 0 | 3 |
+| `console.` | 10 | 15 | 0 |
+| `Date.now/new Date` | 19 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
-| `process.env` | 2 | 0 | 1 |
-| `: any` | 4 | 0 | 0 |
+| `process.env` | 1 | 0 | 1 |
+| `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 370 | 15 | 0 |
+| `LEGACY-BRIDGE` | 397 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 1 |
-| `Effect.tryPromise` | 0 | 0 | 0 |
+| `Effect.tryPromise` | 0 | 1 | 0 |
 | `runPromise` | 0 | 0 | 1 |
 | `runFork` | 0 | 0 | 0 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **561** | **78** | **53** |
+| **total** | **538** | **81** | **63** |
 
 Import cycles: none.
-Per file: legacy.ts 88, main.ts 60, app.ts 51, gamenight.ts 45, live.ts 37, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 89, main.ts 60, gamenight.ts 45, live.ts 37, spontaneous.ts 31, app.ts 29, scheduler.ts 28, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -378,6 +378,11 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   harness writes its file even when empty. Exceptions to the baseline go in
   `test/recordings.allowed.json`, each with a reason, and are listed here.
 
+- **2026-11-12, G6: the signature verifier moved into its boundary file** (phase 5, the HTTP step):
+  `verifySignature` left `discord.ts` for `src/verify.ts`, the boundary file architecture §16 names
+  for it ("crypto.subtle calls wrapped once in Effect.tryPromise"). The outside counts fell by the
+  same amount; the saved inside counts were raised by hand for exactly this move (`async` 5 → 6,
+  `Effect.tryPromise` 0 → 1). No other count changed.
 - **2026-11-11, G6's transition column (`8194406`), declared here as well as under Deviations:**
   lines marked `LEGACY-BRIDGE` are counted in a column of their own that may grow until phase 5;
   `--final` requires it empty, and the NEVER moves are refused there.

@@ -19,7 +19,7 @@
   "AbortController": 1
  },
  "inside": {
-  "async": 5,
+  "async": 6,
   "await": 19,
   ".then(": 1,
   ".catch(": 3,
@@ -28,6 +28,7 @@
   "setTimeout/Interval": 8,
   "AbortSignal": 2,
   "console.": 15,
-  "AbortController": 2
+  "AbortController": 2,
+  "Effect.tryPromise": 1
  }
 }

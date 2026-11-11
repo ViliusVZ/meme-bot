@@ -26,19 +26,6 @@ export const Response = {
   Modal: 9,
 } as const;
 
-const keys = new Map<string, Promise<import("node:crypto").webcrypto.CryptoKey>>();
-
-/** Discord signs every interaction; anything that doesn't verify is rejected. */
-export async function verifySignature(sig: string | undefined, ts: string | undefined, body: string, publicKey: string) {
-  if (!sig || !ts || !/^[0-9a-f]{128}$/i.test(sig)) return false;
-  if (!keys.has(publicKey)) keys.set(publicKey, crypto.subtle.importKey("raw", hex(publicKey), { name: "Ed25519" }, false, ["verify"]));
-  return crypto.subtle.verify("Ed25519", await keys.get(publicKey)!, hex(sig), new TextEncoder().encode(ts + body));
-}
-
-function hex(s: string) {
-  return new Uint8Array(s.match(/../g)!.map((h) => parseInt(h, 16)));
-}
-
 // ---------------------------------------------------------------- errors
 
 /** Discord answered 404: the thing is gone (code: 10003 channel, 10008 message, 10065 voice state, 10070 event…). */
