@@ -559,6 +559,10 @@ timeout), with the evidence.
   reddit times count as empty; a channel listing that fails its schema fails the sweep (retried
   the next minute); an empty legacy Gemini key on an old env spends a budget request; a webhook
   answer whose body can't be read is treated as none (re-sent; the private copy's row goes).
+- **Process: the catch tables (verification.md §5 step 7) weren't put in the phase 3 and 4 commit
+  messages.** Every old `catch` was accounted for in the code (each became a tagged handler or is
+  owned by a boundary) and the phase 4 audit checked them line by line; from phase 5 on each
+  module's commit message carries the table.
 - **Process notes (phase 4 audit):** `78d83a6` and `85ab8cf` put test 6 entries in the code's own
   commit (pure additions); `c97fb91` converted three phase 3 config tests to `it.effect` in place
   (assertions unchanged, the ledger says identical).
