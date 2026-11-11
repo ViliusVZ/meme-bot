@@ -11,7 +11,7 @@
 // Periods are local (Europe/Vilnius) weeks (Mon–Sun), months and years. 📊 Stats on the panel or
 // /gamestats shows any period; a recap is posted in #game-night after each week, month and year.
 import { and, eq, gte, lte, lt, min, sql } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 import type { Env } from "./env.js";
 import { gameNights, rooms, voiceSegments } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
@@ -42,25 +42,33 @@ const localOf = (w: When, sec = w.now) => localAt(w.zone, sec * 1000);
 /** Local period bounds (unix seconds); `offset` -1 is the one before the current one. */
 export function periodAt(w: When, kind: Kind, offset = 0) {
   const l = localOf(w);
-  if (kind === "week") {
-    const dow = (new Date(Date.UTC(l.y, l.m - 1, l.d)).getUTCDay() + 6) % 7; // Monday = 0
-    const monday = l.d - dow + 7 * offset;
-    return { from: wallToUnixIn(w.zone, l.y, l.m, monday, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m, monday + 7, 0, 0) };
-  }
-  if (kind === "month") return { from: wallToUnixIn(w.zone, l.y, l.m + offset, 1, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m + offset + 1, 1, 0, 0) };
-  if (kind === "year") return { from: wallToUnixIn(w.zone, l.y + offset, 1, 1, 0, 0), to: wallToUnixIn(w.zone, l.y + offset + 1, 1, 1, 0, 0) };
-  return { from: 0, to: w.now + 1 };
+  return Match.value(kind).pipe(
+    Match.when("week", () => {
+      const dow = (new Date(Date.UTC(l.y, l.m - 1, l.d)).getUTCDay() + 6) % 7; // Monday = 0
+      const monday = l.d - dow + 7 * offset;
+      return { from: wallToUnixIn(w.zone, l.y, l.m, monday, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m, monday + 7, 0, 0) };
+    }),
+    Match.when("month", () => ({ from: wallToUnixIn(w.zone, l.y, l.m + offset, 1, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m + offset + 1, 1, 0, 0) })),
+    Match.when("year", () => ({ from: wallToUnixIn(w.zone, l.y + offset, 1, 1, 0, 0), to: wallToUnixIn(w.zone, l.y + offset + 1, 1, 1, 0, 0) })),
+    Match.when("all", () => ({ from: 0, to: w.now + 1 })),
+    Match.exhaustive,
+  );
 }
 export const period = (env: Env, kind: Kind, offset = 0) => periodAt(W(env), kind, offset); // LEGACY-BRIDGE
 
 function periodLabel(zone: string, kind: Kind, offset: number, from: number, to: number, plain = false) {
   if (plain) offset = -99; // no "This week ·" prefix
   const fmt = (sec: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: zone, ...o }).format(new Date(sec * 1000));
-  if (kind === "all") return "All time";
-  if (kind === "year") return offset === 0 ? `This year · ${fmt(from, { year: "numeric" })}` : fmt(from, { year: "numeric" });
-  if (kind === "month") return `${offset === 0 ? "This month · " : offset === -1 ? "Last month · " : ""}${fmt(from, { month: "long", year: "numeric" })}`;
-  const range = `${fmt(from, { day: "numeric", month: "short" })} – ${fmt(to - 1, { day: "numeric", month: "short" })}`;
-  return `${offset === 0 ? "This week · " : offset === -1 ? "Last week · " : ""}${range}`;
+  return Match.value(kind).pipe(
+    Match.when("all", () => "All time"),
+    Match.when("year", () => (offset === 0 ? `This year · ${fmt(from, { year: "numeric" })}` : fmt(from, { year: "numeric" }))),
+    Match.when("month", () => `${offset === 0 ? "This month · " : offset === -1 ? "Last month · " : ""}${fmt(from, { month: "long", year: "numeric" })}`),
+    Match.when("week", () => {
+      const range = `${fmt(from, { day: "numeric", month: "short" })} – ${fmt(to - 1, { day: "numeric", month: "short" })}`;
+      return `${offset === 0 ? "This week · " : offset === -1 ? "Last week · " : ""}${range}`;
+    }),
+    Match.exhaustive,
+  );
 }
 
 // ---------------------------------------------------------------- crunching
