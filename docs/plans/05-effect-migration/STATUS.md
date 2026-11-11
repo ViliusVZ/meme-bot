@@ -8,8 +8,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Phase:** 4 (feature services) in progress. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
-  Panels, Gemini, Snooze, Voice, Attendance. Next: deploy `effect` to the test bot, `qa_rooms.py`;
-  then Spontaneous, Reddit.
+  Panels, Gemini, Snooze, Voice, Attendance, Reddit; `qa_rooms.py` on the test bot (`07dd493`):
+  10 checks, no failures. Next: Spontaneous; deploy, `qa_spontaneous.py`; then GameNight.
   Still open from earlier phases: tap timings (needs Discord login in the T3 browser), landing
   phases 0+1 on `main` when production is clear.
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect`. `drizzle-1` = `pre-effect`
@@ -48,6 +48,9 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - Commits: checks and code apart. New tests that pass on the old code first, then the code; or
   the code first with the new test set aside, then the test. `node scripts/assertions.mjs --add`
   after adding tests. Never `git stash` bare (a tagged stash plus apply by SHA, or copies).
+- Commit only on a green gate log: `bash scripts/gates.sh > ../.gates.log 2>&1; grep -q "^ALL
+  GATES GREEN" ../.gates.log && git commit …`. A pipe into `tail` hides the exit code (it let one
+  commit through on a red G4 that was expected, the commit being amended).
 - Python heredocs eat backslashes: write scripts with the Write tool, or edit with Edit.
 
 ## Phases
@@ -58,7 +61,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 1 | Drizzle 1.0 under the old code | done (landing pending) | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
-| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice, Attendance |
+| 4 | Feature services | in progress | | LocalTime, Games, Nights, Memes, Roasts, Panels, Gemini, Snooze, Voice, Attendance, Reddit |
 | 5 | Entry points, lifecycle, removing the old stack | not started | | |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
@@ -68,7 +71,8 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 ## Numbers
 
 Live QA baseline: the test bot on `618cf73` (the old code), 2026-11-11 16:13-17:30 Vilnius, every
-suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-baseline/`.
+suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-baseline/`. Runs on the
+`effect` branch: logs in the scratchpad `qa-effect/`, named after the suite and the commit.
 
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
@@ -115,7 +119,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | Leftovers (G6 total; per-pattern table below) | 1158 outside boundary files, 64 inside (after the phase 0 moves) | |
 | `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | |
 | `qa_timing.py` | 13 passed, 0 failed | |
-| `qa_rooms.py` | 10 checks, no failures | |
+| `qa_rooms.py` | 10 checks, no failures | 10 checks, no failures (`07dd493`, phase 4 after Voice and Attendance) |
 | `qa_stats.py` | 17 passed, 0 failed | |
 | `qa_spontaneous.py` | 14 checks, "all good" | |
 | `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | |
@@ -144,6 +148,10 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `c12e747` reddit (Reddit: Ref + FiberHandle, retry Schedule): broken: the try not
+  remembered (red), a failure stale at once (red), lastOk set before the refill (red). Stayed
+  green, test added (`821e8e4`), red since: 503 not retried, the back-off doubled, a 429's reset
+  ignored.
 - 2026-11-11 `70c21e4` attendance (Attendances): broken: the slip id not saved
   (red), rendering before the ETA is written (red). Stayed green, tests added (`f0e40c9`), red
   since: a failed voice lookup as in the room, a failed slip edit failing the tap, retiring the
@@ -367,6 +375,8 @@ timeout), with the evidence.
 - **Recordings depend on a test's place in its file:** tables with serial ids (`games`) are
   emptied between tests but their sequences run on, so a test added in the middle of a file
   changes every later test's database snapshot. New tests go at the end of their file.
+- **`vi.waitFor` moves the fake clock** on every poll when fake timers are on (Date only, here),
+  so a long wait shifts any time the code stores. Waits that long poll on real `setTimeout`.
 - **Not under the harness:** `resilience.test.ts` (fake timers, its own pool) and `time.test.ts`
   (pure functions) have no recordings; their assertions are in the ledger.
 
