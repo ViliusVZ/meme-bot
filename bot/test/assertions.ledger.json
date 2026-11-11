@@ -859,6 +859,21 @@
    "expect.toHaveLength(1)",
    "expect.toContain(\"counting the night as played failed\")",
    "expect.not.toContain(\"the start ping failed\")"
+  ],
+  "test \"the daily meme waits for POST_HOUR_UTC, to the hour\"": [
+   "expect.toEqual({ skipped: \"too early\" })",
+   "expect.toMatchObject({ posted: \"t3_h\" })"
+  ],
+  "test \"a daily meme whose comment thread won't open is still posted\"": [
+   "expect.toMatchObject({ posted: \"t3_t\" })",
+   "expect.toContain(\"opening the meme's comment thread failed\")",
+   "expect.toBeTruthy()"
+  ],
+  "test \"one failing job doesn't stop the others in the same minute\"": [
+   "expect.toContain(\"403\")",
+   "expect.toContain(\"the “cleanup” job failed\")",
+   "expect.toHaveProperty(\"meme-shame\")",
+   "expect.toHaveProperty(\"gateway\")"
   ]
  },
  "reddit.test.ts": {

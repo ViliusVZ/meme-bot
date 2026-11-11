@@ -546,5 +546,37 @@
    "games": "8:1134d6e24e08",
    "rooms": "1:97ffae361dcd"
   }
+ },
+ "the daily meme waits for POST_HOUR_UTC, to the hour": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 3c12a9c30714",
+   "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 02a63615430a"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "1:408322f0720f"
+  }
+ },
+ "a daily meme whose comment thread won't open is still posted": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 2db58342d0e6",
+   "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 252224f63af6"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "1:ed591c5c2b1f"
+  }
+ },
+ "one failing job doesn't stop the others in the same minute": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "settings": "1:12fd89d137a2"
+  }
  }
 }

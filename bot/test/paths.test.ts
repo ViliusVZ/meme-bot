@@ -696,3 +696,40 @@ test("a start whose play count fails after the ping keeps its claim: the ping ne
   expect(said).toContain("counting the night as played failed");
   expect(said).not.toContain("the start ping failed");
 });
+
+test("the daily meme waits for POST_HOUR_UTC, to the hour", async () => {
+  await memes.ingest(env, [{ id: "t3_h", title: "H", image: "i", link: "l", author: "a", published: "2026-11-05T08:00:00Z", rank: 1 }]);
+  vi.setSystemTime(Date.parse("2026-11-06T09:59:00Z"));
+  expect(await jobs.postDaily(env)).toEqual({ skipped: "too early" });
+  vi.setSystemTime(Date.parse("2026-11-06T10:00:00Z"));
+  expect(await jobs.postDaily(env)).toMatchObject({ posted: "t3_h" });
+});
+
+test("a daily meme whose comment thread won't open is still posted", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T11:00:00Z"));
+  await memes.ingest(env, [{ id: "t3_t", title: "T", image: "i", link: "l", author: "a", published: "2026-11-05T08:00:00Z", rank: 1 }]);
+  h.override = (c) => (c.method === "POST" && c.path.endsWith("/threads") ? json({ message: "Missing Permissions", code: 50013 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  expect(await jobs.postDaily(env)).toMatchObject({ posted: "t3_t" });
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  expect(said).toContain("opening the meme's comment thread failed");
+  expect((await memes.getMeme(env, "t3_t"))!.message_id).toBeTruthy();
+});
+
+test("one failing job doesn't stop the others in the same minute", async () => {
+  vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05: the sweep's time
+  h.override = (c) => {
+    if (c.path === "/users/@me") return json({ id: "bot" });
+    if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json({ message: "Missing Access", code: 50001 }, 403);
+    return undefined;
+  };
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  const out = await jobs.minute(env);
+  const said = log.mock.calls.flat().map(String).join(" ");
+  log.mockRestore();
+  expect(String((out.cleanup as { error: string }).error)).toContain("403");
+  expect(said).toContain("the “cleanup” job failed");
+  expect(out).toHaveProperty("meme-shame"); // the jobs after it still ran
+  expect(out).toHaveProperty("gateway");
+});
