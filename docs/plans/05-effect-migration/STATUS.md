@@ -5,7 +5,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions written (payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` now hands `later` work with its services provided; `@original`'s channel_id optional as the old code had it), suite and recordings identical, break-its next. Then: HTTP, Ticker + start timers, Live, Gateway, Leadership/main/shutdown, then delete the transition. Phase 3 done: all six steps; live check on the
+- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: HTTP, Ticker + start timers, Live, Gateway, Leadership/main/shutdown, then delete the transition. Phase 3 done: all six steps; live check on the
   test bot with `8e7c1f2`: qa_all 79/79, qa_timing 13/13, no failed/error log lines (= baseline);
   its audit done and its findings fixed. Phase 4 so far: LocalTime, Games, Nights, Memes, Roasts,
   Panels, Gemini, Snooze, Voice, Attendance, Reddit, Spontaneous; `qa_rooms.py` on the test bot
@@ -148,7 +148,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -163,24 +163,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 26 | 5 | 5 |
-| `await` | 99 | 18 | 7 |
-| `.then(` | 12 | 1 | 2 |
-| `.catch(` | 56 | 3 | 27 |
+| `async` | 24 | 5 | 5 |
+| `await` | 52 | 18 | 7 |
+| `.then(` | 3 | 1 | 2 |
+| `.catch(` | 54 | 3 | 27 |
 | `try {` | 6 | 2 | 0 |
-| `new Promise` | 3 | 7 | 0 |
-| `setTimeout/Interval` | 10 | 8 | 0 |
+| `new Promise` | 2 | 7 | 0 |
+| `setTimeout/Interval` | 9 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 14 | 15 | 0 |
-| `Date.now/new Date` | 23 | 0 | 3 |
+| `console.` | 12 | 15 | 0 |
+| `Date.now/new Date` | 21 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
-| `: any` | 9 | 0 | 0 |
+| `: any` | 4 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 368 | 15 | 0 |
+| `LEGACY-BRIDGE` | 370 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 1 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -188,10 +188,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **630** | **78** | **53** |
+| **total** | **561** | **78** | **53** |
 
 Import cycles: none.
-Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 45, live.ts 37, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 88, main.ts 60, app.ts 51, gamenight.ts 45, live.ts 37, spontaneous.ts 31, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
