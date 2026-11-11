@@ -18,8 +18,10 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   (`164d512`)**: readers, helpers, the card; **2/5 done** (`b230588`): the lifecycle; **3/5 done** (`ef1831d`): act
   (+ postRoast, dueRoasts, moved here rather than in 4/5: a two-line loop over postRoast);
   **4/5 done** (`f5cb909`): maintain; **5/5 done** (`85ab8cf`): the start + the `GameNight`
-  service. Next: deploy, `qa_all.py`, `qa_timing.py`, `qa_leaveby.py`, `qa_slowpoke.py`; then
-  LateSlips, Polls, Activity, Hub, Cleanup, MemeShame. How it's staged: the moved code is module-level
+  service. On the test bot (`bdc5fed`, logs `qa-effect/gn-bdc5fed/`): qa_all 79/0, qa_timing
+  13/0, qa_slowpoke exit 0, qa_leaveby output identical to the baseline's, no failed/error log
+  lines. LateSlips done (`78d83a6`). Next: Polls, Activity, Hub, Cleanup, MemeShame; deploy,
+  `qa_late_ui.py`, `qa_stats.py`; then the second pass; then the phase 4 audit and note. How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
@@ -42,6 +44,12 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   `wow-news`, unmerged); every baseline here is of that code.
 - **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
 - **Next step:** phase 3 (foundations), after the drizzle-1 test-bot checks
+- **Tap timings without the browser (owner's fact 2):** the bot logs `interaction … ms` only for
+  real Discord taps on `/interactions` (signed by Discord; QA can't make them), so neither the
+  baseline nor any QA run has such lines. What is measured instead: `qa_timing`'s start-ping
+  delay and room lead (above), and in phase 8 the round trip of the admin routes that run the
+  same tap code (`/admin/…` act calls), timed on the new code and again on the old code during the
+  rollback rehearsal (old over new on the test bot), same script both times.
 - **Owner's facts, 2026-11-11 evening (verbatim intent):**
   1. No game night tonight: the trio won't play, so tonight's open poll is no reason to hold a
      production deploy. **For tonight (2026-11-11) only**, the deploy rule is just: nobody is in
@@ -116,24 +124,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 55 | 5 | 5 |
-| `await` | 200 | 18 | 7 |
+| `async` | 51 | 5 | 5 |
+| `await` | 178 | 18 | 7 |
 | `.then(` | 12 | 1 | 2 |
-| `.catch(` | 56 | 3 | 18 |
-| `try {` | 14 | 2 | 0 |
+| `.catch(` | 57 | 3 | 19 |
+| `try {` | 11 | 2 | 0 |
 | `new Promise` | 3 | 7 | 0 |
 | `setTimeout/Interval` | 10 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 15 | 15 | 0 |
-| `Date.now/new Date` | 42 | 0 | 2 |
+| `console.` | 14 | 15 | 0 |
+| `Date.now/new Date` | 41 | 0 | 2 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
 | `: any` | 9 | 0 | 0 |
 | `as any` | 1 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 318 | 15 | 0 |
+| `LEGACY-BRIDGE` | 324 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -141,10 +149,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **739** | **78** | **44** |
+| **total** | **715** | **78** | **45** |
 
 Import cycles: none.
-Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, activity.ts 37, live.ts 37, late.ts 32, jobs.ts 31, spontaneous.ts 31, polls.ts 29, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, attendance.ts 14, env.ts 12, channels.ts 10, reddit.ts 9, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, activity.ts 37, live.ts 37, jobs.ts 31, spontaneous.ts 31, polls.ts 29, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, attendance.ts 14, env.ts 12, channels.ts 10, reddit.ts 9, late.ts 8, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -156,14 +164,14 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | Recordings differing | 0 | |
 | Assertion ledger | 741 assertions (728 at the start, 13 from the Discord-error tests) | |
 | Leftovers (G6 total; per-pattern table below) | 1158 outside boundary files, 64 inside (after the phase 0 moves) | |
-| `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | |
-| `qa_timing.py` | 13 passed, 0 failed | |
+| `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | 79 passed, 0 failed (`bdc5fed`, GameNight moved) |
+| `qa_timing.py` | 13 passed, 0 failed; start ping 0.92 s after the start, room 9.8 s early | 13 passed, 0 failed; start ping 0.64 s after the start, room 9.8 s early (`bdc5fed`, GameNight moved) |
 | `qa_rooms.py` | 10 checks, no failures | 10 checks, no failures (`07dd493`, phase 4 after Voice and Attendance) |
 | `qa_stats.py` | 17 passed, 0 failed | |
 | `qa_spontaneous.py` | 14 checks, "all good" | 14 checks, "all good" (`e47a7b9`, phase 4 after Spontaneous and Reddit) |
 | `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | |
-| `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | |
-| `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | |
+| `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical to the baseline's output (ids and times masked), `bdc5fed` |
+| `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), `bdc5fed` (its printout lists the channel's latest messages, so it differs with whatever ran before it) |
 | `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | |
 | Tap handling, median / 95th percentile (ms) | pending: real taps in the T3 browser (Discord logged out at 16:20) | |
 | Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | |
@@ -187,6 +195,10 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 `78d83a6` late (LateSlips): broken: the slip id not saved (red), a failed slip keeping
+  its claim (red), one player's trouble stopping the others (red), anyone answering a slip (red).
+  Stayed green, tests added (`aae5f7c`), red since: moving someone again after they arrived,
+  marking a latecomer arrived before the move. Test 6 entry: the late watcher's slip.
 - 2026-11-11 `85ab8cf` gamenight 5/5 (the start, the service): broken: the night not counted as
   played (red), a moved start started at the old time (red), a failed start keeping its claim
   (red), the ping before the moves (recordings red). Stayed green, tests added (`a0f867e`), red
