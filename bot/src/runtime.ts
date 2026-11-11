@@ -26,13 +26,14 @@ import { Reddit } from "./reddit.js";
 import { Spontaneous } from "./spontaneous.js";
 import { GameNight } from "./gamenight.js";
 import { LateSlips } from "./late.js";
+import { Hub } from "./hub.js";
 import { Activity } from "./activity.js";
 import { Polls } from "./polls.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
   | LocalTime | Games | Nights | Memes | Roasts | Panels | Gemini
-  | Snoozes | Voice | Attendances | Reddit | Spontaneous | GameNight | LateSlips | Polls | Activity;
+  | Snoozes | Voice | Attendances | Reddit | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub;
 
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
@@ -62,7 +63,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
   Layer.mergeAll(LateSlips.layer).pipe(
     Layer.provideMerge(Layer.mergeAll(GameNight.layer, Activity.layer)),
     Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer)),
-    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Polls.layer, Voice.layer, Reddit.layer)),
+    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Hub.layer, Polls.layer, Voice.layer, Reddit.layer)),
     Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer)),
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
     Layer.provideMerge(Alerts.layer),
