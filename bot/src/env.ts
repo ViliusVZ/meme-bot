@@ -24,6 +24,8 @@ export interface Env {
   PRESENCES?: boolean;
   /** 🧠 Gemini, free tier (gemini.ts): judgment calls only; unset means none are made. */
   GEMINI_API_KEY?: string;
+  /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
+  NEWS_CHANNEL_ID?: string;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -70,5 +72,6 @@ export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
     ALERT_USER_ID: e.ALERT_USER_ID || undefined,
     PRESENCES: e.PRESENCES === "1",
     GEMINI_API_KEY: e.GEMINI_API_KEY || undefined,
+    NEWS_CHANNEL_ID: e.NEWS_CHANNEL_ID || undefined,
   };
 }

@@ -654,10 +654,10 @@ test("an answer that isn't on the list is treated as no; Gemini down means try a
   const t0 = now();
   expect(await spontaneous.learn(e, ["Lethal Company"], t0)).toEqual([]);
   expect(await spontaneous.learn(e, ["Lethal Company"], t0 + 3600)).toEqual([]);
-  expect(asked).toHaveLength(1);
+  expect(asked).toHaveLength(2); // one ask: the fast model, then the other one
   expect(await spontaneous.learn(e, ["Lethal Company"], t0 + 86400)).toEqual([]);
   log.mockRestore();
-  expect(asked).toHaveLength(2);
+  expect(asked).toHaveLength(4);
 });
 
 test("no key, no questions", async () => {

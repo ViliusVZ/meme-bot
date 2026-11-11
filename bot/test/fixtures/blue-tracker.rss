@@ -1,0 +1,2596 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:discourse="http://www.discourse.org/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>World of Warcraft Forums - Latest posts from blizzard-tracker</title>
+    <link>https://eu.forums.blizzard.com/en/wow</link>
+    <description>Latest posts from blizzard-tracker</description>
+      <item>
+        <title>No gold from quests at lvl 60? Seriously?</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <aside class="quote no-group" data-username="Tolbrim-golemagg" data-display-name="Tolbrim" data-post="42" data-topic="640380">
+<div class="title"><img alt="" width="20" height="20" src="https://render.worldofwarcraft.com/classic1x-eu/character/golemagg/161/8671393-avatar.jpg?alt=/wow/static/images/2d/avatar/3-0.jpg" class="avatar"> Tolbrim:<div class="quote-controls"></div></div>
+<blockquote>
+<p>Blizzard usually give each change some thought</p>
+</blockquote>
+</aside>
+<p>When we evaluated the economy going into WoW: Forever, we made a conscious choice to disable the XP-to-Gold conversion for quests completed at maximum level. This change was originally introduced in 2006 in the weeks leading up the original Burning Crusade launch, and it was intended to provide a boost in gold for players who were wrapping up original WoW content in preparation for the first expansion.</p>
+<p>We left that functionality in place in Classic Era in 2019, but we decided that for WoW: Forever, we would remove the XP to Gold conversion, as it created an incentive for players to hold a full quest log worth of completed quests to hand in after hitting level 60 for maximum gold returns. Under those conditions, the optimal way for players to level to 60 was to simply grind creatures for XP and not hand in quests at all, which is not a design we want to retain in WoW: Forever.</p>
+<p>However, in original WoW, only about 25% of quests in the game actually provide raw gold rewards, which led this to be a slightly more negative change than intended to gold income as you get closer to level 60.</p>
+<p>To address this, we’re preparing a hotfix that will add additional gold rewards to most quests with a quest level of level 48 or higher, including adding gold to quests above level 48 that never previously rewarded gold at all. The idea here is that you should feel good about doing quests at the appropriate level to progress your character, and you should feel adequately rewarded with gold for doing so.</p>
+<p>The hotfix should be go live in the next 24 hours or so. Thank you for your feedback!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/no-gold-from-quests-at-lvl-60-seriously/640380/93</link>
+        <pubDate>Tue, 10 Nov 2026 21:56:33 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6490858</guid>
+      </item>
+      <item>
+        <title>Dungeon xp still not enough</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <aside class="quote no-group" data-username="Ravali-argent-dawn" data-display-name="Ravali" data-post="2" data-topic="640969">
+<div class="title"><img alt="" width="20" height="20" src="https://render.worldofwarcraft.com/eu/character/argent-dawn/105/185145449-avatar.jpg?alt=/wow/static/images/2d/avatar/52-0.jpg" class="avatar"> Ravali:<div class="quote-controls"></div></div>
+<blockquote>
+<p>change was only 24% → 36%</p>
+</blockquote>
+</aside>
+<p>We’ve tracked this very carefully, and the hotfix that we deployed on Sunday, November 8 took dungeon kill XP from 40% of the values in Classic Era to 60% of the values in Classic Era. We have subsequently felt that the adjustment is working well to produce dungeon leveling speeds that fit with the rest of WoW Forever content.</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/dungeon-xp-still-not-enough/640969/30</link>
+        <pubDate>Tue, 10 Nov 2026 21:35:31 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6490790</guid>
+      </item>
+      <item>
+        <title>WoW: Forever Hotfixes - November 10, 2026</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p><strong>November 9, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li><strong>Druid</strong>
+<ul>
+<li>The Cooldown Manager no longer shows Berserk, and now correctly shows Lacerate when learned.</li>
+<li>Idol of Ferocity no longer lists Mangle as an ability it discounts.</li>
+<li><strong>Feral</strong>
+<ul>
+<li>Fixed an issue where Feral Charge (Cat) was not putting the Druid in combat right away.</li>
+<li>Fixed an issue where Natural Instinct was not applying correctly to Lacerate or Pounce.</li>
+<li>Fixed an issue where the Pounce Stun debuff was not showing in the enemy debuffs while active.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Hunter</strong>
+<ul>
+<li>Vulgara the Insatiable and the Shrieklings of Zephras should now belong to the correct hunter pet families.</li>
+<li>Fixed an issue causing Hunters to sometimes aggro enemies from very far away by targeting them.</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li>Flamestirke’s ticks on the ground no longer incorrectly consume clearcasting.</li>
+<li>Arcane Concentration’s activation chance now correctly splits across the cast and every bolt (was granting 10% on cast and per bolt).</li>
+</ul>
+</li>
+<li><strong>Paladin</strong>
+<ul>
+<li>Fixed an issue where Consecration could stop dealing increased damage to enemies if targets inside of the Consecration despawned previously.</li>
+<li>Fixed an issue where Cooldown Manager wasn’t showing Seals correctly.</li>
+</ul>
+</li>
+<li><strong>Priest</strong>
+<ul>
+<li>Shadowform no longer breaks when casting Fear Ward.</li>
+<li>Power Infusion will now correctly persist when used on allies.</li>
+</ul>
+</li>
+<li><strong>Shaman</strong>
+<ul>
+<li>Updated the visual effect for Lightning Mastery.</li>
+<li>Lightning Overload now deals the correct amount of damage for Lightning Bolt.</li>
+<li>Fixed an issue causing Improved Ghost Wolf to not hold the Night Watchman’s Torch in its mouth.</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Completing “Summon Felsteed” will correctly grant the player the appropriate riding skill.
+<ul>
+<li><em>Developers’ notes: If a player completed the quest before this hotfix, summoning the Felsteed once will grant them the apprentice riding skill, allowing them to ride other mounts if desired.</em></li>
+</ul>
+</li>
+<li>Fixed an issue allowing Incinerate to be available to non-Destruction specializations.</li>
+</ul>
+</li>
+<li><strong>Warrior</strong>
+<ul>
+<li>Thunderclap no longer tracks its duration on the target via Cooldown Manager and now only shows its cooldown.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Dungeons</strong></p>
+<ul>
+<li>Experience rewarded for all enemy kills in dungeons increased by 50%.</li>
+<li><strong>Alcaz Prison</strong>
+<ul>
+<li>Defeating Zarla Ober will now drop loot.</li>
+</ul>
+</li>
+<li><strong>Blackfathom Deeps</strong>
+<ul>
+<li>Fixed an issue that could cause players to become unable to release after dying in Blackfathom Deeps.</li>
+</ul>
+</li>
+<li><strong>Blackrock Depths</strong>
+<ul>
+<li>Fixed an issue that prevented the throne room doors from opening if the party wiped while fighting Emperor Thaurissan.</li>
+<li>Heart of the Mountain can now be looted more than once.</li>
+</ul>
+</li>
+<li><strong>The Drowned City</strong>
+<ul>
+<li>Fixed an issue that was causing creatures inside the Drowned City to do about 30% more damage than intended.</li>
+<li><strong>Deathless Marrow</strong>
+<ul>
+<li>Lowered the health of the creatures in the Deathless Marrow encounter by 25%.</li>
+<li>Lowered the damage of the Deathless Sorcerer’s Fireball by 25%.</li>
+<li>Lowered the damage of the Deathless Watcher’s Charge by 50%.</li>
+<li>Reduced the cast frequency of the Deathless Guardian’s Shield Slam ability by about 50%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>The Shaper’s Terrace</strong>
+<ul>
+<li>The Shaper’s Terrace: Vitrix, Snowtalon, and Cinder now correctly drop loot and higher-level skinning materials.</li>
+<li>Cinder should now correctly spawn after players use the Archival Panel.</li>
+</ul>
+</li>
+<li><strong>Stratholme</strong>
+<ul>
+<li>Fixed an issue that allowed players to mount inside Stratholme.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Silverpine Forest - Fixed an issue where Ivar the Foul was respawning more slowly than intended.</li>
+<li>Teldrassil - Spawn time reduced for Ferocitas the Dream Eater.</li>
+<li>Un’goro Crater - Fixed an issue that was causing Young Diemetradons to spawn at level 58 (rather than 51 to 52).</li>
+<li>Zephras - Malduko Cloudcrush now respawns slightly more slowly.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Fixed an issue with the Pouch of Violet Dust preventing players from receiving an extra hour of duration of the Camp Benefits aura as intended.</li>
+<li>Fixed a bug that prevented Waylaid Crates and Craftsman’s Writs from dropping inside dungeons.</li>
+<li>Berdun’s Trusty Rifle no longer has random stats and is not Bind-on-Equip.</li>
+<li>Fixed a bug causing Nifty Stopwatch to share a cooldown with Dash, Blink, Sprint, and other movement abilities.</li>
+<li>Zephrali Greatstaff and Fallen Dragon’s Scepter now appear correctly oriented when sheathed on the player’s back.</li>
+<li>Gloves of Holy Might now work as intended.</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li>Removed an invisible wall that was incorrectly blocking the roof of the Alliance base in Warsong Gulch. Please be careful up there.</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>“The Monster Surfaces” quest item is now available to all players in a party.</li>
+<li>“Croaky’s Head” is now available to all players in a party.</li>
+<li>“Elmpaw’s Head” is now available to all players in a party.</li>
+<li>Mistreating Astor Hadren during the quest “The Deathstalkers” should now properly anger him, allowing you to fight him.</li>
+<li>Fixed a bug preventing Jom-jom from continuing his escape on “Jom-jom’s Escape”.</li>
+<li>The door available after the quest “Ever After” should now correctly teleport players who interact with the door.</li>
+<li>Fixed a bug keeping Terry Longdrink alive during the quest “Unwelcome Guests”.</li>
+<li>Fixed an issue where the quest “Find Bingles” was incorrectly categorized in Ironforge, rather than Loch Modan.</li>
+<li>Updated Skonk’s list to be readable by everyone going on “A Quick Grocery Run”.</li>
+<li>Henrig Lonebrow’s Journal now respawns more quickly, so that more players can get started on “Lonebrow’s Journal”. It has also moved slightly down the road. Look for a similar skeleton to mark the location.</li>
+<li>Addressed an issue that could prevent players from looting Berard’s Journal from Berard’s Bookshelf for “A Recipe for Death”.</li>
+<li>Resolved an issue preventing completion of “Fetch ‘n’ Fletch”.</li>
+<li>Fixed an issue where restarting the Rogue quest “Mission: Possible not Probable” was much less possible than intended.</li>
+<li>Resolved an issue where Jezap Jinglesprocket could fail to provide players a “Bloodmaster’s Ring”.</li>
+<li>Fixed an issue during the quest “Feathers in Flight” where players below level 60 could not loot the Hyjal Owl Nests.</li>
+</ul>
+<p><strong>Races</strong></p>
+<ul>
+<li><strong>Tauren</strong>
+<ul>
+<li>Cultivation now correctly only goes on cooldown after completing the cast.</li>
+</ul>
+</li>
+</ul>
+<p><strong>World</strong></p>
+<ul>
+<li>Lowered the population of players in various zones where there was significant congestion.
+<ul>
+<li><em>Developers’ notes: We’ve made this an even bigger change on the PvP ruleset, following feedback from players that they felt overcrowded in several places. We will continue to monitor how zones feel and make further adjustments as necessary.</em></li>
+</ul>
+</li>
+<li>Resolved an issue where the flight path from Camp Taurajo to Thunder Bluff could unintentionally go through objects.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-10-2026/639885/5</link>
+        <pubDate>Tue, 10 Nov 2026 04:23:39 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6488098</guid>
+      </item>
+      <item>
+        <title>PvP Faction Balance Updates - 11 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>It’s vitally important that the PvP rulesets in WoW: Forever have balanced factions where both factions vie for supremacy, creating memories of epic victories and stunning defeats that we all remember for years to come. While even the most extreme case in a region is currently at roughly a 55/45 split, that is not as close as we want it to be.</p>
+<p>To better set the stage for the neck-and-neck conflicts we all want, we’ve adjusted the character creation system to better recognize the overall state of faction balance in each region’s PvP rulesets, rather than what may feel like snapshots of points in time. Our goal is to bring things as close to a 50/50 faction balance as possible.</p>
+<p>In the short term, that means that it will become increasingly difficult to create characters on the more populous faction in each region – currently Horde on North American PvP rulesets or Alliance in EU Roleplay-PvP. As everyone settles and shifts, these may flip to the other side. We recognize that while restrictions are in place, it can be frustrating to not be able to start playing a specific faction in that moment, but this is a necessary trade-off for the long-term health of the ruleset, especially early on when guilds are being established and rivalries developed.</p>
+<p>World of Warcraft: Forever’s PvP is at its best when the Alliance and Horde are on equal footing, and we are dedicated to helping maintain that balance so that we can all witness battles at the epic scale that has made WoW Forever PvP so memorable thus far.</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/pvp-faction-balance-updates-11-november/641169/1</link>
+        <pubDate>Tue, 10 Nov 2026 02:06:08 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6488007</guid>
+      </item>
+      <item>
+        <title>Prepare for Forever, Try Midnight’s Talebound, and Discover Sweet Treats in WoW Weekly</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/e2/E2JLBYT6REX11793371355279.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/e2/E2JLBYT6REX11793371355279.png" alt="Prepare for Forever, Try Midnight’s Talebound, and Discover Sweet Treats in WoW Weekly" width="833" height="468"></a></p><p>From the global launch of World of Warcraft: Forever on 4 November to the eerie adventures of Midnight’s Talebound demo and November’s sweet-themed Trading Post, this week’s news is packed with helpful guides, fresh stories, new rewards, and haunting additions to your collection. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24316094">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/prepare-for-forever-try-midnight%E2%80%99s-talebound-and-discover-sweet-treats-in-wow-weekly/641161/1</link>
+        <pubDate>Tue, 10 Nov 2026 00:35:46 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6487866</guid>
+      </item>
+      <item>
+        <title>Purchase World of Warcraft: Forever Upgrades and Begin Your Next Journey in Azeroth</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/4f/4FC5K327AVF01789243118942.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/4f/4FC5K327AVF01789243118942.png" alt="Purchase World of Warcraft: Forever Upgrades and Begin Your Next Journey in Azeroth" width="833" height="468"></a></p><p>Answer the call to a reimagined Azeroth with World of Warcraft: Forever. Purchase the Skyborne Heroic Pack, Skyborne Epic Pack, or Warcraft Forever Collection on the Battle.net Shop to unlock upgrade benefits, prepare for beta, and bring a friend along with Invite-A-Friend Launch Codes when it goes live. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24301508">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/purchase-world-of-warcraft-forever-upgrades-and-begin-your-next-journey-in-azeroth/641159/1</link>
+        <pubDate>Tue, 10 Nov 2026 00:27:02 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6487849</guid>
+      </item>
+      <item>
+        <title>Dungeon Enemy XP Increased - 8 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>At about 20:05 CET today, we deployed a hotfix that increased kill experience in dungeons by 50%, so it feels better to go back in for more runs.</p>
+<p>Happy dungeon crawling, and good luck with those Deviate Hides!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/dungeon-enemy-xp-increased-8-november/640598/1</link>
+        <pubDate>Sun, 08 Nov 2026 19:48:33 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6482935</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Midnight Hotfixes - 6 November</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>November 6, 2026</strong></p>
+<p><strong>Dungeons and Raids</strong></p>
+<ul>
+<li><strong>The Venomous Abyss</strong>
+<ul>
+<li><strong>Vashnik, the Malignant</strong>
+<ul>
+<li>Malignance damage reduced by 37% on Mythic difficulty.</li>
+<li>Malignance damage over time duration reduced to 16 seconds on Mythic difficulty.</li>
+</ul>
+</li>
+<li><strong>Ula’tek</strong>
+<ul>
+<li>Adjusted the health scaling on the following enemies on Raid Finder, Normal, and Heroic difficulties to better account for smaller raid sizes. Their base health has also been reduced on these difficulties to ensure the health scaling does not increase their health with larger raid sizes.
+<ul>
+<li>Ula’tek</li>
+<li>Blightscale Rawling</li>
+<li>Blightscale Viper</li>
+<li>Blightscale Shrieker</li>
+<li>Weakened Doomscale</li>
+</ul>
+</li>
+<li>Ula’tek health reduced by 15% on Heroic difficulty.</li>
+<li>Unchecked Rage damage reduced by 61% on all difficulties.</li>
+<li>Caustic Waves impact damage reduced by 32% on Heroic and Mythic difficulties.</li>
+<li>Caustic Waves damage over time reduced by 75% on Normal, 61% on Heroic, and 89% on Mythic difficulties.</li>
+<li>Malice damage reduced by 63% on Normal and Heroic difficulty, and 45% on Mythic difficulty.</li>
+<li>Virulent Spit damage reduced by 46% on Raid Finder, 33% on Normal and Heroic, and 36% on Mythic difficulties.</li>
+<li>Falling Debris damage reduced by 46% on Raid Finder, 33% on Normal and Heroic, and 77% on Mythic difficulties.</li>
+<li>Viscous Echoes impact damage reduced by 53% and damage over time reduced by 25% on all difficulties.</li>
+<li>Reduced the number of eggs summoned by Call of the Serpent on Normal and Heroic difficulty.</li>
+<li>Reduced the number of targets selected by Serpent’s Bite on all difficulties.</li>
+<li>Reduced the number of targets selected by Grasping Fangs on Normal and Heroic difficulty.</li>
+<li>Removed 2 eggs from each side during Phase 2, reducing the total to 8 eggs per side on Heroic difficulty.</li>
+<li>Ula’tek no longer generates additional Caustic Waves from Spectral Tails when sending walls of waves across the platforms during Phase 3 on Heroic difficulty.</li>
+<li>Noxious Splash initial damage reduced by 33% and damage over time reduced by 84% on Mythic difficulty.</li>
+<li>Putrid Membrane duration reduced to 20 seconds (was 30 seconds) on Mythic difficulty.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-midnight-hotfixes-6-november/635623/33</link>
+        <pubDate>Sat, 07 Nov 2026 01:08:17 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6479547</guid>
+      </item>
+      <item>
+        <title>WoW: Forever Hotfixes - November 10, 2026</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <hr>
+<p><strong>November 6, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li>Fixed an issue with the Quick and the Dead Legacy Talent where it sometimes did not work as intended.</li>
+<li><strong>Cooldown Manager</strong>
+<ul>
+<li>The Cooldown Manager will now correctly display the duration of crowd control spells at all times, even when diminishing returns or mechanic reductions (like orc stun reduction) are factors.</li>
+</ul>
+</li>
+<li><strong>Druid</strong>
+<ul>
+<li>Bloom will now correctly heal the target.</li>
+<li>Fixed a bug where the tooltip of Bear Form claimed an incorrect health value increase. The functionality was correct, but the wrong value was reported.</li>
+<li>The tooltip for Ravage reported an incorrect value for its damage, and the tooltip has been corrected. There was no change made to damage done.</li>
+<li>Fixed the tooltip for Swiftmend to no longer incorrectly mention consuming the effect.</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li>Fixed an issue where Mages were still learning the Research spell and then losing it upon relogging. This spell should not exist, and you should only have the Study spell after completing the relevant quest.</li>
+<li>Fixed an issue with Arcane Blast where its duration was not properly 18 seconds.</li>
+</ul>
+</li>
+<li><strong>Rogue</strong>
+<ul>
+<li>Shank will now display Rank 1 and Rank 2 in the tooltips.</li>
+<li>While Boot Knife is talented, Shank will now correctly display the number of Combo Points it grants.</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Voidwalker base health increased by about 40 at all levels.</li>
+<li>The Soul Siphon talent no longer incorrectly causes Wrack to increase its own damage.</li>
+</ul>
+</li>
+<li><strong>Warrior</strong>
+<ul>
+<li>Fixed the tooltip for Reckless Swings to mention that it activates Gore Drinker.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Dungeons</strong></p>
+<ul>
+<li>Fixed an issue that would prevent Zaetar’s Spirit from spawning after defeating Princess Theradras in Maraudon.</li>
+<li>Fixed an issue that could cause some creatures inside Blackmaw Hold and The Drowned City to erroneously disengage.</li>
+<li>The instance portal should now correctly teleport you inside The Drowned City</li>
+</ul>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Dun Morogh - Fixed an issue where the troggs in Grol’bolar Quarry would respawn too quickly.</li>
+<li>Durotar - Ridgeshade Lurkers now correctly have loot.</li>
+<li>Riverglades - Krek the Noxious now has correct loot when defeated.</li>
+<li>Swamp of Sorrows - Fixed an issue where Pelluk would sometimes not spawn.</li>
+<li>Teldrassil - Fixed an issue where Lasher Sproutlings, Blooming Lashers, and Wrathvine were immune to nature damage.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Searing Dagger is now only activated by spells that have a damaging component.</li>
+</ul>
+<p><strong>Professions</strong></p>
+<ul>
+<li><strong>Leatherworking</strong>
+<ul>
+<li>Tanning Rack skill requirement lowered to 125 (was 140). This prevents it from being an obstacle to crafting various Leatherworking patterns that require 125 skill. Tanning Rack skill-ups lowered by 15 skill points to account for this.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>Resolved an issue with the quest “Vorsha the Lasher” rudely lashing everyone in the zone.</li>
+<li>Brewed a fresh pot of Darnassus’s finest coffee for Kerlonian Evershade so he falls asleep less often during “The Sleeper Has Awakened”. Players now also start with the Horn of Awakening item to wake him up when needed.</li>
+<li>The quest “Rough Wolf Pelts” is now automatically cancelled if you unlearn the Skinning skill.</li>
+<li>Resolved an issue with “Rediscovering the Light” where players were sometimes unable to heal NPCs.</li>
+<li>Fixed an issue during the quest “Ammo for Rumbleshot” where players could not see loot if interacting immediately following another player.</li>
+<li>Resolved an issue where some quest item drops in Riverglades were not shared by players in a party.</li>
+<li>“Never Saddle on Quality” spawns and quest item drops should now be more plentiful.</li>
+<li>The Abomimable Head dropped from The Baron in the Ruins of Lordaeron dungeon will now properly offer the quest “Unending Torment” for Horde players at level 15 (was level 16).</li>
+<li>Damp Note drop rate increased. Eww.</li>
+</ul>
+<p><strong>Races</strong></p>
+<ul>
+<li><strong>Night Elf</strong>
+<ul>
+<li>Fixed a bug granting Shadowmelded Druids access to Ravage and Pounce.</li>
+</ul>
+</li>
+<li><strong>Orc</strong>
+<ul>
+<li>Fixes an issue where some Warlock pet abilities were benefitting too much from the Orc Command racial ability.</li>
+</ul>
+</li>
+</ul>
+<p><strong>World</strong></p>
+<ul>
+<li>Deployed some improvements to the visibility of other players and their targets across relatively large distances.</li>
+<li>Thunder Bluff - Fixed an issue where the Barbershop was darker than intended. We moooved the lights around.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-10-2026/639885/4</link>
+        <pubDate>Sat, 07 Nov 2026 01:02:28 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6479538</guid>
+      </item>
+      <item>
+        <title>Class Tuning Incoming - 10 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>Now that players around the world are leveling up in WoW: Forever, we’ve identified a few class issues that we feel need some immediate changes. Today, we’re still investigating these issues and working through them with a plan to release hotfixes on Tuesday, November 10 to address:</p>
+<ul>
+<li>We’ve seen that Hunter pets and Warlock Voidwalkers are not as durable as tanks as we would like them to be. Our intent is for their effectiveness to be relatively the same as in Classic Era. We will adjust their stats as necessary to accomplish this.</li>
+<li>Affliction Warlock reports indicate that always channeling Wrack is superior to also casting damage-over-time abilities like Siphon Life, Corruption, and Bane of Agony. We will make adjustments to make sure those are always worthwhile to cast combined with Wrack, without affecting Affliction Warlocks’ total damage output.</li>
+<li>Enhancement Shamans are finding that Intellect and Spellpower are superior stats compared to Strength and Attack Power. We plan to make changes so that Strength is always their strongest stat, and Enhancement Shamans will not prefer gear intended for Mages and Warlocks. Ideally, Enhancement’s best items have Strength or Attack Power, along with some Intellect and/or Spell Power.</li>
+</ul>
+<p><strong>Please note: Enhancement Shaman players who are leveling up will want to collect Strength and Attack Power gear from now on.</strong></p>
+<p>We may find new issues over the weekend, and we will keep you updated. Our plan is to make class balance changes on Tuesday, and then on future Tuesdays if necessary. Thank you very much for your feedback!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/class-tuning-incoming-10-november/640100/1</link>
+        <pubDate>Fri, 06 Nov 2026 21:12:54 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6479236</guid>
+      </item>
+      <item>
+        <title>The Venomous Abyss Raid Tuning Incoming</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>The Ula’tek adjustments are now live. I’ll be sure to add them to the hotfixes post later today.</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-venomous-abyss-raid-tuning-incoming/639867/14</link>
+        <pubDate>Fri, 06 Nov 2026 19:03:24 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6479077</guid>
+      </item>
+      <item>
+        <title>WoW: Forever Hotfixes - November 10, 2026</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <h2><a name="p-6477693-hotfixes-1" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6477693-hotfixes-1" aria-label="Heading link"></a>Hotfixes</h2>
+<hr>
+<p><strong>November 10, 2026</strong></p>
+<p><strong>Auction House</strong></p>
+<ul>
+<li>With realm restarts:
+<ul>
+<li>Adjusted the minimum deposit amount to 1 copper (was 1 silver).</li>
+<li>Fixed a bug causing unread mail to incorrectly read as from ‘Stormwind Auction House’ for all players.</li>
+<li>Fixed a bug that was causing some mail to be delivered in about 2 minutes, rather than the intended 60-minute delivery time.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Classes</strong></p>
+<ul>
+<li>
+<p><strong>Druid</strong></p>
+<ul>
+<li>Fixed an issue where Omen of Clarity could not activate after swapping specializations.</li>
+<li><strong>Restoration</strong>
+<ul>
+<li>Nature’s Swiftness now also makes Wild Growth instant.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Hunter</strong></p>
+<ul>
+<li>Fixed a bug where Pets erroneously had 150% of their normal health. This is now corrected to 115% of their normal health.</li>
+<li>Arcane Shot mana cost changed to 11% of base Mana for all ranks of Arcane Shot.
+<ul>
+<li><em>Developers’ notes: This means the Mana cost on all ranks will always be the same and rise gradually with level. Overall Mana cost at levels 6 and 60 are nearly identical to before this change, and slightly lower for levels in-between.</em></li>
+</ul>
+</li>
+<li><strong>Beast Mastery</strong>
+<ul>
+<li>Summon Hawk Mana cost changed to 11% of base Mana for all ranks of Summon Hawk, same as Arcane Shot.</li>
+<li>Melee damage dealt by the Hawk pet increased by about 80%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Paladin</strong></p>
+<ul>
+<li>Redoubt can now be tracked in the Cooldown Manager.</li>
+</ul>
+</li>
+<li>
+<p><strong>Priest</strong></p>
+<ul>
+<li>Fixed an issue where the Revelation enchant was activated by Vampiric Embrace healing.</li>
+<li><strong>Holy</strong>
+<ul>
+<li>Fixed an issue where Holy Nova was not correctly unlearend when untalenting from the spell.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Shaman</strong></p>
+<ul>
+<li>Maelstrom Weapon can now be tracked in the Cooldown Manager.</li>
+<li>Weapon imbues and Weapon totems can now be used at the same time.
+<ul>
+<li><em>Developers’ notes: For example, this means the Shaman can benefit from Windfury Weapon and Windfury Totem at the same time, granting their attacks a chance to activate both.</em></li>
+</ul>
+</li>
+<li><strong>Enhancement</strong>
+<ul>
+<li>Stormstrike damage reduced to 100% weapon damage (was 150%), and cooldown increased to 8 seconds (was 6 seconds).</li>
+<li>Mental Dexterity: Intellect to Attack Power conversion ratio reduced to 33/66/100% (was 50/100/150%).</li>
+<li>Maelstrom Weapon now grants 20% reduced cast time and Mana cost per application at all ranks (was 4/8/12/16/20% reduced cast time and Mana cost), and chance to activate now increases with rank and activates 6/7/8/9/10 times per minute (was 20 times per minute regardless of rank).</li>
+<li>Maelstrom Weapon tooltip updated to display the Shaman’s % chance to activate it based on their Main Hand Weapon’s speed. For example, if the Shaman has the 5 points into Maelstrom Weapon and has a 3.6 speed weapon it will display a 60% chance to activate on swing, compared to if the Shaman is wielding a 2.0 speed weapon it will display a 33% chance to activate on swing.</li>
+<li><em>Developers’ notes: Beta changes to Enhancement Shaman, alongside the Shock and Lightning Bolt changes aimed at Elemental Shaman, caused Enhancement to favor Spell Power and Intellect gear too heavily. While that gearing direction is not inherently a problem, it also pushed Enhancement away from Windfury, which we believe should remain at the heart of the specialization’s fantasy and gameplay. We want to make this adjustment now because it has significant implications for gearing in the upcoming raid. Addressing it before the raid opens will help prevent players from pursuing and winning highly contested items that could become much less valuable after a later change. With that in mind, many of these changes reverse the Beta adjustments aimed specifically at Enhancement and move the specialization in a more Windfury-friendly direction. We believe this better serves both Enhancement’s core fantasy and its intended gearing.</em></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Warlock</strong></p>
+<ul>
+<li>Fixed a bug causing the Succubus whip sound to play much too often.</li>
+<li>Imp base damage of the first 4 Ranks of Imp’s Firebolt increased, and base Imp Health increased by ~15%.</li>
+<li>Voidwalker base Health increased by ~15%.</li>
+<li>Incubus base Health increased by ~15%.</li>
+<li>Succubus base Health increased by ~15%.</li>
+<li><strong>Affliction</strong>
+<ul>
+<li>Soul Siphon now grants increased effect to your Drain Life, Drain Soul, and Wrack spells by 4/8/12% per each of your Corruption, Siphon Life, and Bane of Agony spells active on the target, up to a maximum of 36% (was any Affliction spell).</li>
+<li>Wrack damage reduced by 30%.</li>
+<li>Wrack no longer increases the damage of the Warlock’s periodic effects on the target.</li>
+<li>Wrack tears the target apart from within for 6 seconds, inflicting Shadow damage every 1 second. While channeling, your Siphon Life, Corruption, and Bane of Agony effects on the target deal their periodic damage 100% faster.</li>
+<li><em>Developers’ notes: Wrack speeds up how often your periodic effects deal damage, not how long they last. Bane of Agony still lasts its full 24 seconds, but while Wrack is channeled on the target, it deals damage twice as often. Why this change? Besides being unique, interesting, and more viscerally satisfying to see numbers pop up more often as Affliction - it fixes an issue that the previous design of Wrack had. Previously, Wrack increased periodic damage by a percentage, so if you stopped channeling just before a periodic effect dealt damage, that effect gained 0 benefit from the Wrack you just ended. Now Wrack speeds up your periodic effects while channeled, and the time it skips is kept after Wrack’s channel ends or is interrupted. For example, if you channel Wrack for 1 second during a 3-second Corruption tick, Corruption advances 2 seconds instead of 1, so its next tick lands 1 second later instead of 2, even if you stopped channeling Wrack.</em></li>
+</ul>
+</li>
+<li><strong>Destruction</strong>
+<ul>
+<li>Bane of Havoc - fixed a bug where this ability was not incurring a global cooldown.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Warrior</strong></p>
+<ul>
+<li><strong>Arms</strong>
+<ul>
+<li>Sweeping Strikes no longer loses charges if no second target is hit.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Shatterspear Trolls no longer grant XP on kill. They’re dancers, not fighters!</li>
+<li>Innkeepers now provide better responses when asked “Tell me about the dungeons I can explore”.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>All racial vendor mounts are now Bind-on-Pickup.</li>
+<li>Sparklance Wand now does Arcane damage (was Nature damage).</li>
+<li>Rage of the Storm (Shaman quest reward) now has 16 Strength (was 16 Intellect), and weapon speed decreased to 3.6 (was 3.2 seconds).</li>
+<li>Reduced the price vendors pay for some crafted armor items from Leatherworking, Tailoring, and Blacksmithing.
+<ul>
+<li><em>Developers’ notes: The adjusted items were all bind-on-pickup items that a player was intended to craft only once for themselves.</em></li>
+</ul>
+</li>
+</ul>
+<p><strong>Professions</strong></p>
+<ul>
+<li><strong>Alchemy</strong>
+<ul>
+<li>Minor Arcane Elixir sell value reduced to 5 copper (was 25 copper).</li>
+<li>Corrected the name of “Recipe: Elixir of Greater Firepower” to “Recipe: Elixir of Holy Power”, and the elixir’s aura is now called “Holy Power”.</li>
+</ul>
+</li>
+<li><strong>Blacksmithing</strong>
+<ul>
+<li>Coarse Grinding Stone now provides skill-ups to 90 (was 75).</li>
+</ul>
+</li>
+<li><strong>Cooking</strong>
+<ul>
+<li>Journeyman Campfire Kit now requires Cooking 90 to place, matching its recipe skill requirement (was Cooking 140).</li>
+</ul>
+</li>
+<li><strong>Enchanting</strong>
+<ul>
+<li>Arcane Salvager now requires the Runed Golden Rod tool to craft (was Runed Truesilver Rod).</li>
+<li>Arcane Salvager now correctly applies its disenchanting bonus to lower-level enchanters.</li>
+<li>Enchant Boots - Lesser Spirit and Enchant Bracer - Lesser Spirit now correctly give their stated bonus to Spirit (was Resist All).</li>
+</ul>
+</li>
+<li><strong>Engineering</strong>
+<ul>
+<li>Iron Grenades vendor price reduced to 1 silver 25 copper (was 5 silver).</li>
+<li>Swiftstrike Shot and Swiftfeather Arrow are no longer Bind-on-Pickup.
+<ul>
+<li><em>Developers’ notes: These are not available until raids unlock, but we want to make sure this change is known, because it may influence profession choice. These were not intended to be Bind-on-Pickup.</em></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Fishing</strong>
+<ul>
+<li>Fixed a condition mismatch that sometimes caused Fishing Racks to fail to provide lures to eligible players.</li>
+<li><em>Developers’ notes: We are aware there are other ongoing issues with the Fishing Rack, including other situations that result in “There is no loot” errors.</em></li>
+</ul>
+</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>Most quests level 48 and higher now additionally reward gold.
+<ul>
+<li><em>Developers’ notes: WoW Forever does not include the XP-to-gold conversion for level 60 quests that was added to original WoW just before the release of the original Burning Crusade. We felt that it would be inappropriate for WoW: Forever players to be compelled to save up quests as they approach level 60 and then not turn them in until they transformed into a great profit. This change brings high-level quests in-line with the rest of questing in WoW: Forever, with the goal of giving players a good reason to complete those quests while leveling up to 60 and thereafter. Quests that were not affected by this change include those that already reward valuable items, repeatable quests, and those that don’t provide significant rewards because they’re quick, easy, or trivial to complete.</em></li>
+</ul>
+</li>
+<li>Fixed an issue for the “Call of Water” quests where the events of the final quests would not play out properly consistently.</li>
+<li>Fixed an issue where Sovik would not offer the quest “Chief Engineer Scooty” after selecting his gossip option.</li>
+<li>Fixed multiple issues with the quest “Helping Hands.”</li>
+<li>Zephras Isle - “Camping 101: Herbalism” now completes in Shen’dar Village instead of Valanaar.</li>
+<li>The Broken Frond of Celastrus quest item dropped by “Celastrus the Bitter” should now properly drop for all eligible members of the party.</li>
+<li>Feralas - Fixed an issue where players could not start the quest “Rescue OOX-22/FE!”.</li>
+<li>Riverglades - There are now significantly more Glade Vipers available for the quest “Poison Tips.”</li>
+<li>Duskwood - There are now more Nightbane Vile Fang and Nightbane Tainted Ones available for the quest “Worgen in the Woods.”</li>
+<li>Fixed an issue where Murloc Tideskimmers would not drop the Saltwater Murloc Eyes for the quest “A Taste of the Sea”. Mmmmm, murloc eyes.</li>
+</ul>
+<p><strong>World</strong></p>
+<ul>
+<li>Fixed issues causing players to be sent to an incorrect graveyard when they died.</li>
+<li>Fixed an issue where the denizens of Pyrewood Village would not spawn around Dawn and Dusk for periods of time. Probably nothing to worry about; the villagers seem fine and love howling at night.</li>
+</ul>
+<hr>
+<p><strong>November 9, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li><strong>Druid</strong>
+<ul>
+<li>The Cooldown Manager no longer shows Berserk, and now correctly shows Lacerate when learned.</li>
+<li>Idol of Ferocity no longer lists Mangle as an ability it discounts.</li>
+<li><strong>Feral</strong>
+<ul>
+<li>Fixed an issue where Feral Charge (Cat) was not putting the Druid in combat right away.</li>
+<li>Fixed an issue where Natural Instinct was not applying correctly to Lacerate or Pounce.</li>
+<li>Fixed an issue where the Pounce Stun debuff was not showing in the enemy debuffs while active.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Hunter</strong>
+<ul>
+<li>Vulgara the Insatiable and the Shrieklings of Zephras should now belong to the correct hunter pet families.</li>
+<li>Fixed an issue causing Hunters to sometimes aggro enemies from very far away by targeting them.</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li>Flamestirke’s ticks on the ground no longer incorrectly consume clearcasting.</li>
+<li>Arcane Concentration’s activation chance now correctly splits across the cast and every bolt (was granting 10% on cast and per bolt).</li>
+</ul>
+</li>
+<li><strong>Paladin</strong>
+<ul>
+<li>Fixed an issue where Consecration could stop dealing increased damage to enemies if targets inside of the Consecration despawned previously.</li>
+<li>Fixed an issue where Cooldown Manager wasn’t showing Seals correctly.</li>
+</ul>
+</li>
+<li><strong>Priest</strong>
+<ul>
+<li>Shadowform no longer breaks when casting Fear Ward.</li>
+<li>Power Infusion will now correctly persist when used on allies.</li>
+</ul>
+</li>
+<li><strong>Shaman</strong>
+<ul>
+<li>Updated the visual effect for Lightning Mastery.</li>
+<li>Lightning Overload now deals the correct amount of damage for Lightning Bolt.</li>
+<li>Fixed an issue causing Improved Ghost Wolf to not hold the Night Watchman’s Torch in its mouth.</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Completing “Summon Felsteed” will correctly grant the player the appropriate riding skill.
+<ul>
+<li><em>Developers’ notes: If a player completed the quest before this hotfix, summoning the Felsteed once will grant them the apprentice riding skill, allowing them to ride other mounts if desired.</em></li>
+</ul>
+</li>
+<li>Fixed an issue allowing Incinerate to be available to non-Destruction specializations.</li>
+</ul>
+</li>
+<li><strong>Warrior</strong>
+<ul>
+<li>Thunderclap no longer tracks its duration on the target via Cooldown Manager and now only shows its cooldown.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Dungeons</strong></p>
+<ul>
+<li>Experience rewarded for all enemy kills in dungeons increased by 50%.</li>
+<li><strong>Alcaz Prison</strong>
+<ul>
+<li>Defeating Zarla Ober will now drop loot.</li>
+</ul>
+</li>
+<li><strong>Blackfathom Deeps</strong>
+<ul>
+<li>Fixed an issue that could cause players to become unable to release after dying in Blackfathom Deeps.</li>
+</ul>
+</li>
+<li><strong>Blackrock Depths</strong>
+<ul>
+<li>Fixed an issue that prevented the throne room doors from opening if the party wiped while fighting Emperor Thaurissan.</li>
+<li>Heart of the Mountain can now be looted more than once.</li>
+</ul>
+</li>
+<li><strong>The Drowned City</strong>
+<ul>
+<li>Fixed an issue that was causing creatures inside the Drowned City to do about 30% more damage than intended.</li>
+<li><strong>Deathless Marrow</strong>
+<ul>
+<li>Lowered the health of the creatures in the Deathless Marrow encounter by 25%.</li>
+<li>Lowered the damage of the Deathless Sorcerer’s Fireball by 25%.</li>
+<li>Lowered the damage of the Deathless Watcher’s Charge by 50%.</li>
+<li>Reduced the cast frequency of the Deathless Guardian’s Shield Slam ability by about 50%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>The Shaper’s Terrace</strong>
+<ul>
+<li>The Shaper’s Terrace: Vitrix, Snowtalon, and Cinder now correctly drop loot and higher-level skinning materials.</li>
+<li>Cinder should now correctly spawn after players use the Archival Panel.</li>
+</ul>
+</li>
+<li><strong>Stratholme</strong>
+<ul>
+<li>Fixed an issue that allowed players to mount inside Stratholme.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Silverpine Forest - Fixed an issue where Ivar the Foul was respawning more slowly than intended.</li>
+<li>Teldrassil - Spawn time reduced for Ferocitas the Dream Eater.</li>
+<li>Un’goro Crater - Fixed an issue that was causing Young Diemetradons to spawn at level 58 (rather than 51 to 52).</li>
+<li>Zephras - Malduko Cloudcrush now respawns slightly more slowly.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Fixed an issue with the Pouch of Violet Dust preventing players from receiving an extra hour of duration of the Camp Benefits aura as intended.</li>
+<li>Fixed a bug that prevented Waylaid Crates and Craftsman’s Writs from dropping inside dungeons.</li>
+<li>Berdun’s Trusty Rifle no longer has random stats and is not Bind-on-Equip.</li>
+<li>Fixed a bug causing Nifty Stopwatch to share a cooldown with Dash, Blink, Sprint, and other movement abilities.</li>
+<li>Zephrali Greatstaff and Fallen Dragon’s Scepter now appear correctly oriented when sheathed on the player’s back.</li>
+<li>Gloves of Holy Might now work as intended.</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li>Removed an invisible wall that was incorrectly blocking the roof of the Alliance base in Warsong Gulch. Please be careful up there.</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>“The Monster Surfaces” quest item is now available to all players in a party.</li>
+<li>“Croaky’s Head” is now available to all players in a party.</li>
+<li>“Elmpaw’s Head” is now available to all players in a party.</li>
+<li>Mistreating Astor Hadren during the quest “The Deathstalkers” should now properly anger him, allowing you to fight him.</li>
+<li>Fixed a bug preventing Jom-jom from continuing his escape on “Jom-jom’s Escape”.</li>
+<li>The door available after the quest “Ever After” should now correctly teleport players who interact with the door.</li>
+<li>Fixed a bug keeping Terry Longdrink alive during the quest “Unwelcome Guests”.</li>
+<li>Fixed an issue where the quest “Find Bingles” was incorrectly categorized in Ironforge, rather than Loch Modan.</li>
+<li>Updated Skonk’s list to be readable by everyone going on “A Quick Grocery Run”.</li>
+<li>Henrig Lonebrow’s Journal now respawns more quickly, so that more players can get started on “Lonebrow’s Journal”. It has also moved slightly down the road. Look for a similar skeleton to mark the location.</li>
+<li>Addressed an issue that could prevent players from looting Berard’s Journal from Berard’s Bookshelf for “A Recipe for Death”.</li>
+<li>Resolved an issue preventing completion of “Fetch ‘n’ Fletch”.</li>
+<li>Fixed an issue where restarting the Rogue quest “Mission: Possible not Probable” was much less possible than intended.</li>
+<li>Resolved an issue where Jezap Jinglesprocket could fail to provide players a “Bloodmaster’s Ring”.</li>
+<li>Fixed an issue during the quest “Feathers in Flight” where players below level 60 could not loot the Hyjal Owl Nests.</li>
+</ul>
+<p><strong>Races</strong></p>
+<ul>
+<li><strong>Tauren</strong>
+<ul>
+<li>Cultivation now correctly only goes on cooldown after completing the cast.</li>
+</ul>
+</li>
+</ul>
+<p><strong>World</strong></p>
+<ul>
+<li>Lowered the population of players in various zones where there was significant congestion.
+<ul>
+<li><em>Developers’ notes: We’ve made this an even bigger change on the PvP ruleset, following feedback from players that they felt overcrowded in several places. We will continue to monitor how zones feel and make further adjustments as necessary.</em></li>
+</ul>
+</li>
+<li>Resolved an issue where the flight path from Camp Taurajo to Thunder Bluff could unintentionally go through objects.</li>
+</ul>
+<hr>
+<p><strong>November 6, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li>Fixed an issue with the Quick and the Dead Legacy Talent where it sometimes did not work as intended.</li>
+<li><strong>Cooldown Manager</strong>
+<ul>
+<li>The Cooldown Manager will now correctly display the duration of crowd control spells at all times, even when diminishing returns or mechanic reductions (like orc stun reduction) are factors.</li>
+</ul>
+</li>
+<li><strong>Druid</strong>
+<ul>
+<li>Bloom will now correctly heal the target.</li>
+<li>Fixed a bug where the tooltip of Bear Form claimed an incorrect health value increase. The functionality was correct, but the wrong value was reported.</li>
+<li>The tooltip for Ravage reported an incorrect value for its damage, and the tooltip has been corrected. There was no change made to damage done.</li>
+<li>Fixed the tooltip for Swiftmend to no longer incorrectly mention consuming the effect.</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li>Fixed an issue where Mages were still learning the Research spell and then losing it upon relogging. This spell should not exist, and you should only have the Study spell after completing the relevant quest.</li>
+<li>Fixed an issue with Arcane Blast where its duration was not properly 18 seconds.</li>
+</ul>
+</li>
+<li><strong>Rogue</strong>
+<ul>
+<li>Shank will now display Rank 1 and Rank 2 in the tooltips.</li>
+<li>While Boot Knife is talented, Shank will now correctly display the number of Combo Points it grants.</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Voidwalker base health increased by about 40 at all levels.</li>
+<li>The Soul Siphon talent no longer incorrectly causes Wrack to increase its own damage.</li>
+</ul>
+</li>
+<li><strong>Warrior</strong>
+<ul>
+<li>Fixed the tooltip for Reckless Swings to mention that it activates Gore Drinker.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Dungeons</strong></p>
+<ul>
+<li>Fixed an issue that would prevent Zaetar’s Spirit from spawning after defeating Princess Theradras in Maraudon.</li>
+<li>Fixed an issue that could cause some creatures inside Blackmaw Hold and The Drowned City to erroneously disengage.</li>
+<li>The instance portal should now correctly teleport you inside The Drowned City</li>
+</ul>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Dun Morogh - Fixed an issue where the troggs in Grol’bolar Quarry would respawn too quickly.</li>
+<li>Durotar - Ridgeshade Lurkers now correctly have loot.</li>
+<li>Riverglades - Krek the Noxious now has correct loot when defeated.</li>
+<li>Swamp of Sorrows - Fixed an issue where Pelluk would sometimes not spawn.</li>
+<li>Teldrassil - Fixed an issue where Lasher Sproutlings, Blooming Lashers, and Wrathvine were immune to nature damage.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Searing Dagger is now only activated by spells that have a damaging component.</li>
+</ul>
+<p><strong>Professions</strong></p>
+<ul>
+<li><strong>Leatherworking</strong>
+<ul>
+<li>Tanning Rack skill requirement lowered to 125 (was 140). This prevents it from being an obstacle to crafting various Leatherworking patterns that require 125 skill. Tanning Rack skill-ups lowered by 15 skill points to account for this.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>Resolved an issue with the quest “Vorsha the Lasher” rudely lashing everyone in the zone.</li>
+<li>Brewed a fresh pot of Darnassus’s finest coffee for Kerlonian Evershade so he falls asleep less often during “The Sleeper Has Awakened”. Players now also start with the Horn of Awakening item to wake him up when needed.</li>
+<li>The quest “Rough Wolf Pelts” is now automatically cancelled if you unlearn the Skinning skill.</li>
+<li>Resolved an issue with “Rediscovering the Light” where players were sometimes unable to heal NPCs.</li>
+<li>Fixed an issue during the quest “Ammo for Rumbleshot” where players could not see loot if interacting immediately following another player.</li>
+<li>Resolved an issue where some quest item drops in Riverglades were not shared by players in a party.</li>
+<li>“Never Saddle on Quality” spawns and quest item drops should now be more plentiful.</li>
+<li>The Abomimable Head dropped from The Baron in the Ruins of Lordaeron dungeon will now properly offer the quest “Unending Torment” for Horde players at level 15 (was level 16).</li>
+<li>Damp Note drop rate increased. Eww.</li>
+</ul>
+<p><strong>Races</strong></p>
+<ul>
+<li><strong>Night Elf</strong>
+<ul>
+<li>Fixed a bug granting Shadowmelded Druids access to Ravage and Pounce.</li>
+</ul>
+</li>
+<li><strong>Orc</strong>
+<ul>
+<li>Fixes an issue where some Warlock pet abilities were benefitting too much from the Orc Command racial ability.</li>
+</ul>
+</li>
+</ul>
+<p><strong>World</strong></p>
+<ul>
+<li>Deployed some improvements to the visibility of other players and their targets across relatively large distances.</li>
+<li>Thunder Bluff - Fixed an issue where the Barbershop was darker than intended. We moooved the lights around.</li>
+</ul>
+<h2><a name="p-6477693-hotfixes-2" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6477693-hotfixes-2" aria-label="Heading link"></a><strong>Hotfixes</strong></h2>
+<hr>
+<p><strong>November 5, 2026</strong></p>
+<p><strong>Enemies and NPCs</strong></p>
+<ul>
+<li>Durotar - Fixed an issue where Yarrog Baneshadow was respawning more slowly than intended.</li>
+<li>Zephras - Lotheluum Starbreeze now offers training to Druids as expected.</li>
+<li>Dustwallow Marsh - Fixed an issue where some murlocs in Dustwallow Marsh were respawning too quickly.</li>
+<li>Swamp of Sorrows - Fixed an issue where Pelluk would sometimes not spawn.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Fixed an issue where trade supply vendors on Zephras Isle didn’t sell apprentice tradeskill bags.</li>
+<li>Mild Spices now sell to vendors for 1 copper each (was 2 copper).</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li>Fixed an issue where Plainsrunning could be stacked in a battleground’s preparation phase.</li>
+<li>Plainsrunning can no longer stack and stacks will be cancelled when carrying a flag in a battleground.</li>
+</ul>
+<p><strong>Quests</strong></p>
+<ul>
+<li>Fixed an issue with incorrect text in “The Sisterhood of Elune”.</li>
+<li>Deathstalker Erland respawns much more quickly for the quest “Escorting Erland”.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-10-2026/639885/1</link>
+        <pubDate>Fri, 06 Nov 2026 02:35:12 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6477693</guid>
+      </item>
+      <item>
+        <title>The Venomous Abyss Raid Tuning Incoming</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>Greetings, raiders!</p>
+<p>We’ll be making a number of adjustments to encounters in the Venomous Abyss over the next few days. You can find the details below and we’ll update <a href="https://worldofwarcraft.blizzard.com/news/24307310/">hotfixes</a> when they are live.</p>
+<p><strong>The Venomous Abyss</strong></p>
+<ul>
+<li><strong>Entombed Sentinels</strong>
+<ul>
+<li>Reduced the maximum scale of Blood Venom pools on Heroic and Mythic difficulty.</li>
+<li>Blood Venom pool duration reduced to 2 minutes on Mythic difficulty (was 5 minutes).</li>
+</ul>
+</li>
+<li><strong>Vashnik, the Malignant</strong>
+<ul>
+<li>Malignance damage reduced by 37% on Mythic difficulty.</li>
+<li>Malignance damage over time duration reduced to 16 seconds on Mythic difficulty.</li>
+</ul>
+</li>
+<li><strong>Twin Fangs</strong>
+<ul>
+<li>Visceral Burst damage reduced by 40% on Mythic difficulty.</li>
+</ul>
+</li>
+<li><strong>The Coiled Altar</strong>
+<ul>
+<li>Axegrinder movement speed reduced by 20% on all difficulties.</li>
+<li>Axegrinder damage reduced by 20% on Mythic difficulty.</li>
+<li>Gloombomb damage reduced by 20% on Mythic difficulty.</li>
+<li>Venom Rupture damage reduced by 15% on Mythic difficulty.</li>
+<li>Malevolent Resonance damage reduced by 60%.</li>
+<li>Gravebound Soul Fragments last an additional 2 seconds before fading away on Mythic difficulty.</li>
+<li>The number of Spiteful Soulcoilers that spawn from Spiritcackle reduced to 1 on Mythic difficulty (was 2).
+<ul>
+<li><em>Developers’ notes: With this change Soulcoilers will now spawn similarly to how they spawn on Heroic difficulty.</em></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Ula’tek</strong>
+<ul>
+<li>Adjusted the health scaling on the following enemies on Raid Finder, Normal, and Heroic difficulties to better account for smaller raid sizes. Their base health has also been reduced on these difficulties to ensure the health scaling does not increase their health with larger raid sizes.
+<ul>
+<li>Ula’tek</li>
+<li>Blightscale Rawling</li>
+<li>Blightscale Viper</li>
+<li>Blightscale Shrieker</li>
+<li>Weakened Doomscale</li>
+</ul>
+</li>
+<li>Ula’tek health reduced by 15% on Heroic difficulty.</li>
+<li>Unchecked Rage damage reduced by 61% on all difficulties.</li>
+<li>Caustic Waves impact damage reduced by 32% on Heroic and Mythic difficulties.</li>
+<li>Caustic Waves damage over time reduced by 75% on Normal, 61% on Heroic, and 89% on Mythic difficulties.</li>
+<li>Malice damage reduced by 63% on Normal and Heroic difficulty, and 45% on Mythic difficulty.</li>
+<li>Virulent Spit damage reduced by 46% on Raid Finder, 33% on Normal and Heroic, and 36% on Mythic difficulties.</li>
+<li>Falling Debris damage reduced by 46% on Raid Finder, 33% on Normal and Heroic, and 77% on Mythic difficulties.</li>
+<li>Viscous Echoes impact damage reduced by 53% and damage over time reduced by 25% on all difficulties.</li>
+<li>Reduced the number of eggs summoned by Call of the Serpent on Normal and Heroic difficulty.</li>
+<li>Reduced the number of targets selected by Serpent’s Bite on all difficulties.</li>
+<li>Reduced the number of targets selected by Grasping Fangs on Normal and Heroic difficulty.</li>
+<li>Removed 2 eggs from each side during Phase 2, reducing the total to 8 eggs per side on Heroic difficulty.</li>
+<li>Ula’tek no longer generates additional Caustic Waves from Spectral Tails when sending walls of waves across the platforms during Phase 3 on Heroic difficulty.</li>
+<li>Noxious Splash initial damage reduced by 33% and damage over time reduced by 84% on Mythic difficulty.</li>
+<li>Putrid Membrane duration reduced to 20 seconds (was 30 seconds) on Mythic difficulty.</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-venomous-abyss-raid-tuning-incoming/639867/1</link>
+        <pubDate>Fri, 06 Nov 2026 00:24:50 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6477587</guid>
+      </item>
+      <item>
+        <title>WoW: Forever– Watch Forging Forever</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/vf/VFUYSZS4A64R1793915016216.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/vf/VFUYSZS4A64R1793915016216.png" alt="WoW: Forever– Watch Forging Forever" width="833" height="468"></a></p><p>Witness the creation of World of Warcraft: Forever's first legendary: Taldramir, the Whispering Wood. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24317865">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever%E2%80%93-watch-forging-forever/639841/1</link>
+        <pubDate>Thu, 05 Nov 2026 22:00:06 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6477437</guid>
+      </item>
+      <item>
+        <title>Issues Resolved for Invite-a-Friend Players</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>With a hotfix that is now live, we’ve fixed an issue where players who joined WoW Forever by using an Invite-a-Friend Code were unexpectedly restricted from using certain chat channels, leveling past 10, participating in guilds, forming parties, or trading items with other players.</p>
+<p>If you experienced this, you may wish to log out and back into WoW Forever.</p>
+<p>Thank you!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/issues-resolved-for-invite-a-friend-players/639604/1</link>
+        <pubDate>Thu, 05 Nov 2026 02:44:03 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6476080</guid>
+      </item>
+      <item>
+        <title>Set Your Campfire Ablaze with the Pouch of Violet Dust!</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/xx/XXAWH0HK1QBX1793835768074.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/xx/XXAWH0HK1QBX1793835768074.png" alt="Set Your Campfire Ablaze with the Pouch of Violet Dust!" width="833" height="468"></a></p><p>Watch 4 hours of any eligible World of Warcraft stream on Twitch.tv during the World of Warcraft: Forever launch week to collect the Pouch of Violet Dust toy. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24317678">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/set-your-campfire-ablaze-with-the-pouch-of-violet-dust/639571/1</link>
+        <pubDate>Thu, 05 Nov 2026 00:30:06 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6475978</guid>
+      </item>
+      <item>
+        <title>Language and Social Settings</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>It’s always a good idea to go over your settings in-game when you first get started. Today, we’d like to suggest that players take a close look at these settings in particular.</p>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/3c7c0d63d1dfcb177b90bd63d6677bd3f8ccfbc8.jpeg" data-download-href="/en/wow/uploads/short-url/8D4qBjNBOW9kNO2AIGRfC3VVSTS.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/3c7c0d63d1dfcb177b90bd63d6677bd3f8ccfbc8_2_629x500.jpeg" alt="image" data-base62-sha1="8D4qBjNBOW9kNO2AIGRfC3VVSTS" width="629" height="500" srcset="https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/3c7c0d63d1dfcb177b90bd63d6677bd3f8ccfbc8_2_629x500.jpeg, https://d176jfkp3gfyt8.cloudfront.net/original/1X/3c7c0d63d1dfcb177b90bd63d6677bd3f8ccfbc8.jpeg 1.5x, https://d176jfkp3gfyt8.cloudfront.net/original/1X/3c7c0d63d1dfcb177b90bd63d6677bd3f8ccfbc8.jpeg 2x" data-dominant-color="26221C"></a></div><p></p>
+<p>If any of them are not defaulted to your preferred language, you can change them and log out and back in to improve your in-game experience.</p>
+<p>Thank you!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/language-and-social-settings/639555/1</link>
+        <pubDate>Wed, 04 Nov 2026 23:44:07 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6475874</guid>
+      </item>
+      <item>
+        <title>WoW Forever Beta Development Notes – Updated 3 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>We’ve added this section to the previous post.</p>
+<p><strong>User Interface and Accessibility</strong></p>
+<ul>
+<li>Swing Timer bar will no longer fade out due to distance until the swing finishes.</li>
+<li>When combined bag is enabled, the background art of the inventory slots are updated to show which bag the slot is from.</li>
+<li>Fixed an issue where Nameplates did not display Elite enemy status.</li>
+<li>Debuff icons on the Nameplate can now be clicked through.</li>
+<li>Spellbook and Talents frame now opens at the same height as other panels.</li>
+<li>Combat mode for the Spellbook frame has been reduced in size.</li>
+<li>PvP scoreboard display has been updated.</li>
+<li>Killing a player while at Honor cap will no longer show honor gained in floating text or chat messages.</li>
+<li>While in keybinds menu, hovering over an action bar keybind will now highlight the button on the action bar.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-beta-development-notes-%E2%80%93-updated-3-november/631316/10</link>
+        <pubDate>Wed, 04 Nov 2026 19:36:09 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6475066</guid>
+      </item>
+      <item>
+        <title>Trading Post Hot Motocross Bunmover 4400 is bugged</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>The team has been working their buns off to address the issues with the new Hot Motocross Bunmover mounts. We expect to have the fixes ready ahead of next week’s maintenance.</p>
+<p>Thanks for your reports!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/trading-post-hot-motocross-bunmover-4400-is-bugged/638839/12</link>
+        <pubDate>Tue, 03 Nov 2026 21:42:06 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6473028</guid>
+      </item>
+      <item>
+        <title>Explore WoW: Forever with a Gamepad</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/bg/BGQ7RN9RQG4B1793736408627.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/bg/BGQ7RN9RQG4B1793736408627.png" alt="Explore WoW: Forever with a Gamepad" width="833" height="468"></a></p><p>Prefer a gamepad? Get to know another way to play World of Warcraft: Forever, from moving and casting spells to adjusting your settings. Gamepad support is available in a beta state, with more improvements to come. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24316974">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/explore-wow-forever-with-a-gamepad/639280/1</link>
+        <pubDate>Tue, 03 Nov 2026 20:00:07 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6472787</guid>
+      </item>
+      <item>
+        <title>WoW: Forever—What’s New and What Feels Familiar</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/44/444A5FRH1FFH1793658573125.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/44/444A5FRH1FFH1793658573125.png" alt="WoW: Forever—What’s New and What Feels Familiar" width="833" height="468"></a></p><p>World of Warcraft: Forever has something for explorers, dungeon groups, collectors, roleplayers, and PvP fans alike. See how its interface conveniences, class updates, and progression systems complement a distinct take on original WoW—and what to expect if you also play the modern game. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24315821">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever%E2%80%94what%E2%80%99s-new-and-what-feels-familiar/639257/1</link>
+        <pubDate>Tue, 03 Nov 2026 18:00:03 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6472597</guid>
+      </item>
+      <item>
+        <title>WoW Forever Beta Development Notes – Updated 3 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>Since the last full update to the Beta on October 15, we’ve continued to work to solve issues, refine classes, improve gameplay in all areas, and address feedback we received from Beta testers. What follows are the updates and changes that have been developed over those last 2.5 weeks.</p>
+<p>We’ve included the previously-posted updates to racial talents and abilities for completeness here.</p>
+<p>And once again, thank you so much to everyone who tested the Beta with us and provided so much feedback. Your efforts are greatly appreciated, and we can’t wait to see you on November 4!</p>
+<p><strong>Bug Fixes</strong></p>
+<ul>
+<li>Throw will now correctly use the 0.5 second windup timer (was incorrectly using the throwing weapon’s attack speed).</li>
+<li>Legacy Reward - Replica Ironforge Air Rifle can now correctly be used on allies that also have one equipped.
+<ul>
+<li>Duration of the quitter debuff reduced to 40 seconds (was 5 minutes).</li>
+<li>Duration of the stun reduced to 2.5 seconds (was 3 seconds).</li>
+</ul>
+</li>
+<li>All Races now have the correct amount of base stats. For example, Tauren Warriors now start with the correct +5 strength relative to Human Warriors (was incorrectly +2). This fix was also applied to High Order and Windshaper Skyborne base stats.</li>
+<li>Roots that occur from Procs now correctly have Diminishing Returns. Includes Frostbite, Entrapment, Improved Wing Clip, Counterattack, and Improved Hamstring.</li>
+</ul>
+<p><strong>Classes</strong></p>
+<ul>
+<li><em>Developer’s notes: Over the course of Beta, we came to the realization that trying to hold ourselves roughly to Classic power budgets for each class meant that every new element we added needed to come at the expense of something else. Those reductions left some iconic abilities feeling lackluster, and closed the door to other potentially exciting design options. So over the last two weeks, we’ve raised damage on classes across the game, and have increased the health of higher level creatures to compensate. This additional “headroom” has allowed us to tune things to a place that we hope feels better overall. Beyond that, some of this round of changes reflects areas where we were likely hasty in turning to Burning Crusade- or Wrath-era solutions rather than carving out new ones that better fit into the Forever combat model. Our aim in class design is not perfect numerical equality, but rather for every class to feel valuable to the groups they join, with powerful, unforgettable moments brought on by mastering them. In Forever this is accomplished by doubling down on the strengths and differences that make each class unique, rather than overly unifying them.</em></li>
+<li><em>Developers’ notes: We’ve used the data and feedback gathered during Beta testing to get everything tuned to a reasonable place. However, the only true test of that tuning is the game itself. With the exception of bugs and serious outliers, we don’t plan on making big tuning changes between now and the opening of the raids next month. Once we have sufficient data from players leveling past 30 and engaging in a wide range of content, we expect that we will do a large tuning pass based on our data. And this is all merely a starting point for the classes in Forever, which will continue to evolve over the course of the months and years ahead just as they did following the original launch in 2004.</em></li>
+<li>Various talents no longer have a penalty to their chance to trigger when casting spells of a low rank.
+<ul>
+<li>This penalty does still apply to Blizzard. Blizzard continues to have a reduced chance to trigger Arcane Concentration, Frostbite, and Fingers of Frost when casting a rank learned more than 12 levels lower than the caster’s current level.</li>
+</ul>
+</li>
+<li>Learning new spells will no longer cause them to be automatically added to your action bars.</li>
+<li>Training costs on have been adjusted for all classes.
+<ul>
+<li>Most abilities learned at the same level have the same cost to train, with the exception of Priest race-specific abilities.</li>
+<li>Total cost to train class abilities from 1-60 is now between 206 and 207 gold for all classes.</li>
+<li>Warlocks costs are reduced by the expected costs of buying Grimoires for their pets.</li>
+</ul>
+</li>
+<li><strong>Druid</strong>
+<ul>
+<li>Lacerate is now a Feral talent and not learned by all Druids.</li>
+<li>Ferocious Bite has a new Rank 1 at level 24. All the existing ranks were re-labeled one rank higher.</li>
+<li>Bear Form and Dire Bear Form: Threat bonus increased from 50% to 115%. This is to compensate for Blessing of Salvation being removed.</li>
+<li>Poised: New passive ability learned at level 32. “When you are not in combat and have your maximum Energy, you will gain Poised. Poised reduces the Energy cost of your next Energy ability by 10.”</li>
+<li>Shred: Weapon damage percent increased to 200% from 155%.</li>
+<li>Claw: Weapon damage percent increased to 140% from 110%.</li>
+<li>Ravage: Weapon damage percent increased from 350% to 435%.</li>
+<li>Rip: Base points and attack power scaling increased by about 25%.</li>
+<li>Rake: Base points and attack power scaling increased by about 25%.</li>
+<li>Ferocious Bite: Base points and attack power scaling increased by about 25%.</li>
+<li>Pounce: Base points and attack power scaling increased by about 25%.</li>
+<li>Starfire: Base damage points increased by about 40%.</li>
+<li><strong>Balance</strong>
+<ul>
+<li>Genesis: Now increases periodic damage and healing by 2/4/6/8/10%, up from 1/2/3/4/5%.</li>
+<li>Moonkin Form: The critical strike bonus from this talent is again an increase to all types of critical strikes and is again exclusive with Leader of the Pack.</li>
+</ul>
+</li>
+<li><strong>Feral</strong>
+<ul>
+<li>Heart of the Wild: The talent has moved to the Restoration tree, swapping with Furor.</li>
+<li>Lacerate: This is now a 1-point talent on row 4, replacing Primal Bite. Lacerate has two new ranks added to accomodate being learned earlier.</li>
+<li>Predatory Discipline: This is a new 1-point talent on row 4 in column 3, replacing Shifting Power. “Your Ferocious Bite ability no longer converts extra Energy into damage but still deals extra damage based on your excess Energy.” It has no pre-requisite talents.</li>
+<li>Predatory Strikes: Moved to column 1 (was column 3).</li>
+<li>Leader of the Pack: The critical strike bonus from this talent is again an increase to all types of critical strikes and is again exclusive with Moonkin Aura.</li>
+<li>Natural Instinct: Moved to column 4 (was column 1).</li>
+<li>Rend and Tear: Moved to column 1 (was column 3). Damage bonus increased to 3/6/9/12/15% (was 2/4/6/8/10%).</li>
+<li>Berserk talent removed.</li>
+<li>Primal Bite: Replaces Berserk as a 1-point talent on row 7, column 2, with Leader of the Pack as a pre-requisite. Number of ranks reduced to 3.</li>
+<li>Shifting Power: Now a 1-point talent on row 7, with Predatory Discipline as a pre-requisite. Like row 4, we now have two different 31-point talents for Feral – one focused on Bear gameplay and one focused on Cat gameplay.</li>
+</ul>
+</li>
+<li><strong>Restoration</strong>
+<ul>
+<li>Furor: This talent has moved to the Feral tree, swapping with Heart of the Wild.</li>
+<li>Naturalist: Now increases all damage by 2/4/6/8/10%, up from 1/2/3/4/5%. Now also reduces the cast time of Wild Growth by 0.1/0.2/0.3/0.4/0.5 seconds.</li>
+<li>Reflection: This talent has moved to row 2 from row 3, swapping with Subtlety.</li>
+<li>Subtlety: This talent has moved to row 3 from row 2, swapping with Reflection.</li>
+<li>Gift of the Earthmother: This talent has been removed.</li>
+<li>Bloom: New 1-point talent in 3rd row, replacing Gift of the Earthmother. “When your Rejuvenation or Regrowth spell expires due to its duration, the target is instantly healed for an amount equal to 100% of your Spirit. If either spell expires due to being dispelled, the target is healed for 50% of your Spirit instead.”</li>
+<li>Swiftmend: Now requires the Rejuvenation or Regrowth effect on the target to be one placed by the casting Druid.
+<ul>
+<li><em>Developers’ notes: There is an incorrect statement in the tooltip for Swiftmend. The usage of the word “consume” is incorrect and will be fixed soon. This ability does not consume the Rejuvenation or Regrowth effect on the target.</em></li>
+</ul>
+</li>
+<li>Wild Growth: Now has a base casting time of 3 seconds.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Hunter</strong>
+<ul>
+<li>Hunter’s Mark can no longer be applied to a target multiple times by using different ranks of the spell.</li>
+<li>Fixed an issue where Rank 4 Hunter’s Mark was providing less Ranged Attack Power than Rank 3.</li>
+<li>Fixed an issue with the wording of the Explosive Trap debuff.</li>
+<li>All types of Hunter traps now have the same shared 30 second cooldown, instead of separate cooldowns for Fire-based and Frost-based traps.</li>
+<li>Aimed Shot: Bonus damage on all ranks increased by ~110%.</li>
+<li>Arcane Shot: Base damage on all ranks increased by ~30% and Attack Power coefficient raised from 0.1 to 0.15.</li>
+<li>Serpent Sting: Attack Power coefficient per tick increased to 5% from 3%. Base damage on all ranks increased ~20%.</li>
+<li>Aspect of the Hawk: Ranged Attack Power bonus increased on all ranks. New values: 20, 35, 50, 70, 90, 110 for ranks 1-6.</li>
+<li>Hunter pets should no longer lose their innate Attack Speed passives when untraining them.</li>
+<li><strong>Beast Mastery</strong>
+<ul>
+<li>Pathfinding: This talent moved from 2nd row to 3rd row.</li>
+</ul>
+</li>
+<li><strong>Marksmanship</strong>
+<ul>
+<li>Barrage: Damage increase raised to 5/10/15% from 3/7/10%.</li>
+<li>Sniper Shot: Bonus damage on all ranks increased by 100%.</li>
+<li>Trueshot Aura: Ranged Attack Power bonus increased on all ranks. New values: 20, 35, 50, 75, 100.</li>
+</ul>
+</li>
+<li><strong>Survival</strong>
+<ul>
+<li>Lacerating Strikes: This effect will always overwrite an existing one from the same Hunter, even if the new effect is weaker damage per second.</li>
+<li>Lightning Reflexes: Agility bonus increased to 3/6/9/12/15% from 2/4/6/8/10%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li>Imbue Iceknife’s visual has been changed to better convey that it is a Root and not a Stun.</li>
+<li>Frost Blast: This spell has been removed.</li>
+<li><strong>Arcane</strong>
+<ul>
+<li>Missile Barrage is now correctly consumed at the start of the Mage’s Arcane Missiles channel (was consumed at the end).</li>
+<li>Missile Barrage has been moved to the 2nd row from the 1st row.</li>
+<li>Arcane Resilience has been moved to the 1st row from the 2nd row. It now allows up to 3 talent points to be spent for a maximum armor increase of 75% of Intellect.</li>
+<li>Clearcasting is no longer consumed on Arcane Missiles if Missile Barrage is active at the same time.</li>
+<li>Fixed an issue where Arcane Missles did not proc Clearcasting.</li>
+<li>Arcane Focus: This talent has been removed, as it is now combined into the talent Precision in the Frost tree.</li>
+<li>Arcane Blast: Mana cost increase per stack reduced to 100% from 175%. Percent of Intellect as Spell Damage reduced from 15% to 12% per stack. Duration increased to 18 seconds.</li>
+</ul>
+</li>
+<li><strong>Fire</strong>
+<ul>
+<li>Fixed an issue where Ignite was not applying to Flamestrike damage past the initial instance.</li>
+<li>Incineration: This talent now allows spending up to 5 talent points for 10% critical chance on affected spells, up from 3 talent points for 6%.</li>
+<li>Improved Fireball: Renamed Accelerant. Now also reduces the cast time of Arcane Wrath by up to 0.5 seconds.</li>
+<li>Critical Mass: This talent has been reverted to a maximum of 3 talent points, instead of 5, for a total of 6% critical strike chance increase, down from 10%.</li>
+<li>Improved Fire Blast moved to 3rd row from 1st row.</li>
+</ul>
+</li>
+<li><strong>Frost</strong>
+<ul>
+<li>The Piercing ice talent has been removed.</li>
+<li>Ice Barrier now increases your Frost Damage dealt by 15% for 1minute when activated and grants an additional 5% Frost Damage while the barrier holds.
+<ul>
+<li><em>Developers’ notes: Removing Piercing Ice gives the player a few more talents to play around with early on in the tree, and empowering Ice Barrier gives the Mage a reason to go all the way down the tree for PvE.</em></li>
+</ul>
+</li>
+<li>Frost Warding increases the amount of damage your Ice Barrier and Frost Wards can absorb.</li>
+<li>Frost Warding no longer has a chance to Reflect spells but instead has a chance to fully negate the damage of the spell without depleting the Frost Ward.</li>
+<li>Elemental Precision has been renamed Precision and is back to being a 3-point talent, granting 2/4/6% chance to hit with <strong>all</strong> spells (was 1/2/3/4/5%).</li>
+<li>Ice Lance now has an 8 second cooldown shared with Fire Blast. Bonsu damage to Frozen targets increased back to 300%.</li>
+<li>Winter’s Chill: Bonus to Cone of Cold damage increased to 20% per stack.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Paladin</strong>
+<ul>
+<li>Righteous Fury is now available to train at level 10 (was 16). This mirrors the level that other Tanks gain access to their tanking stance.</li>
+<li>Salvation, Mass Salvation, and Revoke have been removed.</li>
+<li>Righteous Fury now grants a 33% increase to all threat generated, and an additional 90% threat from Holy damage.</li>
+<li>Blessing of Light has been removed.</li>
+<li>Righteous Fury is now properly made free by the Legacy Talent, The Quick and the Dead.</li>
+<li>Judgement of Fury’s duration reduced to 3 seconds (Was 4 seconds).</li>
+<li><strong>Holy</strong>
+<ul>
+<li>Spiritual Focus moved to Row 1 (Was Row 2). Changed to a 5-point talent (Was a 2-point talent). Max rank unchanged.</li>
+<li>Improved Seals changed to a 5-point talent (Was a 3-point talent). Max rank unchanged.</li>
+<li>Reverence moved to Row 2 (Was Row 3). Changed to a 2-point talent (Was a 3-point talent). Max rank unchanged.</li>
+<li>Unyielding Faith moved to Retribution.</li>
+<li>Purifying Power moved to Row 2 (Was Row 3).</li>
+<li>Voice of Truth removed.</li>
+<li>Divine Favor moved to Row 3 (Was Row 4).</li>
+<li>Illumination moved to Row 3 (Was Row 4).</li>
+<li>Holy Conduit moved</li>
+<li>Divine Precision moved to Row 4 (Was Row 5). Changed to a 2-point talent granting 4/8% chance to hit with Holy spells (Was 6/12/18% chance to hit with Holy spells). Additionally, Divine Precision now also reduces the duration of Silence effects on you by 10/20%.</li>
+<li>New Talent Oath of Light in Row 4. 40-yard range, 8% of Base Mana cost. No cooldown. Swear an Oath to protect target ally for 5 min, increasing the healing of your Holy Light, Flash of Light, and Holy Shock spells. Only one Oath of Light may be sworn by the Paladin at any one time. The amount of bonus healing increases with the player’s level.</li>
+<li>New Talent Boundless Light in Row 5. Passive - Increases the critical strike chance of your Holy Shock spell by 15/30% when cast on allies not affected by your Oath of Light.</li>
+<li>Holy Power changed to Increases the critical strike healing bonus of your Holy Spells by 10/20/30/40/50% (Was Increases the critical strike chance of your Holy Shock and Holy Strike spells by 3/6/9/12/15%, and all other spells by 1/2/3/4/5%).</li>
+<li>Light’s Vigil is now only usable on friendly targets and has had its offensive capabilities removed. The tooltip has been reworded to reflect this.</li>
+</ul>
+</li>
+<li><strong>Protection</strong>
+<ul>
+<li>Reckoning will now correctly perform its number of attacks based on stacks, and Reckoning will no longer gain stacks while sitting.</li>
+<li>Divine Intellect moved to Row 1 of Protection (was Row 1 of Holy).</li>
+<li>Sacred Duty moved to Row 2 (Was Row 3).</li>
+<li>Sacred Duty no longer grants % increase to Stamina. In addition to its cooldown reduction on Divine Shield, Divine Protection, and Templar’s Bulwark by 30sec/1min, it now also reduces the duration of your Forbearance effect by 5/10 seconds.</li>
+<li>Improved Seal of Fury removed.</li>
+<li>Templar’s Bulwark moved to Row 3 (Was Row 5).</li>
+<li>Templar’s Bulwark is now a Magic effect and dispellable.</li>
+<li>Improved Righteous Fury’s damage reduction changed to 3/6/9% (was 2/4/6%).</li>
+<li>Shield Specialization changed to a 2-point talent granting 15/30% increased shield block value, and a 50/100% chance to grant 4% of your Maximum Mana. (Unchanged at max rank).</li>
+<li>Toughness moved to Row 3 (Was Row 1).</li>
+<li>Anticipation moved to Row 4 (Was Row 2).</li>
+<li>Swift Judgement changed to instantly unleash your active Seal. Does not share a cooldown with Judgement (Was resets the cooldown of your Judgement ability).</li>
+<li>One-Handed Weapon Specialization removed.</li>
+<li>New Talent Stoicism added to Row 5. Reduces the duration of Stun and Charm effects on you by 10/20%.</li>
+<li>Holy Shield moved to Row 5 (Was Row 7).</li>
+<li>Iron Creed changed to a 3-point talent (Was a 5-point talent) and increases the threat generated by Holy Strike by 10/20/30%, and grants 2/4/6% damage reduction for 6 seconds (was 5/10/15/20/25% increased threat, and 2/4/6/8/10% damage reduction).</li>
+<li>New Talent Shieldsworn added to Row 7. Reduces the cooldown of your Holy Strike ability by 4 seconds. Additionally, Holy Strike now strikes with your shield, triggering all talents that activate when you block without consuming their charges or triggering their cooldowns, and allowing you to Block spells for 6 seconds.</li>
+</ul>
+</li>
+<li><strong>Retribution</strong>
+<ul>
+<li>Holy Conduit moved to the 3rd Row of the Holy Tree (was 2nd Row of Retribution).</li>
+<li>Sanctified Judgement has been moved to Row 2 (was Row 3).</li>
+<li>Conviction moved to Row 2 (Was Row 3).</li>
+<li>Conviction changed to grant 2/4/6% critical strike chance to all spells and attacks (Was 1/2/3/4/5% to just melee attacks).</li>
+<li>Vindication no longer grants an increase to Attack Power (was 1/2/3% increased Attack Power.</li>
+<li>Unyielding Faith moved to Row 3 of Retribution (was Row 2 of Holy).</li>
+<li>Two-Handed Weapon Specialization moved to Row 4 (was Row 5).</li>
+<li>Two-Handed Weapon Specialization changed to increase both Holy and Physical damage by 2/4/6% (Was just Physical damage).</li>
+<li>Two-Handed Weapon Specialization changed to also reduce the Threat generated by the Paladin by 7/14/20% while wearing a two-handed melee weapon.</li>
+<li>Instrument of Law Removed.</li>
+<li>Champion of the Light changed to increasing the Paladin’s spell damage by 12/24/36/48/60% of their Intellect and also reduces the cast time of Hammer of Wrath by 0.2/0.4/0.6/0.8/1.0 seconds.</li>
+<li>Vengeance changed to stacking up to 5 times (Was stacking up to 3 times).</li>
+<li>Vengeance now requires Seal of Command (was requiring Sanctified Judgement).</li>
+<li>New Talent added to Row 5, Turn Evil - Reduces the cast time of your Turn Undead spell by 0.5/1.0 sec, its cooldown by 5/10 sec, and allows it to affect Demons.</li>
+<li>Twist of Light removed.</li>
+<li>Unsealed Wrath is the new 31st talent. Your melee attacks store a copy of your active Seal for 15 sec, stacking up to 3 times. Landing an attack with a different Seal consumes all stacks, giving the stored Seal its normal chance to activate once per stack.</li>
+<li>Unsealed Wrath now requires Repentance.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Priest</strong>
+<ul>
+<li>Power Word: Shield can now correctly be replaced by a Power Word: Shield of equal or greater rank.</li>
+<li>Shadow Word: Death now causes 30% of maximum Health damage to the Priest if it fails to kill the target, up from 10%. Shadow Word: Death will no longer damage the Priest when the spell misses.</li>
+<li>Fixed an issue causing Undead Priest’s Dark Sacrifice to still break crowd control effects.</li>
+<li><strong>Holy</strong>
+<ul>
+<li>Binding Heal removed.</li>
+<li>New talent in Binding Heal’s slot: Holy Binding. When the Priest heals a target other than themselves with Flash Heal, 50% of the healing done by the Flash Heal is also done to the Priest. This healing generates no threat.</li>
+</ul>
+</li>
+<li><strong>Shadow</strong>
+<ul>
+<li>Devouring Contagion no longer spreads Devouring Plague if it is spreading from a critter.</li>
+<li>Vampiric Embrace Healing can no longer roll a critical effect.</li>
+<li>Fixed an issue where Cure Disease and Abolish Disease would take the Priest out of Shadowform.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Rogue</strong>
+<ul>
+<li>Casting Slice and Dice no longer causes the target to stand up if sitting.</li>
+<li>Poised: New passive ability learned at level 18. “When you are not in combat and have your maximum Energy, you will gain Poised. Poised reduces the Energy cost of your next Energy ability by 10.”</li>
+<li>New Spell Added: Shank. Learned at level 24. 5 Energy cost. 10 second cooldown. Melee range. Instantly strike with your off-hand weapon, dealing 50% weapon damage and generating 15 Energy. Shank cannot Miss. Rank 2 learned at level 44 and generates 25 Energy.</li>
+<li>Deadly Poison Attack Power coefficient increased to 0.009 (Was 0.0045)</li>
+<li>Instant Poison Attack Power coefficient increased to 0.01 (Was 0.005)</li>
+<li><strong>Assassination</strong>
+<ul>
+<li>The Ruthlessness talent activating no longer causes the target to stand up if sitting.</li>
+<li>Improved Expose Armor moved to Row 2 (Was Row 3).</li>
+<li>Murder has been removed.</li>
+<li>Lethality changed to a 2-point talent granting 10/20% increased Critical Strike damage to the abilities listed (Was a 5-point talent granting 4/8/12/16/20%).</li>
+<li>Vigor moved to Row 3 (Was Row 5).</li>
+<li>New Talent: Blood Splatter. Passive. 1 point talent in Row 3. Increases the duration of your Rupture ability by 6 seconds and your Garrote ability by 9 seconds.</li>
+<li>Relentless Strikes moved to Row 5 (was Row 3).</li>
+<li>Relentless Strikes change to a 5-point talent granting a 4/8/12/16/20% chance per Combo Point to restore 25 Energy (was 1 point granting 20% per combo point).</li>
+<li>Venom moved to Row 5 (was Row 7).</li>
+<li>Venom is now a Passive that causes your Shank ability to increase your Poison damage by 30% and your chance to apply Poisons by 20% for 6 seconds.</li>
+<li>Seal Fate changed to a 3-point talent granting your critical strikes from abilities that add Combo Points a 33/66/100% chance to add an additional Combo Point.</li>
+<li>Mutilate moved to Row 7 (was Row 9).</li>
+<li>Mutilates damage increased to 90% of weapon damage plus an additional amount that was also increased (was 75% weapon damage and a lower amount).</li>
+</ul>
+</li>
+<li><strong>Combat</strong>
+<ul>
+<li>Improved Eviscerate has been renamed Coup de Grace, Increasing the damage done by your Eviscerate ability by 7/13/20%, and the damage and storage rate of your Death Mark ability by 7/13/20%.</li>
+<li>Improved Sinister Strike renamed to Efficient Strikes and now reduces the Energy costs of Sinister Strike and Hemorrhage by 3/5 (was just Sinister Strike discounted).</li>
+<li>Improved Sprint moved to Row 2 (was Row 3).</li>
+<li>New Talent: Composure. Passive. 2-point talent in Row 3. Increases the Energy cost reduction of your Poised ability by 5/10.</li>
+<li>Flawless Execution energy cost reduction increased to 15 (was 10).</li>
+<li>Weapon Expertise moved to Row 4 (was Row 6).</li>
+<li>Aggression moved to Row 4 (was Row 6).</li>
+<li>Aggression changed to increasing the damage of Sinister Strike and Eviscerate by 5/10/15% (was Sinister Strike, Eviscerate, and Backstab by 2/4/6%).</li>
+<li>Dual Wield Specialization moved to Row 5 (was Row 4).</li>
+<li>Dual Wield Specialization changed to a 2-point talent granting 25/50% increased off-hand weapon damage (was 5 a points granting 5/10/15/20/25% off-hand weapon damage).</li>
+<li>New Talent: Flash of Steel. Passive. 5-point talent in Row 6. Increases the energy generated by your Shank ability by 3/6/9/12/15 and reduces its cooldown by 0.4/0.8/1.2/1.6/2.0 seconds.</li>
+</ul>
+</li>
+<li><strong>Subtlety</strong>
+<ul>
+<li>Fixed an issue where Hemorrhage and Ghostly Strike were dealing much more damage than intended when using a Dagger.</li>
+<li>Setup moved to Row 1 (was Row 2).</li>
+<li>Setup changed to a 15/30/45% chance to add a Combo Point to your target after Dodging their attack or fully resisting one of their spells (was 33/66/100% chance).</li>
+<li>Opportunity changed to a 5-point talent granting 4/8/12/16/20% increased damage to Backstab, Garrote, Ambush, and Mutilate (was 2 points granting 5/10%).</li>
+<li>Dirty Deeds moved to Row 2 (was Row 5).</li>
+<li>Camouflage moved to Row 2 (was Row 1).</li>
+<li>Camouflage changed to a 3-point talent granting 5/10/15% increased movement speed in stealth and reduces stealth’s cooldown by 2/4/6 seconds (was 5 points granting 3/6/9/12/15% and 2/3/4/5/6).</li>
+<li>Premeditation moved to Row 3 (was Row 4).</li>
+<li>Serrated Blades moved to Row 3 (was Row 4).</li>
+<li>Elusiveness moved to Row 4 (was Row 2).</li>
+<li>Ghostly Strike moved to Row 4 (was Row 3).</li>
+<li>Ghostly Strike now also causes your next Ambush or Garrote cast within 7 seconds to not require Stealth.</li>
+<li>Improved Distract removed.</li>
+<li>New Talent: Quick Getaway. Passive. 2-point talent in Row 4. Increases the maximum number of targets you may have Sapped by 1/1 and increases your movement speed by 15/30% for 3 seconds after sapping a target.</li>
+<li>Heightened Senses moved to Row 5 (was Row 4).</li>
+<li>Hemorrhage changed to increase the damage of the caster’s Rupture and Garrote abilities by 15% (was only increasing Rupture by 15%).</li>
+<li>Quietus has been removed.</li>
+<li>Cutthroat has been removed.</li>
+<li>New Talent: Boot Knife. Passive. 5-point talent in Row 6. Gives your Shank ability a 20/40/60/80/100% chance to add 2 Combo Points to the target.</li>
+<li>Thousand Cuts has been removed.</li>
+<li>New Talent: Death Mark. Active. 1 point talent in Row 7. 25 Energy cost. 20-yard range. 10 second cooldown. Curse. Finishing move that marks the target, storing a portion of the damage dealt by your attacks per Combo Point. Garrote and Rupture damage is stored at twice the rate. After 6 sec, the stored damage is dealt up to a maximum increased by Attack Power and Critical Strike chance.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Shaman</strong>
+<ul>
+<li>Windfury Weapon now causes the Shaman to animate an additional weapon swing attack.</li>
+<li>Windfury Totem now causes the player to animate an additional weapon swing attack.</li>
+<li>Totemic Projection renamed Totemic Call. It now teleports the Shaman’s totems to the Shaman’s own location, and its cooldown is reduced to 30 seconds.</li>
+<li>Lightning Bolt: Base damage of all ranks increased, with larger percentage increases on the higher ranks. Max rank was increased by 80%. Each rank’s new base damage is roughly 78% of the base damage as the Classic Era version (but cast time is lower than Classic Era).</li>
+<li>Chain Lightning cast time increased to 2.5 seconds. Primary target base damage increased to approximately 145% of comparable rank Lightning Bolt base damage. Mana cost increased to approximately 225% of comparable rank Lightning Bolt Mana cost.</li>
+<li>Shocks: All shock base damage reverted to match Classic Era values (higher than previous Forever Beta values).</li>
+<li><strong>Elemental</strong>
+<ul>
+<li>Lightning Overload: Talent now grants a 10/20/30% chance to trigger a duplicate spell, up from 3/7/10% chance.</li>
+<li>Lava Burst: Removed. Replaced with Call of Thunder, which increases critical strike chance of Lightning Bolt and Chain Lightning by 5%. All references to Lava Burst removed.</li>
+<li>Elemental Mastery renamed Lightning Mastery. Icon changed.</li>
+<li>Elemental Reach no longer reduces the cooldown of Totemic Projection.</li>
+</ul>
+</li>
+<li><strong>Enhancement</strong>
+<ul>
+<li>Improved Ghost Wolf moved from 2nd row to 4th row.</li>
+<li>Maelstrom Weapon: Chance to trigger doubled.</li>
+<li>Stormstrike: Now deals 150% normalized weapon damage, up from 100%. Cooldown reduced to 6 seconds from 8 seconds.</li>
+<li>Mental Dexterity: Now increases the Shaman’s Attack Power by 50/100/150% of Intellect, up from 33/67/100%.</li>
+<li>Flurry: Now increases attack speed by 6/12/18/24/30%, up from 5/10/15/20/25%.</li>
+</ul>
+</li>
+<li><strong>Restoration</strong>
+<ul>
+<li>Riptide: Mana cost reduced by about 40%. Cooldown increased to 12 seconds from 6 seconds. Riptide no longer deals any initial healing, just healing over time.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Spellstones now correctly only increase Shadow damage (was increasing Shadow and Fire damage).</li>
+<li>Pets now gain 2 Health per point of Master’s Stamina (was 7.5 Health per point of Master’s Stamina).</li>
+<li>Bane of Agony now correctly dynamically updates its damage.</li>
+<li>Drain Soul: This chance for this spell to grant a Soul Shard on dealing damage (not a kill) has been reduced significantly.</li>
+<li><strong>Affliction</strong>
+<ul>
+<li>Amplify Curse now correctly affects Curse of Exhaustion and Bane of Agony.</li>
+<li>Improved Drains: Now increases Drain Mana’s amount of Mana drained but no longer increases Wrack damage.</li>
+<li>Wrack: Spell damage coefficient doubled, to match the expected coefficient per cast time of 0.286 per second. Base damage per second now increases with each level by 2.5. Base damage per second at level 60 effectively increased from 36 to 86.</li>
+</ul>
+</li>
+<li><strong>Destruction</strong>
+<ul>
+<li>Shadow and Flame: The damage bonuses from this talent now increase Fire or Shadow damage by 4/8/12/16/20%, up from 2/4/6/8/10%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Warrior</strong>
+<ul>
+<li>Fixed an issue with the tooltip of Victory Rush incorrectly displaying the amount of damage it would deal.</li>
+<li>Defensive Stance: Threat bonus increased from 30% to 80%.</li>
+<li>The cooldown of Slam has been reduced to 15 seconds (was 18 seconds).</li>
+<li><strong>Arms</strong>
+<ul>
+<li>Improved Tactical Mastery changed to a 3-point talent granting the ability to retain 5/10/15 additional Rage when changing stances (was a 5-point talent granting 3/6/9/12/15 Rage retention).</li>
+<li>Two-Handed Weapon Specialization changed to grant 2/4/6% increased damage when using a two-handed melee weapon (was 1/2/3% increased damage).</li>
+<li>Bloodthrill changed to a 2-point talent granting your Main Hand melee attacks against enemies afflicted by your Rend a 10/20% chance to allow an activation of Overpower (was a 5-point talent granting a 4/8/12/16/20% chance).</li>
+<li>Improved Slam’s reduction to Slam’s cooldown changed to 2.5/5 seconds (was 3.0/3.0).</li>
+</ul>
+</li>
+<li><strong>Fury</strong>
+<ul>
+<li>The Blood Craze and Gore Drinker talents no longer generate threat when restoring Health to the Warrior.</li>
+<li>Blood Craze will no longer activate when sitting.</li>
+<li>Booming voice now also reduces the Rage cost of Piercing Howl by 5/10/15/20/25%.</li>
+<li>Enrage moved to Row 3 (was Row 4).</li>
+<li>New Talent: Reckless Swings. Row 4. 1 Point. 15 second cooldown. Costs 25% of base health. Your next 4 melee attacks generate 5 additional Rage. Lasts 8 seconds.</li>
+<li>Gore Drinker moved to Row 5 (was Row 6) and is connected to Blood Craze now instead of Enrage.</li>
+<li>Death Wish is no longer required for Flurry.</li>
+<li>Flurry changed to a 3-point granting 10/20/30% increased attack speed for 3 swings after a critical strike (was 5 points granting 5/10/15/20/25% increased attack speed).</li>
+<li>New Talent: Improved Whirlwind. Row 6. 2 Point. Passive. Reduces the cooldown of your Whirlwind ability by 1/2 seconds and increases the damage it deals to the closest enemy by 15/30%.</li>
+<li>Bloodthirst now has Death Wish as a required talent.</li>
+</ul>
+</li>
+<li><strong>Protection</strong>
+<ul>
+<li>Defiance: Threat bonus increased to 7/13/20% from 5/10/15%.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li>In the Darkspear Islands battleground, dropping the flag no longer places the “Recently Dropped Flag” debuff on the player who dropped it.</li>
+</ul>
+<p><strong>Races</strong></p>
+<ul>
+<li><strong>Dwarf</strong>
+<ul>
+<li>Earth Fury (2% increased critical strike damage and healing) removed.</li>
+<li>Added: Artisan’s Precision - Increases hit chance with spells and attacks by 1%.</li>
+</ul>
+</li>
+<li><strong>Human</strong>
+<ul>
+<li>Ruthless now increases critical chance by 1% (was 2%).</li>
+<li>Human Spirit now increases Spirit by 10% (was 5%).</li>
+</ul>
+</li>
+<li><strong>Orc</strong>
+<ul>
+<li>Savage removed (1% increased critical strike chance).</li>
+<li>Command re-added, increasing Warlock and Hunter pet damage by 5%.</li>
+<li>Blood Fury’s cooldown reduced to 2 minutes (was 3 minutes).</li>
+</ul>
+</li>
+<li><strong>Skyborne</strong>
+<ul>
+<li>Wind-Blessed Haste bonus reduced to 2% (was 3%).</li>
+<li>Read Leyline now increases Mana and Health regeneration by 50% (was 100%), with a 15-second duration. This ability cannot be used while Innervate is active, and will be replaced by Innervate as a more powerful effect.</li>
+<li>Using Read Leyline at a Ley Line now also grants “Attuned” for 1 hour. While Attuned, the benefit of Read Leyline is increased to 100% regeneration increase. Attuned persists through death, and is removed upon entering a raid.</li>
+<li>Skysight is now a 15% increased movement speed (was 10%), with a 15-second duration.</li>
+<li>Using Skysight at an elemental convergence now also grants “Charged” for 1 hour. While Charged, the benefit of Skysight is a 30% movement speed increase. Charged persists through death, and is removed upon entering a raid.</li>
+</ul>
+</li>
+<li><strong>Tauren</strong>
+<ul>
+<li>Plainsrunning now grants 2% movement speed per stack (was 1%), for a total max increase of 60% (was 30%).</li>
+<li>Plainsrunning no longer increases mounted movement speed.</li>
+<li>Endurance no longer provides any modifiers beyond 5% increased Health (no hit chance or critical damage modifiers).</li>
+</ul>
+</li>
+<li><strong>Troll</strong>
+<ul>
+<li>Berserking duration increased to 15 seconds (was 10 seconds).</li>
+</ul>
+</li>
+<li><strong>Undead</strong>
+<ul>
+<li>Cannibalize can once again be used while immune to Physical damage.</li>
+<li>Fixed an issue where Touch of the Grave was not activating frequently enough.</li>
+<li>Fixed an issue where Touch of the Grave was leaving a beam visual behind.</li>
+<li>Touch of the Grave internal cooldown reduced to 15 seconds (was 25 seconds).</li>
+</ul>
+</li>
+</ul>
+<p><strong>Gamepad Support</strong></p>
+<ul>
+<li><strong>Gamepad Support has entered a functional Beta state.</strong>
+<ul>
+<li>In World of Warcraft: Forever, all major gameplay and core user interface experiences can be played with a controller, including movement, spells, interactions, UI navigation, etc.</li>
+<li>Gamepad settings can be customized through Edit Mode and the Options menu.</li>
+</ul>
+</li>
+<li><strong>Action Bars</strong>
+<ul>
+<li>AoE items bound to the Gamepad Action Bar can now be used and placed at a targeted location.
+<ul>
+<li>Press the Action Bar button again to confirm placement, consistent with ground-targeted AoE spells.</li>
+</ul>
+</li>
+<li>Fixed an issue where changing the current keyboard and mouse Action Bar page would cause Gamepad Action Bar buttons to be offset.</li>
+<li>Fixed an issue where Gamepad Action Bar settings were not immediately reflected while in Edit Mode.</li>
+</ul>
+</li>
+<li><strong>Add-ons</strong>
+<ul>
+<li>Improved Gamepad UI compatibility with user-created add-ons to reduce the likelihood of add-on conflicts causing interface issues.</li>
+</ul>
+</li>
+<li><strong>Bags and Inventory</strong>
+<ul>
+<li>Fixed an issue where Gamepad focus could move away from the inventory after confirming or canceling the destruction of an item.</li>
+<li>Fixed an issue where horizontal Gamepad navigation could behave incorrectly when moving between bag columns of different heights.</li>
+<li>Fixed an issue where navigating the inventory with a Gamepad during a trade could cause a Lua error.</li>
+<li>Fixed an issue where opening individual bags with the keyboard and mouse UI could cause a Lua error after switching from the Gamepad UI.</li>
+<li>Improved bag management when using a Gamepad.</li>
+<li>Improved the Gamepad Bag UI.
+<ul>
+<li>Added updated visuals and clearer bag states.</li>
+<li>Added remaining bag space and ammo count indicators.</li>
+<li>Improved bag prompts and interactions.</li>
+<li>Improved Keyring navigation and highlighting.</li>
+<li>Improved the inventory search layout.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Character Select &amp; Ruleset Selection</strong>
+<ul>
+<li>Added Gamepad support for navigating and interacting with ruleset selection screens.</li>
+<li>Fixed an issue where newly created characters were not automatically selected when returning to the Character Select screen while using a Gamepad.</li>
+</ul>
+</li>
+<li><strong>Cinematics</strong>
+<ul>
+<li>Added Gamepad support for skipping or exiting cinematics.</li>
+</ul>
+</li>
+<li><strong>Combat and Targeting</strong>
+<ul>
+<li>Added Gamepad support for targeting a previously assigned Focus Target.
+<ul>
+<li>LB + RB + Face Down can be used to select your Focus Target.</li>
+<li>The target context menu displays Clear Focus when your current target is also your Focus Target.</li>
+</ul>
+</li>
+<li>Friendly corpses can now be targeted with a Gamepad.
+<ul>
+<li>Friendly Analog Targeting can target friendly corpses.</li>
+<li>Friendly Tab Targeting can target friendly corpses.</li>
+</ul>
+</li>
+<li>Improved Gamepad targeting for critters.
+<ul>
+<li>Hostile Analog Targeting can target critters.</li>
+<li>Soft Targeting can target critters.</li>
+</ul>
+</li>
+<li>Improved Gamepad targeting of enemy players.
+<ul>
+<li>Enemy players can no longer be selected by Friendly Analog Targeting.</li>
+<li>Enemy players can be selected by Hostile Analog Targeting regardless of PvP flag status.</li>
+</ul>
+</li>
+<li>Units behind the player can now be selected with Analog Targeting when they remain visible on screen.</li>
+<li>Feign Death units that remain attackable can now be targeted if and only if the Gamepad reticle is positioned over them.</li>
+<li>Fixed an issue where certain attackable enemies could incorrectly display an Interact icon when using a Gamepad.</li>
+<li>Fixed an issue where looting or closing the loot window could leave a corpse incorrectly locked as the player’s target.</li>
+</ul>
+</li>
+<li><strong>Flight Paths</strong>
+<ul>
+<li>Added Gamepad support for ending a flight path early using the Back/Cancel action.
+<ul>
+<li>Players will dismount at the next available flight point.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Navigation and Focus</strong>
+<ul>
+<li>Fixed an issue where Gamepad focus could be lost from the Options panel after closing a graphics settings confirmation dialog.</li>
+<li>Updated popup behavior so non-user-initiated popups no longer automatically steal Gamepad focus.
+<ul>
+<li>These popups can be explicitly focused using the View/Select action or equivalent controller input.</li>
+</ul>
+</li>
+<li>Updated Gamepad navigation prompts to use LT and RT button indicators when navigating between supported UI panels.</li>
+</ul>
+</li>
+<li><strong>Pets</strong>
+<ul>
+<li>Added Gamepad support for the Pet Move command.
+<ul>
+<li>Pet placement can be confirmed using the Interact button or by activating the ability again.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Professions</strong>
+<ul>
+<li>Fixed an issue where Gamepad users could not use the Train action at Profession Trainers when a skill upgrade was the only available option.</li>
+<li>Fixed an issue where the Gamepad prompt for removing a Profession did not indicate that the button needed to be held.</li>
+</ul>
+</li>
+<li><strong>Quests</strong>
+<ul>
+<li>Fixed an issue where viewing quest details in a different map region with a Gamepad could cause a Lua error.</li>
+</ul>
+</li>
+<li><strong>Swing Timers</strong>
+<ul>
+<li>Fixed an issue where the Off-Hand Swing Timer could fail to appear after logging in on dual-wielding characters.</li>
+</ul>
+</li>
+<li><strong>Tooltips and UI</strong>
+<ul>
+<li>Added Gamepad support for adjusting opacity in the Color Picker.</li>
+<li>Fixed an issue where Gamepad LB and RB prompts could incorrectly appear in the Equipment Manager while using the keyboard and mouse UI.</li>
+<li>Updated Gamepad tooltips to remain visible rather than allowing them to be toggled on or off with the controller.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li><strong>Bags</strong>
+<ul>
+<li><strong>Bags will no longer automatically equip into available bag slots and must now be manually equipped by the player.</strong></li>
+</ul>
+</li>
+</ul>
+<p><strong>Quests and World</strong></p>
+<ul>
+<li>Adjusted respawn rates for many different areas in the world.
+<ul>
+<li><em>Developers’ notes: Our goal with these adjustments is to properly support large player volumes at launch, so that players aren’t hitting hard bottlenecks and can continue to enjoy the game. Some contention for spawns is expected and part of the experience - it is not our goal to remove that. These adjusted rates are generally on the faster side in lower-level zones - with starting zones being the fastest - and gradually fall to slower rates as you level up, consistent with when players naturally spread out across the many zones available in WoW Forever. Once the initial launch surge of low-level characters has settled down, we will adjust the lower-level zones down to more typical rates.</em></li>
+</ul>
+</li>
+<li>Adjusted experience values on various quests.</li>
+<li>Adjusted pre-requisites and level settings on some quests to improve flow across the world.</li>
+<li>Added mouseover tooltips for objectives on various quests.</li>
+<li>Added missing point-of-interest markers and adjusted incorrect ones on various quests.</li>
+<li>Fixed incorrect zone sorts in the quest log on various quests.</li>
+<li>Fixed various quests where destroying the associated item would not abandon the quest, and vice versa.</li>
+<li>Fixed an issue where some satyr were classified as humanoids instead of demons. They are now 100% more scared of Paladins.</li>
+<li><strong>Alterac Mountains</strong>
+<ul>
+<li>Fixed an issue where Dalaran Summoners were really amazingly good at summoning and would summon until their little hearts couldn’t summon anymore. And then they’d summon some more anyway.</li>
+</ul>
+</li>
+<li><strong>Barrens</strong>
+<ul>
+<li>You can now speak to Rethgar Deathgate to begin the event for “Counterattack!” if it is not currently active.</li>
+<li>The Alliance Outrunners now spawn in random locations.</li>
+</ul>
+</li>
+<li><strong>Darkshore</strong>
+<ul>
+<li>The quest “Holy Diver” now gives an XP reward.</li>
+</ul>
+</li>
+<li><strong>Mulgore</strong>
+<ul>
+<li>Gloomrise Hatchlings now give lower XP, commensurate with their lower health values.</li>
+</ul>
+</li>
+<li><strong>Orgrimmar</strong>
+<ul>
+<li>Fixed an issue during “Hidden Enemies” where the Lieutenant’s Insignia would remain in inventory after quest completion.</li>
+</ul>
+</li>
+<li><strong>Ruins of Lordaeron</strong>
+<ul>
+<li>Ruins of Lordaeron dungeon quests now consistently require a minimum of level 15 to start (was a mix of 15 and 16), and some pre-requisites have been adjusted.</li>
+</ul>
+</li>
+<li><strong>Teldrassil</strong>
+<ul>
+<li>The Cleft - There are now slightly fewer spiders in this area for the quest “Twisted Hatred”.</li>
+</ul>
+</li>
+<li><strong>Wetlands</strong>
+<ul>
+<li>Fixed an issue where Carnage reset near the end of the fight for the quest “Carnage”.</li>
+<li>Fixed an issue during “Destruction in Deadmines” where Alba Fairmoon would become unavailable to turn-in the quest.</li>
+</ul>
+</li>
+</ul>
+<p><strong>User Interface and Accessibility</strong></p>
+<ul>
+<li>Swing Timer bar will no longer fade out due to distance until the swing finishes.</li>
+<li>When combined bag is enabled, the background art of the inventory slots are updated to show which bag the slot is from.</li>
+<li>Fixed an issue where Nameplates did not display Elite enemy status.</li>
+<li>Debuff icons on the Nameplate can now be clicked through.</li>
+<li>Spellbook and Talents frame now opens at the same height as other panels.</li>
+<li>Combat mode for the Spellbook frame has been reduced in size.</li>
+<li>PvP scoreboard display has been updated.</li>
+<li>Killing a player while at Honor cap will no longer show honor gained in floating text or chat messages.</li>
+<li>While in keybinds menu, hovering over an action bar keybind will now highlight the button on the action bar.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-beta-development-notes-%E2%80%93-updated-3-november/631316/9</link>
+        <pubDate>Tue, 03 Nov 2026 03:21:28 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6471288</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Midnight Hotfixes - 6 November</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>October 30, 2026</strong></p>
+<p><strong>Housing</strong></p>
+<ul>
+<li>Tracking the source for the Nagrand plant decor sold by Botanist Gril’ka in Nagrand now properly leads to her location.</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Azshara’s Darkscale Cloak and Azshara’s Deepscale Cloak were adjusted to resolve a dividing line that was visible under specific lighting.</li>
+</ul>
+<p><strong>Labyrinth</strong></p>
+<ul>
+<li>Fixed an issue with the “Voices of Stone” bonus objective in the “Bear’s Burden” scenario that caused it to become stuck on the UI.</li>
+<li>Fixed an issue with “The Wandering” scenario that caused some Tether icons to flicker erratically.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-midnight-hotfixes-6-november/635623/31</link>
+        <pubDate>Sat, 31 Oct 2026 02:17:35 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6465846</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Forever Now Live!</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/ay/AYUYD3JLZW251793830258361.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/ay/AYUYD3JLZW251793830258361.png" alt="World of Warcraft: Forever Now Live!" width="833" height="468"></a></p><p>Begin your first adventure or return to a new and reimagined Azeroth in World of Warcraft: Forever, now live worldwide. Adventure to level 60 across the original continents, discover new stories, and meet fellow adventurers in a permanent home alongside modern and Classic WoW where community comes first and the journey matters as much as the destination. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24315820">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-forever-now-live/638503/1</link>
+        <pubDate>Thu, 29 Oct 2026 21:02:34 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6463566</guid>
+      </item>
+      <item>
+        <title>Return to Azeroth in World of Warcraft: Forever</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/1e/1E1ETHVZLE1M1793163975139.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/1e/1E1ETHVZLE1M1793163975139.png" alt="Return to Azeroth in World of Warcraft: Forever" width="833" height="468"></a></p><p>Welcome back to Azeroth. Whether it has been a few years, or many— familiar roads, old friends, and new adventures are waiting for you in World of Warcraft: Forever. To help you get your feet on the ground and begin your adventures in Azeroth once more, we’ve put together some information you may need to return to your hero’s journey. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24315643">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/return-to-azeroth-in-world-of-warcraft-forever/638484/1</link>
+        <pubDate>Thu, 29 Oct 2026 19:03:13 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6463320</guid>
+      </item>
+      <item>
+        <title>Midnight: Echoes of the Worldcore PTR Development Notes</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>The 12.1.7 PTR has been updated and will be available for testing when the Talebound demo becomes available tomorrow.</p>
+<h2><a name="p-6463227-tales-take-a-dark-turn-in-talebound-1" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6463227-tales-take-a-dark-turn-in-talebound-1" aria-label="Heading link"></a><strong>TALES TAKE A DARK TURN IN TALEBOUND</strong></h2>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/9a37d6823bf8416424eb87b8a6a8a82d306b2855.jpeg" data-download-href="/en/wow/uploads/short-url/m0ha5ejDBAkG4vUYSMSEAXoTjYp.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/9a37d6823bf8416424eb87b8a6a8a82d306b2855_2_833x468.jpeg" alt="image" data-base62-sha1="m0ha5ejDBAkG4vUYSMSEAXoTjYp" width="833" height="468" srcset="https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/9a37d6823bf8416424eb87b8a6a8a82d306b2855_2_833x468.jpeg, https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/9a37d6823bf8416424eb87b8a6a8a82d306b2855_2_1249x702.jpeg 1.5x, https://d176jfkp3gfyt8.cloudfront.net/optimized/1X/9a37d6823bf8416424eb87b8a6a8a82d306b2855_2_1666x936.jpeg 2x" data-dominant-color="24294B"></a></div><p></p>
+<blockquote>
+<p><strong>Talebound will be available for testing this weekend</strong><br>
+<em>October 30 at 10:00am PDT through November 2 at 10:00am PDT</em></p>
+</blockquote>
+<p>Prepare to be drawn into the macabre world of Talebound, where you become part of the dark chronicles of a mysterious Storyteller, chillingly brought to life in a new PvE action RPG game mode.</p>
+<p>Venture solo or with friends through eerie tales where danger is written on every page. Battle fearsome enemies and bosses, solve perplexing puzzles, discover treasure and relics, and earn Bound Silver for cosmetic rewards as you delve deeper into the Storyteller’s twisted creations.</p>
+<p>More details on the Talebound demo can be found in the article: <a href="https://worldofwarcraft.blizzard.com/news/24313107/join-in-the-talebound-demo-on-october-30">https://worldofwarcraft.blizzard.com/news/24313107/join-in-the-talebound-demo-on-october-30</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/midnight-echoes-of-the-worldcore-ptr-development-notes/635787/5</link>
+        <pubDate>Thu, 29 Oct 2026 18:29:04 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6463227</guid>
+      </item>
+      <item>
+        <title>The WoW: Forever Podcast: Episode 6 - All About Tech ft. ‪@Shobek</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://www.youtube.com/watch?v=BVyhnixdPQg">All About Tech ft. @Shobek | Episode 6 - The WoW: Forever Podcast</a></p>
+ ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-6-all-about-tech-ft-%E2%80%AAshobek/638462/1</link>
+        <pubDate>Thu, 29 Oct 2026 16:18:25 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6462927</guid>
+      </item>
+      <item>
+        <title>New Player’s Starter Guide: Welcome to World of Warcraft: Forever</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/zo/ZOY5AGE9BF3C1793064955466.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/zo/ZOY5AGE9BF3C1793064955466.png" alt="New Player’s Starter Guide: Welcome to World of Warcraft: Forever" width="833" height="468"></a></p><p>World of Warcraft: Forever invites players into a reimagined original Azeroth where exploration, community, and the journey itself take center stage. Begin at level one, shape a character of your own, and learn the essentials for finding your place in a world designed to unfold for years to come. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24315280">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/new-player%E2%80%99s-starter-guide-welcome-to-world-of-warcraft-forever/638305/1</link>
+        <pubDate>Wed, 28 Oct 2026 17:00:07 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6460879</guid>
+      </item>
+      <item>
+        <title>Overly Restrictive Name Check and Fix Incoming - 28 October</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>In WoW Forever, we’ve been working on the restricted name list, which is a list the game uses to check for non-profane names that we wish to restrict, such as major Warcraft lore characters or names that are blocked for technical reasons.</p>
+<p>Today we’ve determined that we have a bug in the process that caused the game to be overly restrictive with some names. For example, it has been incorrectly restricting names containing “c-o-n”.</p>
+<p>With the next realm restarts in each region, we’re going to implement the fix. Afterward, if you previously received a message that said “That name is restricted” for a name that you think should have been allowed, please feel free to try again.</p>
+<p>Thank you!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/overly-restrictive-name-check-and-fix-incoming-28-october/638147/1</link>
+        <pubDate>Wed, 28 Oct 2026 01:28:55 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6459348</guid>
+      </item>
+      <item>
+        <title>The Burning Crusade Hotfixes - Updated 27 October</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>October 27, 2026</strong></p>
+<p><strong>The Burning Crusade Classic</strong></p>
+<ul>
+<li>Heroic Dungeon keys now require Honored reputation instead of Revered.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-burning-crusade-hotfixes-updated-27-october/601545/114</link>
+        <pubDate>Wed, 28 Oct 2026 00:44:54 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6459323</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Midnight Hotfixes - 6 November</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>October 27, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li><strong>Druid</strong>
+<ul>
+<li><strong>Feral</strong>
+<ul>
+<li>All damage done increased by 5%. Does not affect PvP combat.</li>
+</ul>
+</li>
+<li><strong>Restoration</strong>
+<ul>
+<li><em>Developer’s note: These changes are intended to help Restoration Druid deal with burst damage in dungeons, as they are behind other healers. They are performing well in raid settings, so we are targeting talents and abilities that are favored when healing a 5-person group.</em></li>
+<li>Verdancy healing increased by 60%. Does not affect PvP combat.</li>
+<li>Regrowth healing increased by 10%. Does not affect PvP combat.</li>
+<li>Improved Swiftmend increases Swiftmend healing by 40% (was 30%). Does not affect PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Hunter</strong>
+<ul>
+<li><strong>Marksmanship</strong>
+<ul>
+<li><em>Developers’ notes: These changes are intended to boost the area damage effectiveness of Marksmanship Hunters.</em></li>
+<li>Trick Shots now increases the ricochet damage of Aimed Shot and Rapid Fire by 85% (was 75%).</li>
+<li>Explosive Shot damage increased by 10%.</li>
+<li>Volley damage increased by 10%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li><strong>Fire</strong>
+<ul>
+<li>All damage done increased by 5%. Does not affect PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Monk</strong>
+<ul>
+<li><strong>Mistweaver</strong>
+<ul>
+<li>Resolved an issue that caused the Mistline talent to sometimes not properly heal the lowest health target.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Rogue</strong>
+<ul>
+<li><strong>Subtlety</strong>
+<ul>
+<li><em>Developers’ notes: The buff Subtlety received as compensation alongside changes in the 12.1.5 patch overshot expectations, so we’re rolling back a significant portion of that buff. In addition, the patch changes benefitted Trickster more than Deathstalker, so Trickster is receiving an additional smaller nerf.</em></li>
+<li>All ability damage reduced by 8%.</li>
+<li>Trickster: Fazed now increases damage by 5% (was 7%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li><strong>Affliction</strong>
+<ul>
+<li>Unstable Affliction damage increased by 20%. Does not affect PvP combat.</li>
+</ul>
+</li>
+<li><strong>Destruction</strong>
+<ul>
+<li>Rain of Fire damage increased by 20%.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Fixed an issue where tabards would hide the Rexxar armor set.</li>
+</ul>
+<p><strong>Labyrinth</strong></p>
+<ul>
+<li>Fixed an issue where some scenarios were not granting Great Vault credit.</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li><strong>Death Knight</strong>
+<ul>
+<li><strong>Unholy</strong>
+<ul>
+<li><em>Developers’ notes: The last adjustments to San’layn did increase its viability, but the impact of Vampiric Strike has been higher than we would like.</em></li>
+<li>San’layn: Vampiric Strike damage reduced by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Demon Hunter</strong>
+<ul>
+<li><strong>Devourer</strong>
+<ul>
+<li>Collapsing Star damage increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Evoker</strong>
+<ul>
+<li><strong>Preservation</strong>
+<ul>
+<li>Chronowarden: Chronal Dynamo increases the healing and damage of Living Flame by 80% when not an instant cast in PvP combat (was 50%).</li>
+<li>Chronowarden: Reverberations now causes Verdant Embrace to heal for an additional 80% over 8 seconds in PvP combat (was 40%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Hunter</strong>
+<ul>
+<li><strong>Marksmanship</strong>
+<ul>
+<li>Kill Shot damage increased by 40% in PvP combat.</li>
+<li>Deathblow’s chance to be activated by Aimed Shot increased to 25% in PvP combat.</li>
+<li>Dark Ranger: Black Arrow damage increased by 40% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Mage</strong>
+<ul>
+<li><strong>Fire</strong>
+<ul>
+<li><em>Developers’ notes: Fire Mage has continued to overperform, so we’re decreasing its overall damage to bring it in line with expectations.</em></li>
+<li>All damage reduced by 5% in PvP combat.</li>
+</ul>
+</li>
+<li><strong>Frost</strong>
+<ul>
+<li><em>Developers’ notes: Frostfire has not been a competitive option for Frost Mages this season, so we’re increasing a few of its burst damage aspects to differentiate its damage profile from Spellslinger.</em></li>
+<li>Frostfire: Isothermic Core’s Meteor damage increased by 20% in PvP combat.</li>
+<li>Frostfire: Duality’s Pyroblast damage increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Monk</strong>
+<ul>
+<li><strong>Mistweaver</strong>
+<ul>
+<li><em>Developers’ notes: Conduit of the Celestials has not been a competitive option for Mistweavers this season, so we’re increasing its consistent and burst healing.</em></li>
+<li>Conduit of the Celestials: Celestial Conduit healing increased by 35% in PvP combat.</li>
+<li>Conduit of the Celestials: Strength of the Black Ox absorb increased by 25% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Paladin</strong>
+<ul>
+<li><strong>Holy</strong>
+<ul>
+<li><em>Developers’ notes: Holy Paladin’s throughput has been underperforming and we’re decreasing the mana cost of Holy Light to promote casted healing.</em></li>
+<li>All healing increased by 5% in PvP combat.</li>
+<li>Divine Favor now reduces the mana cost of Holy Light by 50% in PvP combat (was 30%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Priest</strong>
+<ul>
+<li><strong>Holy</strong>
+<ul>
+<li><em>Developers’ notes: These changes are aimed at further improving Archon’s viability in PvP with targeted increases to Prayer of Healing’s group healing and the power of proc effects from the tree.</em></li>
+<li>Prayerful Litany now causes the primary target of Prayer of Healing to be healed for 75% more in PvP combat (was 125%).</li>
+<li>Prayer of Healing healing increased by 30% in PvP combat.</li>
+<li>Archon: Resonant Energy now increases healing done by 4% per stack in PvP combat (was 2%).</li>
+<li>Archon: Empowered Surges now increases the healing of spells affected by Surge of Light by 10% in PvP combat (was 5%).</li>
+<li>Archon: Realized Potential now increases Flash Heal healing by 25% in PvP combat (was 20%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Rogue</strong>
+<ul>
+<li><strong>Assassination</strong>
+<ul>
+<li>Deathstalker: Deathstalker’s Mark damage increased by 20% in PvP combat.</li>
+<li>Deathstalker: Hunt Them Down damage increased by 20% in PvP combat.</li>
+<li>Deathstalker: Darkest Night now increases the damage of the next Eviscerate by 15% in PvP combat (was 8%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Shaman</strong>
+<ul>
+<li><strong>Restoration</strong>
+<ul>
+<li>Healing Stream Totem and Stormstream Totem healing increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-midnight-hotfixes-6-november/635623/27</link>
+        <pubDate>Wed, 28 Oct 2026 00:43:30 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6459320</guid>
+      </item>
+      <item>
+        <title>Gold Transactions Must Be Direct</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>We’ve recently completed a round of actions taken against accounts that were found to have participated in spending real money on gold provided by a third party (RMT). Some of the accounts actioned purchased the illicit gold and had the seller deliver it to a different player who provided a service to the purchaser, such as a raid carry.</p>
+<p>Please be reminded that gold received from an intermediate player has an extremely high likelihood of being illicit gold that was part of an RMT. To avoid actions such as account suspension and the removal of illicit gold, players should always directly transfer gold from the player buying the carry (or other activity) to the player providing the carry.</p>
+<p>Guilds that provide carries to players, who pay for them with gold that comes from an intermediate, are at risk of seeing that gold removed by Blizzard.</p>
+<p>Thank you very much!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/gold-transactions-must-be-direct/638111/1</link>
+        <pubDate>Tue, 27 Oct 2026 21:53:17 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6458976</guid>
+      </item>
+      <item>
+        <title>Bring the Spirit of the Sea Home with the New Grimtide Estate and Grimtide Decor Packs!</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/pm/PM5WD93PGFQ41792712512670.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/pm/PM5WD93PGFQ41792712512670.png" alt="Bring the Spirit of the Sea Home with the New Grimtide Estate and Grimtide Decor Packs!" width="833" height="468"></a></p><p>Bring the haunting spirit of the sea home with the Grimtide collection for World of Warcraft Housing, featuring the Spirited Grimtide Manse exterior, Spirited Grimtide Foyer interior, and a coordinated pack of eerie nautical decor. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24303011">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/bring-the-spirit-of-the-sea-home-with-the-new-grimtide-estate-and-grimtide-decor-packs/638041/1</link>
+        <pubDate>Tue, 27 Oct 2026 20:15:09 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6458043</guid>
+      </item>
+      <item>
+        <title>Add the Living Heartsbane Cauldron Mount to your Collection</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/48/48PRFWH5SKOR1792810102145.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/48/48PRFWH5SKOR1792810102145.png" alt="Add the Living Heartsbane Cauldron Mount to your Collection" width="833" height="468"></a></p><p>Take command of this cursed creation and ride across Azeroth in wicked style. The Living Heartsbane Cauldron is a delightfully macabre mount, ready to whisk you into adventures by ground or sky. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24304164">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/add-the-living-heartsbane-cauldron-mount-to-your-collection/637974/1</link>
+        <pubDate>Tue, 27 Oct 2026 19:29:57 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6457345</guid>
+      </item>
+      <item>
+        <title>Your Next Adventure in WoW: Forever Starts in the WoW Portal Room</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/qk/QKRZSZKT5SQ71786404268489.jpg"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/qk/QKRZSZKT5SQ71786404268489.jpg" alt="Your Next Adventure in WoW: Forever Starts in the WoW Portal Room" width="833" height="468"></a></p><p>Whether you’re new to Azeroth, returning after a break, or have made World of Warcraft part of your life for years, the WoW Portal Room is a welcoming Discord server where you can meet fellow adventurers and find your next community. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24315203">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/your-next-adventure-in-wow-forever-starts-in-the-wow-portal-room/637932/1</link>
+        <pubDate>Tue, 27 Oct 2026 19:00:16 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6456813</guid>
+      </item>
+      <item>
+        <title>WoW Forever Beta Development Notes – Updated 3 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>We’ve updated the previous post in this thread with some additions that were intended to be listed.</p>
+<p>Additional updates to Racial Abilities and Talents include:</p>
+<p><strong>Orc</strong></p>
+<ul>
+<li>Blood Fury’s cooldown reduced to 2 minutes (was 3 minutes).</li>
+</ul>
+<p><strong>Troll</strong></p>
+<ul>
+<li>Berserking duration increased to 15 seconds (was 10 seconds).</li>
+</ul>
+<p><strong>Undead</strong></p>
+<ul>
+<li>Touch of the Grave internal cooldown reduced to 15 seconds (was 25 seconds).</li>
+</ul>
+<p>We’d also like to clarify that for Skyborne:</p>
+<ul>
+<li>Charged persists through death, <em>and is removed upon entering a raid.</em></li>
+<li>Attuned persists through death, <em>and is removed upon entering a raid.</em></li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-beta-development-notes-%E2%80%93-updated-3-november/631316/8</link>
+        <pubDate>Tue, 27 Oct 2026 15:37:57 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6454754</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Midnight Hotfixes - 6 November</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>October 26, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li><strong>Shaman</strong>
+<ul>
+<li><strong>Enhancement</strong>
+<ul>
+<li>Resolved an issue causing Voltaic Blaze to not hit secondary targets when Ula’tek is the main target.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li><strong>Affliction</strong>
+<ul>
+<li>Fixed an issue where the Cooldown Manager would sometimes not display Summon Darkglare correctly.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>Hallow’s End</strong></p>
+<ul>
+<li><strong>Neighborhoods</strong>
+<ul>
+<li>Now only one chest will spawn when capturing Shade of Seabreaker Skoloth.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Labyrinth</strong></p>
+<ul>
+<li>Fixed an issue in “The Wandering” scenario that would cause the Remnant to stop moving for a moment when additional players walked in and out of the spirits tether proximity.</li>
+<li>Fixed an issue in the “Containment Breach” scenario where re-igniting a single Flame of Jan’alai brazier counted twice toward the “Flames Relit” objective.</li>
+<li>Fixed an issue that would sometimes cause the “Come to Your Senses” bonus objective to complete multiple times outside the “Encroaching Darkness” scenario.</li>
+</ul>
+<p><strong>Player versus Player</strong></p>
+<ul>
+<li><strong>Paladin</strong>
+<ul>
+<li><strong>Holy</strong>
+<ul>
+<li>Fixed an issue that caused Spreading the Word to place Cleanse on cooldown when casting Blessing of Protection.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-midnight-hotfixes-6-november/635623/26</link>
+        <pubDate>Tue, 27 Oct 2026 01:01:29 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6453844</guid>
+      </item>
+      <item>
+        <title>WoW Forever Beta Development Notes – Updated 3 November</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>As we approach the launch of WoW Forever, we’ve been reflecting on feedback we’ve heard on racial abilities and passive traits: Some players have expressed that some of the new racial traits feel too generic, while others have raised concerns that some are objectively stronger than others.</p>
+<p>In taking a final pass on these, we’ve prioritized racial identity, which means that some races will naturally be slightly more effective than others at certain combat roles. In some places where we had replaced role- or class-focused racials with generic ones, we’re rolling those changes back. One exception to this is the weapon specialization racials, like humans’ Sword Specialization or orcs’ Axe Specialization. While those have a strong fantasy component to them, it is not healthy in the long run for future raid and dungeon loot tables to be evaluated through the lens of “required” weapon types.</p>
+<p>At the same time, we’re doing a tuning pass on some of the remaining passive bonuses to help ensure that they aren’t skewing outcomes in a way that limits player preferences.</p>
+<h2><a name="p-6453379-racial-abilities-and-traits-1" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6453379-racial-abilities-and-traits-1" aria-label="Heading link"></a>Racial Abilities and Traits</h2>
+<ul>
+<li><strong>Human</strong>
+<ul>
+<li>Ruthless now increases critical chance by 1% (was 2%).</li>
+<li>Human Spirit now increases Spirit by 10% (was 5%).</li>
+</ul>
+</li>
+<li><strong>Dwarf</strong>
+<ul>
+<li>Earth Fury (2% increased critical strike damage and healing) removed.</li>
+<li>Added: Artisan’s Precision - Increases hit chance with spells and attacks by 1%.</li>
+</ul>
+</li>
+<li><strong>Tauren</strong>
+<ul>
+<li>Plainsrunning now grants 2% movement speed per stack (was 1%), for a total max increase of 60% (was 30%).</li>
+<li>Plainsrunning no longer increases mounted movement speed.</li>
+<li>Endurance no longer provides any modifiers beyond 5% increased Health (no hit chance or critical damage modifiers).</li>
+</ul>
+</li>
+<li><strong>Orc</strong>
+<ul>
+<li>Savage removed (1% increased critical strike chance).</li>
+<li>Command re-added, increasing Warlock and Hunter pet damage by 5%.</li>
+<li>Blood Fury’s cooldown reduced to 2 minutes (was 3 minutes).</li>
+</ul>
+</li>
+<li><strong>Troll</strong>
+<ul>
+<li>Berserking duration increased to 15 seconds (was 10 seconds).</li>
+</ul>
+</li>
+<li><strong>Undead</strong>
+<ul>
+<li>Touch of the Grave internal cooldown reduced to 15 seconds (was 25 seconds).</li>
+</ul>
+</li>
+<li><strong>Skyborne</strong>
+<ul>
+<li>Wind-Blessed Haste bonus reduced to 2% (was 3%).</li>
+<li>Read Leyline now increases Mana and Health regeneration by 50% (was 100%), with a 15-second duration. This ability cannot be used while Innervate is active, and will be replaced by Innervate as a more powerful effect.</li>
+<li>Using Read Leyline at a Ley Line now also grants “Attuned” for 1 hour. While Attuned, the benefit of Read Leyline is increased to 100% regeneration increase. Attuned persists through death, and is removed upon entering a raid.</li>
+<li>Skysight is now a 15% increased movement speed (was 10%), with a 15-second duration.</li>
+<li>Using Skysight at an elemental convergence now also grants “Charged” for 1 hour. While Charged, the benefit of Skysight is a 30% movement speed increase. Charged persists through death, and is removed upon entering a raid.</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-forever-beta-development-notes-%E2%80%93-updated-3-november/631316/7</link>
+        <pubDate>Mon, 26 Oct 2026 20:35:53 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6453379</guid>
+      </item>
+      <item>
+        <title>WoW: Midnight’s Talebound Demo is Now Live</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/wf/WFAZUC044JL81792714153153.jpg"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/wf/WFAZUC044JL81792714153153.jpg" alt="WoW: Midnight’s Talebound Demo is Now Live" width="833" height="468"></a></p><p>Take the Talebound demo for a spooky spin on the Player Test Realm (PTR) and experience the Red Hollow introduction, three eerie tales across Normal, Veteran, and Heroic difficulties, and all three classes: Slayer, Inquisitor, and Witch. No subscription is required to take part. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24313107">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/wow-midnight%E2%80%99s-talebound-demo-is-now-live/637603/1</link>
+        <pubDate>Mon, 26 Oct 2026 18:00:11 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6453157</guid>
+      </item>
+      <item>
+        <title>Watch the WoW: Forever Short Story, “Unbowed”</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/a6/A6472MJY97H41792605774727.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/a6/A6472MJY97H41792605774727.png" alt="Watch the WoW: Forever Short Story, “Unbowed”" width="833" height="468"></a></p><p>Can a Forsaken still serve the Light? Join the fallen crusader, Cormack, for a special fireside telling of our newest short story, “Unbowed”. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24313105">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/watch-the-wow-forever-short-story-%E2%80%9Cunbowed%E2%80%9D/637597/1</link>
+        <pubDate>Mon, 26 Oct 2026 17:06:09 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6453081</guid>
+      </item>
+      <item>
+        <title>World of Warcraft: Midnight Hotfixes - 6 November</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p><strong>October 23, 2026</strong></p>
+<p><strong>Classes</strong></p>
+<ul>
+<li><strong>Shaman</strong>
+<ul>
+<li><strong>Enhancement</strong>
+<ul>
+<li>Resolved an issue causing Surging Elements to not appear on the Cooldown Manager.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Warlock</strong>
+<ul>
+<li>Fixed issues that caused some warlock summons and Diabolic Occuli to sometimes incorrectly target enemies outside of combat. This corrects summons from Affliction’s Shadows of Nath’reza, Demonology’s Dominion of Argus, as well as Diabolist summons.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Dungeons</strong></p>
+<ul>
+<li><strong>Den of Nalorakk</strong>
+<ul>
+<li>Addressed an issue where Nalorakk’s Echoing Maul can sometimes happen in the wrong location.</li>
+</ul>
+</li>
+<li><strong>Murder Row</strong>
+<ul>
+<li>Addressed an issue where Nibbles’ Fel Spray can hit targets outside of the intended area.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Hallow’s End</strong></p>
+<ul>
+<li><strong>Neighborhoods</strong>
+<ul>
+<li>Players can now exit combat with the Shade of Seabreaker Skoloth.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Items</strong></p>
+<ul>
+<li>Fixed an issue that caused items upgraded with Ascendant Venomstones to have incorrect item levels.</li>
+</ul>
+<p><strong>Labyrinth</strong></p>
+<ul>
+<li>Shorter character models will no longer fall through floor when respawning in Jan’alai’s Refuge.</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/world-of-warcraft-midnight-hotfixes-6-november/635623/25</link>
+        <pubDate>Sat, 24 Oct 2026 00:19:57 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6449373</guid>
+      </item>
+      <item>
+        <title>Class Tuning Incoming - 27 October</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>The following class adjustments will arrive with scheduled weekly maintenance (27 October in this region).</p>
+<h2><a name="p-6449319-class-changes-1" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-class-changes-1" aria-label="Heading link"></a><strong>CLASS CHANGES</strong></h2>
+<ul>
+<li>
+<h3><a name="p-6449319-druid-2" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-druid-2" aria-label="Heading link"></a><strong>DRUID</strong></h3>
+<ul>
+<li><strong>Feral</strong>
+<ul>
+<li>All damage done increased by 5%. Does not affect PvP combat.</li>
+</ul>
+</li>
+<li><strong>Restoration</strong>
+<ul>
+<li><em>Developer’s note: These changes are intended to help Restoration Druid deal with burst damage in dungeons, as they are behind other healers. They are performing well in raid settings, so we are targeting talents and abilities that are favored when healing a 5-person group.</em></li>
+<li>Verdancy healing increased by 60%. Does not affect PvP combat.</li>
+<li>Regrowth healing increased by 10%. Does not affect PvP combat.</li>
+<li>Improved Swiftmend increases Swiftmend healing by 40% (was 30%). Does not affect PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-hunter-3" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-hunter-3" aria-label="Heading link"></a><strong>HUNTER</strong></h3>
+<ul>
+<li><strong>Marksmanship</strong>
+<ul>
+<li><em>Developers’ notes: These changes are intended to boost the area damage effectiveness of Marksmanship Hunters.</em></li>
+<li>Trick Shots now increases the ricochet damage of Aimed Shot and Rapid Fire by 85% (was 75%).</li>
+<li>Explosive Shot damage increased by 10%.</li>
+<li>Volley damage increased by 10%.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-mage-4" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-mage-4" aria-label="Heading link"></a><strong>MAGE</strong></h3>
+<ul>
+<li><strong>Fire</strong>
+<ul>
+<li>All damage done increased by 5%. Does not affect PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-rogue-5" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-rogue-5" aria-label="Heading link"></a><strong>ROGUE</strong></h3>
+<ul>
+<li><strong>Subtlety</strong>
+<ul>
+<li><em>Developers’ notes: The buff Subtlety received as compensation alongside changes in the 12.1.5 patch overshot expectations, so we’re rolling back a significant portion of that buff. In addition, the patch changes benefitted Trickster more than Deathstalker, so Trickster is receiving an additional smaller nerf.</em></li>
+<li>All ability damage reduced by 8%.</li>
+<li>Trickster: Fazed now increases damage by 5% (was 7%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-warlock-6" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-warlock-6" aria-label="Heading link"></a><strong>WARLOCK</strong></h3>
+<ul>
+<li><strong>Affliction</strong>
+<ul>
+<li>Unstable Affliction damage increased by 20%. Does not affect PvP combat.</li>
+</ul>
+</li>
+<li><strong>Destruction</strong>
+<ul>
+<li>Rain of Fire damage increased by 20%.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2><a name="p-6449319-player-versus-player-7" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-player-versus-player-7" aria-label="Heading link"></a><strong>PLAYER VERSUS PLAYER</strong></h2>
+<ul>
+<li>
+<h3><a name="p-6449319-death-knight-8" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-death-knight-8" aria-label="Heading link"></a><strong>DEATH KNIGHT</strong></h3>
+<ul>
+<li><strong>Unholy</strong>
+<ul>
+<li><em>Developers’ notes: The last adjustments to San’layn did increase its viability, but the impact of Vampiric Strike has been higher than we would like.</em></li>
+<li>San’layn: Vampiric Strike damage reduced by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-demon-hunter-9" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-demon-hunter-9" aria-label="Heading link"></a><strong>DEMON HUNTER</strong></h3>
+<ul>
+<li><strong>Devourer</strong>
+<ul>
+<li>Collapsing Star damage increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-evoker-10" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-evoker-10" aria-label="Heading link"></a><strong>EVOKER</strong></h3>
+<ul>
+<li><strong>Preservation</strong>
+<ul>
+<li>Chronowarden: Chronal Dynamo increases the healing and damage of Living Flame by 80% when not an instant cast in PvP combat (was 50%).</li>
+<li>Chronowarden: Reverberations now causes Verdant Embrace to heal for an additional 80% over 8 seconds in PvP combat (was 40%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-hunter-11" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-hunter-11" aria-label="Heading link"></a><strong>HUNTER</strong></h3>
+<ul>
+<li><strong>Marksmanship</strong>
+<ul>
+<li>Kill Shot damage increased by 40% in PvP combat.</li>
+<li>Deathblow’s chance to be activated by Aimed Shot increased to 25% in PvP combat.</li>
+<li>Dark Ranger: Black Arrow damage increased by 40% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-mage-12" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-mage-12" aria-label="Heading link"></a><strong>MAGE</strong></h3>
+<ul>
+<li><strong>Fire</strong>
+<ul>
+<li><em>Developers’ notes: Fire Mage has continued to overperform, so we’re decreasing its overall damage to bring it in line with expectations.</em></li>
+<li>All damage reduced by 5% in PvP combat.</li>
+</ul>
+</li>
+<li><strong>Frost</strong>
+<ul>
+<li><em>Developers’ notes: Frostfire has not been a competitive option for Frost Mages this season, so we’re increasing a few of its burst damage aspects to differentiate its damage profile from Spellslinger.</em></li>
+<li>Frostfire: Isothermic Core’s Meteor damage increased by 20% in PvP combat.</li>
+<li>Frostfire: Duality’s Pyroblast damage increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-monk-13" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-monk-13" aria-label="Heading link"></a><strong>MONK</strong></h3>
+<ul>
+<li><strong>Mistweaver</strong>
+<ul>
+<li><em>Developers’ notes: Conduit of the Celestials has not been a competitive option for Mistweavers this season, so we’re increasing its consistent and burst healing.</em></li>
+<li>Conduit of the Celestials: Celestial Conduit healing increased by 35% in PvP combat.</li>
+<li>Conduit of the Celestials: Strength of the Black Ox absorb increased by 25% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-paladin-14" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-paladin-14" aria-label="Heading link"></a><strong>PALADIN</strong></h3>
+<ul>
+<li><strong>Holy</strong>
+<ul>
+<li><em>Developers’ notes: Holy Paladin’s throughput has been underperforming and we’re decreasing the mana cost of Holy Light to promote casted healing.</em></li>
+<li>All healing increased by 5% in PvP combat.</li>
+<li>Divine Favor now reduces the mana cost of Holy Light by 50% in PvP combat (was 30%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-priest-15" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-priest-15" aria-label="Heading link"></a><strong>PRIEST</strong></h3>
+<ul>
+<li><strong>Holy</strong>
+<ul>
+<li><em>Developers’ notes: These changes are aimed at further improving Archon’s viability in PvP with targeted increases to Prayer of Healing’s group healing and the power of proc effects from the tree.</em></li>
+<li>Prayerful Litany now causes the primary target of Prayer of Healing to be healed for 75% more in PvP combat (was 125%).</li>
+<li>Prayer of Healing healing increased by 30% in PvP combat.</li>
+<li>Archon: Resonant Energy now increases healing done by 4% per stack in PvP combat (was 2%).</li>
+<li>Archon: Empowered Surges now increases the healing of spells affected by Surge of Light by 10% in PvP combat (was 5%).</li>
+<li>Archon: Realized Potential now increases Flash Heal healing by 25% in PvP combat (was 20%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-rogue-16" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-rogue-16" aria-label="Heading link"></a><strong>ROGUE</strong></h3>
+<ul>
+<li><strong>Assassination</strong>
+<ul>
+<li>Deathstalker: Deathstalker’s Mark damage increased by 20% in PvP combat.</li>
+<li>Deathstalker: Hunt Them Down damage increased by 20% in PvP combat.</li>
+<li>Deathstalker: Darkest Night now increases the damage of the next Eviscerate by 15% in PvP combat (was 8%).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<h3><a name="p-6449319-shaman-17" class="anchor" href="https://eu.forums.blizzard.com/en/wow#p-6449319-shaman-17" aria-label="Heading link"></a><strong>SHAMAN</strong></h3>
+<ul>
+<li><strong>Restoration</strong>
+<ul>
+<li>Healing Stream Totem and Stormstream Totem healing increased by 20% in PvP combat.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/class-tuning-incoming-27-october/637262/1</link>
+        <pubDate>Fri, 23 Oct 2026 22:53:08 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6449319</guid>
+      </item>
+      <item>
+        <title>Dive Into WoW: Forever, the Gods of Zul’Aman, Hallow’s End, and More in WoW Weekly</title>
+        <dc:creator><![CDATA[@BlizzardEntertainment Blizzard Entertainment]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://bnetcmsus-a.akamaihd.net/cms/blog_header/zy/ZY0H1CPSSTUB1792707149153.png"><img src="https://bnetcmsus-a.akamaihd.net/cms/blog_header/zy/ZY0H1CPSSTUB1792707149153.png" alt="Dive Into WoW: Forever, the Gods of Zul’Aman, Hallow’s End, and More in WoW Weekly" width="833" height="468"></a></p><p>From the latest news in World of Warcraft: Forever to the launch of the Gods of Zul'Aman content update in Burning Crusade Classic Anniversary, this week's news is packed with fresh insights, eerie in-game events, new rewards, and adventures to explore across Azeroth. </p><p><a href="https://worldofwarcraft.com/en-gb/news/24313106">View Full Article</a></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/dive-into-wow-forever-the-gods-of-zul%E2%80%99aman-hallow%E2%80%99s-end-and-more-in-wow-weekly/637232/1</link>
+        <pubDate>Fri, 23 Oct 2026 17:07:14 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6448865</guid>
+      </item>
+      <item>
+        <title>Thank You For Testing the WoW Forever Beta</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>The WoW Forever Beta is now closed, and we’re incredibly grateful to everyone who joined us over the last five weeks of playtesting, data gathering, bug reporting, and feedback.</p>
+<p>We’re now quickly moving into a period of a few short days where we will do some focused work on priority issues and the game service itself, so that it will be in good shape for launch day on November 4.</p>
+<p>And of course, we’ll open access to the character creation system on Tuesday, October 27, allowing everyone plenty of time to <a href="https://worldofwarcraft.blizzard.com/news/24302070/">select the ruleset</a> that will define your journey and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24303866/">snag the name</a> that best fits your adventurer.</p>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/b1fe09754ac84c51aac38a58e60bd32626cfaec2.jpeg" data-download-href="/en/wow/uploads/short-url/poAMBn9JkmIfZye6fTn5WKI67V8.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/original/1X/b1fe09754ac84c51aac38a58e60bd32626cfaec2.jpeg" alt="image" data-base62-sha1="poAMBn9JkmIfZye6fTn5WKI67V8" width="800" height="381"></a></div><p></p>
+<p>You won’t have to wait until the game launches to make these big decisions.</p>
+<p>Also next week, we’re going to continue with our WoW Forever Podcast. If you haven’t consumed it all, this is a great time to catch up with everything the WoW Forever designers have had to say.</p>
+<ul>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-1-unpacking-beta-launch-ft-%E2%80%AAxaryu%E2%80%AC/632917/" class="inline-onebox">The WoW: Forever Podcast: Episode 1 - Unpacking Beta Launch ft. ‪@Xaryu‬</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-2-speed-running-classes-ft-%E2%80%AAsodapoppin%E2%80%AC/632918/" class="inline-onebox">The WoW: Forever Podcast: Episode 2 - Speed Running Classes ft. ‪@sodapoppin‬</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-3-dive-into-dungeons-with-devs-ft-hammerdancegaming/634342/" class="inline-onebox">The WoW: Forever Podcast: Episode 3 - Dive Into Dungeons With Devs ft. @Hammerdancegaming</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-4-the-pvp-episode-ft-%E2%80%AAtipsoutbaby%E2%80%AC-%E2%80%AAsavixirl/635761/" class="inline-onebox">The WoW: Forever Podcast: Episode 4 - The PvP Episode ft. ‪@TipsOutBaby‬ &amp; ‪@Savixirl</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-5-end-of-beta-special/637043/" class="inline-onebox">The WoW: Forever Podcast: Episode 5 - End of Beta Special</a></li>
+</ul>
+<p>If you can’t get enough WoW Forever info, we’ve got all kinds of details about the game right here on our website. You can learn more about <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24301455">WoW Forever dungeons here</a>, and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24301516/">the Campfire system here</a>, and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24303009/">raid details here</a>.</p>
+<p>Again, we’re deeply grateful to have seen so many people find their Forever home, and create new communities, and find friends (old and new) to join on the journey ahead.</p>
+<p>We’re really looking forward to seeing you on November 4! Thank you very much!</p>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/7447af4906a37d3110a9dd6974a43e5c1e905040.jpeg" data-download-href="/en/wow/uploads/short-url/gAEYa1KyMvGIJ5P5WRg7RVWThTy.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/original/1X/7447af4906a37d3110a9dd6974a43e5c1e905040.jpeg" alt="image" data-base62-sha1="gAEYa1KyMvGIJ5P5WRg7RVWThTy" width="800" height="400"></a></div><p></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/thank-you-for-testing-the-wow-forever-beta/637228/1</link>
+        <pubDate>Fri, 23 Oct 2026 17:01:38 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6448847</guid>
+      </item>
+      <item>
+        <title>Thank You For Testing the WoW Forever Beta</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>The WoW Forever Beta is now closed, and we’re incredibly grateful to everyone who joined us over the last five weeks of playtesting, data gathering, bug reporting, and feedback.</p>
+<p>We’re now quickly moving into a period of a few short days where we will do some focused work on priority issues and the game service itself, so that it will be in good shape for launch day on November 4.</p>
+<p>And of course, we’ll open access to the character creation system on Tuesday, October 27, allowing everyone plenty of time to <a href="https://worldofwarcraft.blizzard.com/news/24302070/">select the ruleset</a> that will define your journey and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24303866/">snag the name</a> that best fits your adventurer.</p>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/b1fe09754ac84c51aac38a58e60bd32626cfaec2.jpeg" data-download-href="/en/wow/uploads/short-url/poAMBn9JkmIfZye6fTn5WKI67V8.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/original/1X/b1fe09754ac84c51aac38a58e60bd32626cfaec2.jpeg" alt="image" data-base62-sha1="poAMBn9JkmIfZye6fTn5WKI67V8" width="800" height="381"></a></div><p></p>
+<p>You won’t have to wait until the game launches to make these big decisions.</p>
+<p>Also next week, we’re going to continue with our WoW Forever Podcast. If you haven’t consumed it all, this is a great time to catch up with everything the WoW Forever designers have had to say.</p>
+<ul>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-1-unpacking-beta-launch-ft-%E2%80%AAxaryu%E2%80%AC/632917/" class="inline-onebox">The WoW: Forever Podcast: Episode 1 - Unpacking Beta Launch ft. ‪@Xaryu‬</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-2-speed-running-classes-ft-%E2%80%AAsodapoppin%E2%80%AC/632918/" class="inline-onebox">The WoW: Forever Podcast: Episode 2 - Speed Running Classes ft. ‪@sodapoppin‬</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-3-dive-into-dungeons-with-devs-ft-hammerdancegaming/634342/" class="inline-onebox">The WoW: Forever Podcast: Episode 3 - Dive Into Dungeons With Devs ft. @Hammerdancegaming</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-4-the-pvp-episode-ft-%E2%80%AAtipsoutbaby%E2%80%AC-%E2%80%AAsavixirl/635761/" class="inline-onebox">The WoW: Forever Podcast: Episode 4 - The PvP Episode ft. ‪@TipsOutBaby‬ &amp; ‪@Savixirl</a></li>
+<li><a href="https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-5-end-of-beta-special/637043/" class="inline-onebox">The WoW: Forever Podcast: Episode 5 - End of Beta Special</a></li>
+</ul>
+<p>If you can’t get enough WoW Forever info, we’ve got all kinds of details about the game right here on our website. You can learn more about <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24301455">WoW Forever dungeons here</a>, and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24301516/">the Campfire system here</a>, and <a href="https://worldofwarcraft.blizzard.com/en-gb/news/24303009/">raid details here</a>.</p>
+<p>Again, we’re deeply grateful to have seen so many people find their Forever home, and create new communities, and find friends (old and new) to join on the journey ahead.</p>
+<p>We’re really looking forward to seeing you on November 4! Thank you very much!</p>
+<p></p><div class="lightbox-wrapper"><a class="lightbox" href="https://d176jfkp3gfyt8.cloudfront.net/original/1X/7447af4906a37d3110a9dd6974a43e5c1e905040.jpeg" data-download-href="/en/wow/uploads/short-url/gAEYa1KyMvGIJ5P5WRg7RVWThTy.jpeg?dl=1" title="image"><img src="https://d176jfkp3gfyt8.cloudfront.net/original/1X/7447af4906a37d3110a9dd6974a43e5c1e905040.jpeg" alt="image" data-base62-sha1="gAEYa1KyMvGIJ5P5WRg7RVWThTy" width="800" height="400"></a></div><p></p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/thank-you-for-testing-the-wow-forever-beta/637227/1</link>
+        <pubDate>Fri, 23 Oct 2026 17:00:44 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6448845</guid>
+      </item>
+      <item>
+        <title>Midnight: Echoes of the Worldcore PTR Development Notes</title>
+        <dc:creator><![CDATA[@Linxy-376595 Linxy]]></dc:creator>
+        <description><![CDATA[ <p>The 12.1.7 PTR has been updated for the week with various bug fixes and behind-the-scenes updates.</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/midnight-echoes-of-the-worldcore-ptr-development-notes/635787/4</link>
+        <pubDate>Thu, 22 Oct 2026 22:49:30 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6447528</guid>
+      </item>
+      <item>
+        <title>Beta Realm Restart Today At 23:00 CEST</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>In about 40 minutes, at 23:00 CEST, we will quickly restart the WoW Forever Beta.</p>
+<p>Players who are currently in game will receive messages from our server team warning them of the restart, beginning 15 minutes before the Beta goes offline.</p>
+<p>See you on the other side!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/beta-realm-restart-today-at-2300-cest/637088/1</link>
+        <pubDate>Thu, 22 Oct 2026 20:20:36 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6447340</guid>
+      </item>
+      <item>
+        <title>The WoW Forever Beta Celebration is Underway</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p>The WoW Forever Beta will end 24 hours from now, at 19:00 CEST on Friday, October 23, and until that fateful moment, we’re celebrating the joy and wonder of WoW Forever with 24 hours of shenanigans and upheaval in Zephras Isle, Dun Morogh, Elwynn Forest, Teldrassil, Durotar, Tirisfal Glades, and Mulgore.</p>
+<p>Log into the WoW Forever Beta for one last time and head to one of those zones to experience the madness, and join us in saying goodbye to the Beta.</p>
+<p><em>Please note: Shenanigans and upheaval in this one-time-only celebration almost certainly include items and experiences that <strong>will not</strong> be a part of WoW Forever after it launches on November 4.</em></p>
+<p>We hope everyone has fun on this last day of the WoW Forever Beta. Thank you so much for testing the game with us!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-beta-celebration-is-underway/637055/1</link>
+        <pubDate>Thu, 22 Oct 2026 17:00:00 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6447060</guid>
+      </item>
+      <item>
+        <title>The WoW: Forever Podcast: Episode 5 - End of Beta Special</title>
+        <dc:creator><![CDATA[@Kaivax Kaivax]]></dc:creator>
+        <description><![CDATA[ <p><a href="https://www.youtube.com/watch?v=uOlxa3xvNq4">End of Beta Special | Episode 5 - The WoW: Forever Podcast</a></p>
+ ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-wow-forever-podcast-episode-5-end-of-beta-special/637043/1</link>
+        <pubDate>Thu, 22 Oct 2026 16:22:03 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6446965</guid>
+      </item>
+      <item>
+        <title>The Roleplay-PvP Ruleset is Coming to WoW Forever</title>
+        <dc:creator><![CDATA[@Aggrend Aggrend]]></dc:creator>
+        <description><![CDATA[ <p>Greetings,</p>
+<p>In a recent episode of the WoW Forever Podcast we discussed some of our concerns with adding a Roleplay-PVP ruleset in WoW Forever, but we also mentioned that we were still discussing the topic internally and watching player feedback. Over the last few days, we’ve carefully examined what it would take to add it to WoW Forever and decided to go for it. We will add a Roleplay-PVP Ruleset for launch on November 4.</p>
+<p>We’re also working hard to make it so that you can select the Roleplay-PvP ruleset and reserve names there next week when our Name Reservation period begins on Tuesday, October 27.</p>
+<p>We really appreciate the feedback and comments on this.</p>
+<p>Thank you!</p> ]]></description>
+        <link>https://eu.forums.blizzard.com/en/wow/t/the-roleplay-pvp-ruleset-is-coming-to-wow-forever/637031/1</link>
+        <pubDate>Thu, 22 Oct 2026 15:30:54 +0000</pubDate>
+        <guid isPermaLink="false">eu.forums.blizzard.com-post-6446850</guid>
+      </item>
+  </channel>
+</rss>

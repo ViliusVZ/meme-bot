@@ -8,9 +8,10 @@ import type { Env } from "./env.js";
 import { settings } from "./db/index.js";
 import { local } from "./gamenight.js";
 
-const MODEL = "gemini-3.8-flash";
+// the fast one first; when it's busy (the free tier often is), the newer, slower one
+const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"];
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all
-const TIMEOUT = 300_000; // a thinking model can take minutes; nothing waits on this
+const TIMEOUT = 280_000; // a thinking model can take minutes (and Node's fetch gives up at 300 s anyway)
 const KEY = "gemini_budget";
 
 /** Today's requests so far (Vilnius day), from the database so restarts don't reset it. */
@@ -37,10 +38,19 @@ export async function ask<T>(env: Env, prompt: string, schema: object): Promise<
     console.log("gemini: daily budget used up");
     return null;
   }
+  for (const model of MODELS) {
+    const answer = await once<T>(env.GEMINI_API_KEY, model, prompt, schema);
+    if (answer !== undefined) return answer;
+  }
+  return null;
+}
+
+/** One model's answer; undefined when it's busy or failed (try the next), null when it said nothing usable. */
+async function once<T>(key: string, model: string, prompt: string, schema: object): Promise<T | null | undefined> {
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0, thinkingConfig: { thinkingLevel: "low" } },
@@ -48,14 +58,14 @@ export async function ask<T>(env: Env, prompt: string, schema: object): Promise<
       signal: AbortSignal.timeout(TIMEOUT),
     });
     if (!r.ok) {
-      console.log("gemini:", r.status, (await r.text()).slice(0, 200));
-      return null;
+      console.log("gemini:", model, r.status, (await r.text()).slice(0, 200));
+      return undefined;
     }
     const data = (await r.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     return text ? (JSON.parse(text) as T) : null;
   } catch (e) {
-    console.log("gemini:", String(e));
-    return null;
+    console.log("gemini:", model, String(e));
+    return undefined;
   }
 }

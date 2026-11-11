@@ -14,6 +14,7 @@ import * as reddit from "./reddit.js";
 import * as cleanup from "./cleanup.js";
 import * as memeshame from "./memeshame.js";
 import * as spontaneous from "./spontaneous.js";
+import * as news from "./news.js";
 import * as alerts from "./alerts.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
@@ -29,6 +30,7 @@ const JOBS: [string, (env: Env) => Promise<unknown>][] = [
   ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
   ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
   ["spontaneous", spontaneous.minute], // 🎮 unplanned sessions wrap up; stale Lobby questions and notes go
+  ["wow-news", (e) => news.check(e)], // ⚔️ WoW: Forever news, every 30 min (in the background)
   ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
   ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
   ["meme-shame", memeshame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it

@@ -92,6 +92,13 @@
       "when": 1794398083351,
       "tag": "0012_activity_guesses",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794400221293,
+      "tag": "0013_news",
+      "breakpoints": true
     }
   ]
 }
