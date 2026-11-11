@@ -1071,6 +1071,24 @@
    "expect.toBeNull()",
    "expect.toHaveLength(1)",
    "expect.toEqual({ game: \"World of Warcraft\" })"
+  ],
+  "test \"a pull-in another copy makes at the same moment moves you once\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"a\"])"
+  ],
+  "test \"a session another copy already counted isn't counted again\"": [
+   "expect.toMatchObject({ counted: true, who: [\"a\", \"b\"] })",
+   "expect.toBe(3)"
+  ],
+  "test \"a pull-in whose note won't post still pulls you in\"": [
+   "expect.toEqual({ channel_id: \"wow\" })",
+   "expect.toEqual([\"a\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"↩ moves back whoever it can when one move fails\"": [
+   "expect.toBeNull()",
+   "expect.toEqual({ channel_id: \"lobby\" })",
+   "expect.toBe(\"undone\")"
   ]
  },
  "time.test.ts": {

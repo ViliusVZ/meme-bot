@@ -660,3 +660,59 @@ test("Gemini's daily budget is kept in the database and stops asking once it's s
   await t.db.update(settings).set({ value: { day: "2000-01-01", used: 99 } });
   expect(await gemini.ask(e, "q", schema)).toEqual({ game: "World of Warcraft" });
 });
+
+test("a pull-in another copy makes at the same moment moves you once", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 - 600 });
+  await at(t0, { b: "wow" });
+  const change = { user: "a", from: null, to: "lobby" };
+  // while our move is on its way, the other copy reacts to the same join
+  let other: Promise<unknown> | null = null;
+  h.override = (c) => {
+    if (c.method !== "PATCH" || c.path !== "/guilds/guild/members/a" || other) return undefined;
+    other = spontaneous.react(env, where, t0 + 10, change);
+    return other.then(() => json({})) as unknown as Response;
+  };
+  await at(t0 + 10, { a: "lobby" }, change);
+  await other;
+  expect(calls.filter((c) => c.method === "PATCH" && c.path === "/guilds/guild/members/a")).toHaveLength(1);
+  expect((await t.db.select().from(rooms))[0].pulled).toEqual(["a"]);
+});
+
+test("a session another copy already counted isn't counted again", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 - 86400 });
+  await t.db.insert(sessions).values({ day: DAY, game: "World of Warcraft", channel_id: "wow", started_at: t0 - 700, active_since: t0 - 700, who: ["a"] });
+  // the other copy counts it between our look at the session and our count
+  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_counted() RETURNS trigger AS $$ BEGIN NEW.counted := true; RETURN NEW; END $$ LANGUAGE plpgsql`);
+  await t.pool.query(`CREATE TRIGGER qa_counted BEFORE UPDATE ON sessions FOR EACH ROW WHEN (OLD.who IS DISTINCT FROM NEW.who) EXECUTE FUNCTION qa_counted()`);
+  await at(t0, { a: "wow", b: "wow" });
+  await t.pool.query("DROP TRIGGER qa_counted ON sessions");
+  expect(await session()).toMatchObject({ counted: true, who: ["a", "b"] });
+  expect(await plays("World of Warcraft")).toBe(3); // the other copy's count, not ours
+});
+
+test("a pull-in whose note won't post still pulls you in", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 - 600 });
+  await at(t0, { b: "wow" });
+  h.override = (c) => (c.method === "POST" && c.path === "/channels/wow/messages" ? json({ message: "Missing Access", code: 50001 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  await at(t0 + 10, { a: "lobby" }, { user: "a", from: null, to: "lobby" });
+  log.mockRestore();
+  expect(calls.find((c) => c.method === "PATCH" && c.path === "/guilds/guild/members/a")!.body).toEqual({ channel_id: "wow" });
+  expect((await t.db.select().from(rooms))[0].pulled).toEqual(["a"]);
+  expect(await t.db.select().from(fleeting)).toEqual([]);
+});
+
+test("↩ moves back whoever it can when one move fails", async () => {
+  const t0 = now();
+  await t.db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: t0 - 600 });
+  await at(t0, { a: "wow", c: "wow" });
+  h.override = (c) => (c.method === "PATCH" && c.path === "/guilds/guild/members/a" ? json({ message: "Missing Permissions", code: 50013 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  expect(await spontaneous.goBack(env, "wow", ["a", "c"], undefined, t0)).toBeNull();
+  log.mockRestore();
+  expect(calls.find((c) => c.method === "PATCH" && c.path === "/guilds/guild/members/c")!.body).toEqual({ channel_id: "lobby" });
+  expect((await prompt()).state).toBe("undone");
+});
