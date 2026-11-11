@@ -461,5 +461,12 @@
    "games": "8:1134d6e24e08",
    "rooms": "1:be996a3dd2c9"
   }
+ },
+ "a poll: tapping your answer again takes your vote back": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "polls": "1:b32b0c016eb1"
+  }
  }
 }

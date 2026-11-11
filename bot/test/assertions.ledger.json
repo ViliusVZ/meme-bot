@@ -818,6 +818,11 @@
   "test \"late: a latecomer the bot can't move into the room isn't counted as here\"": [
    "expect.toContain(\"latecomer upkeep failed\")",
    "expect.toEqual([])"
+  ],
+  "test \"a poll: tapping your answer again takes your vote back\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ notice: \"🗳️ Took your vote back.\", update: true })",
+   "expect.toEqual([])"
   ]
  },
  "reddit.test.ts": {

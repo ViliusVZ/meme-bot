@@ -13,7 +13,7 @@ import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { build } from "../src/app.js";
 import { interaction } from "../src/interactions.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, panels } from "../src/db/schema.js";
+import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, pollVotes, panels } from "../src/db/schema.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";
 
@@ -585,4 +585,12 @@ test("late: a latecomer the bot can't move into the room isn't counted as here",
   log.mockRestore();
   expect(said).toContain("latecomer upkeep failed");
   expect(await t.db.select().from(nightAttendance).where(eq(nightAttendance.user_id, "a"))).toEqual([]);
+});
+
+test("a poll: tapping your answer again takes your vote back", async () => {
+  const id = await polls.createPoll(env, "a", "Pizza?", "");
+  await polls.pollAct(env, id, "a", "0");
+  expect(await t.db.select().from(pollVotes).where(eq(pollVotes.poll_id, id))).toHaveLength(1);
+  expect(await polls.pollAct(env, id, "a", "0")).toEqual({ notice: "🗳️ Took your vote back.", update: true });
+  expect(await t.db.select().from(pollVotes).where(eq(pollVotes.poll_id, id))).toEqual([]);
 });
