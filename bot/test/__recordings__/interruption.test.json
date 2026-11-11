@@ -685,5 +685,76 @@
    "game_nights": "1:68e4eda7d57e",
    "games": "8:20142a6ccc67"
   }
+ },
+ "the daily meme (its claim → the post → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:e2e33bedacb2"
+  }
+ },
+ "the daily meme (its claim → the post → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
+  ],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:9408232b63be"
+  }
+ },
+ "the daily meme (its claim → the post → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
+  ],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:f6cfd792c4bb"
+  }
+ },
+ "the daily meme (its claim → the post → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
+  ],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:9408232b63be"
+  }
+ },
+ "the Meme of the Week (its claim → the post): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:7d751880cc55",
+   "votes": "1:27fd349c6e9d"
+  }
+ },
+ "the Meme of the Week (its claim → the post): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 85d5dbe24a80"
+  ],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:7d751880cc55",
+   "recaps": "1:146271b47b81",
+   "votes": "1:27fd349c6e9d"
+  }
+ },
+ "the Meme of the Week (its claim → the post): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 85d5dbe24a80"
+  ],
+  "db": {
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:7d751880cc55",
+   "recaps": "1:146271b47b81",
+   "votes": "1:27fd349c6e9d"
+  }
  }
 }

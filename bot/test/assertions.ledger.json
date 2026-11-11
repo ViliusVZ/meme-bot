@@ -1627,6 +1627,14 @@
    "expect.toMatchObject({ renudged: null, nudge_id: null })",
    "expect.toEqual([])",
    "expect.toMatchObject({ renudged: \"ask\", nudge_id: expect.any(String) })"
+  ],
+  "fn jobSequences": [
+   "expect.toMatchObject({ post_kind: null, message_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ post_kind: \"daily\", message_id: expect.any(String) })",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"week:2026-11-08\"])"
   ]
  },
  "hub.test.ts": {

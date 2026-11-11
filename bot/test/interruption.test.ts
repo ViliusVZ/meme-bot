@@ -19,6 +19,7 @@ import { Activity } from "../src/activity.js";
 import { MemeShame } from "../src/memeshame.js";
 import { Cleanup, snowflakeAt } from "../src/cleanup.js";
 import { LegacyPresences } from "../src/legacy.js";
+import { Jobs } from "../src/jobs.js";
 import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
@@ -459,6 +460,53 @@ function auditSequences(): Record<string, Sequence> {
   };
 }
 Object.assign(sequences, auditSequences());
+
+/** The daily meme and the meme recaps (Jobs, phase 5). */
+function jobSequences(): Record<string, Sequence> {
+  const fresh = async () => {
+    for (const tbl of [recaps, votes, memeTable]) await t.db.delete(tbl);
+  };
+  const meme = (id: string, published: string) => ({ id, title: id, image: "i", link: "l", author: "u", published, ingested_at: "x", rank: 1 });
+  return {
+    "the daily meme (its claim → the post → its id)": {
+      setup: async () => {
+        await fresh();
+        vi.setSystemTime(Date.parse("2026-11-10T11:00:00Z")); // after POST_HOUR_UTC
+        await t.db.insert(memeTable).values(meme("t3_daily", "2026-11-09T08:00:00Z"));
+      },
+      run: () => Jobs.use((j) => j.postDaily),
+      claim: { table: "memes", op: "UPDATE", when: "OLD.post_kind IS NULL AND NEW.post_kind IS NOT NULL" },
+      record: { table: "memes", op: "UPDATE", when: "OLD.message_id IS NULL AND NEW.message_id IS NOT NULL" },
+      post: { method: "POST", path: "/channels/memes/messages" },
+      nothing: async () => {
+        expect((await t.db.select().from(memeTable))[0]).toMatchObject({ post_kind: null, message_id: null });
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(memeTable))[0]).toMatchObject({ post_kind: "daily", message_id: expect.any(String) });
+      },
+    },
+    "the Meme of the Week (its claim → the post)": {
+      setup: async () => {
+        await fresh();
+        vi.setSystemTime(Date.parse("2026-11-08T18:30:00Z")); // Sunday after 18:00 UTC
+        await t.db.insert(memeTable).values({ ...meme("t3_week", "2026-11-05T08:00:00Z"), post_kind: "daily", day: "2026-11-05", posted_at: "2026-11-05T10:00:00.000Z" });
+        await t.db.insert(votes).values({ meme_id: "t3_week", user_id: "a", kind: "fire", voted_at: "2026-11-05T11:00:00.000Z" });
+      },
+      run: () => Effect.andThen(Effect.sleep(Duration.millis(1)), Jobs.use((j) => j.weeklyRecap)),
+      claim: { table: "recaps", op: "INSERT" },
+      post: { method: "POST", path: "/channels/memes/messages" },
+      nothing: async () => {
+        expect(await t.db.select().from(recaps)).toEqual([]);
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      },
+      everything: async () => {
+        expect((await t.db.select().from(recaps)).map((r) => r.period)).toEqual(["week:2026-11-08"]);
+      },
+    },
+  };
+}
+Object.assign(sequences, jobSequences());
 
 for (const [name, s] of Object.entries(sequences)) {
   test(`${name}: interrupted before its claim, nothing is done`, async () => {
