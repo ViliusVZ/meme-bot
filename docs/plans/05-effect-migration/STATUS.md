@@ -15,7 +15,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   sequence: GameNight's sequences (the card, the start ping, roasts) are added there as they move.
   Memes, Panels, Roasts hold no claim → post sequence inside a service (the daily meme's lives in
   `jobs.ts`/`gamenight.ts` callers, still promise code). GameNight in five commits: **1/5 done
-  (`164d512`)**: readers, helpers, the card. How it's staged: the moved code is module-level
+  (`164d512`)**: readers, helpers, the card; **2/5 done** (see Modules moved): the lifecycle. How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
@@ -180,6 +180,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
+- 2026-11-11 gamenight 2/5 (the card's lifecycle; commit after `c2df056`): broken: a hand-deleted
+  card not forgotten (red), a quiet close roasting anyway (red), the racing duplicate kept (red),
+  open cards closed as stale (red). Stayed green, tests added (`c2df056`), red since: the nudge
+  cleared before a stage flip that loses, no alert for a card that can't post. The card's
+  claim → post → record is uninterruptible from here; its test 6 entry comes with the service
+  (5/5), which gives a test a way to call it.
 - 2026-11-11 `164d512` gamenight 1/5 (readers, helpers, the card): broken: the nudge id not
   stored (recordings red), the new nudge before the old one goes (recordings red), a planned day
   closing before noon (red). Stayed green, tests added (`848c389`), red since: a gone nudge
