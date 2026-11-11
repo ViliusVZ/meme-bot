@@ -16,7 +16,7 @@
 //     under the Lobby, silently (it archives itself after an hour if nobody comes).
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
 import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Match, Schema } from "effect";
 import type { Env } from "./env.js";
 import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
@@ -418,49 +418,59 @@ or a browser, or you aren't sure), answer null.`,
 
       const answer = Effect.fn("Spontaneous.answer")(function* (id: number, user: string, what: string, game?: string) {
         const [p] = yield* db.select().from(lobbyPrompts).where(eq(lobbyPrompts.id, id));
-        if (!p) return "That question's gone 🫥";
-        if (what === "alias") {
-          if (!p.activity || !p.game) return "🤷";
-          yield* db
-            .insert(gameAliases)
-            .values({ activity: p.activity, game: p.game, added_by: user })
-            .onConflictDoUpdate({ target: gameAliases.activity, set: { game: p.game, added_by: user } });
-          return `👍 From now on, two of you in *${p.activity}* go straight to **${p.game}**.`;
-        }
-        if (what === "chill") {
-          if (p.state !== "open") return null;
-          yield* db.update(lobbyPrompts).set({ by: user }).where(eq(lobbyPrompts.id, id));
-          yield* closePrompt(p, "dismissed");
-          return null;
-        }
-        // first tap wins
-        const [won] = yield* db
-          .update(lobbyPrompts)
-          .set({ state: "picked", by: user, game: game! })
-          .where(and(eq(lobbyPrompts.id, id), eq(lobbyPrompts.state, "open")))
-          .returning({ id: lobbyPrompts.id });
-        if (!won) {
-          const [now] = yield* db.select().from(lobbyPrompts).where(eq(lobbyPrompts.id, id));
-          return now?.state === "picked" && now.game ? `${mention(now.by!)} already picked **${now.game}** 🙂` : "That question's closed.";
-        }
-        return yield* Effect.gen(function* () {
-          const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
-          if (p.message_id) yield* deleteMessage(lobbyId, p.message_id);
-          if (p.activity) {
-            // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
-            return {
-              content: `Discord says you were playing *${p.activity}*. Is that **${game}**?`,
-              components: [{ type: 1, components: [{ type: 2, style: 1, label: `Yes, always open ${game}`.slice(0, 80), custom_id: `lob:${id}:alias`, emoji: { name: "🧠" } }] }],
-            } as Notice;
-          }
-          return r.moved.length ? null : `🔊 Room's up: <#${r.channelId}>. Nobody was left in the Lobby to bring along.`;
-        }).pipe(
-          Effect.catch((e) =>
+        if (!p) return "That question's gone 🫥" as Notice;
+        return yield* Match.value(what).pipe(
+          Match.when("alias", () =>
             Effect.gen(function* () {
-              // give the question back, so someone can try again
-              yield* db.update(lobbyPrompts).set({ state: "open", by: null, game: null }).where(eq(lobbyPrompts.id, id));
-              yield* alerts.failed("opening a room from the Lobby question", e);
-              return "😵 Couldn't open the room just now. Try again in a moment.";
+              if (!p.activity || !p.game) return "🤷";
+              yield* db
+                .insert(gameAliases)
+                .values({ activity: p.activity, game: p.game, added_by: user })
+                .onConflictDoUpdate({ target: gameAliases.activity, set: { game: p.game, added_by: user } });
+              return `👍 From now on, two of you in *${p.activity}* go straight to **${p.game}**.`;
+            }),
+          ),
+          Match.when("chill", () =>
+            Effect.gen(function* () {
+              if (p.state !== "open") return null;
+              yield* db.update(lobbyPrompts).set({ by: user }).where(eq(lobbyPrompts.id, id));
+              yield* closePrompt(p, "dismissed");
+              return null;
+            }),
+          ),
+          // a game: first tap wins
+          Match.orElse(() =>
+            Effect.gen(function* () {
+              const [won] = yield* db
+                .update(lobbyPrompts)
+                .set({ state: "picked", by: user, game: game! })
+                .where(and(eq(lobbyPrompts.id, id), eq(lobbyPrompts.state, "open")))
+                .returning({ id: lobbyPrompts.id });
+              if (!won) {
+                const [now] = yield* db.select().from(lobbyPrompts).where(eq(lobbyPrompts.id, id));
+                return now?.state === "picked" && now.game ? `${mention(now.by!)} already picked **${now.game}** 🙂` : "That question's closed.";
+              }
+              return yield* Effect.gen(function* () {
+                const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
+                if (p.message_id) yield* deleteMessage(lobbyId, p.message_id);
+                if (p.activity) {
+                  // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
+                  return {
+                    content: `Discord says you were playing *${p.activity}*. Is that **${game}**?`,
+                    components: [{ type: 1, components: [{ type: 2, style: 1, label: `Yes, always open ${game}`.slice(0, 80), custom_id: `lob:${id}:alias`, emoji: { name: "🧠" } }] }],
+                  } as Notice;
+                }
+                return r.moved.length ? null : `🔊 Room's up: <#${r.channelId}>. Nobody was left in the Lobby to bring along.`;
+              }).pipe(
+                Effect.catch((e) =>
+                  Effect.gen(function* () {
+                    // give the question back, so someone can try again
+                    yield* db.update(lobbyPrompts).set({ state: "open", by: null, game: null }).where(eq(lobbyPrompts.id, id));
+                    yield* alerts.failed("opening a room from the Lobby question", e);
+                    return "😵 Couldn't open the room just now. Try again in a moment.";
+                  }),
+                ),
+              );
             }),
           ),
         );
