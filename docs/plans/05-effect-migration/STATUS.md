@@ -5,7 +5,42 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
-- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). Next: **HTTP step done** (`27b8e7e`; test 13 `d5705d9`, `2b77fb3`; the verifier moved to `verify.ts`); the live check on the test bot running (`http-27b8e7e`). Next: step 4, Ticker + start timers (tests 8, 9). The HTTP design, for reference: `app.ts` becomes an
+### Resume here (paused 2026-11-11 ~22:55: the owner turned the PC off)
+
+- **Step:** phase 5, step 4 (Ticker + start timers) is **done and committed**: code `d57d1fe`,
+  tests 8 and 9 `745e3b8`, gates green (770 tests). Nothing is half-written. The only thing left
+  of step 4 is its live check (below). **Next:** deploy `effect` to the test bot
+  (`gh workflow run bot.yml --ref effect -f target=dev`, then `gh run watch <id>`), check
+  `/bot-dev/health` shows the new version and `/bot-dev/nope` Fastify's 404 body, run `qa_all.py`
+  and `qa_timing.py` (logs to `<scratchpad>/qa-effect/ticker-<sha>/`), record them here, then
+  step 5 (Live on a Queue, test 10).
+- **The HTTP step's live check never happened:** its deploy run 43095905535 ended
+  `startup_failure` (GitHub never started it: zero jobs, no workflow change). The check that ran
+  afterwards (qa_all 79/0, qa_timing 13/0, Fastify-style 404) hit the old `34f31cb`. The next
+  deploy above covers the HTTP step and the Ticker together.
+- **Deployed:** test bot `34f31cb` (phase 4 + audit fixes; healthy at 22:30). Production
+  `aa49c52` (phases 0+1, landed 2026-11-11 19:21). Nothing in flight.
+- **Branch:** `effect` pushed to origin, at this STATUS commit (after `745e3b8`). Tags
+  `baseline`, `pre-effect` and the branch `pre-effect-build` are on origin.
+- **Gone after a reboot, and how to bring it back:**
+  - Local Postgres on 127.0.0.1:55433 (stopped cleanly at the pause): `powershell -File
+    <scratchpad>/pg-start.ps1`, where `<scratchpad>` =
+    `C:/Users/viliu/AppData/Local/Temp/claude/C--p/bc4f4185-141d-4bbc-8d25-1a5596954346/scratchpad`
+    (binaries in `pg-download/`, data in `pgdata/`). If that folder is gone: download Postgres 18
+    portable again, `initdb -U postgres -A trust`, and start it with the flags in the script
+    (port 55433, fsync off, max_connections 200).
+  - **Always run the gates with `TEST_DATABASE_URL=postgres://postgres@127.0.0.1:55433/postgres`.**
+    Without it they fall back to `bot/.env.test` (the SSH tunnel to the VPS on 55432): slow
+    (283 s), and five recordings in reddit/spontaneous/paths change under that latency, so G4
+    goes red for no code reason (seen twice on 2026-11-11).
+  - The SSH tunnel (`ssh` on 55432) isn't needed: the local Postgres replaces it.
+  - No background runs are left. Logs in `<scratchpad>/qa-effect/` (per deploy) and the break-it
+    script `<scratchpad>/breakit_ticker.py` are for reference only; nothing in them is needed to resume.
+- **Still owed:** the phase 5 note to the owner (the phase 4 note went out at the pause); the
+  browser tap-timing measurement and the private-copy browser tap test, deferred until the owner
+  can log in to Discord in the T3 browser (list both as outstanding in the final message).
+
+- **Phase:** 5 (entry points) in progress; phase 4 done (audit closed; after the audit fixes, on the test bot `34f31cb`: qa_all 79/0, qa_timing 12/1 once (the start ping 1.52 s after the start against a 1.5 s limit), then 13/0 twice (0.58 s, 0.82 s): Discord latency, not a regression; 0.92 s at baseline). Phase 5 so far: Jobs (`a11bdc4`, tests `6a06611`, test 6 `2493e6a`); Interactions (`f835117`, tests `bdc3332`: payload Schema, the custom_id union `Tap` in `tapOf`, a Match; GameNight's `act` hands `later` work with its services provided; `@original`'s channel_id optional as before; /meme's claim → reply → the record's scheduling is uninterruptible, the reply itself being the HTTP answer). **HTTP step done** (`27b8e7e`; test 13 `d5705d9`, `2b77fb3`; the verifier moved to `verify.ts`; its live check still to do, see Resume here). **Ticker step done** (`d57d1fe`, tests 8, 9 `745e3b8`). The HTTP design, for reference: `app.ts` becomes an
   `HttpRouter` (effect/http) on `NodeHttpServer` (@effect/platform-node), same routes and answers:
   GET /health (503 + `{ok:false, shuttingDown:true}` while shutting down; db `SELECT 1`, 503
   `{ok:false, db}` on failure; else `{ok, leader, clock: sinceTick, gateway: presence ready,
