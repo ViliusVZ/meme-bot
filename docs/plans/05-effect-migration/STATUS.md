@@ -17,7 +17,9 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   `jobs.ts`/`gamenight.ts` callers, still promise code). GameNight in five commits: **1/5 done
   (`164d512`)**: readers, helpers, the card; **2/5 done** (`b230588`): the lifecycle; **3/5 done** (`ef1831d`): act
   (+ postRoast, dueRoasts, moved here rather than in 4/5: a two-line loop over postRoast);
-  **4/5 done** (`maintain`, see Modules moved). How it's staged: the moved code is module-level
+  **4/5 done** (`f5cb909`): maintain; **5/5 done** (`85ab8cf`): the start + the `GameNight`
+  service. Next: deploy, `qa_all.py`, `qa_timing.py`, `qa_leaveby.py`, `qa_slowpoke.py`; then
+  LateSlips, Polls, Activity, Hub, Cleanup, MemeShame. How it's staged: the moved code is module-level
   Effect functions (their services in R); the promise code not moved yet calls them through
   `…P` wrappers (LEGACY-BRIDGE) and pure helpers over `When` (`W(env)` on the old side). The
   `GameNight` service itself comes in 5/5 and wires the public methods. Next: 2/5 the card's
@@ -114,35 +116,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 60 | 5 | 5 |
-| `await` | 218 | 18 | 7 |
+| `async` | 55 | 5 | 5 |
+| `await` | 200 | 18 | 7 |
 | `.then(` | 12 | 1 | 2 |
-| `.catch(` | 55 | 3 | 18 |
-| `try {` | 15 | 2 | 0 |
-| `new Promise` | 4 | 7 | 0 |
-| `setTimeout/Interval` | 11 | 8 | 0 |
+| `.catch(` | 56 | 3 | 18 |
+| `try {` | 14 | 2 | 0 |
+| `new Promise` | 3 | 7 | 0 |
+| `setTimeout/Interval` | 10 | 8 | 0 |
 | `AbortController` | 1 | 2 | 0 |
-| `AbortSignal` | 3 | 2 | 0 |
+| `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 17 | 15 | 0 |
-| `Date.now/new Date` | 44 | 0 | 1 |
+| `console.` | 15 | 15 | 0 |
+| `Date.now/new Date` | 42 | 0 | 2 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 2 | 0 | 1 |
 | `: any` | 9 | 0 | 0 |
 | `as any` | 1 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 314 | 15 | 0 |
-| `Effect.promise` | 0 | 0 | 3 |
+| `LEGACY-BRIDGE` | 318 | 15 | 0 |
+| `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 0 | 0 |
 | `runPromise` | 0 | 0 | 1 |
 | `runFork` | 0 | 0 | 0 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **766** | **78** | **42** |
+| **total** | **739** | **78** | **44** |
 
 Import cycles: none.
-Per file: legacy.ts 88, interactions.ts 76, gamenight.ts 71, main.ts 60, app.ts 51, activity.ts 37, live.ts 37, late.ts 32, jobs.ts 31, spontaneous.ts 31, polls.ts 29, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, attendance.ts 14, env.ts 12, channels.ts 10, reddit.ts 9, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 88, interactions.ts 76, main.ts 60, app.ts 51, gamenight.ts 44, activity.ts 37, live.ts 37, late.ts 32, jobs.ts 31, spontaneous.ts 31, polls.ts 29, scheduler.ts 28, discord.ts 25, voice.ts 22, presence.ts 21, db/index.ts 20, cleanup.ts 19, memes.ts 19, alerts.ts 18, gateway.ts 18, memeshame.ts 17, attendance.ts 14, env.ts 12, channels.ts 10, reddit.ts 9, snooze.ts 8, panels.ts 7, background.ts 6, games.ts 6, gemini.ts 6, lifecycle.ts 5, nights.ts 3, roasts.ts 3, hub.ts 2, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -185,7 +187,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
-- 2026-11-11 gamenight 4/5 (maintain, maintainNight, resume; commit after `9230ea2`): broken: the
+- 2026-11-11 `85ab8cf` gamenight 5/5 (the start, the service): broken: the night not counted as
+  played (red), a moved start started at the old time (red), a failed start keeping its claim
+  (red), the ping before the moves (recordings red). Stayed green, tests added (`a0f867e`), red
+  since: the ping before its second, a failed merge stopping the start. Test 6 entries: the card,
+  the start, the roast (each red with its region interruptible).
+- 2026-11-11 `f5cb909` gamenight 4/5 (maintain, maintainNight, resume): broken: the
   maybes kept after a hold (red), the roast before the card shows it's off (recordings red), the
   split warning to nobody (red). Stayed green, tests added (`9230ea2`), red since: reminders from
   08:00, one night's failure stopping the others, the catch-up window halved, the times refreshed
@@ -414,6 +421,11 @@ timeout), with the evidence.
 - **`withOverrides`** merges an override into the current ones; providing `Overrides` replaces the
   whole value, which would drop an outer call's stand-in players. **`allowedMentions`** is the
   quiet-aware "who may be pinged" every ping uses.
+- **GameNight is module-level Effect functions plus a thin service** (`85ab8cf`): each function
+  takes its services from R; `GameNight.layer` captures them once and provides them to each
+  method (`Effect.provideContext` merges over the caller's context, so per-call `Overrides`
+  still come from the caller; checked in effect's source). The other services use closures in
+  their layer; this shape let GameNight move in five green commits.
 - **Discord answers read only the fields the bot uses** (phase 4, Voice): `editChannel` reads
   nothing, `createChannel` only the id, a voice state's `channel_id` may be missing (= not in
   voice, as `s?.channel_id ?? null` had it). The old code read nothing else, so a short answer
@@ -438,6 +450,8 @@ timeout), with the evidence.
 - **Recordings depend on a test's place in its file:** tables with serial ids (`games`) are
   emptied between tests but their sequences run on, so a test added in the middle of a file
   changes every later test's database snapshot. New tests go at the end of their file.
+- **The assertion ledger keys assertions by enclosing function:** a test file's table of cases at
+  top level is one entry, which may not grow; new cases go in a function of their own.
 - **`secret()` has a branch nothing reaches:** the game stage's (the card's game stage decides
   "split" itself and never asks). Harmless; noted, not changed.
 - **`vi.waitFor` moves the fake clock** on every poll when fake timers are on (Date only, here),
