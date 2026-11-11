@@ -5,16 +5,19 @@
 // and the switch; rows the new bot already has win (insert-if-missing, nothing is overwritten).
 // Converts SQLite's 0/1 flags to booleans and JSON-in-text to jsonb, keeps ids, and moves the
 // identity sequences past them.
+// The database must be migrated first (start the bot against it once, or `npx drizzle-kit
+// migrate`): the old migrator this called went with plan 05.
 import { readFileSync } from "node:fs";
 import { sql } from "drizzle-orm";
-import { connect, runMigrations } from "../src/db/index.js";
+import { connect } from "../src/db/index.js";
 import * as s from "../src/db/schema.js";
 
 const [file, flag] = process.argv.slice(2);
 if (!file || !process.env.DATABASE_URL) throw new Error("usage: DATABASE_URL=… tsx scripts/import-d1.ts export.json [--replace]");
 const d1 = JSON.parse(readFileSync(file, "utf8")) as Record<string, Record<string, any>[]>;
 const { pool, db } = connect(process.env.DATABASE_URL);
-await runMigrations(pool, new URL("../drizzle", import.meta.url).pathname.replace(/^\/(\w:)/, "$1"));
+const migrated = await pool.query(`SELECT to_regclass('memes') IS NOT NULL AS ok`);
+if (!migrated.rows[0].ok) throw new Error("the database isn't migrated yet: start the bot against it once (or npx drizzle-kit migrate), then import");
 
 const bool = (v: unknown) => v === 1 || v === true || v === "1";
 const json = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);

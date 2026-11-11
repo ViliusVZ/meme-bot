@@ -105,9 +105,15 @@ export class Cleanup extends Context.Service<
           const l = yield* time.now;
           if (l.hour < HOUR) return {};
           const key = `cleanup:${l.day}`;
-          if (!(yield* memes.claimRecap(key))) return {};
-          // the next minute tries again
-          return yield* sweep(time.wallToUnix(l.y, l.m, l.d, HOUR, 0) * 1000).pipe(Effect.tapError(() => memes.unclaimRecap(key)));
+          // the claim → the deletes → the cleared ids is never cut short (§15): cut after the
+          // deletes, the nights would keep ids of messages that no sweep lists again
+          return yield* Effect.uninterruptible(
+            Effect.gen(function* () {
+              if (!(yield* memes.claimRecap(key))) return {};
+              // a failure gives the claim back: the next minute tries again
+              return yield* sweep(time.wallToUnix(l.y, l.m, l.d, HOUR, 0) * 1000).pipe(Effect.tapError(() => memes.unclaimRecap(key)));
+            }),
+          );
         }).pipe(Effect.withSpan("Cleanup.nightly")),
       });
     }),

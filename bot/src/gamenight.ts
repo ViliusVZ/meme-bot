@@ -19,7 +19,7 @@
 // One row per local (Europe/Vilnius) day. Its PRIMARY KEY is the only thing that decides whether
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
-import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer, Match } from "effect";
+import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer, Match, Result, Schema } from "effect";
 import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
 import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
@@ -298,14 +298,29 @@ const culprits = Effect.fnUntraced(function* (n: Night) {
   return { who, missing: ps.filter((p) => who[p] === "ghost") };
 });
 
+/** The day's night row vanished under us (reset by hand, say): that night's work stops, the others go on. */
+export class NightGone extends Schema.TaggedError<NightGone>()("NightGone", { day: Schema.String }) {
+  override get message() {
+    return `no game night for ${this.day}`;
+  }
+}
+
+/** The day's night, which must be there. */
+const nightOf = Effect.fnUntraced(function* (day: string) {
+  const n = yield* (yield* Nights).get(day);
+  if (!n) return yield* new NightGone({ day });
+  return n;
+});
+
 /**
  * Stage changes only edit the card, which doesn't notify anyone. When a stage needs someone's
  * input, ping them once; the previous nudge is deleted so the channel stays tidy.
  */
-const nudge = Effect.fnUntraced(function* (day: string, who: ReadonlyArray<string>, content: string) {
+const nudge = (day: string, who: ReadonlyArray<string>, content: string) => Effect.uninterruptible(nudgeOnce(day, who, content)); // post → its id (§15)
+const nudgeOnce = Effect.fnUntraced(function* (day: string, who: ReadonlyArray<string>, content: string) {
   const config = yield* AppConfig;
   const db = yield* Db;
-  const n = (yield* (yield* Nights).get(day))!;
+  const n = yield* nightOf(day);
   yield* clearNudge(n);
   if (!who.length) return;
   const m = yield* (yield* Discord).createMessage(config.gameChannelId, {
@@ -433,7 +448,7 @@ const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, for
       let n = found;
       if (!n) {
         yield* db.insert(gameNights).values({ day, stage: "ask", reminded: false, started_by: by ?? null, stage_at: yield* currentSec }).onConflictDoNothing();
-        n = (yield* nights.get(day))!;
+        n = yield* nightOf(day);
       }
       // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
       // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
@@ -451,7 +466,7 @@ const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, for
           .returning({ day: gameNights.day });
         if (!set.length) {
           yield* discord.deleteMessage(config.gameChannelId, msg.id).pipe(Effect.ignore);
-          const again = (yield* nights.get(day))!;
+          const again = yield* nightOf(day);
           return { started: false, day, message_id: again.message_id, stage: again.stage };
         }
         return { started: true, day, message_id: msg.id, stage: "ask" as Stage };
@@ -549,7 +564,7 @@ const callNightOff = Effect.fnUntraced(function* (n: Night, who: Record<string, 
       .set({ roast: { who, stage: n.stage }, roast_due: awakeTime(w, w.now), roasted_at: null })
       .where(eq(gameNights.day, n.day));
   }
-  yield* clearNudge((yield* (yield* Nights).get(n.day))!);
+  yield* clearNudge(yield* nightOf(n.day));
   return true;
 });
 
@@ -587,7 +602,7 @@ export const trackPanel = (env: Env, day: string, user: string, token: string, m
 
 
 /** Slow side effects of a tap (pings, the event): handed to whoever answers the tap, to run after it. */
-type Later = (effect: Effect.Effect<unknown, DbError | DiscordError, AppServices>) => Effect.Effect<void>;
+type Later = (effect: Effect.Effect<unknown, DbError | DiscordError | NightGone, AppServices>) => Effect.Effect<void>;
 
 /**
  * A player clicked something. Slow side effects (events, pings) go through `later` so the
@@ -828,9 +843,10 @@ const startMoved = Effect.fnUntraced(function* (n: Night, start: number, user: s
 });
 
 /** Moves the night forward if the votes allow it. */
-const settle = Effect.fnUntraced(function* (day: string, actor: string, later: Later) {
+const settle = (day: string, actor: string, later: Later) => Effect.uninterruptible(settleOnce(day, actor, later)); // a stage's claim → what it hands on (§15)
+const settleOnce = Effect.fnUntraced(function* (day: string, actor: string, later: Later) {
   const db = yield* Db;
-  const n = (yield* (yield* Nights).get(day))!;
+  const n = yield* nightOf(day);
   const ps = yield* theTrio;
 
   if (n.stage === "ask") {
@@ -914,13 +930,14 @@ const hold = Effect.fnUntraced(function* (n: Night, unsure: ReadonlyArray<string
 });
 
 /** The night is set: create a Discord event and ping everyone once. */
-const lockIn = Effect.fnUntraced(function* (day: string) {
+const lockIn = (day: string) => Effect.uninterruptible(lockInOnce(day)); // the event → its id → the ping (§15)
+const lockInOnce = Effect.fnUntraced(function* (day: string) {
   const config = yield* AppConfig;
   const db = yield* Db;
   const discord = yield* Discord;
   const games = yield* Games;
   const alerts = yield* Alerts;
-  const n = (yield* (yield* Nights).get(day))!;
+  const n = yield* nightOf(day);
   const ps = yield* theTrio;
   yield* clearNudge(n);
   yield* Effect.gen(function* () {
@@ -1031,7 +1048,8 @@ const dueRoastsNow = Effect.gen(function* () {
 export const dueRoasts = (env: Env) => run(env, dueRoastsNow).catch(asOld); // LEGACY-BRIDGE
 
 /** A hold is up: the maybes are cleared and those players asked again, with an hour to answer. */
-const resumeNight = Effect.fnUntraced(function* (n: Night) {
+const resumeNight = (n: Night) => Effect.uninterruptible(resumeOnce(n)); // the claim → the card → the ping (§15)
+const resumeOnce = Effect.fnUntraced(function* (n: Night) {
   const db = yield* Db;
   const ps = yield* theTrio;
   const now = yield* currentSec;
@@ -1054,7 +1072,7 @@ const resumeNight = Effect.fnUntraced(function* (n: Night) {
   if (!unsure) return false;
   yield* refreshCard(n.day);
   const w = yield* when;
-  const fresh = (yield* (yield* Nights).get(n.day))!;
+  const fresh = yield* nightOf(n.day);
   const by = stamp(w, deadlineFor(w, fresh));
   const tonight = n.day === today(w) ? "tonight" : `on ${weekdayOf(n.day)}`;
   yield* nudge(
@@ -1130,16 +1148,21 @@ const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: b
     return;
   }
   if (split && awake && t >= deadline - WARN_BEFORE && n.warned !== n.stage) {
-    const claimed = yield* db
-      .update(gameNights)
-      .set({ warned: n.stage })
-      .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
-      .returning({ day: gameNights.day });
-    if (claimed.length) {
-      const left = Math.max(1, Math.round((deadline - t) / 60));
-      yield* nudge(n.day, ps, `⏳ Still split: ${left} min for two of you to agree on a game, or the night's off ⬆️`);
-      done[`warned ${n.day}`] = "split";
-    }
+    // the claim → the ping, never cut short (§15)
+    yield* Effect.uninterruptible(
+      Effect.gen(function* () {
+        const claimed = yield* db
+          .update(gameNights)
+          .set({ warned: n.stage })
+          .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
+          .returning({ day: gameNights.day });
+        if (claimed.length) {
+          const left = Math.max(1, Math.round((deadline - t) / 60));
+          yield* nudge(n.day, ps, `⏳ Still split: ${left} min for two of you to agree on a game, or the night's off ⬆️`);
+          done[`warned ${n.day}`] = "split";
+        }
+      }),
+    );
     return;
   }
   if (missing.length && t >= deadline) {
@@ -1152,30 +1175,40 @@ const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: b
     return;
   }
   if (awake && missing.length && t >= deadline - WARN_BEFORE && n.warned !== n.stage) {
-    const claimed = yield* db
-      .update(gameNights)
-      .set({ warned: n.stage })
-      .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
-      .returning({ day: gameNights.day });
-    if (claimed.length) {
-      const left = Math.max(1, Math.round((deadline - t) / 60));
-      yield* nudge(n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
-      done[`warned ${n.day}`] = missing;
-    }
+    // the claim → the ping, never cut short (§15)
+    yield* Effect.uninterruptible(
+      Effect.gen(function* () {
+        const claimed = yield* db
+          .update(gameNights)
+          .set({ warned: n.stage })
+          .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.warned), ne(gameNights.warned, n.stage))))
+          .returning({ day: gameNights.day });
+        if (claimed.length) {
+          const left = Math.max(1, Math.round((deadline - t) / 60));
+          yield* nudge(n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
+          done[`warned ${n.day}`] = missing;
+        }
+      }),
+    );
     return;
   }
   if (awake && missing.length && n.renudged !== n.stage && t - (n.stage_at ?? t) >= RENUDGE_AFTER) {
-    const claimed = yield* db
-      .update(gameNights)
-      .set({ renudged: n.stage })
-      .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.renudged), ne(gameNights.renudged, n.stage))))
-      .returning({ day: gameNights.day });
-    if (claimed.length) {
-      const tonight = n.day === today(w) ? "tonight" : `on ${weekdayOf(n.day)}`;
-      const ask = { ask: `are you in ${tonight}?`, game: "pick a game so we can get going", time: "when can you start?" }[n.stage as "ask"];
-      yield* nudge(n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
-      done[`renudged ${n.day}`] = missing;
-    }
+    // the claim → the ping, never cut short (§15)
+    yield* Effect.uninterruptible(
+      Effect.gen(function* () {
+        const claimed = yield* db
+          .update(gameNights)
+          .set({ renudged: n.stage })
+          .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, n.stage), or(isNull(gameNights.renudged), ne(gameNights.renudged, n.stage))))
+          .returning({ day: gameNights.day });
+        if (claimed.length) {
+          const tonight = n.day === today(w) ? "tonight" : `on ${weekdayOf(n.day)}`;
+          const ask = { ask: `are you in ${tonight}?`, game: "pick a game so we can get going", time: "when can you start?" }[n.stage as "ask"];
+          yield* nudge(n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
+          done[`renudged ${n.day}`] = missing;
+        }
+      }),
+    );
   }
 });
 
@@ -1202,8 +1235,13 @@ export const upcomingStarts = (env: Env, until: number) => run(env, upcoming(unt
 const startsDue = Effect.fnUntraced(function* (until: number) {
   const started: string[] = [];
   const due = yield* upcoming(until);
-  // every start at once: each waits for its own second
-  yield* Effect.forEach(due, (n) => Effect.map(startAt(n), (ok) => void (ok && started.push(n.day))), { concurrency: "unbounded", discard: true });
+  // every start at once: each waits for its own second, and one start's failure doesn't cut the others short
+  const results = yield* Effect.all(
+    due.map((n) => Effect.map(startAt(n), (ok) => void (ok && started.push(n.day)))),
+    { concurrency: "unbounded", mode: "result" },
+  );
+  const failed = results.find(Result.isFailure);
+  if (failed) return yield* failed.failure;
   return started;
 });
 export const preciseStarts = (env: Env, until: number) => run(env, startsDue(until)); // LEGACY-BRIDGE
@@ -1239,15 +1277,8 @@ const claimStart = (n: Night, at?: number) =>
         .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false), eq(gameNights.start_at, n.start_at!)))
         .returning({ day: gameNights.day });
       if (!claimed.length) return false;
-      return yield* Effect.gen(function* () {
-        yield* startReminder(n, at);
-        yield* refreshCard(n.day).pipe(Effect.catch((e) => Effect.logInfo(`card refresh at start ${errorText(e)}`)));
-        // a night counts as played once it actually starts (a locked-in night can still be called off)
-        yield* db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
-        // already playing it unplanned today? Then that session is this night now, counted once
-        yield* (yield* Spontaneous).absorb(n.day, n.game!).pipe(Effect.catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day)));
-        return true;
-      }).pipe(
+      const pinged = yield* startReminder(n, at).pipe(
+        Effect.as(true),
         Effect.catch((e) =>
           Effect.gen(function* () {
             // the ping didn't go out: release the claim so the next minute tries again
@@ -1257,6 +1288,18 @@ const claimStart = (n: Night, at?: number) =>
           }),
         ),
       );
+      if (!pinged) return false;
+      // the ping is out: from here on a failure is reported and the claim stays, so it never goes twice
+      yield* refreshCard(n.day).pipe(Effect.catch((e) => Effect.logInfo(`card refresh at start ${errorText(e)}`)));
+      // a night counts as played once it actually starts (a locked-in night can still be called off)
+      yield* db
+        .update(gameTable)
+        .set({ plays: sql`${gameTable.plays} + 1` })
+        .where(eq(gameTable.name, n.game!))
+        .pipe(Effect.catch((e) => alerts.failed("counting the night as played", e, n.day)));
+      // already playing it unplanned today? Then that session is this night now, counted once
+      yield* (yield* Spontaneous).absorb(n.day, n.game!).pipe(Effect.catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day)));
+      return true;
     }),
   );
 
@@ -1277,7 +1320,7 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
   if (at) yield* sleepUntil(at);
   // external events don't go live on their own (made live alongside the moves)
   const live = n.event_id
-    ? yield* Effect.forkChild(Effect.asVoid(discord.editEvent(n.event_id, { status: 2 })).pipe(Effect.catch((e) => Effect.logInfo(`event start ${errorText(e)}`))), { startImmediately: true })
+    ? yield* Effect.forkDetach(Effect.asVoid(discord.editEvent(n.event_id, { status: 2 })).pipe(Effect.catch((e) => Effect.logInfo(`event start ${errorText(e)}`))), { startImmediately: true })
     : null;
   if (room) {
     const moved = yield* voice.moveFromLobby(room.channelId).pipe(Effect.catch((e) => Effect.as(alerts.failed("moving people from the Lobby", e, n.day), [] as string[])));
@@ -1316,7 +1359,7 @@ const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, no
   const config = yield* AppConfig;
   const games = yield* Games;
   const w = yield* when;
-  const n = (yield* (yield* Nights).get(day))!;
+  const n = yield* nightOf(day);
   const ps = yield* theTrio;
   const me = viewer && ps.includes(viewer) ? viewer : null;
   const date = ts(Math.floor(Date.parse(`${day}T12:00:00Z`) / 1000), "D");

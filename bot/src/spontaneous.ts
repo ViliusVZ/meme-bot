@@ -365,7 +365,8 @@ or a browser, or you aren't sure), answer null.`,
           }),
         );
 
-      const closePrompt = Effect.fnUntraced(function* (p: Prompt, state: "expired" | "dismissed") {
+      const closePrompt = (p: Prompt, state: "expired" | "dismissed") => Effect.uninterruptible(closePromptOnce(p, state)); // the claim → the message gone (§15)
+      const closePromptOnce = Effect.fnUntraced(function* (p: Prompt, state: "expired" | "dismissed") {
         const done = yield* db
           .update(lobbyPrompts)
           .set({ state })
@@ -438,9 +439,9 @@ or a browser, or you aren't sure), answer null.`,
               return null;
             }),
           ),
-          // a game: first tap wins
+          // a game: first tap wins; the pick → the room → the question gone is never cut short (§15)
           Match.orElse(() =>
-            Effect.gen(function* () {
+            Effect.uninterruptible(Effect.gen(function* () {
               const [won] = yield* db
                 .update(lobbyPrompts)
                 .set({ state: "picked", by: user, game: game! })
@@ -471,7 +472,7 @@ or a browser, or you aren't sure), answer null.`,
                   }),
                 ),
               );
-            }),
+            })),
           ),
         );
       });
@@ -526,7 +527,8 @@ or a browser, or you aren't sure), answer null.`,
       // ---------------------------------------------------------------- sessions
 
       /** It counts as a game night, unless the day's planned night was this same game (then it's that one). */
-      const count = Effect.fnUntraced(function* (s: Session) {
+      const count = (s: Session) => Effect.uninterruptible(countOnce(s)); // the claim → the play counted (§15)
+      const countOnce = Effect.fnUntraced(function* (s: Session) {
         const [night] = yield* db
           .select({ day: gameNights.day })
           .from(gameNights)
@@ -605,7 +607,8 @@ or a browser, or you aren't sure), answer null.`,
       });
 
       /** Over: the line says how long it went (or goes, if it never counted). */
-      const finishSession = Effect.fnUntraced(function* (s: Session, t: number) {
+      const finishSession = (s: Session, t: number) => Effect.uninterruptible(finishOnce(s, t)); // the claim → the count → the line (§15)
+      const finishOnce = Effect.fnUntraced(function* (s: Session, t: number) {
         const end = s.active_since ? t : (s.idle_since ?? t);
         const final: Session = { ...s, together_secs: s.together_secs + (s.active_since ? t - s.active_since : 0), active_since: null };
         const done = yield* db

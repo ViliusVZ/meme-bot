@@ -48,14 +48,23 @@ export class Panels extends Context.Service<
     Effect.gen(function* () {
       const db = yield* Db;
       const discord = yield* Discord;
-      // one permit per card: a sync waits for the one before it (waiters are served in order)
-      const locks = new Map<string, Semaphore.Semaphore>();
-      const lockFor = (card: string) =>
-        Effect.sync(() => {
-          let l = locks.get(card);
-          if (!l) locks.set(card, (l = Semaphore.makeUnsafe(1)));
-          return l;
-        });
+      // one permit per card: a sync waits for the one before it (waiters are served in order); a
+      // card's entry goes once nobody is syncing or waiting on it
+      const locks = new Map<string, { lock: Semaphore.Semaphore; users: number }>();
+      const withCardLock = <A, E, R>(card: string, effect: Effect.Effect<A, E, R>) =>
+        Effect.acquireUseRelease(
+          Effect.sync(() => {
+            let entry = locks.get(card);
+            if (!entry) locks.set(card, (entry = { lock: Semaphore.makeUnsafe(1), users: 0 }));
+            entry.users++;
+            return entry;
+          }),
+          (entry) => entry.lock.withPermit(effect),
+          (entry) =>
+            Effect.sync(() => {
+              if (--entry.users === 0) locks.delete(card);
+            }),
+        );
 
       const push = <E>(card: string, render: Render<E>, mine?: Mine) =>
         Effect.gen(function* () {
@@ -92,11 +101,7 @@ export class Panels extends Context.Service<
             .values({ message_id: id, card, user_id: user, token, tapped_at: t })
             .onConflictDoUpdate({ target: panels.message_id, set: { token, tapped_at: t } });
         }),
-        sync: (card, render, mine) =>
-          Effect.gen(function* () {
-            const lock = yield* lockFor(card);
-            yield* lock.withPermit(push(card, render, mine));
-          }).pipe(Effect.withSpan("Panels.sync", { attributes: { card } })),
+        sync: (card, render, mine) => withCardLock(card, push(card, render, mine)).pipe(Effect.withSpan("Panels.sync", { attributes: { card } })),
       });
     }),
   );
@@ -107,5 +112,3 @@ export const track = (env: Env, card: string, user: string, token: string, messa
   run(env, Panels.use((p) => p.track(card, user, token, messageId))).catch((e: unknown) => { // LEGACY-BRIDGE
     throw e instanceof CopyNotFound ? new Error(e.message) : e; // today's text, which the alert DM quotes // LEGACY-BRIDGE
   }); // LEGACY-BRIDGE
-export const sync = (env: Env, card: string, render: (user: string, notice?: string) => Promise<{ flags: number }>, mine?: Mine) => // LEGACY-BRIDGE
-  run(env, Panels.use((p) => p.sync(card, (user, notice) => Effect.promise(() => render(user, notice)), mine))); // LEGACY-BRIDGE

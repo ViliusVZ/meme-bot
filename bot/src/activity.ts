@@ -50,8 +50,8 @@ export function periodAt(w: When, kind: Kind, offset = 0) {
     }),
     Match.when("month", () => ({ from: wallToUnixIn(w.zone, l.y, l.m + offset, 1, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m + offset + 1, 1, 0, 0) })),
     Match.when("year", () => ({ from: wallToUnixIn(w.zone, l.y + offset, 1, 1, 0, 0), to: wallToUnixIn(w.zone, l.y + offset + 1, 1, 1, 0, 0) })),
-    Match.when("all", () => ({ from: 0, to: w.now + 1 })),
-    Match.exhaustive,
+    // all time (and a kind we don't know: the admin route passes it unchecked, as before)
+    Match.orElse(() => ({ from: 0, to: w.now + 1 })),
   );
 }
 export const period = (env: Env, kind: Kind, offset = 0) => periodAt(W(env), kind, offset); // LEGACY-BRIDGE
@@ -63,11 +63,11 @@ function periodLabel(zone: string, kind: Kind, offset: number, from: number, to:
     Match.when("all", () => "All time"),
     Match.when("year", () => (offset === 0 ? `This year · ${fmt(from, { year: "numeric" })}` : fmt(from, { year: "numeric" }))),
     Match.when("month", () => `${offset === 0 ? "This month · " : offset === -1 ? "Last month · " : ""}${fmt(from, { month: "long", year: "numeric" })}`),
-    Match.when("week", () => {
+    // a week (and a kind we don't know, as before)
+    Match.orElse(() => {
       const range = `${fmt(from, { day: "numeric", month: "short" })} – ${fmt(to - 1, { day: "numeric", month: "short" })}`;
       return `${offset === 0 ? "This week · " : offset === -1 ? "Last week · " : ""}${range}`;
     }),
-    Match.exhaustive,
   );
 }
 

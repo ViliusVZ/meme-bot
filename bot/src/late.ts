@@ -18,7 +18,7 @@ import { Db, type DbError } from "./db/db.js";
 import { AppConfig, allowedMentions, players } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";
 import { Attendances, real, slipFor, type Attendance } from "./attendance.js";
-import { GameNight } from "./gamenight.js";
+import { GameNight, type NightGone } from "./gamenight.js";
 import { Voice } from "./voice.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
@@ -35,7 +35,7 @@ export class LateSlips extends Context.Service<
     /** Every minute (and on Lobby joins): handle everyone for every night that's under way. */
     readonly watch: Effect.Effect<Record<string, string[]>, DbError>;
     /** A late slip button: late:<day>:<user>:<5|15|30|out>. Only the late person can answer it. */
-    act(day: string, owner: string, clicker: string, choice: string): Effect.Effect<{ notice: string | undefined }, DbError | DiscordError>;
+    act(day: string, owner: string, clicker: string, choice: string): Effect.Effect<{ notice: string | undefined }, DbError | DiscordError | NightGone>;
   }
 >()("meme-bot/late/LateSlips") {
   static readonly layer = Layer.effect(

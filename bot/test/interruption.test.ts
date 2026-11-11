@@ -13,7 +13,7 @@ import type { DiscordError } from "../src/discord.js";
 import type { AppServices } from "../src/runtime.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Attendances } from "../src/attendance.js";
-import { GameNight } from "../src/gamenight.js";
+import { GameNight, type NightGone } from "../src/gamenight.js";
 import { LateSlips } from "../src/late.js";
 import * as presence from "../src/presence.js";
 import * as channels from "../src/channels.js";
@@ -37,7 +37,7 @@ const now = () => Math.floor(Date.now() / 1000);
 
 type Sequence = {
   /** The service call that runs the sequence. */
-  run: () => Effect.Effect<unknown, DbError | DiscordError | RoomStillCreating, AppServices>;
+  run: () => Effect.Effect<unknown, DbError | DiscordError | RoomStillCreating | NightGone, AppServices>;
   /** Its claim and its record, as trigger conditions: `BEFORE <op> ON <table> … WHEN (<when>)`. */
   claim: { table: string; op: "INSERT" | "UPDATE"; when?: string };
   /** (none: the post is the last step) */
