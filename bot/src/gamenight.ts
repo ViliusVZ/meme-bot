@@ -197,7 +197,7 @@ const vote = (env: Env, day: string, stage: VoteStage, user: string, choice: str
 const unvote = (env: Env, day: string, stage: VoteStage, user: string) =>
   env.db.delete(gameNightVotes).where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, stage), eq(gameNightVotes.user_id, user)));
 
-
+/** Compare-and-set on the stage, so concurrent clicks can only advance a night once. */
 async function advance(env: Env, day: string, from: Stage, to: Stage, set: { game?: string; start_at?: number; note?: string | null } = {}) {
   const r = await env.db
     .update(gameNights)

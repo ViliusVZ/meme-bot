@@ -30,8 +30,6 @@ export async function addGame(env: Env, raw: string, user: string) {
 
 export const removeGame = (env: Env, name: string) => env.db.delete(gameTable).where(eq(gameTable.name, name));
 
-/** Compare-and-set on the stage, so concurrent clicks can only advance a night once. */
-
 /** "👻 Phasmophobia", using each game's emoji. */
 export async function gameLabel(env: Env) {
   const list = await env.db.select({ name: gameTable.name, emoji: gameTable.emoji }).from(gameTable);
