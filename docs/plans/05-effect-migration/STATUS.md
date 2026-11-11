@@ -8,7 +8,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Phase:** 0 (baseline and preparation), started 2026-11-11 15:00
 - **Workspace / branch:** `C:\p\meme-bot-effect`, branch `effect` (one branch for everything,
   owner's change of plan 2026-11-11)
-- **Backstop task id:** (see below once created)
+- **Backstop task id:** `scheduled-task:a0b37a30-2113-485b-81c6-723823483b80` (every 6 h, bound to this thread)
 - **Next step:** phase 0 step 1 (qcov.py into the repo, then the assertion ledger)
 - **Waiting for:** nothing. Plan 02 is not waited for (owner, 2026-11-11); `origin/main` was at
   `f401685`, plan 02 still on `wow-news`, unmerged.
@@ -36,7 +36,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | Measure | Baseline (phase 0) | Now |
 |---|---|---|
 | Tests passed | 580 (9 files, 2026-11-11, before any change) | |
-| Query sites found / executed | | |
+| Query sites found / executed | 210 / 210 | |
 | Recordings differing | 0 | |
 | Assertion ledger | identical | |
 | Leftovers (G6 total; per-pattern table below) | | |
