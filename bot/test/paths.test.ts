@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import * as gn from "../src/gamenight.js";
 import * as polls from "../src/polls.js";
 import * as voice from "../src/voice.js";
+import * as attendance from "../src/attendance.js";
 import * as late from "../src/late.js";
 import * as memes from "../src/memes.js";
 import * as jobs from "../src/jobs.js";
@@ -429,4 +430,37 @@ test("rooms: a new room Discord won't slot under the Lobby is still known, so th
   const again = await voice.openRoom(env, "Palworld", "🐑", {});
   expect([again.channelId, again.reused]).toEqual([made.channel_id, true]);
   expect(calls.filter((c) => c.method === "POST" && c.path === "/guilds/guild/channels")).toHaveLength(1);
+});
+
+test("late: a voice lookup that fails isn't \"already here\"; the ETA goes on a slip", async () => {
+  const t0 = now();
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 - 600, reminded: true, message_id: "card" });
+  await t.db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: t0 - 900 });
+  h.override = (c) => (c.path.includes("/voice-states/") ? json({ message: "Missing Access", code: 50001 }, 403) : undefined);
+  expect(await attendance.declare(env, DAY, "b", 15)).toContain("Got it 🏃");
+  expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages")).toHaveLength(1);
+  expect((await attendance.etas(env, DAY)).b).toBe(t0 + 900);
+});
+
+test("late: a slip that won't update still takes the ETA", async () => {
+  const t0 = now();
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 - 600, reminded: true, message_id: "card" });
+  await t.db.insert(nightAttendance).values({ day: DAY, user_id: "b", state: "late", message_id: "slip-b" });
+  h.override = (c) => (c.method === "PATCH" && c.path === "/channels/gn/messages/slip-b" ? json({ message: "Unknown Message", code: 10008 }, 404) : undefined);
+  expect(await attendance.declare(env, DAY, "b", 5)).toContain("Got it 🏃");
+  expect((await attendance.etas(env, DAY)).b).toBe(t0 + 300);
+  expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages")).toEqual([]); // no second slip
+});
+
+test("a called-off night leaves the slips of people who made it alone", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 600, message_id: "card" });
+  await t.db.insert(nightAttendance).values([
+    { day: DAY, user_id: "a", state: "arrived", message_id: "slip-a", arrived_at: now() },
+    { day: DAY, user_id: "b", state: "absent", message_id: "slip-b" },
+    { day: DAY, user_id: "c", state: "eta", eta: now() + 600, message_id: "slip-c" },
+  ]);
+  await attendance.retireSlips(env, DAY);
+  const edits = calls.filter((c) => c.method === "PATCH").map((c) => [c.path, JSON.stringify(c.body)] as const);
+  expect(edits.map(([p]) => p).sort()).toEqual(["/channels/gn/messages/slip-b", "/channels/gn/messages/slip-c"]);
+  expect(edits.find(([p]) => p.endsWith("slip-c"))![1]).toContain("Never mind <@c>");
 });

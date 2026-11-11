@@ -741,6 +741,20 @@
    "expect.toEqual([\"Palworld\", false])",
    "expect.toEqual([made.channel_id, true])",
    "expect.toHaveLength(1)"
+  ],
+  "test \"late: a voice lookup that fails isn't \\\"already here\\\"; the ETA goes on a slip\"": [
+   "expect.toContain(\"Got it 🏃\")",
+   "expect.toHaveLength(1)",
+   "expect.toBe(t0 + 900)"
+  ],
+  "test \"late: a slip that won't update still takes the ETA\"": [
+   "expect.toContain(\"Got it 🏃\")",
+   "expect.toBe(t0 + 300)",
+   "expect.toEqual([])"
+  ],
+  "test \"a called-off night leaves the slips of people who made it alone\"": [
+   "expect.toEqual([\"/channels/gn/messages/slip-b\", \"/channels/gn/messages/slip-c\"])",
+   "expect.toContain(\"Never mind <@c>\")"
   ]
  },
  "reddit.test.ts": {
