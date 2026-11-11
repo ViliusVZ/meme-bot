@@ -503,5 +503,34 @@
    "game_nights": "1:e08e1890459e",
    "games": "8:1134d6e24e08"
   }
+ },
+ "😐 a call-out that fails is tried again the next minute, for whoever's still due": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages daf341aae1e1",
+   "POST https://discord.com/api/v10/channels/memes/messages fba9ad141016"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "5:359eb4394653",
+   "recaps": "3:efa28b2367e7",
+   "roast_bags": "1:aee9308b7eab",
+   "votes": "5:13409b675a1b"
+  }
+ },
+ "😐 skipping the latest three in a row is enough": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "5:359eb4394653",
+   "votes": "12:f41b9b9451a3"
+  }
+ },
+ "😐 a meme up for less than 6 hours doesn't count yet": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "8:9aa77a46c0fd",
+   "votes": "15:8b17456357cd"
+  }
  }
 }

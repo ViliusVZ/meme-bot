@@ -843,6 +843,16 @@
   ],
   "test \"🧹 a night that started in the last 6 hours keeps its card through the sweep\"": [
    "expect.toEqual({ deleted: 0, kept: 1 })"
+  ],
+  "test \"😐 a call-out that fails is tried again the next minute, for whoever's still due\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ called: [\"c\"] })"
+  ],
+  "test \"😐 skipping the latest three in a row is enough\"": [
+   "expect.toEqual([expect.objectContaining({ user: \"b\", missed: 3 })])"
+  ],
+  "test \"😐 a meme up for less than 6 hours doesn't count yet\"": [
+   "expect.toEqual([])"
   ]
  },
  "reddit.test.ts": {

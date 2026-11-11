@@ -637,3 +637,45 @@ test("🧹 a night that started in the last 6 hours keeps its card through the s
   };
   expect(await sweep(env, Date.parse("2026-11-06T01:00:00Z"))).toEqual({ deleted: 0, kept: 1 });
 });
+
+/** Five daily memes, one on each of the five days before Friday (the newest first: t3_d0 … t3_d4). */
+async function fiveDailyMemes() {
+  for (let i = 0; i < 5; i++) {
+    const day = `2026-11-0${5 - i}`;
+    await t.db.insert(memeTable).values({ id: `t3_d${i}`, title: "d", image: "i", link: "l", author: "u", published: `${day}T08:00:00Z`, ingested_at: "x", post_kind: "daily", day, posted_at: `${day}T10:00:00.000Z`, channel_id: "memes", message_id: `msg${i}` });
+  }
+}
+
+test("😐 a call-out that fails is tried again the next minute, for whoever's still due", async () => {
+  const { evening } = await import("../src/memeshame.js");
+  await fiveDailyMemes();
+  for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, "a", "lol"); // only a votes
+  vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // 19:05
+  h.override = (c) => (c.method === "POST" && c.path === "/channels/memes/messages" && c.body.content.includes("<@b>") ? json({ message: "Missing Access", code: 50001 }, 403) : undefined);
+  await expect(evening(env)).rejects.toThrow(/403/);
+  h.override = null;
+  vi.setSystemTime(Date.parse("2026-11-06T17:06:00Z"));
+  expect(await evening(env)).toEqual({ called: ["c"] }); // b's own claim was taken: once a day each, even on a retry
+});
+
+test("😐 skipping the latest three in a row is enough", async () => {
+  const { slackers } = await import("../src/memeshame.js");
+  await fiveDailyMemes();
+  for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, "a", "lol");
+  for (const i of [3, 4]) await memes.castVote(env, `t3_d${i}`, "b", "fire"); // b voted on the two oldest only
+  for (const i of [0, 1, 2, 3, 4]) await memes.castVote(env, `t3_d${i}`, "c", "fire");
+  vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z"));
+  expect((await slackers(env)).who).toEqual([expect.objectContaining({ user: "b", missed: 3 })]);
+});
+
+test("😐 a meme up for less than 6 hours doesn't count yet", async () => {
+  const { slackers } = await import("../src/memeshame.js");
+  await fiveDailyMemes();
+  for (let i = 0; i < 3; i++) {
+    // three posted this afternoon (unlikely, but the rule only looks at when they went up)
+    await t.db.insert(memeTable).values({ id: `t3_f${i}`, title: "f", image: "i", link: "l", author: "u", published: "2026-11-06T08:00:00Z", ingested_at: "x", post_kind: "daily", day: `2026-11-0${6 + i}`, posted_at: `2026-11-06T1${3 + i}:00:00.000Z`, channel_id: "memes", message_id: `fresh${i}` });
+  }
+  for (const u of ["a", "b", "c"]) for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, u, "lol");
+  vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // 19:05: the fresh ones are 2 to 4 hours old
+  expect((await slackers(env)).who).toEqual([]);
+});
