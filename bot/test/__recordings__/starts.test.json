@@ -1,0 +1,26 @@
+{
+ "a start timer stopped while it sleeps claims nothing": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:9eb1a9fa6255",
+   "games": "8:745dc9153deb"
+  }
+ },
+ "a start timer stopped once it has claimed the start finishes it": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 51b8c2d35dc2",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages d4749f8c0d77",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card fa1d0357b06d"
+  ],
+  "db": {
+   "game_nights": "1:06c246763b44",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:fd163a82ed53"
+  }
+ }
+}

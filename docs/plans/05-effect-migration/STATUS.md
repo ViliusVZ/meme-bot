@@ -242,7 +242,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
-- 2026-11-11 (this commit) scheduler (Ticker, start timers in a FiberMap; tests 8 `starts.test.ts`, 9
+- 2026-11-11 `d57d1fe` scheduler (Ticker, start timers in a FiberMap; tests 8 `starts.test.ts`, 9
   `ticker.test.ts`): broken: firing a second early (red), no catch-up (red), a minute forked so
   minutes overlap (red), the watchdog repeating (red) or never firing (red), a start timer armed
   again each minute (red), start timers outliving the term (red), no net on the minute (red),

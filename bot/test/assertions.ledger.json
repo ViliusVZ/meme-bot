@@ -1708,5 +1708,46 @@
    "expect.toEqual([])",
    "expect.toHaveLength(1)"
   ]
+ },
+ "starts.test.ts": {
+  "test \"a start timer stopped while it sleeps claims nothing\"": [
+   "expect.toBeLessThan(500)",
+   "expect.toBe(false)",
+   "expect.toEqual([])"
+  ],
+  "test \"a start timer stopped once it has claimed the start finishes it\"": [
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toBe(3)"
+  ]
+ },
+ "ticker.test.ts": {
+  "describe \"the ticker (TestClock)\" > test \"catches up once at start, then runs just past the top of every minute, never early\"": [
+   "assert.deepStrictEqual(_, [START])",
+   "assert.strictEqual(_, 0)",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 30)",
+   "assert.deepStrictEqual(_, [ \"2026-11-09T17:01:00.050Z\", \"2026-11-09T17:02:00.050Z\", \"2026-11-09T17:03:00.050Z\", ])",
+   "assert.strictEqual(_, null)"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a slow minute is never overlapped: the next one waits for it, then for the next top of the minute\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, seconds(Date.parse(\"2026-11-09T17:02:59Z\") - START))",
+   "assert.deepStrictEqual(_, [ \"2026-11-09T17:00:30.000Z\", \"2026-11-09T17:04:00.050Z\", // it ended at 17:03:00, so the next top of the minute after that ])",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a minute stuck for 5 minutes is reported once\"": [
+   "assert.deepStrictEqual(_, [])",
+   "assert.deepStrictEqual(_, [])",
+   "assert.deepStrictEqual(_, [5])",
+   "assert.deepStrictEqual(_, [5])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a minute that dies is reported, and the next minute still runs\"": [
+   "assert.strictEqual(_, 2)",
+   "assert.deepStrictEqual(_, [\"the minute jobs\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a night about to start gets one timer, however many minutes see it coming\"": [
+   "assert.deepStrictEqual(_, [\"2026-11-09\"])"
+  ]
  }
 }
