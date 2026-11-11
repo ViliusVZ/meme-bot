@@ -63,7 +63,7 @@ export class Memes extends Context.Service<
      */
     claim(id: string, kind: "daily" | "request", extra: { day?: string; requestedBy?: string }): Effect.Effect<boolean>;
     unclaim(id: string): Effect.Effect<void, DbError>;
-    setMessage(id: string, channelId: string, messageId: string): Effect.Effect<void, DbError>;
+    setMessage(id: string, channelId: string | undefined, messageId: string): Effect.Effect<void, DbError>;
     /** Toggle semantics: same button again removes the vote, a different one switches it. */
     castVote(memeId: string, userId: string, kind: VoteKind): Effect.Effect<"removed" | "changed" | "new", DbError>;
     /** Bump the voting streak once per UTC day. Gives the new streak, or null if already counted today. */
@@ -127,7 +127,7 @@ export class Memes extends Context.Service<
         unclaim: Effect.fn("Memes.unclaim")(function* (id: string) {
           yield* db.update(memes).set({ post_kind: null, day: null, requested_by: null, posted_at: null }).where(eq(memes.id, id));
         }),
-        setMessage: Effect.fn("Memes.setMessage")(function* (id: string, channelId: string, messageId: string) {
+        setMessage: Effect.fn("Memes.setMessage")(function* (id: string, channelId: string | undefined, messageId: string) {
           yield* db.update(memes).set({ channel_id: channelId, message_id: messageId }).where(eq(memes.id, id));
         }),
         castVote: Effect.fn("Memes.castVote")(function* (memeId: string, userId: string, kind: VoteKind) {

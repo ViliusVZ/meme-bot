@@ -602,7 +602,9 @@ export const trackPanel = (env: Env, day: string, user: string, token: string, m
 
 
 /** Slow side effects of a tap (pings, the event): handed to whoever answers the tap, to run after it. */
-type Later = (effect: Effect.Effect<unknown, DbError | DiscordError | NightGone, AppServices>) => Effect.Effect<void>;
+type Later = (effect: Effect.Effect<unknown, DbError | DiscordError | NightGone, Needs>) => Effect.Effect<void>;
+/** The same, as callers of the service see it: the work they're handed has its services already. */
+export type Deferred = (effect: Effect.Effect<unknown, DbError | DiscordError | NightGone>) => Effect.Effect<void>;
 
 /**
  * A player clicked something. Slow side effects (events, pings) go through `later` so the
@@ -1762,7 +1764,8 @@ const makeGameNight = Effect.gen(function* () {
     closeStale: Effect.provideContext(closeStaleCards, ctx),
     refresh: bound(refreshCard),
     syncPanels: bound(syncCopies),
-    act: (day: string, user: string, action: string, value: string | undefined, later: Later) => Effect.provideContext(actOn(day, user, action, value, later), ctx),
+    act: (day: string, user: string, action: string, value: string | undefined, later: Deferred) =>
+      Effect.provideContext(actOn(day, user, action, value, (e) => later(Effect.provideContext(e, ctx))), ctx),
     bailFromSlip: bound(bailOn),
     postRoast: (day: string) => Effect.provideContext(postRoastOf(day), ctx),
     dueRoasts: Effect.provideContext(dueRoastsNow, ctx),

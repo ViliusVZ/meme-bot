@@ -51,7 +51,7 @@ export class Polls extends Context.Service<
     create(user: string, question: string, rawOptions: string): Effect.Effect<number, DbError>;
     act(id: number, user: string, action: string): Effect.Effect<Outcome, DbError>;
     isClosed(id: number): Effect.Effect<boolean, DbError>;
-    setMessage(id: number, channelId: string, messageId: string): Effect.Effect<void, DbError>;
+    setMessage(id: number, channelId: string | undefined, messageId: string): Effect.Effect<void, DbError>;
     /**
      * Re-render a poll in place (used outside interactions), and everyone's private copies of it.
      * `mine` is the copy a tap just answered, so its notice survives the sync.
@@ -211,7 +211,7 @@ export class Polls extends Context.Service<
         isClosed: Effect.fn("Polls.isClosed")(function* (id: number) {
           return !!(yield* getPoll(id))?.closed_at;
         }),
-        setMessage: Effect.fn("Polls.setMessage")(function* (id: number, channelId: string, messageId: string) {
+        setMessage: Effect.fn("Polls.setMessage")(function* (id: number, channelId: string | undefined, messageId: string) {
           yield* db.update(polls).set({ channel_id: channelId, message_id: messageId }).where(eq(polls.id, id));
         }),
         refresh: Effect.fn("Polls.refresh")(function* (id: number, mine?: Mine) {
