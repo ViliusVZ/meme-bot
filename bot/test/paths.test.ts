@@ -485,3 +485,47 @@ test("a card that won't post is reported, and its claim kept", async () => {
   expect(said).toContain("posting the game-night card failed");
   expect(await night()).toMatchObject({ stage: "ask", message_id: null });
 });
+
+test("no reminders before 09:00: a waiting card is re-nudged from 09:00 on", async () => {
+  const SAT = "2026-11-07";
+  await t.db.insert(gameNights).values({ day: SAT, stage: "ask", message_id: "card-sat", stage_at: gn.wallToUnix(env, 2026, 11, 6, 20, 0), started_by: "a" });
+  await t.db.insert(gameNightVotes).values({ day: SAT, stage: "ask", user_id: "a", choice: "yes", voted_at: "2026-11-06T18:00:00.000Z" });
+  vi.setSystemTime(Date.parse("2026-11-07T06:30:00Z")); // Saturday 08:30 in Vilnius
+  await gn.maintain(env);
+  expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+  vi.setSystemTime(Date.parse("2026-11-07T07:00:00Z")); // 09:00
+  await gn.maintain(env);
+  const [ping] = calls.filter((c) => c.method === "POST");
+  expect(ping.body.content).toBe("<@b> <@c> ⏳ still waiting on you: are you in tonight? ⬆️");
+});
+
+test("one night's trouble doesn't hold up the other's upkeep", async () => {
+  await t.db.insert(gameNights).values([
+    { day: DAY, stage: "time", game: "R.E.P.O.", message_id: "card-a", stage_at: now() },
+    { day: "2026-11-07", stage: "time", game: "R.E.P.O.", message_id: "card-b", stage_at: now() },
+  ]);
+  h.override = (c) => (c.method === "PATCH" && c.path === "/channels/gn/messages/card-a" ? json({ message: "Missing Access", code: 50001 }, 403) : undefined);
+  const log = vi.spyOn(console, "log").mockImplementation(noop);
+  const done = await gn.maintain(env); // 17:00: the quarter-hourly refresh of the times
+  log.mockRestore();
+  expect(String(done[`failed ${DAY}`])).toContain("403");
+  expect(calls.some((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/card-b")).toBe(true);
+});
+
+test("a start the timer missed is caught up within half an hour", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() - 20 * 60, message_id: "card", reminded: false });
+  presence.snapshot([]);
+  expect(await gn.maintain(env)).toMatchObject({ reminded: DAY });
+  expect((await night())!.reminded).toBe(true);
+});
+
+test("the start times on an open card are refreshed every quarter hour", async () => {
+  await t.db.insert(gameNights).values({ day: DAY, stage: "time", game: "R.E.P.O.", message_id: "card", stage_at: now() });
+  const edits = () => calls.filter((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/card").length;
+  vi.setSystemTime(Date.parse("2026-11-06T15:10:00Z")); // 17:10
+  await gn.maintain(env);
+  expect(edits()).toBe(0);
+  vi.setSystemTime(Date.parse("2026-11-06T15:15:00Z")); // 17:15
+  await gn.maintain(env);
+  expect(edits()).toBe(1);
+});

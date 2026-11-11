@@ -785,6 +785,22 @@
    "expect.rejects.toThrow(/403/)",
    "expect.toContain(\"posting the game-night card failed\")",
    "expect.toMatchObject({ stage: \"ask\", message_id: null })"
+  ],
+  "test \"no reminders before 09:00: a waiting card is re-nudged from 09:00 on\"": [
+   "expect.toEqual([])",
+   "expect.toBe(\"<@b> <@c> ⏳ still waiting on you: are you in tonight? ⬆️\")"
+  ],
+  "test \"one night's trouble doesn't hold up the other's upkeep\"": [
+   "expect.toContain(\"403\")",
+   "expect.toBe(true)"
+  ],
+  "test \"a start the timer missed is caught up within half an hour\"": [
+   "expect.toMatchObject({ reminded: DAY })",
+   "expect.toBe(true)"
+  ],
+  "test \"the start times on an open card are refreshed every quarter hour\"": [
+   "expect.toBe(0)",
+   "expect.toBe(1)"
   ]
  },
  "reddit.test.ts": {

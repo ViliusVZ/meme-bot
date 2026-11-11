@@ -371,5 +371,48 @@
    "game_nights": "1:ccf7a8646862",
    "games": "8:a906c10ebcec"
   }
+ },
+ "no reminders before 09:00: a waiting card is re-nudged from 09:00 on": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 665fdcd8c87d"
+  ],
+  "db": {
+   "game_night_votes": "1:bac87a01c289",
+   "game_nights": "1:a927b0b71325",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "one night's trouble doesn't hold up the other's upkeep": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card-a 13b32801040c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card-b 6e6b0118a419"
+  ],
+  "db": {
+   "game_nights": "2:d3ff69e11f3a",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "a start the timer missed is caught up within half an hour": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1127025dccbe"
+  ],
+  "db": {
+   "game_nights": "1:539d1b20bfd8",
+   "games": "8:745dc9153deb",
+   "rooms": "1:97ffae361dcd"
+  }
+ },
+ "the start times on an open card are refreshed every quarter hour": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 13b32801040c"
+  ],
+  "db": {
+   "game_nights": "1:f221fac91328",
+   "games": "8:745dc9153deb"
+  }
  }
 }
