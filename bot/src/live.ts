@@ -3,11 +3,13 @@
 //     minute while anyone's in voice
 //   • someone joining the Lobby during a game night is pulled into the game's room at once
 //   • when a room empties, its 15-minute wrap-up timer starts; it fires exactly on time
+//   • 🎮 spontaneous play (spontaneous.ts): the Lobby question, unplanned sessions, pulling people in
 import type { Env } from "./env.js";
 import * as presence from "./presence.js";
 import * as activity from "./activity.js";
 import * as voice from "./voice.js";
 import * as late from "./late.js";
+import * as spontaneous from "./spontaneous.js";
 import { players } from "./gamenight.js";
 import * as alerts from "./alerts.js";
 
@@ -18,6 +20,7 @@ export function start(env: Env) {
   const ps = new Set(players(env));
   let heartbeat: NodeJS.Timeout | null = null;
   let wrapUp: NodeJS.Timeout | null = null;
+  let lobbyTimer: NodeJS.Timeout | null = null;
   let stopped = false;
   // changes are handled one at a time, in order, so a quick leave-and-rejoin can't race itself
   let queue: Promise<unknown> = Promise.resolve();
@@ -43,6 +46,18 @@ export function start(env: Env) {
     }
   };
 
+  /** 🎮 Spontaneous play, and a timer for whatever it says is due next (the question's 30 s, say). */
+  const lobby = async (change?: spontaneous.Change) => {
+    if (!presence.isReady()) return;
+    const due = await spontaneous.react(env, where(), nowSec(), change);
+    if (lobbyTimer) clearTimeout(lobbyTimer);
+    lobbyTimer = null;
+    if (due !== null && !stopped) {
+      const ms = Math.max(1000, due * 1000 - Date.now() + 500);
+      lobbyTimer = setTimeout(() => void enqueue("lobby", () => lobby()), Math.min(ms, 2 ** 31 - 1));
+    }
+  };
+
   const beat = async () => {
     if (!presence.isReady()) return; // never record "nobody's here" just because we can't see
     const w = where();
@@ -55,6 +70,7 @@ export function start(env: Env) {
     }
     // busy rooms: keep their last_seen fresh (and their night's event alive)
     if (anyone) await checkRooms();
+    if (anyone) await lobby();
   };
 
   const unsubscribe = presence.onChange((user, from, to) => {
@@ -70,6 +86,7 @@ export function start(env: Env) {
       await activity.track(env, where(), t);
       await beat();
       await checkRooms();
+      await lobby({ user, from, to });
     });
   });
 
@@ -78,6 +95,7 @@ export function start(env: Env) {
     enqueue("resync", async () => {
       await beat();
       await checkRooms();
+      await lobby();
     });
 
   return {
@@ -87,6 +105,7 @@ export function start(env: Env) {
       unsubscribe();
       if (heartbeat) clearInterval(heartbeat);
       if (wrapUp) clearTimeout(wrapUp);
+      if (lobbyTimer) clearTimeout(lobbyTimer);
       await queue;
     },
   };

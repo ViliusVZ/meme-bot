@@ -15,6 +15,7 @@ import * as hub from "./hub.js";
 import * as polls from "./polls.js";
 import * as voice from "./voice.js";
 import * as activity from "./activity.js";
+import * as spontaneous from "./spontaneous.js";
 import * as late from "./late.js";
 import * as presence from "./presence.js";
 import * as alerts from "./alerts.js";
@@ -204,6 +205,17 @@ export function build(env: Env, status: Status) {
           }
           if (input.recaps) return activity.recaps(e);
           return activity.statsPanel(e, input.kind ?? "week", Number(input.offset ?? 0));
+        }
+        case "lobby": {
+          // 🎮 QA with stand-in players: where everyone is at `t`, then the bot's reaction to it
+          const e = { ...quiet, PLAYERS: input.players ?? env.PLAYERS };
+          const t = Number(input.t ?? Math.floor(Date.now() / 1000));
+          if (input.answer) return { notice: await spontaneous.answer(e, Number(input.answer.id), input.answer.user, input.answer.what, input.answer.game) };
+          if (input.minute) return spontaneous.minute(e, t);
+          // "LOBBY" stands for the configured Lobby, so a script needn't know its id
+          const where = new Map(Object.entries((input.where ?? {}) as Record<string, string | null>).map(([u, c]) => [u, c === "LOBBY" ? env.LOBBY_CHANNEL_ID : c]));
+          await activity.track(e, where, t);
+          return { due: await spontaneous.react(e, where, t, input.change) };
         }
         case "precise":
           return gn.preciseStarts(quiet, Math.floor(Date.now() / 1000) + Number(input.within ?? 120));

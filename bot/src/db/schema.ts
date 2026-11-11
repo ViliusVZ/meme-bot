@@ -199,6 +199,7 @@ export const rooms = pgTable("rooms", {
   created_at: unix("created_at").notNull(),
   last_seen: unix("last_seen"), // last time someone was in it
   archived_at: unix("archived_at"), // moved to 🗄️ Recent games; deleted 3 days later
+  pulled: jsonb().notNull().$type<string[]>().default([]), // pulled in from the Lobby (once each, spontaneous.ts)
 });
 
 // ---------------------------------------------------------------- latecomers (late.ts)
@@ -238,4 +239,78 @@ export const voiceSegments = pgTable(
     uniqueIndex("voice_segments_one_open").on(t.user_id).where(sql`${t.open}`),
     index("voice_segments_time").on(t.started_at),
   ],
+);
+
+// ---------------------------------------------------------------- 🎮 spontaneous play (spontaneous.ts)
+
+/**
+ * The Lobby question ("🎮 Playing something?"), one per gathering (two or more of us in the Lobby).
+ * The open gathering's row is `current`; at most one can be, so a restart or a racing check can't
+ * ask twice. It stays until the gathering breaks up, which is how a dismissed or expired question
+ * stays quiet for the rest of that gathering.
+ */
+export const lobbyPrompts = pgTable(
+  "lobby_prompts",
+  {
+    id: integer().primaryKey().generatedByDefaultAsIdentity(),
+    current: boolean().notNull().default(true),
+    created_at: unix("created_at").notNull(),
+    // open | picked | dismissed | expired | failed | undone (silenced by ↩) | moved (auto-move)
+    state: text().notNull().$type<"open" | "picked" | "dismissed" | "expired" | "failed" | "undone" | "moved">(),
+    message_id: text(), // the question in the Lobby's chat (null: not posted)
+    posted_at: unix("posted_at"),
+    by: text(), // who answered
+    game: citext("game"),
+    ended_at: unix("ended_at"),
+  },
+  (t) => [uniqueIndex("lobby_prompts_current").on(t.current).where(sql`${t.current}`)],
+);
+
+/**
+ * An unplanned session: two or more of us in a game room that isn't serving a planned night that
+ * has started. One per game per day (the key is what stops a second line or a second count).
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    day: text().notNull(), // local day it started
+    game: citext("game").notNull(),
+    channel_id: text().notNull(),
+    started_at: unix("started_at").notNull(),
+    active_since: unix("active_since"), // two or more are in since then (null: fewer right now)
+    idle_since: unix("idle_since"), // fewer than two since then
+    together_secs: integer().notNull().default(0), // time with two or more, before active_since
+    who: jsonb().notNull().$type<string[]>().default([]), // everyone who took part
+    message_id: text(), // the quiet line in #game-night ("posting" while it's being sent)
+    line: text(), // what the line says now (edited only when this changes)
+    counted: boolean().notNull().default(false), // counts as a game night (and a play of the game)
+    finished: boolean().notNull().default(false), // wrapped up: the line says how long it went
+    absorbed: boolean().notNull().default(false), // the day's planned night for the same game took it over
+  },
+  (t) => [primaryKey({ columns: [t.day, t.game] })],
+);
+
+/** Bot messages that remove themselves (the "pulled you in" notes): deleted once due, restarts or not. */
+export const fleeting = pgTable("fleeting", {
+  message_id: text().primaryKey(),
+  channel_id: text().notNull(),
+  delete_at: unix("delete_at").notNull(),
+});
+
+/** What Discord calls a game ("Playing …") → our game, learned with one tap. */
+export const gameAliases = pgTable("game_aliases", {
+  activity: citext("activity").primaryKey(),
+  game: citext("game").notNull(),
+  added_by: text(),
+});
+
+/** Rooms opened ahead because two of us were seen playing the game: once per game per day. */
+export const readyRooms = pgTable(
+  "ready_rooms",
+  {
+    day: text().notNull(),
+    game: citext("game").notNull(),
+    at: unix("at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.game] })],
 );

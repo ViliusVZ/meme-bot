@@ -30,6 +30,7 @@ import { now } from "./memes.js";
 import * as voice from "./voice.js";
 import * as late from "./late.js";
 import * as snooze from "./snooze.js";
+import * as spontaneous from "./spontaneous.js";
 
 export type Night = typeof gameNights.$inferSelect;
 interface Game {
@@ -1097,6 +1098,8 @@ async function claimStart(env: Env, n: Night, at?: number) {
     await refresh(env, n.day).catch((e) => console.log("card refresh at start", e));
     // a night counts as played once it actually starts (a locked-in night can still be called off)
     await env.db.update(gameTable).set({ plays: sql`${gameTable.plays} + 1` }).where(eq(gameTable.name, n.game!));
+    // already playing it unplanned today? Then that session is this night now, counted once
+    await spontaneous.absorb(env, n.day, n.game!).catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day));
     return true;
   } catch (e) {
     // the ping didn't go out: release the claim so the next minute tries again
@@ -1211,7 +1214,7 @@ export const notify = (env: Env, token: string, notice: string) => followup(env,
 
 // ---------------------------------------------------------------- rendering
 
-async function emojiFor(env: Env, game: string) {
+export async function emojiFor(env: Env, game: string) {
   const [g] = await env.db.select({ emoji: gameTable.emoji }).from(gameTable).where(eq(gameTable.name, game));
   return g?.emoji ?? "🎮";
 }

@@ -15,6 +15,7 @@ import * as voice from "./voice.js";
 import * as activity from "./activity.js";
 import * as late from "./late.js";
 import * as snooze from "./snooze.js";
+import * as spontaneous from "./spontaneous.js";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.js";
 
 type User = { id: string; username: string; global_name?: string | null; avatar?: string | null };
@@ -117,6 +118,20 @@ export async function interaction(i: any, env: Env): Promise<object> {
     const r = await late.act(env, day, owner, user.id, choice);
     if (r.notice) return ephemeral(r.notice);
     return reply({ type: R.UpdateMessage, data: await late.render(env, day, owner) });
+  }
+
+  // ---- 🎮 the Lobby question: lob:<id>:g:<game> | lob:<id>:other | lob:<id>:chill; ↩ notes: lob:back:<users>
+  if (i.type === 3 && cid.startsWith("lob:")) {
+    if (!isPlayer) return ephemeral("This one's for the trio 😅");
+    const [, id, what, ...rest] = cid.split(":");
+    const tell = (notice: string | null) => (notice ? followup(env, i.token, { content: notice, flags: EPHEMERAL }) : null);
+    if (id === "back") {
+      defer(spontaneous.goBack(env, i.channel_id, what.split(","), i.message?.id).then(tell), "moving people back to the Lobby");
+      return reply({ type: R.DeferredUpdate });
+    }
+    if (what === "other") return reply({ type: R.Message, data: await voice.roomPicker(env) });
+    defer(spontaneous.answer(env, Number(id), user.id, what, rest.join(":")).then(tell), "answering the Lobby question");
+    return reply({ type: R.DeferredUpdate });
   }
 
   // ---- 🔊 game rooms: room:open (game dropdown), room:other (button → form → submit)

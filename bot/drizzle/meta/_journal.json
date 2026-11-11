@@ -71,6 +71,13 @@
       "when": 1794241536477,
       "tag": "0009_live_panels",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794386631426,
+      "tag": "0010_spontaneous",
+      "breakpoints": true
     }
   ]
 }

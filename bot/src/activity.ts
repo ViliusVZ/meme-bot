@@ -16,6 +16,7 @@ import { gameNights, rooms, voiceSegments } from "./db/index.js";
 import { api, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { claimRecap, unclaimRecap } from "./memes.js";
 import { local, players, wallToUnix, gameLabel } from "./gamenight.js";
+import * as spontaneous from "./spontaneous.js";
 
 export type Segment = typeof voiceSegments.$inferSelect;
 export type Kind = "week" | "month" | "year" | "all";
@@ -168,8 +169,10 @@ export async function crunch(env: Env, from: number, to: number) {
     .from(gameNights)
     .where(and(gte(gameNights.day, fromDay), lte(gameNights.day, toDay)));
   const played = nights.filter((n) => n.stage === "set" && n.reminded);
+  // 🎮 plus the ones nobody planned: we just ended up playing (spontaneous.ts)
+  const unplanned = await spontaneous.counted(env, fromDay, toDay);
   const nightGames = new Map<string, number>();
-  for (const n of played) nightGames.set(n.game!, (nightGames.get(n.game!) ?? 0) + 1);
+  for (const g of [...played.map((n) => n.game!), ...unplanned.map((u) => u.game)]) nightGames.set(g, (nightGames.get(g) ?? 0) + 1);
 
   return {
     total: cs.reduce((s, c) => s + (c.end - c.start), 0),
@@ -179,7 +182,8 @@ export async function crunch(env: Env, from: number, to: number) {
     hangout,
     firstIn,
     nights: {
-      played: played.length,
+      played: played.length + unplanned.length,
+      unplanned: unplanned.length,
       upcoming: nights.filter((n) => n.stage === "set" && !n.reminded).length,
       cancelled: nights.filter((n) => n.stage === "off").length,
       games: nightGames,
@@ -271,7 +275,8 @@ export async function statsBody(env: Env, title: string, s: Crunched, prev?: Cru
   for (const [g, n] of sortDesc(s.nights.games)) if (!s.byGame.has(g)) games.push(`${label(g)} · ${n} game night${n === 1 ? "" : "s"}`);
   if (s.hangout >= 60) games.push(`🛋️ Hanging out **${dur(s.hangout)}**`);
   const nightLine = [
-    s.nights.played && `🎉 ${s.nights.played} game night${s.nights.played === 1 ? "" : "s"} played`,
+    s.nights.played &&
+      `🎉 ${s.nights.played} game night${s.nights.played === 1 ? "" : "s"} played${s.nights.unplanned ? ` (${s.nights.unplanned} unplanned)` : ""}`,
     s.nights.cancelled && `😴 ${s.nights.cancelled} called off`,
     s.nights.upcoming && `📅 ${s.nights.upcoming} coming up`,
   ].filter(Boolean);

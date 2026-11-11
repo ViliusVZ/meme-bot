@@ -84,7 +84,7 @@ export async function openRoom(env: Env, game: string, emoji: string | null, opt
       await placeAfterLobby(env, room.channel_id);
       await env.db
         .update(rooms)
-        .set({ archived_at: null, last_seen: null, created_at: nowSec(), ...(opts.day ? { day: opts.day } : {}) })
+        .set({ archived_at: null, last_seen: null, created_at: nowSec(), pulled: [], ...(opts.day ? { day: opts.day } : {}) })
         .where(eq(rooms.channel_id, room.channel_id));
       room = { ...room, archived_at: null };
     }
@@ -301,7 +301,10 @@ export async function maintainRooms(env: Env) {
     const busy = occupied.has(r.channel_id);
     try {
       if (busy) {
-        await env.db.update(rooms).set({ last_seen: t, archived_at: null }).where(eq(rooms.channel_id, r.channel_id));
+        await env.db
+          .update(rooms)
+          .set({ last_seen: t, archived_at: null, ...(r.archived_at ? { pulled: [] } : {}) })
+          .where(eq(rooms.channel_id, r.channel_id));
         if (r.archived_at) {
           await api(env, "PATCH", `/channels/${r.channel_id}`, { parent_id: env.VOICE_CATEGORY_ID });
           await placeAfterLobby(env, r.channel_id);
