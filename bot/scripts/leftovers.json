@@ -1,0 +1,33 @@
+{
+ "outside": {
+  "async": 197,
+  "await": 664,
+  "try {": 38,
+  "Date.now/new Date": 82,
+  ".then(": 23,
+  ".catch(": 59,
+  "console.": 37,
+  "process.env": 4,
+  "_reset": 4,
+  ": any": 12,
+  "new Promise": 8,
+  "setTimeout/Interval": 15,
+  "AbortSignal": 7,
+  "fetch(": 4,
+  "as any": 2,
+  "Math.random": 1,
+  "AbortController": 1
+ },
+ "inside": {
+  "async": 5,
+  "await": 19,
+  ".then(": 1,
+  ".catch(": 3,
+  "try {": 2,
+  "new Promise": 7,
+  "setTimeout/Interval": 8,
+  "AbortSignal": 2,
+  "console.": 15,
+  "AbortController": 2
+ }
+}
