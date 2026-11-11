@@ -144,7 +144,7 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   int8 codec (red), no statement_timeout (red), migrator without its lock (red).
 - 2026-11-11 `a292296` channels + discord (tests 3, 4): broken: POST retried on 5xx (red), back-off
   300 → 200 ms (red), `isFinished` not reading the errors tree (red).
-- 2026-11-11 (next commit after `f0e40c9`) attendance (Attendances): broken: the slip id not saved
+- 2026-11-11 `70c21e4` attendance (Attendances): broken: the slip id not saved
   (red), rendering before the ETA is written (red). Stayed green, tests added (`f0e40c9`), red
   since: a failed voice lookup as in the room, a failed slip edit failing the tap, retiring the
   slip of someone who made it.
