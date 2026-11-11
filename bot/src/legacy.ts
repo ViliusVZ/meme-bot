@@ -23,8 +23,11 @@ export class LegacyEnv extends Context.Service<LegacyEnv, Env>()("meme-bot/legac
 /** What an old `env` says about this call: `{ ...env, QUIET: true }`, `{ ...env, PLAYERS: … }`. */
 const overridesOf = (env: Env) => ({ quiet: env.QUIET ?? false, players: env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean) }); // LEGACY-BRIDGE
 
+/** The Gemini key an old `env` carries (tests set one per call: `{ ...env, GEMINI_API_KEY: "k" }`). */
+export const LegacyGeminiKey = Context.Reference<string | undefined | null>("meme-bot/legacy/LegacyGeminiKey", { defaultValue: () => null }); // LEGACY-BRIDGE
+
 const withEnv = <A, E, R>(env: Env, effect: Effect.Effect<A, E, R>) => // LEGACY-BRIDGE
-  effect.pipe(Effect.provideService(Overrides, overridesOf(env)), Effect.provideService(LegacyEnv, env)); // LEGACY-BRIDGE
+  effect.pipe(Effect.provideService(Overrides, overridesOf(env)), Effect.provideService(LegacyEnv, env), Effect.provideService(LegacyGeminiKey, env.GEMINI_API_KEY)); // LEGACY-BRIDGE
 
 /** Promise code calling Effect code: the overrides the old `env` carries come along. Rejects with the error itself. */
 export async function run<A, E>(env: Env, effect: Effect.Effect<A, E, AppServices | LegacyEnv>): Promise<A> { // LEGACY-BRIDGE
