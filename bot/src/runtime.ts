@@ -5,9 +5,12 @@ import type { PgClient } from "@effect/sql-pg";
 import type { SqlClient } from "effect/sql";
 import { AppConfig, type AppConfigShape } from "./config.js";
 import { Db, DbOptions } from "./db/db.js";
+import { FetchHttpClient, HttpClient } from "effect/http";
+import { Channels } from "./channels.js";
+import { Discord } from "./discord.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
-export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity;
+export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord;
 
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
@@ -21,10 +24,20 @@ export interface LayerOptions {
  */
 export const LoggerLive = Logger.layer([Logger.consoleLogFmt]);
 
+/**
+ * Outbound HTTP (Discord, Reddit, the Blizzard feed, Gemini). Fetch is read from the global on every
+ * request, not captured once (FetchHttpClient's default, spike S5), so the tests' global fetch stub
+ * and its recorder see the Effect client's requests too, until phase 6 gives the tests a fake client.
+ */
+const HttpLive = FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, ((input, init) => globalThis.fetch(input, init)) as typeof globalThis.fetch))); // LEGACY-BRIDGE
+
+/** Our trace ids are no business of Discord's, Reddit's or Google's: no traceparent header outbound. */
+const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, false);
+
 /** Everything the app runs on, given where its configuration comes from. */
 export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOptions = {}) =>
-  Db.layer.pipe(
-    Layer.provideMerge(Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}))),
+  Layer.mergeAll(Db.layer, Discord.layer).pipe(
+    Layer.provideMerge(Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, HttpLive, NoTracePropagation)),
     Layer.provideMerge(LoggerLive),
   );
 
