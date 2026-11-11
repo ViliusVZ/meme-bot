@@ -1,0 +1,138 @@
+{
+ "winter offset is UTC+2": {
+  "calls": [],
+  "db": {}
+ },
+ "summer offset is UTC+3": {
+  "calls": [],
+  "db": {}
+ },
+ "DST start day (29 Mar 2026), evening": {
+  "calls": [],
+  "db": {}
+ },
+ "DST end day (25 Oct 2026), evening": {
+  "calls": [],
+  "db": {}
+ },
+ "local day/hour across DST": {
+  "calls": [],
+  "db": {}
+ },
+ "time stage at 14:00 → afternoon presets": {
+  "calls": [],
+  "db": {}
+ },
+ "time stage at 17:00 → evening presets": {
+  "calls": [],
+  "db": {}
+ },
+ "time stage at 17:20 → starts at 18:30": {
+  "calls": [],
+  "db": {}
+ },
+ "passed presets disappear": {
+  "calls": [],
+  "db": {}
+ },
+ "too few left → regenerated from now": {
+  "calls": [],
+  "db": {}
+ },
+ "custom votes are offered as buttons": {
+  "calls": [],
+  "db": {}
+ },
+ "late night → after-midnight presets": {
+  "calls": [],
+  "db": {}
+ },
+ "parse 20:30 / 2030 / 20.30 / 20h30 / 20": {
+  "calls": [],
+  "db": {}
+ },
+ "parse rejects nonsense and past": {
+  "calls": [],
+  "db": {}
+ },
+ "parse 01:00 late at night means after midnight": {
+  "calls": [],
+  "db": {}
+ },
+ "parse respects summer time": {
+  "calls": [],
+  "db": {}
+ },
+ "planned day → that day's 16:00-21:00": {
+  "calls": [],
+  "db": {}
+ },
+ "custom time on a planned day": {
+  "calls": [],
+  "db": {}
+ },
+ "weekday names": {
+  "calls": [],
+  "db": {}
+ },
+ "every voted time keeps a button, even with many custom picks": {
+  "calls": [],
+  "db": {}
+ },
+ "no leave-by: start at the latest pick": {
+  "calls": [],
+  "db": {}
+ },
+ "leave-by with room to play: fits, ends at the earliest leave-by": {
+  "calls": [],
+  "db": {}
+ },
+ "exactly one hour together is enough": {
+  "calls": [],
+  "db": {}
+ },
+ "under an hour together is a clash naming who and when": {
+  "calls": [],
+  "db": {}
+ },
+ "leaving before the start is a clash": {
+  "calls": [],
+  "db": {}
+ },
+ "the earliest leave-by is the one that matters": {
+  "calls": [],
+  "db": {}
+ },
+ "several late starters are all named": {
+  "calls": [],
+  "db": {}
+ },
+ "partial picks: not ready, but an early clash warning shows": {
+  "calls": [],
+  "db": {}
+ },
+ "no picks yet: nothing to clash": {
+  "calls": [],
+  "db": {}
+ },
+ "passed picks are bumped to `soonest`, and that can clash": {
+  "calls": [],
+  "db": {}
+ },
+ "ask/game cards close at midnight": {
+  "calls": [],
+  "db": {}
+ },
+ "time cards stay open after midnight for 🌙 starts": {
+  "calls": [],
+  "db": {}
+ },
+ "today's and future cards are never over": {
+  "calls": [],
+  "db": {}
+ },
+ "after-midnight custom time on DST-end night stays a wall-clock time": {
+  "calls": [],
+  "db": {}
+ }
+}

@@ -5,6 +5,9 @@ import { test as vt, afterEach } from "vitest";
 import assert from "node:assert/strict";
 
 import * as gn from "../src/gamenight.js";
+import { harness } from "./harness.js";
+
+harness({ db: false }); // the app's runtime (the old functions reach the Effect services through it)
 
 const env = { TIMEZONE: "Europe/Vilnius", PLAYERS: "a,b,c" };
 const realNow = Date.now;
