@@ -58,15 +58,20 @@ const files = (function walk(d) {
 
 const printer = ts.createPrinter({ removeComments: true });
 const counts = {}; // file → pattern → n
+const bridge = {}; // file → pattern → n, on lines marked LEGACY-BRIDGE (the transition's own code)
+// never allowed, transition code or not
+const NEVER = new Set([": any", "as any", "Effect.orDie", "@ts-", "@effect-diagnostics"]);
 const imports = new Map(); // file → files it imports at runtime
 for (const f of files) {
   const text = readFileSync(f, "utf8");
   const sf = ts.createSourceFile(f, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  // transition code (phases 3-5) is counted under its own marker, which must reach zero after
-  // phase 5; its lines don't also count as old-style code
-  const unmarked = text
-    .split("\n")
-    .filter((l) => !l.includes("LEGACY-BRIDGE"))
+  // transition code (phases 3-5, marked LEGACY-BRIDGE) is counted in a column of its own: it may
+  // grow until phase 5 deletes it (then it must be empty), except the moves never allowed anywhere
+  const lines = text.split("\n");
+  const unmarked = lines.filter((l) => !l.includes("LEGACY-BRIDGE")).join("\n");
+  const marked = lines
+    .filter((l) => l.includes("LEGACY-BRIDGE"))
+    .map((l) => l.slice(0, l.lastIndexOf("//") >= 0 && l.slice(l.lastIndexOf("//")).includes("LEGACY-BRIDGE") ? l.lastIndexOf("//") : l.length))
     .join("\n");
   const code = printer.printFile(ts.createSourceFile(f, unmarked, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS));
   const rel = relative(srcDir, f).replaceAll("\\", "/");
@@ -75,6 +80,12 @@ for (const f of files) {
     // markers live in comments, so count them in the raw text
     const n = (name === "LEGACY-BRIDGE" || name === "@effect-diagnostics" || name === "@ts-" ? text : code).match(re)?.length ?? 0;
     if (n) counts[rel][name] = n;
+  }
+  bridge[rel] = {};
+  for (const [name, re] of Object.entries(PATTERNS)) {
+    if (name === "LEGACY-BRIDGE") continue;
+    const n = marked.match(re)?.length ?? 0;
+    if (n) bridge[rel][name] = n;
   }
   const deps = new Set();
   const add = (spec) => {
@@ -124,15 +135,17 @@ const total = (inBoundary) => {
   return t;
 };
 const outside = total(false), inside = total(true);
+const transition = {};
+for (const c of Object.values(bridge)) for (const [k, n] of Object.entries(c)) transition[k] = (transition[k] ?? 0) + n;
 const sum = (t) => Object.values(t).reduce((a, b) => a + b, 0);
 
 // the table, for the terminal and for STATUS.md
 const names = Object.keys(PATTERNS);
 const rows = [
-  "| Pattern | Outside boundary files | In boundary files |",
-  "|---|---|---|",
-  ...names.map((k) => `| \`${k}\` | ${outside[k] ?? 0} | ${inside[k] ?? 0} |`),
-  `| **total** | **${sum(outside)}** | **${sum(inside)}** |`,
+  "| Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |",
+  "|---|---|---|---|",
+  ...names.map((k) => `| \`${k}\` | ${outside[k] ?? 0} | ${inside[k] ?? 0} | ${transition[k] ?? 0} |`),
+  `| **total** | **${sum(outside)}** | **${sum(inside)}** | **${sum(transition)}** |`,
 ];
 const perFile = Object.entries(counts)
   .map(([f, c]) => [f, Object.values(c).reduce((a, b) => a + b, 0)])
@@ -162,8 +175,10 @@ if (saved) {
       if (after > before) problems.push(`${k} (${side} boundary files) went up: ${before} → ${after}`);
     }
 }
+for (const k of NEVER) if (transition[k]) problems.push(`${k} on a LEGACY-BRIDGE line (${transition[k]}): not allowed there either`);
 if (process.argv.includes("--final")) {
   if (sum(outside)) problems.push(`--final: ${sum(outside)} left outside the boundary files`);
+  if (sum(transition)) problems.push(`--final: ${sum(transition)} left in transition code`);
 }
 if (problems.length) {
   console.error(`\nG6 red:\n  ${problems.join("\n  ")}`);
