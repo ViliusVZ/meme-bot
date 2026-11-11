@@ -62,8 +62,13 @@ const imports = new Map(); // file → files it imports at runtime
 for (const f of files) {
   const text = readFileSync(f, "utf8");
   const sf = ts.createSourceFile(f, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  // comments go, but JSDoc-only lines would leave the text unchanged otherwise
-  const code = printer.printFile(sf);
+  // transition code (phases 3-5) is counted under its own marker, which must reach zero after
+  // phase 5; its lines don't also count as old-style code
+  const unmarked = text
+    .split("\n")
+    .filter((l) => !l.includes("LEGACY-BRIDGE"))
+    .join("\n");
+  const code = printer.printFile(ts.createSourceFile(f, unmarked, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS));
   const rel = relative(srcDir, f).replaceAll("\\", "/");
   counts[rel] = {};
   for (const [name, re] of Object.entries(PATTERNS)) {
