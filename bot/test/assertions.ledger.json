@@ -1336,5 +1336,11 @@
    "expect.toEqual({ posted: \"week:2026-11-06\" })",
    "expect.toEqual([\"week:2026-11-06\"])"
   ]
+ },
+ "roasts.test.ts": {
+  "test \"across cycles, no line comes twice in a row\"": [
+   "expect.not.toBe(drawn[i - 1])",
+   "expect.toEqual(new Set(lines))"
+  ]
  }
 }
