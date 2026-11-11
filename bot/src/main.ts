@@ -2,7 +2,8 @@
 // leader, also holds the Discord gateway and runs the scheduler. During a deploy the new copy
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
 import { fileURLToPath } from "node:url";
-import { connect, runMigrations, acquireLeadership } from "./db/index.js";
+import { connect, acquireLeadership } from "./db/index.js";
+import { runMigrations } from "./db/db.js";
 import { ManagedRuntime, Redacted } from "effect"; // LEGACY-BRIDGE
 import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
@@ -24,7 +25,7 @@ const { pool, db } = connect(Redacted.value(config.databaseUrl)); // LEGACY-BRID
 const env: Env = { ...legacy.envFields(config), db }; // LEGACY-BRIDGE
 alerts.setup(env);
 
-await runMigrations(pool, fileURLToPath(new URL("../drizzle", import.meta.url)));
+await legacy.run(env, runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)))); // LEGACY-BRIDGE
 
 let leader = false;
 let shuttingDown = false;
