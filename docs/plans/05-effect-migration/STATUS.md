@@ -1167,6 +1167,11 @@ bot since 13:47. Output under `<scratchpad>/qa-effect/final-930d912/`.
   after the QA hour (no restart): ~9 MB growth under full load**, well under the 30 MB rule.
 - **Admin route timings, new code:** copy median 47 ms (p95 51); vote median 913 ms (p95 1264,
   max 1725; each vote waits for its card refresh and every copy's edit).
+- **Rollback rehearsal (15:09–15:12): passed.** `sudo deploy-app meme-bot-dev …:aa49c52a24f7`
+  over the branch's database (the news table and all): leading in 9 s; qa_all on the old code
+  79/0; admin route timings old vs new: copy median 43 vs 47 ms, vote 908 vs 913 ms (the same);
+  then `…:930d91201cc6` back, leading in 9 s. Production's rollback is the same command with
+  `meme-bot`.
 - **Browser tap test on `930d912`: passed** (same sequence as below: "I'm in" opened the copy,
   quiet admin votes, the copy followed by itself to "It's on: Enshrouded at 20:00").
   Tap timing: 31, 25, 21, 30, 21, 23, 21 ms; **median 23, p95 31**.
