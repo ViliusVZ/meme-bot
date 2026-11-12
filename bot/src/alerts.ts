@@ -3,6 +3,7 @@
 // about it before the trio does. The same problem again within 3 hours is counted, not re-sent, and
 // there's a cap overall, so a bad day is a handful of DMs, never a flood.
 import { Clock, Context, Deferred, Effect, Layer, Queue, Ref } from "effect";
+import { alertsHeld, alertsSent, count } from "./metrics.js";
 import { AppConfig } from "./config.js";
 import { Discord } from "./discord.js";
 import { Presence } from "./presence.js";
@@ -89,17 +90,20 @@ export class Alerts extends Context.Service<
         const prev = s.seen.get(key);
         if (prev && now - prev.at < QUIET_FOR) {
           yield* Ref.update(state, (x) => ({ ...x, seen: new Map(x.seen).set(key, { ...prev, held: prev.held + 1 }) }));
+          yield* count(alertsHeld, { why: "repeat" });
           return;
         }
         const recent = s.recent.filter((t) => now - t < BURST_WINDOW);
         if (recent.length >= BURST) {
           yield* Ref.update(state, (x) => ({ ...x, recent, heldBack: x.heldBack + 1 }));
+          yield* count(alertsHeld, { why: "burst" });
           return;
         }
         const again = prev?.held ? ` (${prev.held} more time${prev.held === 1 ? "" : "s"} since the last DM about it)` : "";
         const flood = s.heldBack ? `\n-# ${s.heldBack} other problem${s.heldBack === 1 ? " was" : "s were"} held back so this doesn't turn into a flood; the logs have them.` : "";
         yield* Ref.update(state, (x) => ({ ...x, recent: [...recent, now], seen: new Map(x.seen).set(key, { at: now, held: 0 }), heldBack: 0 }));
         yield* dm(to, alertMessage(job.what, job.detail, job.context, again, config.appName, now) + flood);
+        yield* count(alertsSent);
       });
 
       // one sender: DMs go out one at a time, in order; a failed DM is logged, never thrown into the caller

@@ -1,5 +1,6 @@
 // The app's services, as one layer. main.ts runs it with the real configuration; tests with theirs.
-import { Layer, Logger } from "effect";
+import { Effect, Layer, Logger } from "effect";
+import { Otlp } from "effect/observability";
 import { Reactivity } from "effect/reactivity";
 import type { PgClient } from "@effect/sql-pg";
 import type { SqlClient } from "effect/sql";
@@ -61,6 +62,18 @@ export const LoggerLive = Logger.layer([Logger.consoleLogFmt]);
 /** Our trace ids are no business of Discord's, Reddit's or Google's: no traceparent header outbound. */
 const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, false);
 
+/**
+ * Logs, metrics and spans exported over OTLP, only when OTLP_URL is set (architecture §14); the
+ * log lines still go to stdout as well.
+ */
+export const OtlpLive = Layer.unwrap(
+  Effect.gen(function* () {
+    const config = yield* AppConfig;
+    if (config.otlpUrl === undefined) return Layer.empty;
+    return Otlp.layerJson({ baseUrl: config.otlpUrl, resource: { serviceName: config.appName, serviceVersion: config.revision }, loggerMergeWithExisting: true });
+  }),
+);
+
 /** Everything the app runs on, given where its configuration comes from. */
 export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOptions = {}) =>
   // bottom to top (architecture.md §4): each line may use only the lines below it
@@ -75,6 +88,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
     Layer.provideMerge(Alerts.layer),
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer)),
+    Layer.provideMerge(OtlpLive),
     Layer.provideMerge(
       Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, options.http ?? FetchHttpClient.layer, NoTracePropagation),
     ),

@@ -2,7 +2,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { sql } from "drizzle-orm";
-import { ByteSize, Cause, Clock, Context, Effect, Fiber, Layer, Match, Redacted, Schema } from "effect";
+import { ByteSize, Cause, Clock, Context, Duration, Effect, Fiber, Layer, Match, Redacted, Schema } from "effect";
+import { count, taps, tapTime, time as timeIt } from "./metrics.js";
 import { HttpIncomingMessage, HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { NodeHttpServer } from "@effect/platform-node";
 import { memes } from "./db/schema.js";
@@ -271,6 +272,8 @@ export const Routes = HttpRouter.use((router) =>
               // every tap/command with its handling time, who and where (three users: a few lines a day), slow ones flagged
               const where = (raw.message?.flags ?? 0) & EPHEMERAL ? "panel" : raw.message ? "public" : "";
               yield* Effect.logInfo(`${ms > 1500 ? "slow interaction" : "interaction"} ${ms} ms ${what} ${who} ${where}`);
+              yield* count(taps, { outcome: "ok" });
+              yield* timeIt(tapTime, Duration.millis(ms));
               // past 3 s Discord has already shown them "This interaction failed"
               if (ms > 3000) yield* alerts.report(`a tap (${what})`, `took ${ms} ms, past Discord's 3-second limit, so ${who} saw "This interaction failed"`);
             }),
@@ -279,7 +282,7 @@ export const Routes = HttpRouter.use((router) =>
             Cause.hasInterruptsOnly(cause)
               ? Effect.interrupt
               : // a private apology beats Discord's generic "This interaction failed"
-                Effect.as(alerts.failed(`a tap (${what})`, Cause.squash(cause), who), {
+                Effect.as(Effect.andThen(count(taps, { outcome: "failed" }), alerts.failed(`a tap (${what})`, Cause.squash(cause), who)), {
                   type: R.Message,
                   data: { content: "Something went wrong on my end 🤕 Try again in a moment.", flags: EPHEMERAL },
                 }),

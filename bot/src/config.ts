@@ -38,6 +38,8 @@ export interface AppConfigShape {
   readonly geminiApiKey: Redacted.Redacted<string> | undefined;
   readonly appName: string;
   readonly revision: string;
+  /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
+  readonly otlpUrl?: string | undefined;
 }
 
 const REQUIRED = [
@@ -100,6 +102,7 @@ export const readConfig = Effect.gen(function* () {
     geminiApiKey: geminiApiKey === undefined ? undefined : Redacted.make(geminiApiKey),
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
+    otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),
   };
   return config;
 });

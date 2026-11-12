@@ -1,6 +1,7 @@
 // Work that continues after we've answered Discord (followups, panel edits, pings). Tracked, so a
 // deploy or restart waits for it to finish before the process exits.
-import { Cause, Context, Duration, Effect, FiberSet, Layer } from "effect";
+import { Cause, Context, Duration, Effect, FiberSet, Layer, Metric, Ref } from "effect";
+import { backgroundInFlight } from "./metrics.js";
 import { Alerts } from "./alerts.js";
 
 export class Background extends Context.Service<
@@ -19,11 +20,21 @@ export class Background extends Context.Service<
     Effect.gen(function* () {
       const alerts = yield* Alerts;
       const set = yield* FiberSet.make();
+      const running = yield* Ref.make(0); // (the gauge's value: FiberSet.size can't be read as a task ends)
       return Background.of({
         run: (effect, label = "background work") =>
           // the boundary for background work: whatever a task lets through is reported, per task
           // (an interruption is shutdown or a replaced task, not a failure)
-          Effect.asVoid(FiberSet.run(set, effect.pipe(Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause))))))),
+          Effect.gen(function* () {
+            yield* Metric.update(backgroundInFlight, yield* Ref.updateAndGet(running, (n) => n + 1));
+            yield* FiberSet.run(
+              set,
+              effect.pipe(
+                Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause)))),
+                Effect.ensuring(Effect.flatMap(Ref.updateAndGet(running, (n) => n - 1), (n) => Metric.update(backgroundInFlight, n))),
+              ),
+            );
+          }),
         drain: (timeout) =>
           Effect.gen(function* () {
             yield* Effect.timeoutOption(FiberSet.awaitEmpty(set), timeout);

@@ -17,6 +17,7 @@ import { Cleanup } from "./cleanup.js";
 import { MemeShame } from "./memeshame.js";
 import { Spontaneous } from "./spontaneous.js";
 import { Alerts } from "./alerts.js";
+import { count, jobsFailed, jobsRun, jobTime, time } from "./metrics.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const DAY_MS = 864e5;
@@ -178,15 +179,18 @@ export class Jobs extends Context.Service<
           const out: Record<string, unknown> = {};
           for (const [name, job] of JOBS) {
             const ran: Effect.Effect<unknown, { readonly _tag: string }> = job;
+            const t0 = yield* Clock.currentTimeMillis;
             out[name] = yield* ran.pipe(
               Effect.timeoutOrElse({ duration: JOB_LIMIT, orElse: () => Effect.fail(new JobTimedOut({ job: name })) }),
               Effect.withSpan(`job ${name}`),
               Effect.catchCause((cause) => {
                 if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt;
                 const e = Cause.squash(cause);
-                return Effect.as(alerts.failed(`the “${name}” job`, e), { error: errorText(e) });
+                return Effect.as(Effect.andThen(count(jobsFailed, { job: name }), alerts.failed(`the “${name}” job`, e)), { error: errorText(e) });
               }),
             );
+            yield* count(jobsRun, { job: name });
+            yield* time(jobTime, Duration.millis((yield* Clock.currentTimeMillis) - t0), { job: name });
           }
           return out;
         }),

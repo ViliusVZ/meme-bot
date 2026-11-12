@@ -3,6 +3,7 @@
 // our own channel changes reported to the channel cache. Interaction webhooks (followups,
 // @original) have their own rule. (The signature check lives in verify.ts.)
 import { Context, Duration, Effect, Layer, Option, Redacted, Schedule, Schema } from "effect";
+import { count, discordCalls, outcomeOf } from "./metrics.js";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { AppConfig } from "./config.js";
 import { Channels, type Channel } from "./channels.js";
@@ -231,6 +232,7 @@ export class Discord extends Context.Service<
         const data = yield* attempt(method, path, body).pipe(
           Effect.retry(retries(method)),
           Effect.catchTag("Transient", (t) => Effect.fail(new DiscordUnavailable({ method, path, last: t.last }))),
+          Effect.onExit((exit) => count(discordCalls, { outcome: outcomeOf(exit) })),
         );
         yield* noteChannels(method, path, body, data);
         return data;
