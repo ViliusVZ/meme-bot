@@ -4,6 +4,32 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
+## Resume here (paused 2026-11-12 ~19:00 at the owner's request; stay stopped until told)
+
+- **Done:** Step 0 (findings below). The build on branch `news-v2` (`0144368`, all gates green,
+  894 tests, every rule break-it red): `src/newsfeeds.ts` (RSS source, one request per ≥65 s),
+  `src/newswriter.ts` (Gemini triage + write-up), `src/newscard.ts` (rules, card), `src/news.ts`
+  (hourly pipeline + backtest), tables `news_stories`, `news_cache` (`news_items` kept, unused,
+  for the rollout). Plan 02's replaced tests: 28 recordings allowed in
+  `bot/test/recordings.allowed.json` and their ledger entries deleted by hand (declared in plan 05
+  STATUS "Declared exceptions"); remove that allowance in a follow-up commit once a gate run holds.
+  Not built: the follow-up line (step 7), the outside-writer endpoints (as instructed).
+- **Deployed:** the test bot runs `news-v2` (`0144368`) since 18:31; its first run saw 136 stories
+  and posted nothing (as designed). Production is still on `main` = `79c0a2d` (plan 02's news).
+- **Mid-flight:** nothing running. The backtest has not run yet (it spends the Gemini key the
+  production bot shares; held for tonight's game night).
+- **Exact next step:** time ten write-up-sized Gemini requests per model (Step 0.3) on a fresh
+  day's quota; then on the test bot `POST /admin/news {"backtest": {"days": 7, "max_calls": 10}}`
+  and read it with `POST /admin/news {"backtest": "sheet"}` (it resumes from its cache; a full
+  sheet needs ~28 calls, about 3 days of the news share); a fresh read-only editor subagent reads
+  the sheet against the real threads; fix and rerun until no findings; post the sheet's cards in
+  the test server's channel; then merge `news-v2` to `main` when nobody is in voice, and delete
+  plan 02's stale post (`SELECT message_id FROM news_items WHERE state='posted'` in production;
+  message in ⚔️・wow-news `1570427645949386802`).
+- **Known:** the meme refill (`reddit.ts`) doesn't share the news's Reddit pacing (both hit Reddit
+  RSS from the VPS IP): a collision is a logged failure, retried next hour.
+- **Owner question open:** a free Reddit "script" app (OAuth) for scores and comment counts.
+
 ## Why
 
 Plan 02 shipped a channel that reposts Blizzard staff posts with a one-line summary. The owner's
