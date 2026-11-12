@@ -4,7 +4,6 @@ import { expect, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Cause, Clock, type Context, Effect, Exit, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
-import * as TestConsole from "effect/testing/TestConsole";
 import { AppStatus, ROUTER_CONFIG, routesOn } from "../src/app.js";
 import { Attendances } from "../src/attendance.js";
 import { Cleanup, snowflakeAt } from "../src/cleanup.js";
@@ -38,12 +37,8 @@ const interaction = (i: unknown) => Interactions.use((x) => Effect.map(x.handle(
 const snapshot = (voiceStates: { user_id: string; channel_id: string | null }[]) => Presence.use((p) => p.snapshot(voiceStates));
 /** Raw SQL on the test's schema (the triggers that stand in for another copy or a failing table). */
 const sql = (text: string) => Effect.promise(() => h.t.pool.query(text));
-/**
- * What the app logged in this test, as the old console spy saw it: the test logger's lines, and the
- * lines of services that run on the context they were built with (GameNight's methods: its logger
- * is the app's console logger, which prints to it.effect's TestConsole).
- */
-const logged = Effect.map(TestConsole.logLines, (lines) => [...h.logs, ...lines.map(String)].join(" "));
+/** What the app logged in this test, as the old console spy saw it (the harness keeps every line in h.logs). */
+const logged = Effect.sync(() => h.logs.join(" "));
 /** The live clock (the start ping's test runs on real time, as the old `vi.useRealTimers()` did). */
 const live = Effect.runSync(Clock.clockWith(Effect.succeed));
 

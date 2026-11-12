@@ -15,7 +15,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
-import { Cause, Clock, Duration, Effect, Exit, Layer, Logger, ManagedRuntime, Random, Redacted, Schema } from "effect";
+import { Cause, Clock, Console, Duration, Effect, Exit, Layer, ManagedRuntime, Random, Redacted, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { AppConfig, type AppConfigShape } from "../src/config.js";
 import { appLayerFor, type AppServices } from "../src/runtime.js";
@@ -81,6 +81,12 @@ export type Harness = {
    * (`await expect(h.run(x)).rejects.toThrow(…)`, whose matcher chain the ledger keeps).
    */
   run<A, E>(self: Effect.Effect<A, E, AppServices>): Promise<A>;
+  /**
+   * Inside a test's Effect: `self` as a promise for a matcher that needs one, run on this fiber's own
+   * services, clock and Random (h.run would start them again):
+   * `yield* h.promise(x, (p) => expect(p).rejects.toThrow("…"))`.
+   */
+  promise<A, E, R, B>(self: Effect.Effect<A, E, R>, check: (p: Promise<A>) => Promise<B>): Effect.Effect<B, never, R>;
   /** Move the frozen clock (files with a `clock` time). */
   setTime(at: number | string): Effect.Effect<void>;
   /** Game detection and the Gemini key for one call, as `{ ...env, PRESENCES: true, GEMINI_API_KEY: "k" }` did. */
@@ -182,7 +188,12 @@ export function harness(o: Options = {}): Harness {
     const next = seeded(seedOf(name));
     return { nextDoubleUnsafe: next, nextIntUnsafe: () => Math.floor(next() * (Number.MAX_SAFE_INTEGER - Number.MIN_SAFE_INTEGER + 1)) + Number.MIN_SAFE_INTEGER };
   };
-  const logger = Logger.layer([Logger.map(Logger.formatLogFmt, (line) => void h.logs.push(line))]);
+  // the app's own logger (logfmt to the console, LoggerLive) stays; the console it writes to is the
+  // test's, keeping every line in h.logs. (A console is read from the fiber that logs, so the lines of
+  // services that run on the context they were built with land here too; a logger provided to the
+  // test's fiber wouldn't reach them.)
+  const keep = (...args: ReadonlyArray<unknown>) => void h.logs.push(args.map(String).join(" "));
+  const console: Console.Console = { ...globalThis.console, log: keep, info: keep, warn: keep, error: keep, debug: keep, trace: keep };
 
   h.settle = Effect.flatMap(Background.use((b) => b.drain(Duration.seconds(10))), (left) => (left > 0 ? Effect.fail(new StillRunning({ left })) : Effect.void));
 
@@ -191,7 +202,7 @@ export function harness(o: Options = {}): Harness {
       const rt = runtime!;
       const context = yield* Effect.promise(() => rt.context());
       const name = expect.getState().currentTestName ?? "";
-      const body = Effect.tap(self, () => h.settle).pipe(Effect.provide(logger), Effect.provideService(Random.Random, randomFor(name)));
+      const body = Effect.tap(self, () => h.settle).pipe(Effect.provideService(Console.Console, console), Effect.provideService(Random.Random, randomFor(name)));
       return yield* clockFor(Effect.provideContext(body, context));
     });
 
@@ -200,6 +211,18 @@ export function harness(o: Options = {}): Harness {
     if (Exit.isSuccess(exit)) return exit.value;
     throw Cause.squash(exit.cause);
   };
+
+  h.promise = (self, check) =>
+    Effect.flatMap(Effect.context<never>(), (ctx) =>
+      Effect.promise(() =>
+        check(
+          Effect.runPromiseExitWith(ctx as never)(self).then((exit) => {
+            if (Exit.isSuccess(exit)) return exit.value;
+            throw Cause.squash(exit.cause);
+          }),
+        ),
+      ),
+    ) as never;
 
   h.setTime = (v) => Effect.sync(() => void (now = at(v)));
 
