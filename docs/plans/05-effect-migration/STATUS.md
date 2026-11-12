@@ -1,3 +1,40 @@
+### ⏰ DEADLINE: 16:30 Vilnius, 2026-11-12 (owner, 12:35; read first after any summary)
+
+By 16:30 today: (1) the migration finished, merged to `main`, pushed, running in production; (2)
+plan 02 (WoW: Forever news) finished and live too. They will probably game tonight.
+
+**Timetable (Vilnius; adjust the middle, never the end):**
+- by ~14:15: phase 6 audit closed, phase 7 done, news ported (an Effect `News` service, typed
+  errors, `Config`, a Ticker job, tests on `test/fx.ts`, migration regenerated in the Drizzle 1.0
+  format, every old `news.test.ts` assertion carried over) and merged into `effect`; final build on
+  the test bot.
+- 14:15–15:30: phase 8 on that build, nothing dropped: full QA, forced soak (cap ~40 min of forced
+  activity; may overlap QA), fault drills, rollback rehearsal, tap timing + private-copy test in the
+  owner's tab, the news forced end to end (admin route or simulated time; the fallback too: Gemini
+  unavailable → title rule; look at what's posted), final audit. Read-only audits run alongside.
+- 15:30–16:00: cutover (pre-authorised): merge to `main`, push, watch the deploy, prod health and
+  version, read-only prod checks. Then create `⚔️・wow-news` under 🎮 Game Night on the real server,
+  set its id in prod config, turn the news on, confirm the first run (no backlog dump: ≤5 a day,
+  silent posts, plan 02).
+- 16:00–16:30: margin; watch prod logs and alerts.
+
+**Rules:** no check dropped; save time with parallel work and no idling. Fix audit findings by
+risk to tonight (taps, card, starts, voice, late/snooze first). Anything that can't fit must have no
+effect on behaviour, and is listed here and in the owner's note. After cutover, misbehaviour not
+fixable in minutes → roll back the rehearsed way. **No prod deploys after 16:30** except a rollback.
+At ~16:10 with the cutover gate not green: don't start it, leave prod on `aa49c52`, say plainly
+what is and isn't done, continue on the test bot only. News not green by the final build → cut over
+without it; ship it as a second deploy only if green and time allows before 16:30, else tomorrow
+(say so). Tonight is a real game night on the new code: no deploys, no QA that could post in the
+real server during the evening. Notes to the thread: final build on the test bot; cutover done;
+16:30 final state.
+
+**Plan 02 port:** the old session is stopped; this run owns it. Source: `origin/wow-news` =
+`f298ce4` (two commits on `f401685`, old code). Never work in `C:\p\meme-bot`. The news must be
+off whenever its channel isn't configured (check it).
+
+**Can't fit (behaviour-neutral only):** (none yet)
+
 ### Now (2026-11-12 ~11:20)
 
 - **Phase 5 done** (audit closed: fixes `a4b5399`, tests `27b53aa`). On the test bot `27b53aa`
