@@ -796,5 +796,78 @@
    "recaps": "1:ca0ac4fbb65a",
    "users": "1:fe20f3ead3e7"
   }
+ },
+ "😴 asked ahead: the last snoozed day sleeps, the day it runs out is back": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b"
+  ],
+  "db": {
+   "games": "3:54d0c1ebcf46",
+   "recaps": "1:ca0ac4fbb65a",
+   "settings": "1:07068715fc07",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "a nudge someone deleted by hand doesn't stop the next one": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+  ],
+  "db": {
+   "game_night_votes": "3:81b6639c3de1",
+   "game_nights": "1:aeb14b8a1195",
+   "games": "3:9ab5c6db5dcb",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "start times stay secret until everyone has picked": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+  ],
+  "db": {
+   "game_night_votes": "7:74a6b703082b",
+   "game_nights": "1:0437c89fac68",
+   "games": "3:3ecadab07603",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "🏁 the leave-by box comes filled in with your current one": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+  ],
+  "db": {
+   "game_night_votes": "7:c0352806c2ae",
+   "game_nights": "1:0437c89fac68",
+   "games": "3:832105a74845",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
+ },
+ "⏰ a later start moves the Discord event, and its new end is remembered": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 f6499c78491e",
+   "POST https://discord.com/api/v10/channels/gn/messages 90a150d4f07b"
+  ],
+  "db": {
+   "game_nights": "1:cfc1a9d7b36b",
+   "games": "3:77f79832ebb6",
+   "night_attendance": "1:1d440ab06464",
+   "recaps": "1:ca0ac4fbb65a",
+   "users": "1:fe20f3ead3e7"
+  }
  }
 }

@@ -3,18 +3,22 @@
 #   bash scripts/gates.sh
 # Runs against TEST_DATABASE_URL (a local Postgres is much faster than the tunnel; see STATUS.md).
 # The floors (tests, query sites) live in scripts/gates.json: the test count only ever goes up.
-# G4 and G5 compare with the commit tagged `baseline` (the phase 0 recordings and ledger) as well
-# as with what is committed.
+# G4 and G5 compare with the commit tagged `baseline` (the phase 0 recordings and ledger) and with
+# HEAD (what is committed).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 floors=scripts/gates.json
 red() { echo "GATE RED: $*" >&2; exit 1; }
 
 echo "== G1 types"
+# the Effect diagnostics only run inside a patched tsc: make sure it is
+npx effect-language-service check 2>&1 | grep -q "_tsc.js patched with version" || red "G1: tsc is not patched with the Effect language service (npm run prepare)"
 npm run -s check || red "G1 types"
+# the baseline is a commit, not just a name: a moved tag would re-baseline silently
+[ "$(git rev-parse 'baseline^{commit}')" = "$(node -p 'require("./'$floors'").baseline')" ] || red "the tag baseline has moved"
 
 echo "== G2 tests (+ G4 recordings)"
-if grep -rnE "\b(test|it|describe)\.(only|skip|todo|fails|skipIf|runIf)\b|(^|[^.[:alnum:]_])(xit|xtest|fit)\(" test --include=*.ts; then red "G2: .only/.skip/.todo in the tests"; fi
+if grep -rnE "\.(only|skip|todo|fails|skipIf|runIf)\b|(^|[^.[:alnum:]_])(xit|xtest|fit)\(" test --include=*.ts; then red "G2: .only/.skip/.todo/.fails in the tests"; fi
 rm -rf test/__recordings__/full
 # every recording is written again by this run; one that isn't shows up as deleted (G4)
 rm -f test/__recordings__/*.json
@@ -26,8 +30,8 @@ if (r.numPassedTests < f.tests) { console.error(`tests: ${r.numPassedTests} < fl
 if (r.numPassedTests > f.tests) { f.tests = r.numPassedTests; require("fs").writeFileSync("'$floors'", JSON.stringify(f, null, 1) + "\n"); }
 console.log(`G2: ${r.numPassedTests} passed (floor ${f.tests})`);
 ' || red "G2 counts"
-if [ -n "$(git status --porcelain -- test/__recordings__)" ]; then git status --short -- test/__recordings__; red "G4 recordings differ"; fi
-node scripts/recordings.mjs --base baseline || red "G4 recordings vs the baseline"
+# every recording at the baseline and at HEAD is produced again, unchanged; new ones may be added
+node scripts/recordings.mjs || red "G4 recordings"
 echo "G4: recordings identical"
 
 echo "== G3 queries"
@@ -37,7 +41,8 @@ echo "== G5 assertions"
 node scripts/assertions.mjs --check --base baseline || red "G5 assertions"
 
 echo "== G6 leftovers"
-node scripts/leftovers.mjs ${LEFTOVERS_FLAGS:-} > coverage/leftovers.txt || { cat coverage/leftovers.txt; red "G6 leftovers"; }
+# from phase 5 on: nothing promise-style outside the boundary files (verification.md §3, G6)
+node scripts/leftovers.mjs ${LEFTOVERS_FLAGS:---final} > coverage/leftovers.txt || { cat coverage/leftovers.txt; red "G6 leftovers"; }
 tail -1 coverage/leftovers.txt
 
 echo "== G7 build"

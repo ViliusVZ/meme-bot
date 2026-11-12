@@ -3,7 +3,7 @@
 What the code looks like when the migration is done. Where this file says "must", it is a
 requirement. Where it says "check", the API detail has to be confirmed against `node_modules`
 before use. Everything stated as fact here was checked against `effect` 4.1.4, `@effect/sql-pg`
-4.1.3 and `drizzle-orm` 1.0.0-rc.5 on 2026-11-11.
+4.1.4 and `drizzle-orm` 1.0.0-rc.5 on 2026-11-11.
 
 ## 1. Packages and versions
 
@@ -13,7 +13,7 @@ Add, all pinned to an exact version (no `^`), and all Effect packages on the sam
 |---|---|
 | `effect` | the core, plus `effect/http`, `effect/sql`, `effect/testing`, `effect/observability` |
 | `@effect/platform-node` | `NodeRuntime.runMain`, `NodeHttpServer` |
-| `@effect/sql-pg` | `PgClient` (the Postgres pool; it uses the `pg` driver inside) |
+| `@effect/sql-pg` | `PgClient` (the Postgres pool; it speaks the Postgres protocol itself, with no `pg` underneath: spike S1) |
 | `drizzle-orm` 1.0.0-rc.5, `drizzle-kit` 1.0.0-rc.5 | schema, query builder, `drizzle-orm/effect-postgres` |
 | `@effect/vitest` (dev) | `it.effect`, `layer`, `TestClock` wiring |
 | `@effect/language-service` (dev) | Effect diagnostics inside `tsc` |
@@ -56,8 +56,9 @@ Three more that bite:
   a forgotten `await` still ran the promise. The `floatingEffect` diagnostic is an error; never
   silence it.
 - **`FetchHttpClient` reads the fetch function from a `Context.Reference`** (`FetchHttpClient.Fetch`)
-  whose default is `globalThis.fetch`. Check whether that default is read once or per request
-  before relying on a replaced global in tests (spike S5 in phase 2).
+  whose default, `globalThis.fetch`, is captured once (spike S5): a replaced global is not seen.
+  Tests provide `FetchHttpClient.Fetch` themselves (a function that reads `globalThis.fetch` on
+  every call, or a fake). A timeout or an interruption aborts the underlying request.
 - **Drizzle 1.0's migrator refuses the old folder layout** (`drizzle/meta/_journal.json`): the
   folder must be converted with `drizzle-kit up`. On first run it also adds two columns (`name`,
   `applied_at`) to `drizzle.__drizzle_migrations`.
@@ -182,7 +183,13 @@ database error, and in version 4 a typed handler does not run when the cause con
 
 **Defects are bugs.** Nothing catches them except the outermost boundaries, which are exactly:
 the job runner (per job), the interaction handler (per tap), the voice event loop (per event),
-background work (per task), and `main`. Each of those uses `Effect.catchCause`, reports through
+background work (per task; the Reddit refill's own fiber counts as one, amended in phase 4), the
+alert sender (per DM: a defect there must not stop every later alert; amended in phase 3), the
+ticker (per minute, per start timer and for lining the starts up, as today's `.catch`es on each: a
+defect there must not end the leader's clock; amended in phase 5), the gateway's event loop (per
+event: one bad payload must not freeze voice for the term; amended in phase 5), each HTTP route
+(per request, answering 500 as Fastify's error handler did, 400 for a body that fails its schema;
+amended in phase 5), and `main` (leadership's fiber reported if it dies). Each of those uses `Effect.catchCause`, reports through
 `Alerts` with the same `what` text as today, and carries on. There must be no other catch-all in
 the codebase; a typed handler names the errors it handles.
 
@@ -221,15 +228,25 @@ relatives.
 - `Db` is the Drizzle Effect database (`drizzle-orm/effect-postgres`, `make` or
   `makeWithDefaults`) on that client. Query code keeps its shape: `yield* db.select()…`.
 - `bigint` columns must still come back as JavaScript numbers (today a global `pg` type parser
-  does it). Spike S1 (phase 2) proves this for column reads and for raw `sql` aggregates.
+  does it). Spike S1: Drizzle's own codec does it for `bigint({ mode: "number" })` columns, but raw
+  `sql` aggregates over bigint arrive as `BigInt`, so the client gets its own type registry
+  (`PgTypes.makeRegistry`, the `types` option) whose int8 codec decodes to a number and fails on
+  values beyond `Number.MAX_SAFE_INTEGER`. `numeric` stays a string, as with `pg`.
 - Transactions use `db.transaction((tx) => Effect…)`. A failure or an interruption inside rolls
   back. Helper functions that take `tx` today keep taking it.
 - Migrations: the converted `drizzle/` folder, applied at startup by Drizzle's Effect migrator
   under the same advisory lock as today (`4242001`), so two copies starting together don't race.
-- The leader lock (`4242002`) is a session advisory lock on its own dedicated connection
-  (`sql.reserve` in a scope, or a one-connection `PgClient.makeClient`). Losing that connection
-  must end the leader's term at least as fast as today: at once if the driver reports the closed
-  socket, otherwise through a ping every 5 seconds. Record in `STATUS.md` which it is.
+- The leader lock (`4242002`) is a session advisory lock on a one-connection
+  `PgClient.makeClient` owned by the term's scope (spike S2): closing or interrupting the term
+  closes that connection, and Postgres frees the lock. Not `sql.reserve`: closing its scope gives
+  the connection back to the pool still holding the lock. The driver reports no closed socket on
+  its own, so the term pings every second with a 2 s timeout and TCP keepalive on; a dead
+  connection fails the ping at once (STATUS "Decisions": today's `end` event was immediate).
+- Migrations take the migration lock on a one-connection client too, and run Drizzle's Effect
+  migrator on a database built on that client (spike S3).
+- **In tests** the pool is built and closed on the live clock, and has no acquire timeout: the
+  pool runs its timers on the clock of the fiber that queries, so moving the test clock would
+  fire them (spike S7).
 - No query goes through raw `effect/sql` templates unless Drizzle can't express it; the leader
   and migration locks are the expected exceptions.
 - `scripts/qcov.py` keeps working: update its pattern to the new query form and confirm it still
@@ -319,6 +336,9 @@ Each mechanism the bot has today, and what replaces it. Behaviour in the right c
   finishes those in flight (`gracefulShutdownTimeout`; check the option).
 - Tests call the router without a port: `HttpRouter.toWebHandler` gives a
   `(Request) => Promise<Response>` function, the replacement for `app.inject`.
+- Today's answers to edge cases stay (spike S4): a body over 1 MB (`MaxBodySize`) answers 500
+  `{ "error": … }` because Fastify's error handler answered every error that way, and is not
+  alerted (only errors that are our fault are); an unknown route answers Fastify's JSON 404 body.
 - **Interactions are decoded, then routed.** A `Schema` for the parts of an interaction the bot
   reads; a parser turning `custom_id` into a tagged union (`gn:<day>:<action>[:<value>]`,
   `poll:…`, `lob:…`, `late:…`, `room:…`, `st:…`, `snz:…`, `hub:…`, `plan:…`, `games:…`, `v:…`,
@@ -360,8 +380,9 @@ second one exit), in `main.ts`.
   `leader: took over`, `leader: stepped down`, `gateway: ready`, `interaction`, `slow
   interaction`, `minute`, `started on time`, `memes refilled`, `listening on`.
 - Output stays one line per entry on stdout (the container logs to journald; `ssh vps app-logs`
-  reads it). Choose the built-in logger whose lines are readable in that view and say which in
-  `STATUS.md`.
+  reads it): `Logger.consoleLogFmt` (spike S10). Each message is one string (`interaction 412 ms`),
+  because several message parts print as repeated `message=` fields; variable parts that aren't
+  in today's phrase go in annotations.
 - Spans: service methods (through `Effect.fn`), each HTTP request, each interaction (with what
   was tapped and by whom), each job, each minute, each voice event, each SQL statement and each
   outbound HTTP call (the last two come from the libraries).

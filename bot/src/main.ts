@@ -1,110 +1,83 @@
 // Meme Bot 3000. Every running copy serves HTTP (Discord clicks, meme intake); exactly one, the
 // leader, also holds the Discord gateway and runs the scheduler. During a deploy the new copy
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
+//
+// A boundary file (architecture §16): the process edge. `runMain`, the 35 s hard exit, which signal
+// came, and the two last-resort handlers live here.
 import { fileURLToPath } from "node:url";
-import { connect, runMigrations, acquireLeadership } from "./db/index.js";
-import { loadConfig, type Env } from "./env.js";
-import { build } from "./app.js";
-import { drain } from "./background.js";
-import * as gateway from "./gateway.js";
-import * as live from "./live.js";
-import * as scheduler from "./scheduler.js";
-import * as alerts from "./alerts.js";
+import { NodeRuntime } from "@effect/platform-node";
+import { Cause, Deferred, Effect, Exit, Layer, Scope } from "effect";
+import { AppConfig } from "./config.js";
+import { appLayer } from "./runtime.js";
+import { runMigrations } from "./db/db.js";
+import { server } from "./app.js";
+import { Alerts } from "./alerts.js";
+import { Leadership } from "./leadership.js";
+import { shutdown } from "./shutdown.js";
 
-const config = loadConfig();
-const { pool, db } = connect(config.DATABASE_URL);
-const env: Env = { ...config, db };
-alerts.setup(env);
+const HARD_EXIT = 35_000; // ms: whatever hangs at shutdown, we're gone (Docker would kill us at 40 anyway; a self-restart has no Docker to)
 
-await runMigrations(pool, fileURLToPath(new URL("../drizzle", import.meta.url)));
+// runMain interrupts the program on SIGTERM and SIGINT; this listener, added first, notes which came
+let signal = "SIGTERM";
+for (const s of ["SIGTERM", "SIGINT"] as const) process.on(s, () => void (signal = s));
 
-let leader = false;
-let shuttingDown = false;
-const app = build(env, { leader: () => leader, shuttingDown: () => shuttingDown });
-await app.listen({ host: "0.0.0.0", port: config.PORT });
-console.log(`listening on :${config.PORT}`);
+const main = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  const alerts = yield* Alerts;
 
-// ---------------------------------------------------------------- leadership
-const stopLeading = new AbortController();
+  // last resort: report it; an uncaught exception also exits (Docker restarts us within seconds,
+  // better than limping on), after a moment for the DM to go out
+  const context = yield* Effect.context<never>();
+  const report = (what: string, e: unknown) => Effect.runForkWith(context)(alerts.failed(what, e));
+  process.on("unhandledRejection", (e) => report("something in the background (unhandled)", e));
+  process.on("uncaughtException", (e) => {
+    report("the bot itself (crashed; Docker restarts it)", e);
+    // @effect-diagnostics-next-line effect/globalTimers:off the process edge: exit even if the runtime is wedged
+    setTimeout(() => process.exit(1), 2000);
+  });
 
-async function lead() {
-  while (!stopLeading.signal.aborted) {
-    let lost!: () => void;
-    const lostP = new Promise<void>((ok) => (lost = ok));
-    const lock = await acquireLeadership(pool, () => lost(), stopLeading.signal);
-    if (!lock) return;
-    leader = true;
-    console.log("leader: took over");
-    const done = new AbortController();
-    const watcher = live.start(env);
-    const clock = scheduler.start(env, {
-      onStall: (mins) => {
-        alerts.failed("the clock (minute jobs)", `one minute's jobs have been stuck for ${mins} min, and no game-night or meme job runs while they are. Restarting myself to unstick it.`);
-        setTimeout(() => void shutdown("clock stuck"), 2000); // the DM goes out first; Docker starts us again
-      },
+  yield* runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)));
+
+  const http = yield* Scope.make();
+  yield* Layer.buildWithScope(server({ host: "0.0.0.0", port: config.port }), http);
+  yield* Effect.logInfo(`listening on :${config.port}`);
+
+  // a clock stuck for 5 minutes: say so, then restart ourselves (Docker starts us again)
+  const stuck = yield* Deferred.make<string>();
+  const onStall = (mins: number) =>
+    Effect.gen(function* () {
+      yield* alerts.failed("the clock (minute jobs)", `one minute's jobs have been stuck for ${mins} min, and no game-night or meme job runs while they are. Restarting myself to unstick it.`);
+      yield* Effect.sleep("2 seconds"); // the DM goes out first
+      yield* Deferred.succeed(stuck, "clock stuck");
     });
-    // the gateway connects in the background, retrying with back-off (say, Discord is down); until
-    // it's up, voice lookups fall back to REST and everything else carries on as normal
-    const gw = connectGateway(() => void watcher.resync(), done.signal);
-    // lead until we lose the lock (connection died) or shut down
-    await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
-    leader = false;
-    done.abort();
-    await (await gw)?.close().catch((e) => console.log("gateway close", e));
-    await Promise.all([clock.stop(), watcher.stop()]).catch((e) => console.log("leader: stop failed", e));
-    await lock.release();
-    console.log("leader: stepped down");
-    if (!stopLeading.signal.aborted) await new Promise((ok) => setTimeout(ok, 2000));
-  }
-}
+  // leadership runs until shutdown; should it ever die of a bug, that's reported (main is a boundary,
+  // architecture §6), as the old `lead()` rejection reached the unhandled-rejection alert
+  const leading = yield* Effect.forkDetach(
+    (yield* Leadership).lead({ onStall }).pipe(
+      Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed("something in the background (unhandled)", Cause.squash(cause)))),
+    ),
+  );
 
-async function connectGateway(onSnapshot: () => void, signal: AbortSignal) {
-  for (let attempt = 0; !signal.aborted; attempt++) {
-    try {
-      const gw = await gateway.connect(env, onSnapshot, signal);
-      if (signal.aborted) {
-        await gw.close();
-        return null;
-      }
-      return gw;
-    } catch (e) {
-      const wait = Math.min(60_000, 2000 * 2 ** attempt);
-      console.log(`gateway: connect failed, retrying in ${wait / 1000} s`, String(e));
-      await new Promise<void>((ok) => {
-        const t = setTimeout(ok, wait);
-        signal.addEventListener("abort", () => (clearTimeout(t), ok()), { once: true });
-      });
-    }
-  }
-  return null;
-}
-const leading = lead();
+  const stop = (why: string) =>
+    Effect.andThen(
+      // @effect-diagnostics-next-line effect/globalTimersInEffect:off the hard cap must fire even if the runtime hangs
+      Effect.sync(() => setTimeout(() => process.exit(1), HARD_EXIT).unref()),
+      shutdown(why, { leading, server: http }),
+    );
+  // run until a signal (runMain interrupts us) or a stuck clock; either way, shut down in order
+  // (a signal arriving during the "clock stuck" shutdown doesn't cut it short: the steps run to the end)
+  yield* Deferred.await(stuck).pipe(
+    Effect.flatMap((why) => Effect.uninterruptible(stop(why))),
+    Effect.onInterrupt(() => Effect.suspend(() => stop(signal))),
+  );
+});
 
-// ---------------------------------------------------------------- shutdown
-async function shutdown(signal: string) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`${signal}: shutting down`);
-  // whatever hangs below, we're gone in 35 s (Docker would kill us at 40 anyway; a self-restart has no Docker to)
-  setTimeout(() => process.exit(1), 35_000).unref();
-  // 1. stop leading, so the other copy can take over the gateway and the clock right away; meanwhile
-  //    /health says 503, and within one health check (2 s) Caddy sends new clicks to the other copy
-  stopLeading.abort();
-  const capped = Promise.race([leading, new Promise((ok) => setTimeout(ok, 15_000))]); // never hang here
-  await Promise.all([capped, new Promise((ok) => setTimeout(ok, 3000))]);
-  // 2. stop taking requests and finish what's in flight
-  await app.close();
-  const left = await drain(20_000);
-  if (left) console.log(`exiting with ${left} background task(s) unfinished`);
-  await pool.end();
-  process.exit(0);
-}
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("unhandledRejection", (e) => alerts.failed("something in the background (unhandled)", e));
-// last resort: log it and exit, Docker restarts us within seconds (better than limping on); the DM
-// gets a moment to go out first
-process.on("uncaughtException", (e) => {
-  alerts.failed("the bot itself (crashed; Docker restarts it)", e);
-  setTimeout(() => process.exit(1), 2000);
+// 5. the pool and the services close last, with the layer; then exit 0, or 1 if startup failed
+// @effect-diagnostics-next-line effect/strictEffectProvide:off the application's entry point
+NodeRuntime.runMain(main.pipe(Effect.provide(appLayer(AppConfig.layer))), {
+  teardown: (exit, onExit) => {
+    const code = Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause) ? 1 : 0;
+    onExit(code);
+    process.exit(code);
+  },
 });

@@ -1,0 +1,62 @@
+{
+ "a minute counts each job run and how long it took; a failing job is counted as failed": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "Discord calls are counted by outcome: ok, or the error's name": {
+  "calls": [
+   "GET https://discord.com/api/v10/channels/here/messages/1 -",
+   "GET https://discord.com/api/v10/channels/gone/messages/1 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "alerts: one sent, the same problem again held back as a repeat": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/70000/messages 20d80263aec3"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "background work in flight: up while a task runs, back down when it's done": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "OTLP_URL set: spans go to the collector (sent on shutdown at the latest)": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "OTLP_URL unset: no exporter at all, and nothing is sent anywhere": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ },
+ "background work in flight: a task interrupted (drain out of time) is counted down too": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12fd89d137a2"
+  }
+ }
+}

@@ -1,23 +1,57 @@
-// Work that continues after we've answered Discord (followups, wheel animations, pings). Tracked,
-// so a deploy or restart waits for it to finish before the process exits.
-import * as alerts from "./alerts.js";
+// Work that continues after we've answered Discord (followups, panel edits, pings). Tracked, so a
+// deploy or restart waits for it to finish before the process exits.
+import { Cause, Context, Duration, Effect, FiberSet, Layer, Metric, Ref } from "effect";
+import { backgroundInFlight } from "./metrics.js";
+import { Alerts } from "./alerts.js";
 
-const pending = new Set<Promise<unknown>>();
-
-/** Run `p` in the background; failures are logged with `label`, never thrown. */
-export function defer(p: Promise<unknown>, label = "background work") {
-  const tracked = p.catch((e) => alerts.failed(label, e)).finally(() => pending.delete(tracked));
-  pending.add(tracked);
-}
-
-/** Wait for in-flight background work, up to `ms`. */
-export async function drain(ms: number) {
-  const deadline = new Promise((ok) => setTimeout(ok, ms).unref());
-  while (pending.size) {
-    const done = await Promise.race([Promise.allSettled([...pending]).then(() => true), deadline.then(() => false)]);
-    if (!done) return pending.size;
+export class Background extends Context.Service<
+  Background,
+  {
+    /** Run `effect` in the background; a failure is reported under `label`, never thrown. */
+    run<A, E, R>(effect: Effect.Effect<A, E, R>, label?: string): Effect.Effect<void, never, R>;
+    /** Wait for in-flight background work, up to `timeout`, then interrupt what's left; how many were left. */
+    drain(timeout: Duration.Input): Effect.Effect<number>;
+    /** How many are running now (/health). */
+    readonly inFlight: Effect.Effect<number>;
   }
-  return 0;
+>()("meme-bot/background") {
+  static readonly layer = Layer.effect(
+    Background,
+    Effect.gen(function* () {
+      const alerts = yield* Alerts;
+      const set = yield* FiberSet.make();
+      const running = yield* Ref.make(0); // (the gauge's value: FiberSet.size can't be read as a task ends)
+      return Background.of({
+        run: (effect, label = "background work") =>
+          // the boundary for background work: whatever a task lets through is reported, per task
+          // (an interruption is shutdown or a replaced task, not a failure)
+          Effect.asVoid(
+            FiberSet.run(
+              set,
+              // (counted inside the task, so a task that never starts, on a closed set, is never counted;
+              // the count up and the count down's setup can't be cut apart)
+              Effect.uninterruptibleMask((restore) =>
+                Effect.flatMap(Ref.updateAndGet(running, (n) => n + 1), (n) => Metric.update(backgroundInFlight, n)).pipe(
+                  Effect.andThen(
+                    restore(effect.pipe(Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause)))))).pipe(
+                      Effect.ensuring(Effect.flatMap(Ref.updateAndGet(running, (n) => n - 1), (n) => Metric.update(backgroundInFlight, n))),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        drain: (timeout) =>
+          Effect.gen(function* () {
+            yield* Effect.timeoutOption(FiberSet.awaitEmpty(set), timeout);
+            const left = yield* FiberSet.size(set);
+            // out of time: the rest is interrupted (architecture §11), without waiting for it, so the count
+            // is logged at once (a task in a protected region finishes first, or the hard exit ends it)
+            if (left) yield* Effect.forkDetach(FiberSet.clear(set), { startImmediately: true });
+            return left;
+          }),
+        inFlight: FiberSet.size(set),
+      });
+    }),
+  );
 }
-
-export const inFlight = () => pending.size;

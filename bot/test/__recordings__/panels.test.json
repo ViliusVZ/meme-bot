@@ -1,0 +1,13 @@
+{
+ "two syncs of one card run one after the other; syncs of two cards run together": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/webhooks/app/ta/messages/@original 425e5dfdb9cc",
+   "PATCH https://discord.com/api/v10/webhooks/app/ta/messages/@original a52eeefce448",
+   "PATCH https://discord.com/api/v10/webhooks/app/tb/messages/@original f82846dbc790"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "panels": "2:b9f62829bfd1"
+  }
+ }
+}

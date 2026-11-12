@@ -3,8 +3,12 @@
     "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2024"],
-    "types": ["node"],
+    "lib": [
+      "ES2024"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -12,7 +16,74 @@
     "isolatedModules": true,
     "outDir": "dist",
     "rootDir": ".",
-    "sourceMap": true
+    "sourceMap": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "floatingEffect": "error",
+          "missingStarInYieldEffectGen": "error",
+          "missingReturnYieldStar": "error",
+          "missingEffectContext": "error",
+          "missingEffectError": "error",
+          "missingLayerContext": "error",
+          "outdatedApi": "error",
+          "anyUnknownInErrorContext": "error",
+          "globalErrorInEffectFailure": "error",
+          "globalErrorInEffectCatch": "error",
+          "unknownInEffectCatch": "error",
+          "effectInVoidSuccess": "error",
+          "effectInFailure": "error",
+          "tryCatchInEffectGen": "error",
+          "runEffectInsideEffect": "error",
+          "multipleEffectProvide": "error",
+          "scopeInLayerEffect": "error",
+          "lazyPromiseInEffectSync": "error",
+          "classSelfMismatch": "error",
+          "unsafeEffectTypeAssertion": "error",
+          "deterministicKeys": "error",
+          "asyncFunction": "error",
+          "newPromise": "error",
+          "globalConsole": "error",
+          "globalConsoleInEffect": "error",
+          "globalDate": "error",
+          "globalDateInEffect": "error",
+          "globalFetch": "error",
+          "globalFetchInEffect": "error",
+          "globalTimers": "error",
+          "globalTimersInEffect": "error",
+          "globalRandom": "error",
+          "globalRandomInEffect": "error",
+          "processEnv": "error",
+          "processEnvInEffect": "error",
+          "strictEffectProvide": "error",
+          "extendsNativeError": "error",
+          "preferSchemaOverJson": "error",
+          "schemaSyncInEffect": "error",
+          "duplicatePackage": "error",
+          "layerMergeAllWithDependencies": "error"
+        },
+        "ignoreEffectWarningsInTscExitCode": false,
+        "keyPatterns": [
+          {
+            "target": "service",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/"
+            ]
+          },
+          {
+            "target": "error",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/"
+            ]
+          }
+        ]
+      }
+    ]
   },
-  "include": ["src", "test", "drizzle.config.ts"]
+  "include": [
+    "src"
+  ]
 }

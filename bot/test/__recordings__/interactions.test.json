@@ -1,0 +1,38 @@
+{
+ "a poll is the trio's: someone else's tap is turned away and counts for nothing": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "polls": "1:952c690f0f16"
+  }
+ },
+ "changing a vote on the daily meme doesn't count as another day's vote": {
+  "calls": [
+   "POST https://discord.com/api/v10/webhooks/app/tok c29a8f08b57d"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "1:020c368cc1bb",
+   "users": "1:96ced0190080",
+   "votes": "1:6dc077ec93ce"
+  }
+ },
+ "the stats panel only goes back in time, and at most ten years": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a retired tiebreaker button says so": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a game room form left blank asks for a name": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ }
+}

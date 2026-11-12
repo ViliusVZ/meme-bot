@@ -1,0 +1,27 @@
+{
+ "a voting streak grows day by day, counts once a day, and starts over after a missed day": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "users": "1:cdd517202ed4"
+  }
+ },
+ "a streak shows while it's alive: voted today or yesterday": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a recap with no votes gives its claim back, and so does one whose post fails": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 29ddbb88c0b8",
+   "POST https://discord.com/api/v10/channels/memes/messages 29ddbb88c0b8"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "memes": "1:18a6c982f5e3",
+   "recaps": "1:8855b2cf9a58",
+   "votes": "1:cd88b34054e0"
+  }
+ }
+}

@@ -3,16 +3,26 @@
 // every few hours by the minute job; storing is an upsert, so repeats are harmless.
 import { XMLParser } from "fast-xml-parser";
 import { eq } from "drizzle-orm";
-import type { Env } from "./env.js";
-import { settings } from "./db/index.js";
-import { ingest, type Incoming } from "./memes.js";
-import * as alerts from "./alerts.js";
+import { Cause, Clock, Context, DateTime, Duration, Effect, FiberHandle, Layer, Option, Ref, Schedule, Schema } from "effect";
+import { HttpClient, HttpClientRequest } from "effect/http";
+import { settings } from "./db/schema.js";
+import { Db, type DbError } from "./db/db.js";
+import { AppConfig } from "./config.js";
+import { Memes, type Incoming } from "./memes.js";
+import { Alerts } from "./alerts.js";
 
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
 const EVERY = 6 * 3600_000;
 const STALE = 12 * 3600_000; // the pool holds a week of memes: only this long without a refill is worth a DM
-const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+const RETRY = 10 * 60_000; // after a failed refill
+const ATTEMPT_TIMEOUT = Duration.seconds(20);
+const BACKOFF = Duration.seconds(1); // doubling: 1, 2, 4 s
+const RATE_LIMIT_MARGIN = Duration.seconds(2); // after a 429's reset
+const RETRY_CAP = Duration.minutes(1);
+const RETRYABLE = [429, 500, 502, 503];
+const KEY = "reddit_refill"; // { ok, tried }: when the last refill worked, and the last attempt (unix ms)
+const Times = Schema.Struct({ ok: Schema.optional(Schema.Number), tried: Schema.optional(Schema.Number) });
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@", processEntities: true, htmlEntities: true });
 
@@ -21,16 +31,20 @@ export function parseFeed(xml: string): Incoming[] {
   const feed = parser.parse(xml)?.feed;
   const entries = [feed?.entry ?? []].flat();
   const out: Incoming[] = [];
-  entries.forEach((e: any, i: number) => {
-    const content = unescape(String(e.content?.["#text"] ?? e.content ?? ""));
+  // the parser's output has no fixed shape: each field is read defensively
+  type Node = { "#text"?: unknown; "@href"?: unknown; name?: unknown } | string | undefined;
+  type Entry = { content?: Node; link?: Node | Node[]; id?: unknown; title?: Node; author?: { name?: unknown }; published?: unknown };
+  const text = (n: Node) => (typeof n === "object" && n !== null ? (n["#text"] ?? n) : (n ?? ""));
+  (entries as Entry[]).forEach((e, i) => {
+    const content = unescape(String(text(e.content)));
     const image = content.match(IMAGE)?.[1];
     if (!image) return;
     const links = [e.link].flat();
     out.push({
       id: String(e.id),
-      title: unescape(String(e.title?.["#text"] ?? e.title ?? "")),
+      title: unescape(String(text(e.title))),
       image,
-      link: links.find((l: any) => l?.["@href"])?.["@href"] ?? "",
+      link: String(links.map((l) => (typeof l === "object" && l !== null ? l["@href"] : undefined)).find(Boolean) ?? ""),
       author: String(e.author?.name ?? ""),
       published: String(e.published ?? ""),
       rank: i + 1,
@@ -51,86 +65,122 @@ function unescape(s: string) {
     .replace(/&amp;/g, "&");
 }
 
-async function fetchFeed(env: Env) {
-  const url = `https://www.reddit.com/r/${env.SUBREDDIT}/top/.rss?t=week&limit=100`;
-  for (let attempt = 0; ; attempt++) {
-    const r = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(20_000) });
-    if (r.ok) return r.text();
-    if (![429, 500, 502, 503].includes(r.status) || attempt === 3) throw new Error(`reddit ${r.status}`);
-    const reset = Number(r.headers.get("x-ratelimit-reset") ?? 0);
-    await sleep(Math.min(60, r.status === 429 ? reset + 2 : 2 ** attempt) * 1000);
+/** Reddit answered something other than the feed. */
+export class RedditError extends Schema.TaggedError<RedditError>()("RedditError", { status: Schema.Number, reset: Schema.Number }) {
+  override get message() {
+    return `reddit ${this.status}`;
   }
 }
 
-export async function refill(env: Env) {
-  const memes = parseFeed(await fetchFeed(env));
-  return { fetched: memes.length, stored: await ingest(env, memes) };
-}
-
-const KEY = "reddit_refill"; // { ok, tried }: when the last refill worked, and the last attempt (unix ms)
-
-let lastOk = 0;
-let lastTry = 0;
-let restored = false;
-let running = false;
-
 /**
- * The refill times outlive a restart: otherwise every deploy (or a crash loop) fetches straight
- * away, and enough of those in a day get the server's address rate-limited by Reddit (429/403).
+ * Reddit's rule as it always was: 429 and 5xx (500, 502, 503) are tried again, up to 4 attempts,
+ * 1, 2, 4 s apart, or for a 429 the rate limit's reset plus 2 s; never more than a minute. A
+ * network error or a timeout is final.
  */
-async function restore(env: Env) {
-  if (restored) return;
-  const [row] = await env.db.select().from(settings).where(eq(settings.key, KEY));
-  const last = (row?.value ?? {}) as { ok?: number; tried?: number };
-  lastOk = Math.max(lastOk, last.ok ?? 0);
-  lastTry = Math.max(lastTry, last.tried ?? 0);
-  restored = true;
-}
+const retries = Schedule.recurs(3).pipe(
+  Schedule.setInputType<unknown>(),
+  Schedule.while(({ input }) => input instanceof RedditError && RETRYABLE.includes(input.status)),
+  Schedule.modifyDelay(({ input, attempt: n }) =>
+    Effect.succeed(
+      Duration.min(
+        RETRY_CAP,
+        input instanceof RedditError && input.status === 429 ? Duration.sum(Duration.seconds(input.reset), RATE_LIMIT_MARGIN) : Duration.times(BACKOFF, 2 ** (n - 1)),
+      ),
+    ),
+  ),
+);
 
-function remember(env: Env) {
-  const value = { ok: lastOk, tried: lastTry };
-  return env.db.insert(settings).values({ key: KEY, value }).onConflictDoUpdate({ target: settings.key, set: { value, updated_at: new Date() } });
-}
+export class Reddit extends Context.Service<
+  Reddit,
+  {
+    /**
+     * Minute job: refill the pool every 6 hours, and once more at the daily post hour so yesterday's
+     * top posts are in before the daily meme is picked (postDaily waits a minute for it). Runs in
+     * the background so a slow Reddit never holds up the other jobs; a failure is retried after 10 min.
+     */
+    readonly maybeRefill: Effect.Effect<{ refilling?: boolean }, DbError>;
+    /** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
+    readonly refilling: Effect.Effect<boolean>;
+  }
+>()("meme-bot/reddit") {
+  static readonly layer = Layer.effect(
+    Reddit,
+    Effect.gen(function* () {
+      const config = yield* AppConfig;
+      const db = yield* Db;
+      const http = yield* HttpClient.HttpClient;
+      const memes = yield* Memes;
+      const alerts = yield* Alerts;
+      // the refill times outlive a restart (in `settings`): otherwise every deploy (or a crash loop)
+      // fetches straight away, and enough of those in a day get the server's address rate-limited
+      // by Reddit (429/403)
+      const initial = { lastOk: 0, lastTry: 0, restored: false };
+      const state = yield* Ref.make(initial);
+      const handle = yield* FiberHandle.make<void, never>();
 
-/** Tests: forget everything in memory, as a restart would. */
-export function _reset() {
-  lastOk = lastTry = 0;
-  restored = running = false;
-}
+      const fetchFeed = Effect.gen(function* () {
+        const req = HttpClientRequest.get(`https://www.reddit.com/r/${config.subreddit}/top/.rss?t=week&limit=100`).pipe(
+          HttpClientRequest.setHeaders({ "User-Agent": USER_AGENT }),
+        );
+        const res = yield* http.execute(req);
+        if (res.status >= 200 && res.status < 300) return yield* res.text;
+        return yield* new RedditError({ status: res.status, reset: Number(res.headers["x-ratelimit-reset"] ?? 0) });
+      }).pipe(Effect.timeout(ATTEMPT_TIMEOUT), Effect.retry(retries));
 
-/** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
-export const refilling = () => running;
-const RETRY = 10 * 60_000;
+      const refill = Effect.gen(function* () {
+        const found = parseFeed(yield* fetchFeed);
+        return { fetched: found.length, stored: yield* memes.ingest(found) };
+      });
 
-/**
- * Minute job: refill the pool every 6 hours, and once more at the daily post hour so yesterday's
- * top posts are in before the daily meme is picked (postDaily waits a minute for it). Runs in
- * the background so a slow Reddit never holds up the other jobs; a failure is retried after 10 min.
- */
-export async function maybeRefill(env: Env) {
-  await restore(env);
-  const now = Date.now();
-  const postHour = new Date(now);
-  postHour.setUTCHours(Number(env.POST_HOUR_UTC), 0, 0, 0);
-  const due = now - lastOk >= EVERY || (now >= postHour.getTime() && lastOk < postHour.getTime());
-  if (!due || running || (lastTry > lastOk && now - lastTry < RETRY)) return {};
-  running = true;
-  lastTry = now;
-  const tried = remember(env).catch(() => {}); // best effort: the refill goes ahead regardless
-  refill(env)
-    .then(async (r) => {
-      lastOk = Date.now();
-      console.log("memes refilled", r);
-      await tried;
-      await remember(env).catch((e) => console.log("refill: couldn't note the time", String(e)));
-    })
-    .catch((e) => {
-      // Reddit rate-limits the server's address now and then; the retry in 10 min usually works
-      if (Date.now() - lastOk < STALE) return console.log("refill failed, retrying in 10 min:", String(e));
-      const since = lastOk ? `<t:${Math.floor(lastOk / 1000)}:R>` : "ever";
-      alerts.failed("fetching memes from Reddit", `${e}
-no fresh memes since ${since}: the daily meme may run dry`);
-    })
-    .finally(() => (running = false));
-  return { refilling: true };
+      const restore = Effect.gen(function* () {
+        if ((yield* Ref.get(state)).restored) return;
+        const [row] = yield* db.select().from(settings).where(eq(settings.key, KEY));
+        const last = Option.getOrElse(Schema.decodeUnknownOption(Times)(row?.value ?? {}), (): typeof Times.Type => ({}));
+        yield* Ref.update(state, (s) => ({ lastOk: Math.max(s.lastOk, last.ok ?? 0), lastTry: Math.max(s.lastTry, last.tried ?? 0), restored: true }));
+      });
+
+      const remember = Effect.gen(function* () {
+        const { lastOk, lastTry } = yield* Ref.get(state);
+        const value = { ok: lastOk, tried: lastTry };
+        const at = DateTime.toDate(yield* DateTime.now);
+        yield* db.insert(settings).values({ key: KEY, value }).onConflictDoUpdate({ target: settings.key, set: { value, updated_at: at } });
+      });
+
+      const failed = Effect.fnUntraced(function* (e: unknown) {
+        const { lastOk } = yield* Ref.get(state);
+        const text = e instanceof RedditError ? `Error: ${e.message}` : String(e); // the old error's text
+        // Reddit rate-limits the server's address now and then; the retry in 10 min usually works
+        if ((yield* Clock.currentTimeMillis) - lastOk < STALE) return yield* Effect.logInfo(`refill failed, retrying in 10 min: ${text}`);
+        const since = lastOk ? `<t:${Math.floor(lastOk / 1000)}:R>` : "ever";
+        yield* alerts.failed("fetching memes from Reddit", `${text}\nno fresh memes since ${since}: the daily meme may run dry`);
+      });
+
+      const inBackground = Effect.gen(function* () {
+        yield* remember.pipe(Effect.ignore); // best effort: the refill goes ahead regardless
+        const r = yield* refill;
+        const ok = yield* Clock.currentTimeMillis;
+        yield* Ref.update(state, (s) => ({ ...s, lastOk: ok }));
+        yield* Effect.logInfo("memes refilled").pipe(Effect.annotateLogs(r));
+        yield* remember.pipe(Effect.catch((e) => Effect.logInfo(`refill: couldn't note the time ${e}`)));
+      }).pipe(Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : failed(Cause.squash(cause)))));
+
+      const maybeRefill = Effect.gen(function* () {
+        yield* restore;
+        const now = yield* Clock.currentTimeMillis;
+        const postHour = now - (now % 86_400_000) + config.postHourUtc * 3_600_000;
+        const s = yield* Ref.get(state);
+        const running = Option.isSome(yield* FiberHandle.get(handle));
+        const due = now - s.lastOk >= EVERY || (now >= postHour && s.lastOk < postHour);
+        if (!due || running || (s.lastTry > s.lastOk && now - s.lastTry < RETRY)) return {};
+        yield* Ref.update(state, (x) => ({ ...x, lastTry: now }));
+        yield* FiberHandle.run(handle, inBackground, { onlyIfMissing: true });
+        return { refilling: true };
+      }).pipe(Effect.withSpan("Reddit.maybeRefill"));
+
+      return Reddit.of({
+        maybeRefill,
+        refilling: Effect.map(FiberHandle.get(handle), Option.isSome),
+      });
+    }),
+  );
 }

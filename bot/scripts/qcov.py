@@ -12,7 +12,8 @@ for path, data in cov.items():
     src = open(path, encoding='utf-8').read().split('\n')
     stm = [(v['start']['line'], v['end']['line'], data['s'][k]) for k, v in data['statementMap'].items()]
     for i, line in enumerate(src, 1):
-        if re.search(r'\b(env\.db|tx)\b(\s*$|\.(select|insert|update|delete|execute|transaction))', line) and 'import' not in line and not line.strip().startswith('//') and 'type Tx' not in line:
+        # both query forms: the old pool (`env.db…`, `tx…`) and the Effect database (`db…` from the Db service)
+        if re.search(r'\b(env\.db|db|tx)\b(\s*$|\.(select|insert|update|delete|execute|transaction))', line) and 'import' not in line and not line.strip().startswith('//') and 'type Tx' not in line:
             total += 1
             cands = [s for s in stm if s[0] <= i <= s[1]]
             ran = min(cands, key=lambda s: s[1] - s[0])[2] > 0 if cands else False

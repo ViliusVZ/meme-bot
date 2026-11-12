@@ -84,6 +84,16 @@
   ],
   "test \"a racing duplicate check doesn't open a second segment\"": [
    "expect.toBe(1)"
+  ],
+  "test \"a recap that fails to post is tried again the next minute\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ \"games-week:2026-11-02\": \"posted\" })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the monthly recap comes on the 1st, and only then\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({ \"games-month:2026-11-01\": \"posted\" })",
+   "expect.toMatch(/Monthly recap · November 2026/)"
   ]
  },
  "alerts.test.ts": {
@@ -501,6 +511,33 @@
    "expect.toEqual([`poll:${id}`, `poll:${id}`])",
    "expect.toEqual([\"/webhooks/app/ptok-a/messages/@original\", \"/webhooks/app/ptok-b/messages/@original\"])",
    "expect.toContain(\"✅ Decided: Yes\")"
+  ],
+  "test \"😴 asked ahead: the last snoozed day sleeps, the day it runs out is back\"": [
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(false)",
+   "expect.toBe(false)"
+  ],
+  "test \"a nudge someone deleted by hand doesn't stop the next one\"": [
+   "expect.toBeTruthy()",
+   "expect.toBe(\"game\")",
+   "expect.toBeTruthy()",
+   "expect.not.toBe(first)",
+   "expect.toContain(\"Everyone's in! What are we playing?\")"
+  ],
+  "test \"start times stay secret until everyone has picked\"": [
+   "expect.toBe(\"time\")",
+   "expect.toContain(\"🗳️ <@a>\")",
+   "expect.not.toContain(\"from **20:00**\")",
+   "expect.toContain(\"Picks stay secret\")"
+  ],
+  "test \"🏁 the leave-by box comes filled in with your current one\"": [
+   "expect.toContain('\"value\":\"22:30\"')",
+   "expect.not.toContain('\"value\":\"')"
+  ],
+  "test \"⏰ a later start moves the Discord event, and its new end is remembered\"": [
+   "expect.toEqual({ scheduled_start_time: new Date(moved * 1000).toISOString(), scheduled_end_time: new Date((moved + 900) * 1000).toISOString() })",
+   "expect.toMatchObject({ start_at: moved, event_end: moved + 900 })"
   ]
  },
  "maybe-matrix.test.ts": {
@@ -713,6 +750,130 @@
    "expect.toBe(7)",
    "expect.toBe(7)",
    "expect.toContain(\"⚠️ Nothing's locked in yet\")"
+  ],
+  "test \"rooms: opening a room brings the Lobby along unless told not to\"": [
+   "expect.toEqual([\"a\", \"c\"])",
+   "expect.toEqual([[\"a\", r.channelId], [\"c\", r.channelId]])",
+   "expect.toEqual([r.channelId, true, []])",
+   "expect.toEqual([])"
+  ],
+  "test \"room upkeep: an archived room is deleted 3 days after it was archived, not a second sooner\"": [
+   "expect.toEqual({ deleted: [\"Due\"] })",
+   "expect.toEqual([\"/channels/due\"])",
+   "expect.toEqual([\"young\"])"
+  ],
+  "test \"rooms: a room Discord won't move to Recent games stays open, and the next check tries again\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([[\"r1\", null]])",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"rooms: a new room Discord won't slot under the Lobby is still known, so the next tap makes no twin\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual([\"Palworld\", false])",
+   "expect.toEqual([made.channel_id, true])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"late: a voice lookup that fails isn't \\\"already here\\\"; the ETA goes on a slip\"": [
+   "expect.toContain(\"Got it 🏃\")",
+   "expect.toHaveLength(1)",
+   "expect.toBe(t0 + 900)"
+  ],
+  "test \"late: a slip that won't update still takes the ETA\"": [
+   "expect.toContain(\"Got it 🏃\")",
+   "expect.toBe(t0 + 300)",
+   "expect.toEqual([])"
+  ],
+  "test \"a called-off night leaves the slips of people who made it alone\"": [
+   "expect.toEqual([\"/channels/gn/messages/slip-b\", \"/channels/gn/messages/slip-c\"])",
+   "expect.toContain(\"Never mind <@c>\")"
+  ],
+  "test \"a night another copy already called off isn't touched again\"": [
+   "expect.toEqual([])",
+   "expect.toMatchObject({ stage: \"ask\", nudge_id: \"old-nudge\" })"
+  ],
+  "test \"a card that won't post is reported, and its claim kept\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toContain(\"posting the game-night card failed\")",
+   "expect.toMatchObject({ stage: \"ask\", message_id: null })"
+  ],
+  "test \"no reminders before 09:00: a waiting card is re-nudged from 09:00 on\"": [
+   "expect.toEqual([])",
+   "expect.toBe(\"<@b> <@c> ⏳ still waiting on you: are you in tonight? ⬆️\")"
+  ],
+  "test \"one night's trouble doesn't hold up the other's upkeep\"": [
+   "expect.toContain(\"403\")",
+   "expect.toBe(true)"
+  ],
+  "test \"a start the timer missed is caught up within half an hour\"": [
+   "expect.toMatchObject({ reminded: DAY })",
+   "expect.toBe(true)"
+  ],
+  "test \"the start times on an open card are refreshed every quarter hour\"": [
+   "expect.toBe(0)",
+   "expect.toBe(1)"
+  ],
+  "test \"the start ping goes out on the start's second, not before\"": [
+   "expect.toBe(true)",
+   "expect.toBeGreaterThanOrEqual(start * 1000)"
+  ],
+  "test \"a start whose unplanned session can't be merged still happens\"": [
+   "expect.toMatchObject({ reminded: DAY })",
+   "expect.toBe(true)",
+   "expect.toContain(\"merging the unplanned session into the night failed\")",
+   "expect.not.toContain(\"the start ping failed\")"
+  ],
+  "test \"late: someone who arrived and wandered back to the Lobby is left there\"": [
+   "expect.toBe(false)"
+  ],
+  "test \"late: a latecomer the bot can't move into the room isn't counted as here\"": [
+   "expect.toContain(\"latecomer upkeep failed\")",
+   "expect.toEqual([])"
+  ],
+  "test \"a poll: tapping your answer again takes your vote back\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ notice: \"🗳️ Took your vote back.\", update: true })",
+   "expect.toEqual([])"
+  ],
+  "test \"🧹 a sweep that fails is tried again the next minute\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ deleted: 1, kept: 0 })"
+  ],
+  "test \"🧹 the sweep goes back page by page, 100 at a time\"": [
+   "expect.toEqual({ deleted: 101, kept: 0 })"
+  ],
+  "test \"🧹 a night that started in the last 6 hours keeps its card through the sweep\"": [
+   "expect.toEqual({ deleted: 0, kept: 1 })"
+  ],
+  "test \"😐 a call-out that fails is tried again the next minute, for whoever's still due\"": [
+   "expect.rejects.toThrow(/403/)",
+   "expect.toEqual({ called: [\"c\"] })"
+  ],
+  "test \"😐 skipping the latest three in a row is enough\"": [
+   "expect.toEqual([expect.objectContaining({ user: \"b\", missed: 3 })])"
+  ],
+  "test \"😐 a meme up for less than 6 hours doesn't count yet\"": [
+   "expect.toEqual([])"
+  ],
+  "test \"a start whose play count fails after the ping keeps its claim: the ping never goes twice\"": [
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"counting the night as played failed\")",
+   "expect.not.toContain(\"the start ping failed\")"
+  ],
+  "test \"the daily meme waits for POST_HOUR_UTC, to the hour\"": [
+   "expect.toEqual({ skipped: \"too early\" })",
+   "expect.toMatchObject({ posted: \"t3_h\" })"
+  ],
+  "test \"a daily meme whose comment thread won't open is still posted\"": [
+   "expect.toMatchObject({ posted: \"t3_t\" })",
+   "expect.toContain(\"opening the meme's comment thread failed\")",
+   "expect.toBeTruthy()"
+  ],
+  "test \"one failing job doesn't stop the others in the same minute\"": [
+   "expect.toContain(\"403\")",
+   "expect.toContain(\"the “cleanup” job failed\")",
+   "expect.toHaveProperty(\"meme-shame\")",
+   "expect.toHaveProperty(\"gateway\")"
   ]
  },
  "reddit.test.ts": {
@@ -758,6 +919,17 @@
    "expect.toHaveLength(1)",
    "expect.toContain(\"**fetching memes from Reddit** failed\")",
    "expect.toContain(`no fresh memes since <t:${ok / 1000}:R>`)"
+  ],
+  "test \"Reddit's busy answers are tried again: 1 s after a 503, then the 429's reset plus 2 s; a 404 is final\"": [
+   "expect.toBe(false)",
+   "expect.toEqual({ refilling: true })",
+   "expect.toHaveLength(3)",
+   "expect.toBeGreaterThanOrEqual(990)",
+   "expect.toBeLessThan(1500)",
+   "expect.toBeGreaterThanOrEqual(2990)",
+   "expect.toBeLessThan(3500)",
+   "expect.toEqual({ refilling: true })",
+   "expect.toHaveLength(1)"
   ]
  },
  "resilience.test.ts": {
@@ -1018,6 +1190,24 @@
    "expect.toBeNull()",
    "expect.toHaveLength(1)",
    "expect.toEqual({ game: \"World of Warcraft\" })"
+  ],
+  "test \"a pull-in another copy makes at the same moment moves you once\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"a\"])"
+  ],
+  "test \"a session another copy already counted isn't counted again\"": [
+   "expect.toMatchObject({ counted: true, who: [\"a\", \"b\"] })",
+   "expect.toBe(3)"
+  ],
+  "test \"a pull-in whose note won't post still pulls you in\"": [
+   "expect.toEqual({ channel_id: \"wow\" })",
+   "expect.toEqual([\"a\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"↩ moves back whoever it can when one move fails\"": [
+   "expect.toBeNull()",
+   "expect.toEqual({ channel_id: \"lobby\" })",
+   "expect.toBe(\"undone\")"
   ]
  },
  "time.test.ts": {
@@ -1180,6 +1370,887 @@
    "expect.toEqual(readdirSync(source).sort())",
    "expect.toEqual(Object.values(when))",
    "expect.toBe(before)"
+  ]
+ },
+ "config.test.ts": {
+  "test \"every missing variable is named in one message, as before\"": [
+   "expect.toBeInstanceOf(ConfigMissing)",
+   "expect.toBe(\"missing environment: DATABASE_URL, DISCORD_TOKEN, DISCORD_PUBLIC_KEY, DISCORD_APP_ID, INGEST_SECRET, ADMIN_SECRET, CHANNEL_ID, GAME_CHANNEL_ID, PLAYERS, LOBBY_CHANNEL_ID, VOICE_CATEGORY_ID\")",
+   "expect.toThrow(\"missing environment: DATABASE_URL, DISCORD_TOKEN\")"
+  ],
+  "test \"defaults, numbers and the player list; the old Env keeps its strings\"": [
+   "expect.toEqual([3000, 10, 17, 14, \"Europe/Vilnius\", \"ProgrammerHumor\"])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toEqual([undefined, false])",
+   "expect.toEqual([3000, \"10\", \"17\", \"a,b,c\", true, undefined])"
+  ],
+  "test \"a secret never appears in logs or when the config is printed\"": [
+   "expect.not.toContain(secret)",
+   "expect.toContain(\"<redacted>\")",
+   "expect.toBe(\"discord-secret-token\")"
+  ],
+  "test \"overrides reach background work: a quiet call's deferred ping is quiet too\"": [
+   "expect.toEqual([false, true])"
+  ],
+  "test \"stand-in players given to an admin call are the players deep code sees\"": [
+   "expect.toEqual([\"qa-1\", \"qa-2\"])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])",
+   "expect.toEqual([\"qa-1\", true])",
+   "expect.toEqual([\"a\", \"b\", \"c\"])"
+  ],
+  "test \"overrides reach background work: a quiet call's deferred ping goes out with no mentions\"": [
+   "expect.toEqual([{ parse: [] }, { users: [\"a\"] }])"
+  ],
+  "test \"an inner override keeps the outer one's other fields\"": [
+   "expect.toEqual([[\"qa-1\", \"qa-2\"], true])"
+  ]
+ },
+ "logging.test.ts": {
+  "test \"one line per entry, logfmt, phrases whole, secrets redacted\"": [
+   "expect.toHaveLength(3)",
+   "expect.toMatch(/level=INFO .*message=\"leader: took over\"/)",
+   "expect.toContain('message=\"interaction 412 ms\"')",
+   "expect.toContain(\"what=gn:2026-11-11:yes who=vithis\")",
+   "expect.not.toContain(\"discord-secret-token\")",
+   "expect.not.toContain(\"\\n\")"
+  ]
+ },
+ "db.test.ts": {
+  "test \"the pool has today's settings: statement timeout, idle-in-transaction timeout, application name\"": [
+   "expect.toEqual({ st: \"30s\", idle: \"1min\", app: \"meme-bot\" })"
+  ],
+  "test \"bigint columns and raw bigint aggregates are numbers, as with the old pool\"": [
+   "expect.toEqual([1793977200, 1793977200, 2 ** 40])"
+  ],
+  "test \"a typed failure rolls the transaction back and comes out typed; a failed query is typed\"": [
+   "expect.toEqual([\"Nope\", \"EffectDrizzleQueryError\", 0])"
+  ],
+  "test \"the old pool and the Effect one see the same schema\"": [
+   "expect.toContain(\"Written by the old pool\")"
+  ]
+ },
+ "discord.test.ts": {
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test `${name} → ${tag}${finished ? \", finished\" : \"\"}`": [
+   "assert.strictEqual(_, tag)",
+   "assert.strictEqual(_, fields.code)",
+   "assert.strictEqual(_, fields.status)",
+   "assert.strictEqual(_, f.body.message)",
+   "assert.strictEqual(_, finished)"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"a 403 whose path holds 10065 is a refusal, not 'not in voice'\"": [
+   "assert.strictEqual(_, \"DiscordRejected\")"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"an expired interaction token: the webhook answer says it didn't land, after one attempt\"": [
+   "assert.deepStrictEqual(_, [false, 401])",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"Discord's errors, typed (from the captures in test/fixtures/discord-errors)\" > test \"today's error text survives for the old callers (404 with Discord's raw answer)\"": [
+   "assert.match(_, /^GET \\/guilds\\/g\\/voice-states\\/u -> 404 \\{\"message\":\"Unknown Voice State\",\"code\":10065\\}$/)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a POST that gets a 5xx is sent once, and the caller hears it gave up\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a POST whose connection fails is sent once too\"": [
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a GET is tried 4 times, 300 ms, 600 ms and 1.2 s apart, then gives up\"": [
+   "assert.strictEqual(_, 4)",
+   "assert.deepStrictEqual(_, [300, 600, 1200])",
+   "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a GET recovers when a later attempt works\"": [
+   "assert.strictEqual(_, 3)",
+   "assert.deepStrictEqual(_, { id: \"c\" })"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 429 waits retry_after plus 100 ms, capped at 10 s, also for a POST\"": [
+   "assert.deepStrictEqual(_, [2600, 10_100])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a hung call times out at 10 s and counts as a failed attempt\"": [
+   "assert.deepStrictEqual(_, [10_000 + 300])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 4xx is final: no retry\"": [
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"interaction webhooks: a 404 (not processed yet) is tried again 400 ms, 800 ms, 1.2 s later\"": [
+   "assert.deepStrictEqual(_, [400, 800, 1200])",
+   "assert.isTrue(_)"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"an answer that stalls after its headers times out at 10 s too, and is tried again\"": [
+   "assert.deepStrictEqual(_, [10_000 + 300])",
+   "assert.strictEqual(_, \"Success\")"
+  ],
+  "describe \"the retry rules (TestClock)\" > test \"a 2xx we can't read fails at once, with no retry (the request did go through)\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.isTrue(_)"
+  ]
+ },
+ "presence.test.ts": {
+  "describe \"Presence\" > test \"changes before the first snapshot aren't reported, and lookups can't be trusted yet\"": [
+   "assert.deepStrictEqual(_, [])",
+   "assert.strictEqual(_, undefined)",
+   "assert.isFalse(_)"
+  ],
+  "describe \"Presence\" > test \"a snapshot reports what changed while we weren't looking, then live moves are reported\"": [
+   "assert.deepStrictEqual(_, [\"a:null->lobby\", \"a:lobby->room\", \"b:null->lobby\", \"b:lobby->null\"])",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, null)"
+  ],
+  "describe \"Presence\" > test \"after a drop, lookups wait for the resume; moves replayed meanwhile still count\"": [
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.deepStrictEqual(_, [\"a:lobby->room\"])",
+   "assert.strictEqual(_, \"room\")"
+  ],
+  "describe \"Presence\" > test \"what people play: only real changes are reported; one listener's error doesn't stop the next\"": [
+   "assert.deepStrictEqual(_, [\"a:World of Warcraft\", \"a:\"])",
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Channels\" > test \"nothing is cached before the gateway's snapshot; changes before it are ignored\"": [
+   "assert.strictEqual(_, null)",
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Channels\" > test \"after the snapshot: created, moved and deleted channels are kept current; a drop forgets the list\"": [
+   "assert.deepStrictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [\"1\"])",
+   "assert.strictEqual(_, null)"
+  ]
+ },
+ "memes.test.ts": {
+  "test \"a voting streak grows day by day, counts once a day, and starts over after a missed day\"": [
+   "expect.toBe(1)",
+   "expect.toBeNull()",
+   "expect.toBe(2)",
+   "expect.toBe(3)",
+   "expect.toBe(1)",
+   "expect.toEqual([1, 3, \"2026-11-10\"])"
+  ],
+  "test \"a streak shows while it's alive: voted today or yesterday\"": [
+   "expect.toBe(4)",
+   "expect.toBe(0)",
+   "expect.toBe(0)"
+  ],
+  "test \"a recap with no votes gives its claim back, and so does one whose post fails\"": [
+   "expect.toEqual({ skipped: \"no votes\", period: \"week:2026-11-06\" })",
+   "expect.toEqual([])",
+   "expect.rejects.toThrow(\"gave up: 500\")",
+   "expect.toEqual([])",
+   "expect.toEqual({ posted: \"week:2026-11-06\" })",
+   "expect.toEqual([\"week:2026-11-06\"])"
+  ]
+ },
+ "roasts.test.ts": {
+  "test \"across cycles, no line comes twice in a row\"": [
+   "expect.not.toBe(drawn[i - 1])",
+   "expect.toEqual(new Set(lines))"
+  ]
+ },
+ "panels.test.ts": {
+  "test \"two syncs of one card run one after the other; syncs of two cards run together\"": [
+   "expect.toBeLessThan(log.indexOf(\"card-2 start a\"))",
+   "expect.toEqual([\"card-1\", \"card-2\"])",
+   "expect.toBeLessThan(log.indexOf(\"card-1 end a\"))"
+  ]
+ },
+ "overrides.test.ts": {
+  "test \"an admin stats call with stand-ins tracks only the stand-ins, though the real players are in voice too\"": [
+   "expect.toEqual({ tracked: true })",
+   "expect.toEqual([\"qa-1\", \"qa-2\"])"
+  ]
+ },
+ "interruption.test.ts": {
+  "top level": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"Palworld\", false])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"open\", true, now()])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"eta\", now() + 900, true])",
+   "expect.toEqual([null, null])",
+   "expect.toEqual([])",
+   "expect.toEqual([false, \"🎮 <@a> and <@b> are in **World of Warcraft** → <#wow>\"])"
+  ],
+  "test `${name}: interrupted during the ${step}, everything is done, once`": [
+   "expect.toHaveLength(1)"
+  ],
+  "fn nightSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([DAY, \"ask\", true])",
+   "expect.toBe(false)",
+   "expect.toEqual([])",
+   "expect.toBe(true)",
+   "expect.toBe(3)",
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toBe(now())"
+  ],
+  "fn lateSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"late\"])"
+  ],
+  "fn roomMade": [
+   "expect.toEqual([true, false])"
+  ],
+  "fn auditSequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"games-week:2026-11-02\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"meme-shame:2026-11-06\", \"meme-shamed:b:2026-11-06\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"moved\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"a\"])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"open\")",
+   "expect.toEqual([])",
+   "expect.toBe(\"picked\")",
+   "expect.toBe(\"time\")",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ stage: \"set\", event_id: expect.any(String) })",
+   "expect.toHaveLength(1)",
+   "expect.toMatchObject({ renudged: null, nudge_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ renudged: \"ask\", nudge_id: expect.any(String) })"
+  ],
+  "fn jobSequences": [
+   "expect.toMatchObject({ post_kind: null, message_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ post_kind: \"daily\", message_id: expect.any(String) })",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"week:2026-11-08\"])"
+  ],
+  "test \"a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)\"": [
+   "expect.toEqual([[\"World of Warcraft: Forever\", true]])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\"]])"
+  ],
+  "fn lobbySequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([[\"open\", true]])",
+   "expect.toBe(\"open\")",
+   "expect.toEqual([])",
+   "expect.toBe(\"expired\")",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([[\"eta\", true]])",
+   "expect.not.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ paused_until: null, nudge_id: expect.any(String) })",
+   "expect.toEqual([\"yes\", \"yes\"])"
+  ],
+  "fn warning": [
+   "expect.toMatchObject({ warned: null, nudge_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ warned: stage, nudge_id: expect.any(String) })"
+  ],
+  "fn auditSequences7": [
+   "expect.toMatchObject({ finished: false, counted: false })",
+   "expect.toEqual([])",
+   "expect.toEqual([true, true, \"🎮 <@a> and <@b> played **Valheim** for 15 min\"])",
+   "expect.toBe(1)"
+  ],
+  "test \"an unplanned session counted: interrupted during its claim, the play is counted too (phase 7 audit)\"": [
+   "expect.toBe(true)",
+   "expect.toBe(plays + 1)"
+  ],
+  "test \"/meme: interrupted during its claim, the reply's message id is still recorded (phase 7 audit)\"": [
+   "expect.toMatchObject({ post_kind: \"request\", requested_by: \"a\", message_id: expect.any(String) })"
+  ],
+  "fn newsSequences": [
+   "expect.toEqual([[\"post\", null]])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"posted\", false])"
+  ],
+  "fn newsUpdateSequences": [
+   "expect.toEqual([[1, null]])",
+   "expect.toEqual([])",
+   "expect.toEqual([3, true])"
+  ],
+  "test \"/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)\"": [
+   "expect.toMatchObject({ post_kind: \"request\", message_id: \"meme-msg\" })"
+  ]
+ },
+ "hub.test.ts": {
+  "test \"🕹️ the game list shows every game; the remove menu offers the least played first\"": [
+   "expect.toContain(`**Game ${String(i).padStart(2, \"0\")}**`)",
+   "expect.toHaveLength(25)",
+   "expect.toBe(\"Game 00\")",
+   "expect.toBe(\"Game 24\")"
+  ],
+  "test \"/help and the HQ panel point at the right channels\"": [
+   "expect.toContain(`### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`)",
+   "expect.toContain(`### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`)",
+   "expect.toContain(`### 😂 Memes · <#${env.CHANNEL_ID}>`)",
+   "expect.toBeTruthy()",
+   "expect.toBeFalsy()"
+  ]
+ },
+ "interactions.test.ts": {
+  "test \"a poll is the trio's: someone else's tap is turned away and counts for nothing\"": [
+   "expect.toBe(\"This one's for the trio 😅\")",
+   "expect.toEqual([])"
+  ],
+  "test \"changing a vote on the daily meme doesn't count as another day's vote\"": [
+   "expect.toEqual([1, \"Bee\"])"
+  ],
+  "test \"the stats panel only goes back in time, and at most ten years\"": [
+   "expect.toContain(\"This week ·\")",
+   "expect.toContain(\"st:week:-521\")"
+  ],
+  "test \"a retired tiebreaker button says so\"": [
+   "expect.toBe(\"Tiebreakers are retired 🔁 A split means a re-vote now: pick again on the card.\")"
+  ],
+  "test \"a game room form left blank asks for a name\"": [
+   "expect.toBe(\"Give the room a name 🙃\")"
+  ]
+ },
+ "http.test.ts": {
+  "test \"GET /health: the good case, and 503 while shutting down\"": [
+   "expect.toBe(200)",
+   "expect.toMatchObject({ ok: true, leader: true, gateway: false, background: 0 })",
+   "expect.toEqual([503, { ok: false, shuttingDown: true }])"
+  ],
+  "test \"GET /: the greeting\"": [
+   "expect.toEqual([200, \"Meme Bot 3000 🔥\"])"
+  ],
+  "test \"POST /interactions: a ping, a bad signature, a body that isn't JSON, a body over 1 MB\"": [
+   "expect.toEqual([200, { type: 1 }])",
+   "expect.toEqual([401, \"bad signature\"])",
+   "expect.toBe(500)",
+   "expect.toHaveProperty(\"error\")",
+   "expect.toBe(500)",
+   "expect.toEqual({ error: \"FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large\" })"
+  ],
+  "test \"POST /ingest: a bad token, then the good case\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([200, { ingested: 0, daily: null }])"
+  ],
+  "test \"admin routes: a bad token, an unknown action, an internal failure\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([400, { error: \"action?\" }])",
+   "expect.toBe(500)",
+   "expect.toHaveProperty(\"error\")"
+  ],
+  "test \"an unknown route answers like Fastify's 404\"": [
+   "expect.toEqual([404, { message: \"Route GET:/nope not found\", error: \"Not Found\", statusCode: 404 }])"
+  ],
+  "test \"a tap whose handling breaks gets a private apology, not Discord's failure\"": [
+   "expect.toEqual([200, { type: 4, data: { content: \"Something went wrong on my end 🤕 Try again in a moment.\", flags: 64 } }])"
+  ],
+  "test \"a failure of ours is reported to the owner; a request that's too large isn't\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"paths match as Fastify's did: HEAD for a GET route, case and a trailing slash count\"": [
+   "expect.toBe(200)",
+   "expect.toEqual([404, { message: `Route GET:${url} not found`, error: \"Not Found\", statusCode: 404 }])"
+  ],
+  "test \"answers carry Fastify's content types, charset included\"": [
+   "expect.toBe(\"application/json; charset=utf-8\")",
+   "expect.toBe(\"text/plain; charset=utf-8\")"
+  ],
+  "test \"an admin body that isn't JSON is a 400 with the reason, not an empty object\"": [
+   "expect.toBe(400)",
+   "expect.toEqual(expect.any(String))",
+   "expect.not.toBe(\"action?\")"
+  ],
+  "test \"a body over 1 MB is answered before the token is looked at, as Fastify read bodies first\"": [
+   "expect.toEqual([500, { error: \"FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large\" }])"
+  ],
+  "test \"the alert test goes to the owner when no user is given\"": [
+   "expect.toHaveProperty(\"sent\")",
+   "expect.toEqual([\"owner\"])"
+  ],
+  "test \"a public key that can't be read answers 500 with the reason, as before\"": [
+   "expect.toBe(500)",
+   "expect.not.toContain(\"SignatureUnreadable\")",
+   "expect.toMatch(/Error/)"
+  ],
+  "test \"the admin schema takes what the QA scripts send, null for none included\"": [
+   "expect.toBe(200)"
+  ],
+  "test \"a tap is counted and timed (architecture §14 metrics)\"": [
+   "expect.toBe(200)",
+   "expect.toEqual([before[0] + 1, before[1] + 1])"
+  ],
+  "test \"POST /admin/news: a bad token, and with no news channel configured an empty answer and nothing fetched\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([200, {}])",
+   "expect.toEqual([])"
+  ]
+ },
+ "starts.test.ts": {
+  "test \"a start timer stopped while it sleeps claims nothing\"": [
+   "expect.toBeLessThan(500)",
+   "expect.toBe(false)",
+   "expect.toEqual([])"
+  ],
+  "test \"a start timer stopped once it has claimed the start finishes it\"": [
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toBe(3)"
+  ]
+ },
+ "ticker.test.ts": {
+  "describe \"the ticker (TestClock)\" > test \"catches up once at start, then runs just past the top of every minute, never early\"": [
+   "assert.deepStrictEqual(_, [START])",
+   "assert.strictEqual(_, 0)",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 30)",
+   "assert.deepStrictEqual(_, [ \"2026-11-09T17:01:00.050Z\", \"2026-11-09T17:02:00.050Z\", \"2026-11-09T17:03:00.050Z\", ])",
+   "assert.strictEqual(_, null)"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a slow minute is never overlapped: the next one waits for it, then for the next top of the minute\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, seconds(Date.parse(\"2026-11-09T17:02:59Z\") - START))",
+   "assert.deepStrictEqual(_, [ \"2026-11-09T17:00:30.000Z\", \"2026-11-09T17:04:00.050Z\", // it ended at 17:03:00, so the next top of the minute after that ])",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a minute stuck for 5 minutes is reported once\"": [
+   "assert.deepStrictEqual(_, [])",
+   "assert.deepStrictEqual(_, [])",
+   "assert.deepStrictEqual(_, [5])",
+   "assert.deepStrictEqual(_, [5])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a minute that dies is reported, and the next minute still runs\"": [
+   "assert.strictEqual(_, 2)",
+   "assert.deepStrictEqual(_, [\"the minute jobs\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a night about to start gets one timer, however many minutes see it coming\"": [
+   "assert.deepStrictEqual(_, [\"2026-11-09\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a start already under way when the term ends finishes, and says so; a sleeping one stands down at once\"": [
+   "assert.deepStrictEqual(_, [\"started on time 2026-11-09 R.E.P.O.\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"lining up the starts dying (a bug) is reported, and the minute's jobs still run\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [\"lining up the exact start\"])"
+  ]
+ },
+ "live.test.ts": {
+  "test \"a room is wrapped up exactly 15 minutes after the last person leaves it\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toBe(left + 15 * 60)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a voice change that fails is reported, and the next one is still handled\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"b\", \"c\"])"
+  ]
+ },
+ "live-clock.test.ts": {
+  "describe \"Live (TestClock)\" > test \"voice events are handled one at a time, in order\"": [
+   "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\", \"leave a\", \"left a\"])"
+  ],
+  "describe \"Live (TestClock)\" > test \"one failing event alerts, and the next one is still handled\"": [
+   "assert.deepStrictEqual(_, [\"live voice (voice change)\"])",
+   "assert.deepStrictEqual(_, [\"leave a\", \"leave b\", \"left b\"])"
+  ],
+  "describe \"Live (TestClock)\" > test \"a room's wrap-up fires exactly at its grace period, never before\"": [
+   "assert.strictEqual(_, before)",
+   "assert.deepStrictEqual(_, [T0 + 900_500])"
+  ],
+  "describe \"Live (TestClock)\" > test \"a replaced wrap-up timer never fires\"": [
+   "assert.isTrue(_, `checks at ${after.slice(before).map((t) => (t - T0) / 1000)}`)",
+   "assert.deepStrictEqual(_, [T0 + 1_800_500])"
+  ],
+  "describe \"Live (TestClock)\" > test \"the heartbeat runs every minute while anyone's in voice, and stops when nobody is\"": [
+   "assert.isTrue(_, `${beats.length} tracks in 3 minutes`)",
+   "assert.strictEqual(_, after)"
+  ],
+  "describe \"Live (TestClock)\" > test \"only the players' moves are handled\"": [
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Live (TestClock)\" > test \"when the term ends, what's queued is still handled\"": [
+   "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\"])"
+  ]
+ },
+ "gateway.test.ts": {
+  "describe \"the gateway (TestClock)\" > test \"a snapshot is the full picture; a move is seen; an outage and a drop stop the trust; a resume restores it\"": [
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, null)",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a failed connect is retried at 2 s, doubling to a minute, each failed attempt torn down\"": [
+   "assert.deepStrictEqual(_, [0, 2, 4, 8, 16, 32, 60, 60])",
+   "assert.strictEqual(_, 7)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a connect that hangs is given up after 30 s and tried again\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 0)",
+   "assert.strictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [0, 32])"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a refused presence intent is reported once, and the next connect goes without it\"": [
+   "assert.deepStrictEqual(_, [\"connecting with the presence intent\"])",
+   "assert.isTrue(_)",
+   "assert.strictEqual(_, GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"the term's end disconnects and stops trusting what we had\"": [
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, undefined)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"one event that fails is reported, and the next is still handled\"": [
+   "assert.deepStrictEqual(_, [\"a gateway event (GUILD_CREATE)\"])",
+   "assert.strictEqual(_, \"room\")"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a connection that can't even be made is logged and tried again\"": [
+   "assert.deepStrictEqual(_, [0, 2])"
+  ]
+ },
+ "leadership.test.ts": {
+  "test \"exactly one copy leads; a killed lock connection ends its term, and the other takes over\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([true, false])",
+   "expect.toEqual([])",
+   "expect.toEqual([`${firstName} clock on`, `${firstName} gateway on`, `${firstName} live on`])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)",
+   "expect.toEqual([`${firstName} clock off`, `${firstName} gateway off`, `${firstName} live off`])",
+   "expect.toBe(true)",
+   "expect.toEqual([`${secondName} clock on`, `${secondName} gateway on`, `${secondName} live on`])",
+   "expect.toBe(0)"
+  ],
+  "test \"a term ends in today's order: /health stops saying leader, then the gateway closes, then the clock and live voice stop\"": [
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(\"gateway off, leader false\")",
+   "expect.toEqual([\"clock off, leader false\", \"live off, leader false\"])"
+  ]
+ },
+ "shutdown.test.ts": {
+  "describe \"shutdown (TestClock)\" > test \"503 first; the term ends; 3 s for the proxy; the server stops; background gets 20 s\"": [
+   "assert.isTrue(_)",
+   "assert.deepStrictEqual(_, [\"1s term ended\", \"3s server stopped\", \"10s background done\", \"10s shutdown done\"])"
+  ],
+  "describe \"shutdown (TestClock)\" > test \"a term that won't end is given 15 s; background work still unfinished at 20 s is interrupted\"": [
+   "assert.deepStrictEqual(_, [\"15s server stopped\", \"35s shutdown done\"])",
+   "assert.strictEqual(_, 0)"
+  ],
+  "describe \"shutdown (TestClock)\" > test \"a second signal changes nothing\"": [
+   "assert.deepStrictEqual(_, [\"3s server stopped\"])"
+  ],
+  "describe \"the app's layer\" > test \"builds complete with test config (no missing or circular dependency)\"": [
+   "assert.isFunction(_)"
+  ],
+  "describe \"shutdown run uninterruptibly (TestClock)\" > test \"as main runs it on a stuck clock, a term that won't end still gets only 15 s\"": [
+   "assert.deepStrictEqual(_, [\"15s server stopped\", \"15s shutdown done\"])"
+  ]
+ },
+ "time-driven.test.ts": {
+  "test \"a night starts on the exact second: its room 10 s early, the ping on the dot\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)"
+  ],
+  "test \"two of us in the Lobby: the question comes after 30 s, not before\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a private copy follows its card for 14 minutes after the last tap, then it's let go\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])"
+  ],
+  "test \"the same problem within 3 hours is counted, not re-sent; after 3 hours it's sent with the count\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toContain(\"1 more time since the last DM about it\")"
+  ],
+  "test \"Reddit is fetched again 6 hours after the last good refill, and not before\"": [
+   "expect.toEqual({ refilling: true })",
+   "expect.toEqual({})",
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(2)"
+  ],
+  "test \"the gateway down for 5 minutes is worth one DM, not before, and once\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({ gatewayDown: 5 })",
+   "expect.toEqual({})"
+  ],
+  "test \"the 03:00 sweep runs once a night: not at 02:59, once at 03:00, not again, not after a restart\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({ deleted: 0, kept: 0 })",
+   "expect.toBe(1)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)"
+  ],
+  "test \"the 19:00 meme-shame call-out runs once a day: not at 18:59, once at 19:00, not again, not after a restart\"": [
+   "expect.toBe(0)",
+   "expect.toBe(1)",
+   "expect.toBe(1)"
+  ],
+  "test \"a job that hangs is cut off after 60 s and reported once; the jobs after it still run\"": [
+   "expect.toBe(1)",
+   "expect.toBeUndefined()",
+   "expect.toEqual({ error: expect.stringContaining(\"the “spontaneous” job took over 1m and was cut off\") })",
+   "expect.toHaveProperty(\"recaps\")",
+   "expect.toHaveProperty(\"gateway\")",
+   "expect.toBe(0)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"the “spontaneous” job\")",
+   "expect.toEqual({ error: expect.stringContaining(\"cut off\") })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"alerts: the window is 3 hours, not 2: the same problem at 2 h is still only counted\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"the gateway down for 5 minutes: the DM itself goes out at 5 minutes, and only once\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"no gateway connection for 5 min\")",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the 19:00 call-out with a real slacker: posted once at 19:00, not again, not after a restart\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual({ called: [\"b\"] })",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toHaveLength(1)"
+  ]
+ },
+ "metrics.test.ts": {
+  "test \"a minute counts each job run and how long it took; a failing job is counted as failed\"": [
+   "expect.toBe(before.run + 1)",
+   "expect.toBe(timed + 1)",
+   "expect.toBe(before.failed + 1)",
+   "expect.toBe(before.ok)"
+  ],
+  "test \"Discord calls are counted by outcome: ok, or the error's name\"": [
+   "expect.toBe(ok + 1)",
+   "expect.toBe(gone + 1)"
+  ],
+  "test \"alerts: one sent, the same problem again held back as a repeat\"": [
+   "expect.toBe(sent + 1)",
+   "expect.toBe(held + 1)"
+  ],
+  "test \"background work in flight: up while a task runs, back down when it's done\"": [
+   "expect.toBe(1)",
+   "expect.toBe(0)"
+  ],
+  "test \"OTLP_URL set: spans go to the collector (sent on shutdown at the latest)\"": [
+   "expect.toBe(true)",
+   "expect.toContain(\"POST http://otel.test/v1/traces\")"
+  ],
+  "test \"OTLP_URL unset: no exporter at all, and nothing is sent anywhere\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([])"
+  ],
+  "test \"background work in flight: a task interrupted (drain out of time) is counted down too\"": [
+   "expect.toBe(before + 1)",
+   "expect.toBe(1)",
+   "expect.toBe(before)"
+  ]
+ },
+ "news.test.ts": {
+  "test \"the real feed parses: staff posts with their topic and post number\"": [
+   "expect.toBe(50)",
+   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes - November 10, 2026\", post: 5 })",
+   "expect.toBe(true)",
+   "expect.toEqual([])"
+  ],
+  "test \"the first run marks what's there as seen and lets only the newest Forever item through\"": [
+   "expect.toMatchObject({ seen: 3, judged: 1, posted: [\"WoW: Forever Hotfixes - November 10\"] })",
+   "expect.toBeTruthy()",
+   "expect.toEqual({ parse: [] })",
+   "expect.toContain(\"[WoW: Forever Hotfixes - November 10](https://eu.forums.blizzard.com/en/wow/t/slug/2/1)\\\\nHunters stop pulling half the zone.\")",
+   "expect.toBe(\"old\")",
+   "expect.toBe(\"old\")"
+  ],
+  "test \"Gemini picks the Forever news out of everything else, in one question\"": [
+   "expect.toMatchObject({ seen: 3, judged: 3, posted: [\"PvP Faction Balance Updates\"] })",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"skip\")",
+   "expect.toBe(\"skip\")",
+   "expect.toEqual({})",
+   "expect.toHaveLength(0)"
+  ],
+  "test \"Gemini down: items wait, and after 6 hours the title decides\"": [
+   "expect.toEqual({ seen: 2 })",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(2)",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ judged: 2, posted: [\"Explore WoW: Forever with a Gamepad\"] })",
+   "expect.toBeNull()",
+   "expect.toBe(\"skip\")"
+  ],
+  "test \"at most 5 a day, oldest first; the rest go out the next day\"": [
+   "expect.toEqual([\"Forever thing 0\", \"Forever thing 1\", \"Forever thing 2\", \"Forever thing 3\", \"Forever thing 4\"])",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ posted: [\"Forever thing 5\", \"Forever thing 6\"] })"
+  ],
+  "test \"a post Discord refuses is given back and goes out next time\"": [
+   "expect.rejects.toThrow(\"403\")",
+   "expect.toMatchObject({ state: \"post\", message_id: null })",
+   "expect.toMatchObject({ posted: [\"Forever maintenance\"] })"
+  ],
+  "test \"a topic Blizzard keeps adding to (hotfixes) gets one “updated” line a day\"": [
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toBe(\"🔧 **WoW: Forever Hotfixes** got an update → <https://eu.forums.blizzard.com/en/wow/t/slug/50/3>\")",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toEqual({})"
+  ],
+  "test \"the minute job: every 30 minutes, not again after a restart, a failure retried in 10, the owner told after a day\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toBe(2)",
+   "expect.toBe(false)",
+   "expect.toEqual({})",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.not.toContain(\"checking WoW: Forever news failed\")",
+   "expect.toBe(false)",
+   "expect.toContain(\"checking WoW: Forever news failed\")"
+  ],
+  "test \"no channel configured, no news\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])"
+  ],
+  "test \"Gemini is told which forum section each post is in (the best hint for which game); no section, no problem\"": [
+   "expect.toContain('\"topic\":60,\"section\":\"WoW: Forever General Discussion\"')",
+   "expect.toContain('\"topic\":160,\"section\":\"General Discussion\"')",
+   "expect.toBe(\"WoW: Forever General Discussion\")",
+   "expect.toMatchObject({ posted: [\"Forever maintenance\"] })",
+   "expect.toContain('\"topic\":70,\"section\":\"unknown\"')"
+  ],
+  "test \"the fast Gemini busy: the other one answers\"": [
+   "expect.toMatchObject({ posted: [\"Forever hotfixes\"] })",
+   "expect.toEqual([\"gemini-3.5-flash\", \"gemini-3.8-flash\"])"
+  ],
+  "test \"no channel configured: no fetch, no Gemini, no post, nothing stored, from the job and from a forced run\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"the first run on a feed with a backlog (the real one): no dump, only the newest Forever item, silent\"": [
+   "expect.toBe(topics.size)",
+   "expect.toEqual([\"Prepare for Forever, Try Midnight’s Talebound, and Discover Sweet Treats in WoW Weekly\"])",
+   "expect.toHaveLength(1)",
+   "expect.toBeTruthy()",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(topics.size - 1)",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({})",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the daily cap counts across runs: 5 posts and “updated” lines in all, every one silent\"": [
+   "expect.toHaveLength(3)",
+   "expect.toEqual([\"Forever d\", \"Forever e\"])",
+   "expect.toEqual({})",
+   "expect.toHaveLength(5)",
+   "expect.toBe(true)"
+  ],
+  "test \"Gemini unavailable (no key at all): nothing is asked, and the title rule decides after 6 hours\"": [
+   "expect.toEqual({ seen: 2 })",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ judged: 2, posted: [\"WoW: Forever maintenance\"] })",
+   "expect.toEqual([])"
+  ],
+  "test \"POST /admin/news: one check now; `fallback` judges by the title rule at once, without Gemini\"": [
+   "expect.toBe(401)",
+   "expect.toEqual([200, { seen: 1 }])",
+   "expect.toEqual([200, { seen: 2, judged: 2, posted: [\"WoW: Forever Hotfixes\"] }])",
+   "expect.toEqual([])",
+   "expect.toBe(\"skip\")",
+   "expect.toEqual({ seen: 1, judged: 1, posted: [\"Forever patch notes\"] })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"POST /admin/news: the feed down is answered 500 with what went wrong\"": [
+   "expect.toBe(500)",
+   "expect.toContain(\"blue tracker -> 503\")"
+  ],
+  "test \"the minute's jobs include the news check (what the Ticker runs)\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"never one good check yet: the owner hears after a day of trying, not on the first failure\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toBe(true)"
+  ],
+  "test \"the check's time can't be saved: the check doesn't start, and the next minute tries again\"": [
+   "expect.toBe(\"Failure\")",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the “updated” line is silent too, and mentions nobody\"": [
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toEqual([1 << 12, { parse: [] }])"
+  ],
+  "test \"a day's “updated” line counts toward the next posts' cap of 5\"": [
+   "expect.toEqual([\"Forever a\"])",
+   "expect.toEqual([\"updated: Forever a\"])",
+   "expect.toEqual([\"Forever n0\", \"Forever n1\", \"Forever n2\", \"Forever n3\"])"
+  ],
+  "test \"one check at a time: while one is running, the next minute doesn't start another\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(true)",
+   "expect.toEqual({})",
+   "expect.toBe(false)",
+   "expect.toHaveLength(1)"
+  ]
+ },
+ "traces.test.ts": {
+  "test \"a tap is one trace, saying what was tapped and by whom\"": [
+   "expect.toEqual([[\"Interactions.handle\", { tapped: \"/meme\", by: \"a\" }]])"
+  ],
+  "test \"a minute is one trace\"": [
+   "expect.toEqual([\"minute\"])"
+  ],
+  "test \"posting a card is one trace\"": [
+   "expect.toEqual([[\"GameNight.startNight\", { by: \"a\", day: \"today\" }]])"
+  ],
+  "test \"an interaction's token never lands in a span (its webhook calls are left out)\"": [
+   "expect.toBeGreaterThan(0)",
+   "expect.toEqual([])"
   ]
  }
 }

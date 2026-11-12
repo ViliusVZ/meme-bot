@@ -1,0 +1,33 @@
+{
+ "every missing variable is named in one message, as before": {
+  "calls": [],
+  "db": {}
+ },
+ "defaults, numbers and the player list; the old Env keeps its strings": {
+  "calls": [],
+  "db": {}
+ },
+ "a secret never appears in logs or when the config is printed": {
+  "calls": [],
+  "db": {}
+ },
+ "overrides reach background work: a quiet call's deferred ping is quiet too": {
+  "calls": [],
+  "db": {}
+ },
+ "overrides reach background work: a quiet call's deferred ping goes out with no mentions": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7c5ed5b32f1f",
+   "POST https://discord.com/api/v10/channels/gn/messages ee8dac27c742"
+  ],
+  "db": {}
+ },
+ "an inner override keeps the outer one's other fields": {
+  "calls": [],
+  "db": {}
+ },
+ "stand-in players given to an admin call are the players deep code sees": {
+  "calls": [],
+  "db": {}
+ }
+}

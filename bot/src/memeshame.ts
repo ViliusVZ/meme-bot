@@ -3,12 +3,15 @@
 // 5) gets called out in #daily-memes. Lines rotate like the roasts (roasts.ts shared bags), and
 // nobody gets it more than once every 3 days.
 import { and, desc, eq, gt, inArray, like, lte, sql } from "drizzle-orm";
-import type { Env } from "./env.js";
-import { memes, recaps, votes } from "./db/index.js";
-import { api } from "./discord.js";
-import { claimRecap, unclaimRecap } from "./memes.js";
-import { local, players } from "./gamenight.js";
-import * as roasts from "./roasts.js";
+import { Clock, Context, DateTime, Effect, Layer } from "effect";
+import { memes, recaps, votes } from "./db/schema.js";
+import { Db, type DbError } from "./db/db.js";
+import { AppConfig, allowedMentions, players } from "./config.js";
+import { Discord, type DiscordError } from "./discord.js";
+import { Memes } from "./memes.js";
+import { Roasts } from "./roasts.js";
+import { LocalTime } from "./localtime.js";
+import { nowSec } from "./clock.js";
 
 const HOUR = 19; // local
 const WINDOW = 5; // daily memes looked at
@@ -71,66 +74,96 @@ export const ALL = [...LINES, ...Object.values(PERSONAL).flat()];
 export const fitsFor = (user: string) => [...LINES, ...(PERSONAL[user] ?? [])];
 
 const fmtDay = (iso: string) => `<t:${Math.floor(Date.parse(iso) / 1000)}:D>`;
+const isoAt = (ms: number) => DateTime.formatIso(DateTime.makeUnsafe(ms));
 
-/** Who stopped voting on the daily memes, and how badly. */
-export async function slackers(env: Env, t = Math.floor(Date.now() / 1000)) {
-  const settled = new Date((t - SETTLE) * 1000).toISOString();
-  const recent = await env.db
-    .select({ id: memes.id, posted_at: memes.posted_at, message_id: memes.message_id, channel_id: memes.channel_id })
-    .from(memes)
-    .where(and(eq(memes.post_kind, "daily"), sql`${memes.message_id} IS NOT NULL`, lte(memes.posted_at, settled)))
-    .orderBy(desc(memes.posted_at))
-    .limit(WINDOW);
-  if (recent.length < IN_A_ROW) return { recent, who: [] as { user: string; missed: number; since: string | null }[] };
-  const vs = await env.db.select({ meme: votes.meme_id, user: votes.user_id }).from(votes).where(inArray(votes.meme_id, recent.map((m) => m.id)));
-  const who = [];
-  for (const p of players(env)) {
-    const mine = new Set(vs.filter((v) => v.user === p).map((v) => v.meme));
-    const streak = recent.findIndex((m) => mine.has(m.id)); // how many of the latest in a row they skipped
-    const inARow = streak === -1 ? recent.length : streak;
-    const voted = mine.size;
-    if (inARow >= IN_A_ROW || (recent.length >= WINDOW && voted <= AT_MOST)) {
-      const [last] = await env.db.select({ at: votes.voted_at }).from(votes).where(eq(votes.user_id, p)).orderBy(desc(votes.voted_at)).limit(1);
-      who.push({ user: p, missed: recent.length - voted, since: last?.at ?? null });
-    }
+type Slacker = { user: string; missed: number; since: string | null };
+
+export class MemeShame extends Context.Service<
+  MemeShame,
+  {
+    /** Who stopped voting on the daily memes, and how badly. */
+    slackers(t?: number): Effect.Effect<{ recent: { id: string; posted_at: string | null; message_id: string | null; channel_id: string | null }[]; who: Slacker[] }, DbError>;
+    /** Minute job: the 19:00 call-out, once a day; each person at most once every 3 days. */
+    readonly evening: Effect.Effect<{ called?: string[] }, DbError | DiscordError>;
   }
-  return { recent, who };
-}
+>()("meme-bot/memeshame") {
+  static readonly layer = Layer.effect(
+    MemeShame,
+    Effect.gen(function* () {
+      const config = yield* AppConfig;
+      const db = yield* Db;
+      const discord = yield* Discord;
+      const memeService = yield* Memes;
+      const roasts = yield* Roasts;
+      const time = yield* LocalTime;
+      const trio = Effect.provideService(players, AppConfig, config);
 
-/** Minute job: the 19:00 call-out, once a day; each person at most once every 3 days. */
-export async function evening(env: Env) {
-  const l = local(env);
-  if (l.hour < HOUR) return {};
-  const today = `meme-shame:${l.day}`;
-  if (!(await claimRecap(env, today))) return {};
-  try {
-    const { recent, who } = await slackers(env);
-    const called: string[] = [];
-    const cooldownSince = new Date(Date.now() - COOLDOWN * 1000).toISOString();
-    for (const s of who) {
-      const [recently] = await env.db
-        .select({ p: recaps.period })
-        .from(recaps)
-        .where(and(like(recaps.period, `meme-shamed:${s.user}:%`), gt(recaps.posted_at, cooldownSince)));
-      if (recently) continue;
-      if (!(await claimRecap(env, `meme-shamed:${s.user}:${l.day}`))) continue;
-      // one bag for everybody's call-outs: no line repeats in the channel until all have been used
-      const line = (await roasts.draw(env, "memes", ALL, fitsFor(s.user)))
-        .replaceAll("{who}", `<@${s.user}>`)
-        .replaceAll("{n}", String(s.missed))
-        .replaceAll("{since}", s.since ? fmtDay(s.since) : "forever");
-      const latest = recent[0];
-      await api(env, "POST", `/channels/${env.CHANNEL_ID}/messages`, {
-        content: `😐 ${line}`,
-        allowed_mentions: env.QUIET ? { parse: [] } : { users: [s.user] },
-        message_reference: latest.message_id ? { message_id: latest.message_id, fail_if_not_exists: false } : undefined,
+      const slackers = Effect.fn("MemeShame.slackers")(function* (at?: number) {
+        const t = at ?? (yield* nowSec);
+        const settled = isoAt((t - SETTLE) * 1000);
+        const recent = yield* db
+          .select({ id: memes.id, posted_at: memes.posted_at, message_id: memes.message_id, channel_id: memes.channel_id })
+          .from(memes)
+          .where(and(eq(memes.post_kind, "daily"), sql`${memes.message_id} IS NOT NULL`, lte(memes.posted_at, settled)))
+          .orderBy(desc(memes.posted_at))
+          .limit(WINDOW);
+        if (recent.length < IN_A_ROW) return { recent, who: [] as Slacker[] };
+        const vs = yield* db.select({ meme: votes.meme_id, user: votes.user_id }).from(votes).where(inArray(votes.meme_id, recent.map((m) => m.id)));
+        const who: Slacker[] = [];
+        for (const p of yield* trio) {
+          const mine = new Set(vs.filter((v) => v.user === p).map((v) => v.meme));
+          const streak = recent.findIndex((m) => mine.has(m.id)); // how many of the latest in a row they skipped
+          const inARow = streak === -1 ? recent.length : streak;
+          const voted = mine.size;
+          if (inARow >= IN_A_ROW || (recent.length >= WINDOW && voted <= AT_MOST)) {
+            const [last] = yield* db.select({ at: votes.voted_at }).from(votes).where(eq(votes.user_id, p)).orderBy(desc(votes.voted_at)).limit(1);
+            who.push({ user: p, missed: recent.length - voted, since: last?.at ?? null });
+          }
+        }
+        return { recent, who };
       });
-      called.push(s.user);
-    }
-    return called.length ? { called } : {};
-  } catch (e) {
-    await unclaimRecap(env, today); // the next minute tries again
-    throw e;
-  }
-}
 
+      return MemeShame.of({
+        slackers,
+        evening: Effect.gen(function* () {
+          const l = yield* time.now;
+          if (l.hour < HOUR) return {};
+          const today = `meme-shame:${l.day}`;
+          // the day's claim → each call-out (its own claim → its post) is never cut short (§15); a
+          // failure gives the day's claim back and the next minute tries again
+          return yield* Effect.uninterruptible(
+            Effect.gen(function* () {
+              if (!(yield* memeService.claimRecap(today))) return {};
+              return yield* Effect.gen(function* () {
+                const { recent, who } = yield* slackers();
+                const called: string[] = [];
+                const cooldownSince = isoAt((yield* Clock.currentTimeMillis) - COOLDOWN * 1000);
+                for (const s of who) {
+                  const [recently] = yield* db
+                    .select({ p: recaps.period })
+                    .from(recaps)
+                    .where(and(like(recaps.period, `meme-shamed:${s.user}:%`), gt(recaps.posted_at, cooldownSince)));
+                  if (recently) continue;
+                  if (!(yield* memeService.claimRecap(`meme-shamed:${s.user}:${l.day}`))) continue;
+                  // one bag for everybody's call-outs: no line repeats in the channel until all have been used
+                  const line = (yield* roasts.draw("memes", ALL, fitsFor(s.user)))
+                    .replaceAll("{who}", `<@${s.user}>`)
+                    .replaceAll("{n}", String(s.missed))
+                    .replaceAll("{since}", s.since ? fmtDay(s.since) : "forever");
+                  const latest = recent[0];
+                  yield* discord.createMessage(config.channelId, {
+                    content: `😐 ${line}`,
+                    allowed_mentions: yield* allowedMentions([s.user]),
+                    message_reference: latest.message_id ? { message_id: latest.message_id, fail_if_not_exists: false } : undefined,
+                  });
+                  called.push(s.user);
+                }
+                return called.length ? { called } : {};
+              }).pipe(Effect.tapError(() => memeService.unclaimRecap(today)));
+            }),
+          );
+        }).pipe(Effect.withSpan("MemeShame.evening")),
+      });
+    }),
+  );
+}

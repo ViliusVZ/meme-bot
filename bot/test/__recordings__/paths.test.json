@@ -271,5 +271,312 @@
    "memes": "1:b34a7ab0c4f9",
    "votes": "1:3fabfdfb4bfd"
   }
+ },
+ "rooms: opening a room brings the Lobby along unless told not to": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 668a3869ee22",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 668a3869ee22",
+   "GET https://discord.com/api/v10/channels/5000 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:b21c6cc63dab"
+  }
+ },
+ "room upkeep: an archived room is deleted 3 days after it was archived, not a second sooner": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "DELETE https://discord.com/api/v10/channels/due -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:cb2e8c200bb7"
+  }
+ },
+ "rooms: a room Discord won't move to Recent games stays open, and the next check tries again": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 8d51ba9b6789",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 4c7a43a17223"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:ab5fce78da1c"
+  }
+ },
+ "rooms: a new room Discord won't slot under the Lobby is still known, so the next tap makes no twin": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "GET https://discord.com/api/v10/channels/5000 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:9111e49316d9"
+  }
+ },
+ "late: a voice lookup that fails isn't \"already here\"; the ETA goes on a slip": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "POST https://discord.com/api/v10/channels/gn/messages af38b6a8011e"
+  ],
+  "db": {
+   "game_nights": "1:2adb073d91bc",
+   "games": "8:a906c10ebcec",
+   "night_attendance": "1:3460bf9046d6",
+   "rooms": "1:dd0f90ceaccf"
+  }
+ },
+ "late: a slip that won't update still takes the ETA": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/slip-b 9fdc84a954a1"
+  ],
+  "db": {
+   "game_nights": "1:2adb073d91bc",
+   "games": "8:a906c10ebcec",
+   "night_attendance": "1:de68ea57f618"
+  }
+ },
+ "a called-off night leaves the slips of people who made it alone": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/slip-b 419e64c457b5",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/slip-c f9f2eba54b24"
+  ],
+  "db": {
+   "game_nights": "1:192b90cae77c",
+   "games": "8:a906c10ebcec",
+   "night_attendance": "3:b3adb2fc41d8"
+  }
+ },
+ "a night another copy already called off isn't touched again": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:e719994f5665",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "a card that won't post is reported, and its claim kept": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115"
+  ],
+  "db": {
+   "game_nights": "1:ccf7a8646862",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "no reminders before 09:00: a waiting card is re-nudged from 09:00 on": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 665fdcd8c87d"
+  ],
+  "db": {
+   "game_night_votes": "1:bac87a01c289",
+   "game_nights": "1:a927b0b71325",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "one night's trouble doesn't hold up the other's upkeep": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card-a 13b32801040c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card-b 6e6b0118a419"
+  ],
+  "db": {
+   "game_nights": "2:d3ff69e11f3a",
+   "games": "8:a906c10ebcec"
+  }
+ },
+ "a start the timer missed is caught up within half an hour": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1127025dccbe"
+  ],
+  "db": {
+   "game_nights": "1:539d1b20bfd8",
+   "games": "8:745dc9153deb",
+   "rooms": "1:97ffae361dcd"
+  }
+ },
+ "the start times on an open card are refreshed every quarter hour": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 13b32801040c"
+  ],
+  "db": {
+   "game_nights": "1:f221fac91328",
+   "games": "8:745dc9153deb"
+  }
+ },
+ "the start ping goes out on the start's second, not before": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels <body>",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card <body>",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels <body>",
+   "POST https://discord.com/api/v10/channels/gn/messages <body>",
+   "POST https://discord.com/api/v10/guilds/guild/channels <body>"
+  ],
+  "db": {
+   "game_nights": "1:85c4766e3562",
+   "games": "8:20142a6ccc67",
+   "rooms": "1:853eba14b193"
+  }
+ },
+ "a start whose unplanned session can't be merged still happens": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+  ],
+  "db": {
+   "game_nights": "1:de3146d5e8ef",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:97ffae361dcd"
+  }
+ },
+ "late: someone who arrived and wandered back to the Lobby is left there": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:adc07981488b",
+   "games": "8:1134d6e24e08",
+   "night_attendance": "1:2f76ddafe5d8",
+   "rooms": "1:be996a3dd2c9"
+  }
+ },
+ "late: a latecomer the bot can't move into the room isn't counted as here": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 8c59c3946348"
+  ],
+  "db": {
+   "game_nights": "1:adc07981488b",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:be996a3dd2c9"
+  }
+ },
+ "a poll: tapping your answer again takes your vote back": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "polls": "1:b32b0c016eb1"
+  }
+ },
+ "🧹 a sweep that fails is tried again the next minute": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567916399001600001 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "recaps": "1:92779ec0676a"
+  }
+ },
+ "🧹 the sweep goes back page by page, 100 at a time": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100&before=1567916399001600101 -",
+   "POST https://discord.com/api/v10/channels/gn/messages/bulk-delete dcd8cc6bf50a",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567916399001600001 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08"
+  }
+ },
+ "🧹 a night that started in the last 6 hours keeps its card through the sweep": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "game_nights": "1:e08e1890459e",
+   "games": "8:1134d6e24e08"
+  }
+ },
+ "😐 a call-out that fails is tried again the next minute, for whoever's still due": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages daf341aae1e1",
+   "POST https://discord.com/api/v10/channels/memes/messages fba9ad141016"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "5:359eb4394653",
+   "recaps": "3:efa28b2367e7",
+   "roast_bags": "1:aee9308b7eab",
+   "votes": "5:13409b675a1b"
+  }
+ },
+ "😐 skipping the latest three in a row is enough": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "5:359eb4394653",
+   "votes": "12:f41b9b9451a3"
+  }
+ },
+ "😐 a meme up for less than 6 hours doesn't count yet": {
+  "calls": [],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "8:9aa77a46c0fd",
+   "votes": "15:8b17456357cd"
+  }
+ },
+ "a start whose play count fails after the ping keeps its claim: the ping never goes twice": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+  ],
+  "db": {
+   "game_nights": "1:de3146d5e8ef",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:97ffae361dcd"
+  }
+ },
+ "the daily meme waits for POST_HOUR_UTC, to the hour": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 3c12a9c30714",
+   "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 02a63615430a"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "1:408322f0720f"
+  }
+ },
+ "a daily meme whose comment thread won't open is still posted": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/memes/messages 2db58342d0e6",
+   "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 252224f63af6"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "memes": "1:ed591c5c2b1f"
+  }
+ },
+ "one failing job doesn't stop the others in the same minute": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:1134d6e24e08",
+   "settings": "1:12fd89d137a2"
+  }
  }
 }

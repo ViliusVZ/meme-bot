@@ -1,0 +1,9 @@
+{
+ "an admin stats call with stand-ins tracks only the stand-ins, though the real players are in voice too": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:8e9131092487"
+  }
+ }
+}

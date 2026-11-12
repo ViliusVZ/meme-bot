@@ -41,22 +41,34 @@ be present." In practice:
   news item) is claimed in the database first (unique key), then posted, and the claim is released
   if the post fails. Look at how the daily meme and the start ping do it (`test/paths.test.ts`:
   "a failed post gives the meme back", "a failed start ping releases the claim").
-- **Leader only.** One copy holds the Postgres advisory lock and runs the gateway, the minute
-  scheduler and `live.ts`. Anything that reacts to voice goes through the `enqueue` queue in
-  `live.ts`, so changes are handled one at a time.
-- **Never act on a guess.** If the gateway has no snapshot (`presence.hasSnapshot()` /
-  `isReady()`), do nothing and try again later. This rule already exists; keep it.
+- **The code is Effect (version 4).** Read `bot/README.md` first ("How the code is built"), and take
+  every API from `bot/node_modules/effect` (`AGENTS.md`, the `.d.ts` files), never from memory of
+  Effect 3. New work is a service (`Context.Service` with a `layer`, its methods `Effect.fn`, its
+  errors declared and handled by name), added to `src/runtime.ts` above everything it uses. No
+  `async`/`await`, `Promise`, `Date`, `fetch`, `setTimeout` or `console` in `src/`: the gates fail
+  on them (`bash bot/scripts/gates.sh`, G1 and G6), except in the boundary files listed in
+  `05-effect-migration/architecture.md` §16.
+- **Leader only.** One copy holds the Postgres advisory lock (`leadership.ts`) and runs, inside its
+  term, the gateway, the `Ticker` and `Live`. Anything that reacts to voice goes through `Live`'s
+  queue, so changes are handled one at a time.
+- **Never act on a guess.** If the gateway has no snapshot (`Presence`'s `hasSnapshot` /
+  `isReady`), do nothing and try again later. This rule already exists; keep it.
 - **Restarts happen** (every deploy is a restart, and the leader can change). All state that
   matters lives in Postgres; timers are rebuilt from stored timestamps on `resync`. Nothing may be
   refetched or reposted just because the process restarted (the Reddit rate-limit incident).
 - **Failures:** use `alerts.failed(what, error, ...context)` for anything the trio would notice.
-  Expected refusals from Discord (already gone, already ended) are handled quietly.
-- **Tests:** vitest against real Postgres. Open the tunnel first:
-  `ssh -f -N -L 55432:127.0.0.1:5432 vps`. Every database query in `src/` must be executed by a
-  test: run `npx vitest run --coverage --coverage.reporter=json`, then the query-coverage checker.
-  That checker currently lives only at `C:\Users\viliu\AppData\Local\Temp\qcov.py`: as the very
-  first task, copy it to `bot/scripts/qcov.py` and commit it. Each new test must fail without the
-  change it covers (check by stashing the source change).
+  Expected refusals from Discord (already gone, already ended) are typed errors
+  (`DiscordNotFound`, `DiscordRejected`): handle them by name, quietly. Never catch everything
+  outside the boundaries (architecture §6); a bug reaches its boundary and is reported there.
+- **Once means uninterruptible:** a claim → post → record sequence runs in `Effect.uninterruptible`
+  from the claim on, so a shutdown or a lost leadership never leaves a claim with its post sent and
+  no record (test 6, `test/interruption.test.ts`, has an entry per sequence: add yours).
+- **Tests:** `@effect/vitest` against real Postgres, on the harness in `bot/test/fx.ts` (see
+  `bot/README.md`, "Writing a test"). Every database query in `src/` must be executed by a test
+  (`python bot/scripts/qcov.py` after a coverage run; the gates do both). The recorder keeps what
+  each test did in `bot/test/__recordings__/`: a change there is a change in behaviour, and must be
+  meant. Each new test must fail without the change it covers (break the code on purpose and see
+  it go red).
 - **UI-first:** buttons, menus and forms. A slash command may only open UI.
 - **Copy:** short, mixed Lithuanian/English like the existing lines, in the bot's dry voice. Read
   `roasts.ts` and the game-night card before writing any text.

@@ -1,0 +1,46 @@
+{
+ "a tap is one trace, saying what was tapped and by whom": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a minute is one trace": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:7b8f7df99221",
+   "settings": "1:e684586edf80"
+  }
+ },
+ "posting a card is one trace": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 5a2214c8d446",
+   "POST https://discord.com/api/v10/channels/gn/messages cbc7bbf7eafb"
+  ],
+  "db": {
+   "game_night_votes": "1:f6ce6d7cc34a",
+   "game_nights": "1:ce0eae95f3b1",
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:7b8f7df99221",
+   "settings": "1:e684586edf80"
+  }
+ },
+ "an interaction's token never lands in a span (its webhook calls are left out)": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-secret/messages/@original 42b0ffcd0c97"
+  ],
+  "db": {
+   "game_night_votes": "1:f6ce6d7cc34a",
+   "game_nights": "1:ce0eae95f3b1",
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:7b8f7df99221",
+   "settings": "1:e684586edf80"
+  }
+ }
+}

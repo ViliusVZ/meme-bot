@@ -1,8 +1,10 @@
 // Button-first entry points: /help (private) and the pinned "Game Night HQ" panel share the same
 // guide and action buttons, so nobody has to remember a single command.
-import type { Env } from "./env.js";
+import { Context, Effect, Layer } from "effect";
+import { AppConfig } from "./config.js";
+import type { DbError } from "./db/db.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
-import { games } from "./gamenight.js";
+import { Games } from "./games.js";
 
 const text = (content: string) => ({ type: 10, content });
 const divider = { type: 14, divider: true, spacing: 1 };
@@ -13,12 +15,14 @@ export const actions = () => [
   { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "📊", "Stats", "hub:stats"), button(2, "❓", "Help", "hub:help")] },
 ];
 
-function guide(env: Env) {
+type Channels = { readonly gameChannelId: string; readonly lobbyChannelId: string; readonly channelId: string };
+
+function guide(c: Channels) {
   return [
     text("## 🤖 Meme Bot 3000 · how to use me"),
     text(
       [
-        `### 🎮 Game night · <#${env.GAME_CHANNEL_ID}>`,
+        `### 🎮 Game night · <#${c.gameChannelId}>`,
         "Every day at **17:00** (**14:00** on Saturdays and Sundays) a card asks *Are we playing today?* When all three say ✅ it moves on to **picking a game** (once everyone's voted, most votes wins), then **picking a time**: tap the earliest time you can start, and we start when the last of us is free (🐢 they get called out). Have to leave early? Tap **🏁 Leave by**. The bot only locks a time that gives everyone at least an hour together, and tells you who clashes if it doesn't. Then you get a Discord event and a ping at start time.",
         "• **🎮 Play today** starts today's poll now (the scheduled one then won't happen)",
         "• **📅 Plan a day** sets up a poll for any day this week. Still one poll per day, never duplicates.",
@@ -32,7 +36,7 @@ function guide(env: Env) {
     divider,
     text(
       [
-        `### 🔊 Voice · <#${env.LOBBY_CHANNEL_ID}>`,
+        `### 🔊 Voice · <#${c.lobbyChannelId}>`,
         "Hang out in the **Lobby**. When a game night starts, the bot opens a room for the game and moves everyone in the Lobby into it. Want to play right now? **🔊 Game room** does the same instantly. Rooms tidy themselves: 15 min after the last person leaves, the room moves to 🗄️ Recent games and the night's event ends; archived rooms are deleted after 3 days (rejoin one to bring it back).",
         "**Running late?** Say so on the locked-in card (⏰ +5 min … +1 h): before the start, we wait for you, so the start moves for everyone and the others get pinged. Hop in the Lobby and you'll be pulled into the game. Not there 10 min after the start (or after your ETA)? You get one late slip to share your ETA (🏃), or bow out (😴), which calls the night off for everyone.",
       ].join("\n"),
@@ -61,7 +65,7 @@ function guide(env: Env) {
     divider,
     text(
       [
-        `### 😂 Memes · <#${env.CHANNEL_ID}>`,
+        `### 😂 Memes · <#${c.channelId}>`,
         "A top r/ProgrammerHumor meme lands every day. Vote 🔥 😂 💀 🗑️ on it to build a voting streak. Weekly and monthly winners are crowned automatically.",
       ].join("\n"),
     ),
@@ -73,54 +77,70 @@ function guide(env: Env) {
   ];
 }
 
-/** /help and the ❓ button: the guide, privately. */
-export const helpMessage = (env: Env) => ({
-  flags: IS_COMPONENTS_V2 | EPHEMERAL,
-  components: [{ type: 17, accent_color: 0x8e44ad, components: guide(env) }],
-});
-
-/** The pinned panel in the game-night channel. */
-export const hubPanel = (env: Env) => ({
-  flags: IS_COMPONENTS_V2,
-  allowed_mentions: { parse: [] },
-  components: [{ type: 17, accent_color: 0x8e44ad, components: guide(env) }],
-});
-
-/** 🕹️ Games: the list, an add button (form) and a remove dropdown. */
-export async function gamesManager(env: Env, notice?: string) {
-  // the whole list here (dropdowns elsewhere show the top 25 by plays)
-  const list = await games(env, 1000);
-  return {
-    flags: IS_COMPONENTS_V2 | EPHEMERAL,
-    components: [
-      {
-        type: 17,
-        accent_color: 0x57f287,
-        components: [
-          text(`## 🕹️ Game list${notice ? `\n${notice}` : ""}`),
-          text(list.map((g) => `${g.emoji ?? "🎮"} **${g.name}**${g.plays ? ` · played ${g.plays}×` : ""}`).join("\n") || "*Empty. Add something!*"),
-          text("-# These are the choices in game-night polls, most played first. ➕ Suggest a game on a poll adds one too."),
-          { type: 1, components: [button(3, "➕", "Add a game", "games:add")] },
-          ...(list.length
-            ? [
-                {
-                  type: 1,
-                  components: [
-                    {
-                      type: 3,
-                      custom_id: "games:remove",
-                      placeholder: "🗑️ Remove a game…",
-                      // a dropdown holds 25: least-played (and newest) first, as those are the likely removals
-                      options: [...list].reverse().slice(0, 25).map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
-                    },
-                  ],
-                },
-              ]
-            : []),
-        ],
-      },
-    ],
-  };
+export class Hub extends Context.Service<
+  Hub,
+  {
+    /** /help and the ❓ button: the guide, privately. */
+    readonly helpMessage: Effect.Effect<{ flags: number; components: unknown[] }>;
+    /** The pinned panel in the game-night channel. */
+    readonly hubPanel: Effect.Effect<{ flags: number; allowed_mentions: { parse: string[] }; components: unknown[] }>;
+    /** 🕹️ Games: the list, an add button (form) and a remove dropdown. */
+    gamesManager(notice?: string): Effect.Effect<object, DbError>;
+  }
+>()("meme-bot/hub") {
+  static readonly layer = Layer.effect(
+    Hub,
+    Effect.gen(function* () {
+      const config = yield* AppConfig;
+      const games = yield* Games;
+      return Hub.of({
+        helpMessage: Effect.sync(() => ({
+          flags: IS_COMPONENTS_V2 | EPHEMERAL,
+          components: [{ type: 17, accent_color: 0x8e44ad, components: guide(config) }],
+        })),
+        hubPanel: Effect.sync(() => ({
+          flags: IS_COMPONENTS_V2,
+          allowed_mentions: { parse: [] as string[] },
+          components: [{ type: 17, accent_color: 0x8e44ad, components: guide(config) }],
+        })),
+        gamesManager: Effect.fn("Hub.gamesManager")(function* (notice?: string) {
+          // the whole list here (dropdowns elsewhere show the top 25 by plays)
+          const list = yield* games.list(1000);
+          return {
+            flags: IS_COMPONENTS_V2 | EPHEMERAL,
+            components: [
+              {
+                type: 17,
+                accent_color: 0x57f287,
+                components: [
+                  text(`## 🕹️ Game list${notice ? `\n${notice}` : ""}`),
+                  text(list.map((g) => `${g.emoji ?? "🎮"} **${g.name}**${g.plays ? ` · played ${g.plays}×` : ""}`).join("\n") || "*Empty. Add something!*"),
+                  text("-# These are the choices in game-night polls, most played first. ➕ Suggest a game on a poll adds one too."),
+                  { type: 1, components: [button(3, "➕", "Add a game", "games:add")] },
+                  ...(list.length
+                    ? [
+                        {
+                          type: 1,
+                          components: [
+                            {
+                              type: 3,
+                              custom_id: "games:remove",
+                              placeholder: "🗑️ Remove a game…",
+                              // a dropdown holds 25: least-played (and newest) first, as those are the likely removals
+                              options: [...list].reverse().slice(0, 25).map((g) => ({ label: g.name, value: g.name, emoji: { name: g.emoji ?? "🎮" } })),
+                            },
+                          ],
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            ],
+          };
+        }),
+      });
+    }),
+  );
 }
 
 export const addGameModal = () => ({

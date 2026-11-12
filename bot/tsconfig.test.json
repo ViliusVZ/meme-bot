@@ -1,0 +1,75 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "floatingEffect": "error",
+          "missingStarInYieldEffectGen": "error",
+          "missingReturnYieldStar": "error",
+          "missingEffectContext": "error",
+          "missingEffectError": "error",
+          "missingLayerContext": "error",
+          "outdatedApi": "error",
+          "anyUnknownInErrorContext": "error",
+          "globalErrorInEffectFailure": "error",
+          "globalErrorInEffectCatch": "error",
+          "unknownInEffectCatch": "error",
+          "effectInVoidSuccess": "error",
+          "effectInFailure": "error",
+          "tryCatchInEffectGen": "error",
+          "runEffectInsideEffect": "error",
+          "multipleEffectProvide": "error",
+          "scopeInLayerEffect": "error",
+          "lazyPromiseInEffectSync": "error",
+          "classSelfMismatch": "error",
+          "unsafeEffectTypeAssertion": "error",
+          "deterministicKeys": "error",
+          "asyncFunction": "warning",
+          "newPromise": "warning",
+          "globalConsole": "warning",
+          "globalConsoleInEffect": "warning",
+          "globalDate": "warning",
+          "globalDateInEffect": "warning",
+          "globalFetch": "warning",
+          "globalFetchInEffect": "warning",
+          "globalTimers": "warning",
+          "globalTimersInEffect": "warning",
+          "globalRandom": "warning",
+          "globalRandomInEffect": "warning",
+          "processEnv": "warning",
+          "processEnvInEffect": "warning",
+          "strictEffectProvide": "warning",
+          "extendsNativeError": "warning",
+          "preferSchemaOverJson": "warning",
+          "schemaSyncInEffect": "warning",
+          "duplicatePackage": "error",
+          "layerMergeAllWithDependencies": "error"
+        },
+        "ignoreEffectWarningsInTscExitCode": true,
+        "keyPatterns": [
+          {
+            "target": "service",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/"
+            ]
+          },
+          {
+            "target": "error",
+            "pattern": "default",
+            "skipLeadingPath": [
+              "src/"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "include": [
+    "src",
+    "test",
+    "drizzle.config.ts"
+  ]
+}

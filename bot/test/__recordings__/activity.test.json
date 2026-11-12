@@ -123,5 +123,26 @@
    "games": "8:44c5a8b0c098",
    "voice_segments": "1:de12cd236ca3"
   }
+ },
+ "a recap that fails to post is tried again the next minute": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages c8847c5a9cae",
+   "POST https://discord.com/api/v10/channels/gn/messages c8847c5a9cae"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:3e103d150a23",
+   "voice_segments": "2:192830b2e145"
+  }
+ },
+ "the monthly recap comes on the 1st, and only then": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 4419a55395ea"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:f5e68b8bad4b",
+   "voice_segments": "2:657671fc2a7e"
+  }
  }
 }

@@ -1,4 +1,8 @@
 {
+ "every capture is a real Discord error body": {
+  "calls": [],
+  "db": {}
+ },
  "gone things are 404s, and isNotFound says so": {
   "calls": [
    "GET https://discord.com/api/v10/x -",

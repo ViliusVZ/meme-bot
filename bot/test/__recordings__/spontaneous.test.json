@@ -446,5 +446,52 @@
    "games": "2:b51874aa91c9",
    "settings": "1:e7df305b4690"
   }
+ },
+ "a pull-in another copy makes at the same moment moves you once": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 9c3fc2946156",
+   "POST https://discord.com/api/v10/channels/wow/messages 4697a51049a8"
+  ],
+  "db": {
+   "fleeting": "1:18a3024edca8",
+   "games": "2:42880c06ec5b",
+   "rooms": "1:24cc6bfc3127",
+   "voice_segments": "2:0619bc9bffd2"
+  }
+ },
+ "a session another copy already counted isn't counted again": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
+  ],
+  "db": {
+   "games": "2:fb4a86ba70e5",
+   "rooms": "1:a7f3af5a37f4",
+   "sessions": "1:48c2c1bda2f7",
+   "voice_segments": "2:59cbd8421f64"
+  }
+ },
+ "a pull-in whose note won't post still pulls you in": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 9c3fc2946156",
+   "POST https://discord.com/api/v10/channels/wow/messages 4697a51049a8"
+  ],
+  "db": {
+   "games": "2:331466efeb47",
+   "rooms": "1:24cc6bfc3127",
+   "voice_segments": "2:80c15f0a6840"
+  }
+ },
+ "↩ moves back whoever it can when one move fails": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a efb15453a805",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c efb15453a805"
+  ],
+  "db": {
+   "games": "2:05f43cedc41f",
+   "lobby_prompts": "1:b4ba8caf8d77",
+   "rooms": "1:7fc380c049e5",
+   "sessions": "1:af380710ad50",
+   "voice_segments": "2:4cef67b18ace"
+  }
  }
 }
