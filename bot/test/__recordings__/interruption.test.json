@@ -1286,5 +1286,64 @@
    "news_items": "1:7bb26e701222",
    "settings": "1:4fa1570e14dd"
   }
+ },
+ "a WoW: Forever news “updated” line (its claim → the line): interrupted before its claim, nothing is done": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:9bc174350963",
+   "news_items": "1:d783ef3aea7b",
+   "settings": "1:4fa1570e14dd"
+  }
+ },
+ "a WoW: Forever news “updated” line (its claim → the line): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://discord.com/api/v10/channels/news/messages 93f8935377ee"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:9bc174350963",
+   "news_items": "1:9dfd5c513026",
+   "settings": "1:4fa1570e14dd"
+  }
+ },
+ "a WoW: Forever news “updated” line (its claim → the line): interrupted during the post, everything is done, once": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://discord.com/api/v10/channels/news/messages 93f8935377ee"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:9bc174350963",
+   "news_items": "1:9dfd5c513026",
+   "settings": "1:4fa1570e14dd"
+  }
+ },
+ "/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)": {
+  "calls": [
+   "-- background reads --",
+   "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_items": "1:9dfd5c513026",
+   "settings": "1:4fa1570e14dd"
+  }
  }
 }

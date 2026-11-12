@@ -22,6 +22,7 @@ import { Cleanup, snowflakeAt } from "../src/cleanup.js";
 import { Jobs } from "../src/jobs.js";
 import { Presence } from "../src/presence.js";
 import { Interactions } from "../src/interactions.js";
+import { Background } from "../src/background.js";
 import { News, FEED, FORUM } from "../src/news.js";
 import { AppConfig } from "../src/config.js";
 import { harness, json, routes, type TestDb } from "./fx.js";
@@ -928,3 +929,74 @@ function newsSequences(): Record<string, Sequence> {
   };
 }
 for (const [name, s] of Object.entries(newsSequences())) define(name, s);
+
+// ---------------------------------------------------------------- the phase 7 audit's test gaps
+// (after every earlier test, for the same reason as above)
+
+/** The news's "updated" line: its claim, then the line (no record: a missed line isn't retried). */
+function newsUpdateSequences(): Record<string, Sequence> {
+  return {
+    "a WoW: Forever news “updated” line (its claim → the line)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.delete(newsItems);
+          // posted yesterday, two staff posts added since
+          yield* db.insert(newsItems).values({ topic_id: 6, title: "WoW: Forever Hotfixes", link: `${FORUM}/t/slug/6/1`, published_at: now() - 86400, seen_at: now() - 86400, state: "posted", message_id: "m6", posted_at: now() - 86400, last_post: 3, told_post: 1 });
+          h.override = (c) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : undefined);
+        }),
+      run: () =>
+        Effect.gen(function* () {
+          const config = yield* AppConfig;
+          const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
+          return yield* News.use((n) => n.run()).pipe(Effect.provide(news), Effect.orDie);
+        }),
+      claim: { table: "news_items", op: "UPDATE", when: "NEW.updated_day IS NOT NULL AND OLD.updated_day IS NULL" },
+      post: { method: "POST", path: "/channels/news/messages" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          expect((yield* db.select().from(newsItems)).map((r) => [r.told_post, r.updated_day])).toEqual([[1, null]]);
+          expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [r] = yield* db.select().from(newsItems);
+          expect([r.told_post, r.updated_day !== null]).toEqual([3, true]);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(newsUpdateSequences())) define(name, s);
+
+it.effect("/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    for (const tbl of [recaps, votes, memeTable]) yield* db.delete(tbl);
+    yield* db.insert(memeTable).values({ id: "t3_bg", title: "t3_bg", image: "i", link: "l", author: "u", published: "2026-11-07T08:00:00Z", ingested_at: "x", rank: 1 });
+    // the reply's message is looked up in the background, after the reply: hold that lookup
+    let arrived!: () => void;
+    let release!: () => void;
+    const inFlight = new Promise<void>((ok) => (arrived = ok));
+    const gate = new Promise<void>((ok) => (release = ok));
+    const theirs = h.override;
+    h.override = (c) => {
+      if (c.method !== "GET" || !c.path.endsWith("/messages/@original")) return theirs?.(c);
+      arrived();
+      return gate.then(() => json({ id: "meme-msg", channel_id: "c" })) as unknown as Response;
+    };
+    const i = { type: 2, token: "tok", data: { name: "meme" }, member: { user: { id: "a", username: "a" } } };
+    yield* Interactions.use((x) => x.handle(i));
+    yield* Effect.promise(() => inFlight);
+    // shutdown's drain runs out of time: what's left in the background is interrupted
+    const background = yield* Background;
+    const stopped = yield* Effect.forkChild(background.drain(Duration.millis(1)), { startImmediately: true });
+    yield* Effect.sleep(Duration.millis(50));
+    release();
+    yield* Fiber.join(stopped);
+    yield* h.settle;
+    h.override = theirs;
+    expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", message_id: "meme-msg" });
+  }).pipe(h.provide),
+);

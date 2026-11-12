@@ -1677,6 +1677,14 @@
    "expect.toEqual([[\"post\", null]])",
    "expect.toEqual([])",
    "expect.toEqual([\"posted\", false])"
+  ],
+  "fn newsUpdateSequences": [
+   "expect.toEqual([[1, null]])",
+   "expect.toEqual([])",
+   "expect.toEqual([3, true])"
+  ],
+  "test \"/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)\"": [
+   "expect.toMatchObject({ post_kind: \"request\", message_id: \"meme-msg\" })"
   ]
  },
  "hub.test.ts": {
