@@ -493,13 +493,13 @@ single model; every old `news.test.ts` expectation is carried over.
 | 0 | Baseline and preparation | done, in production 2026-11-11 | 2026-11-11 | steps 1-6 done, audited, findings fixed; QA baseline done (numbers below); browser tap timings deferred by the owner (timings from `interaction … ms` log lines instead) |
 | 1 | Drizzle 1.0 under the old code | done, in production 2026-11-11 | 2026-11-11 | test bot: qa_all 79/79, qa_timing 13/13; rollback rehearsal: old main over it started clean, qa_all 79/79; tag `pre-effect` = `aa49c52`; lands on `main` when production is clear |
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
-| 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
+| 3 | Foundations | done, audited | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
 | 5 | Entry points, lifecycle, removing the old stack | done | 2026-11-12 | jobs, interactions, http, scheduler, live, gateway, leadership/main/shutdown; step 8 removed the transition from src; every QA suite as baseline on `d6a58da`; audit closed (`a4b5399`, `27b53aa`); QA on the audit-fix build `27b53aa` running |
-| 6 | Tests become Effect-native | done (audit running) | 2026-11-12 | every file on `test/fx.ts` (`334c14a`..`7bc359f`); test/old and the old harness gone; test group 15 (`7790407`); 826 tests, assertions and recordings identical |
-| 7 | Hardening and observability | not started | | |
-| 8 | Test bot: QA, drills, soak | not started | | |
-| 9 | Cutover | not started | | |
+| 6 | Tests become Effect-native | done, audited | 2026-11-12 | every file on `test/fx.ts` (`334c14a`..`7bc359f`); test/old and the old harness gone; test group 15 (`7790407`); 826 tests, assertions and recordings identical |
+| 7 | Hardening and observability | done, audited | 2026-11-12 | test 16 (60 s job limits), test 6 complete, metrics, OTLP behind `OTLP_URL`, named spans; audit fixes `6a7f7be`; the news port merged |
+| 8 | Test bot: QA, drills, soak | done | 2026-11-12 | on `930d912`: every QA suite (maybe_matrix 897/0), drills 23/0, forced soak 14/0 + 6000 ticks, rollback rehearsal, browser tap test (median 23 ms), memory +9 MB/h; final audit |
+| 9 | Cutover | done, in production 2026-11-12 15:18 | 2026-11-12 | `main` = `6643bb7`; the news on 15:22 (`79c0a2d`); the first real 17:00 card on the new code posted once |
 
 ## Numbers
 
