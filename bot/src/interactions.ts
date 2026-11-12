@@ -210,6 +210,8 @@ export class Interactions extends Context.Service<
         const i = yield* Schema.decodeUnknownEffect(Interaction)(raw).pipe(Effect.mapError((e) => new InteractionMalformed({ detail: String(e).slice(0, 300) })));
         if (i.type === 1) return reply({ type: R.Pong });
         const user = (i.member?.user ?? i.user)!;
+        // the trace says what was tapped and by whom (architecture §14)
+        yield* Effect.annotateCurrentSpan({ tapped: i.data?.custom_id ?? (i.data?.name ? `/${i.data.name}` : `type ${i.type}`), by: user.username });
         const name = user.global_name ?? user.username;
         const token = i.token ?? "";
         const ps = yield* trio;

@@ -154,6 +154,7 @@ export class Live extends Context.Service<
               const e = yield* Queue.take(queue);
               if (e._tag === "Stop") return;
               yield* handle(e).pipe(
+                Effect.withSpan(`voice ${labels[e._tag]}`),
                 Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed(`live voice (${labels[e._tag]})`, Cause.squash(cause)))),
               );
             }

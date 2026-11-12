@@ -1712,7 +1712,7 @@ const makeGameNight = Effect.gen(function* () {
       Effect.provideContext(f(...args), ctx);
   return {
     /** Post a day's card if there isn't one yet (see openNight). */
-    startNight: bound(openNight),
+    startNight: (...args: Parameters<typeof openNight>) => bound(openNight)(...args).pipe(Effect.withSpan("GameNight.startNight", { attributes: { by: args[0] ?? "the clock", day: args[2] ?? "today" } })),
     retryUnposted: Effect.provideContext(retryCards, ctx),
     refreshOpen: Effect.provideContext(refreshCards, ctx),
     closeStale: Effect.provideContext(closeStaleCards, ctx),
@@ -1723,10 +1723,10 @@ const makeGameNight = Effect.gen(function* () {
     bailFromSlip: bound(bailOn),
     postRoast: (day: string) => Effect.provideContext(postRoastOf(day), ctx),
     dueRoasts: Effect.provideContext(dueRoastsNow, ctx),
-    maintain: Effect.provideContext(maintainAll, ctx),
+    maintain: Effect.provideContext(maintainAll, ctx).pipe(Effect.withSpan("GameNight.maintain")),
     upcomingStarts: bound(upcoming),
     preciseStarts: bound(startsDue),
-    startOnTime: (n: Night, stop?: Effect.Effect<void>) => Effect.provideContext(startAt(n, stop), ctx),
+    startOnTime: (n: Night, stop?: Effect.Effect<void>) => Effect.provideContext(startAt(n, stop), ctx).pipe(Effect.withSpan("GameNight.startOnTime", { attributes: { day: n.day, game: n.game } })),
     render: (day: string, viewer?: string, notice?: string) => Effect.provideContext(renderCard(day, viewer, notice), ctx),
     planPicker: Effect.provideContext(planPickerCard, ctx),
     leaveByModal: bound(leaveBy),
