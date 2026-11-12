@@ -1,5 +1,0 @@
-{
- "news.test.json": {
-  "never one good check yet: the owner hears after a day of trying, not on the first failure": "phase 8: the committed value (930d912) came from a gate run that a parallel run of the same file disturbed; four undisturbed runs since all give this one. Allowed for the commit that corrects it only."
- }
-}
