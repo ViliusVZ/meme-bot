@@ -37,6 +37,34 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   fe593e7..d6a58da). **Next:** compare each suite with the baseline (Numbers), close the audit's
   findings, post the phase 5 note, start phase 6.
 - **Deployed:** test bot `d6a58da`; production `aa49c52`.
+- **Phase 5 audit (fe593e7..d6a58da) back; fixing, in this order** ([x] = done, commit):
+  1. [ ] HTTP routes uninterruptible (a dropped client cut the tap mid-way and lost its timing line
+     and 3 s alert; Fastify ran handlers to the end); in-flight requests waited for at close.
+  2. [ ] gateway's event loop: a per-event net (a defect froze voice for the term, silently).
+  3. [ ] main: leadership's fiber reported if it dies (as the old `lead()` rejection was); the
+     gateway's `open` as `Effect.try` (a constructor throw ended the retries silently).
+  4. [ ] G6: `leftovers.json` outside counts to the real ones (0) so nothing can climb back;
+     `Record<string, any>` in app.ts; `runFork`/`runPromise` patterns catch `…With`/`…Exit`;
+     the `...await` gap.
+  5. [ ] admin `alert-test` without `user` goes to the owner again.
+  6. [ ] term end: `/health` stops saying leader first (a services scope closed after it), gateway,
+     then clock, then Live, as before; a start already under way still logs `started on time`
+     (its result kept: stop by a Deferred, not an interrupt); learn-a-name work in Background
+     (kept running after the term, as before) and its answer + alias write in one region; /meme's
+     record write uninterruptible; STATUS's "done or not started" wording corrected.
+  7. [ ] leader ping every 1 s with a 2 s timeout and TCP keepalive (architecture §… as decided).
+  8. [ ] defects that skip what were catch-alls: armStarts back behind the ticker's net; the rest
+     declared (§6 policy) with the sites listed.
+  9. [ ] drift: SignatureUnreadable keeps its reason; the @original log lines print the error;
+     admin `day: ""`/`players: ""` as before; HEAD for GET routes, exact-case paths, no trailing
+     slash, `charset=utf-8`, /ingest reads the body before the token check (all as Fastify); the
+     hub answer body; a SIGTERM during a "clock stuck" shutdown doesn't cut it short; the gateway
+     close error logged.
+  10. [ ] declarations: gate/diagnostic changes listed under Declared exceptions; "Diagnostics
+     switched off: main.ts 3"; §2b's resilience note; Presence's arrays wording; the warnings
+     option off in tsconfig.json; README difference #4 (admin bodies → 400) implemented; the route
+     `catchCause` in architecture §6.
+  11. [ ] lost "why" comments restored; stale comments fixed.
 - **Rerun after a context loss:** if the QA run's summary (`<scratchpad>/qa-effect/phase5-d6a58da/summary.txt`)
   doesn't end with "done", run `qa_baseline.sh` again (test bot only); if the audit's report is
   lost, start it again with RUN.md §8's brief for fe593e7..HEAD.
