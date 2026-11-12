@@ -33,7 +33,7 @@ const calls = h.calls;
 let t: TestDb;
 beforeAll(async () => {
   ({ t } = h);
-  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_hold() RETURNS trigger AS $$ BEGIN PERFORM pg_sleep(0.3); RETURN NEW; END $$ LANGUAGE plpgsql`);
+  await t.pool.query(`CREATE OR REPLACE FUNCTION qa_hold() RETURNS trigger AS $$ BEGIN PERFORM set_config('application_name', 'qa_hold ' || current_schema(), true); PERFORM pg_sleep(0.3); RETURN NEW; END $$ LANGUAGE plpgsql`);
 });
 afterAll(() => t.pool.query("DROP FUNCTION IF EXISTS qa_hold() CASCADE"));
 
@@ -70,7 +70,7 @@ const hold = (on: Sequence["claim"]) =>
     const held: Held = {
       inFlight: Effect.gen(function* () {
         for (let i = 0; i < 300; i++) {
-          const { rows } = yield* Effect.promise(() => t.pool.query(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query ILIKE '%${on.table}%'`));
+          const { rows } = yield* Effect.promise(() => t.pool.query(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND application_name = $1 AND query ILIKE '%${on.table}%'`, [`qa_hold ${t.schema}`]));
           if (rows[0].n) return;
           yield* Effect.sleep(Duration.millis(10));
         }

@@ -92,5 +92,22 @@
    "rooms": "1:e57c99f6d359",
    "voice_segments": "2:6efe47e60048"
   }
+ },
+ "a job that hangs is cut off after 60 s and reported once; the jobs after it still run": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/90001/messages 8805fca1ea9e",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "recaps": "1:79498e3fd9ad",
+   "settings": "1:9bdd18e32d09",
+   "voice_segments": "2:6efe47e60048"
+  }
  }
 }

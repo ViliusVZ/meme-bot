@@ -17,7 +17,7 @@ const h = harness({
 });
 const calls = h.calls;
 beforeAll(async () => {
-  await h.t.pool.query(`CREATE OR REPLACE FUNCTION qa_hold() RETURNS trigger AS $$ BEGIN PERFORM pg_sleep(0.3); RETURN NEW; END $$ LANGUAGE plpgsql`);
+  await h.t.pool.query(`CREATE OR REPLACE FUNCTION qa_hold() RETURNS trigger AS $$ BEGIN PERFORM set_config('application_name', 'qa_hold ' || current_schema(), true); PERFORM pg_sleep(0.3); RETURN NEW; END $$ LANGUAGE plpgsql`);
 });
 afterAll(() => h.t.pool.query("DROP FUNCTION IF EXISTS qa_hold() CASCADE"));
 
@@ -63,7 +63,7 @@ it.effect("a start timer stopped once it has claimed the start finishes it", () 
     yield* Effect.gen(function* () {
       const c = yield* clock;
       for (let i = 0; ; i++) {
-        const { rows } = yield* sql(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND query ILIKE '%game_nights%'`);
+        const { rows } = yield* sql(`SELECT count(*)::int AS n FROM pg_stat_activity WHERE wait_event = 'PgSleep' AND application_name = 'qa_hold ${h.t.schema}' AND query ILIKE '%game_nights%'`);
         if (rows[0].n) break;
         if (i > 300) return yield* Effect.die(new Error("the claim never ran"));
         yield* Effect.sleep(10);

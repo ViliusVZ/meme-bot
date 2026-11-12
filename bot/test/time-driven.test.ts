@@ -3,7 +3,7 @@
 // Lobby question after 30 s, a private copy let go after 14 minutes, alert throttling over 3 hours,
 // the Reddit refill every 6 hours, the gateway-down alert after 5 minutes.
 import { expect, it } from "@effect/vitest";
-import { Duration, Effect, Fiber, Layer } from "effect";
+import { Clock, Duration, Effect, Fiber, Layer } from "effect";
 import { TestClock } from "effect/testing";
 import { gameNights, games, lobbyPrompts, panels as panelTable, recaps, settings } from "../src/db/schema.js";
 import { GameNight } from "../src/gamenight.js";
@@ -15,6 +15,7 @@ import { Alerts } from "../src/alerts.js";
 import { Reddit } from "../src/reddit.js";
 import { Cleanup } from "../src/cleanup.js";
 import { MemeShame } from "../src/memeshame.js";
+import { Jobs } from "../src/jobs.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
@@ -175,4 +176,46 @@ it.effect("the 19:00 meme-shame call-out runs once a day: not at 18:59, once at 
     yield* MemeShame.use((m) => m.evening).pipe(Effect.provide(Layer.fresh(MemeShame.layer)));
     expect(yield* claims()).toBe(1);
   }).pipe(h.provide),
+);
+
+// ---------------------------------------------------------------- test 16: a job that hangs
+
+it.effect("a job that hangs is cut off after 60 s and reported once; the jobs after it still run", () =>
+  Effect.gen(function* () {
+    yield* TestClock.setTime(Date.parse("2026-11-11T10:00:00Z")); // 12:00 in Vilnius: no daily poll or call-out due
+    yield* Alerts.use((a) => a.setOwner("owner"));
+    h.override = (c) => (c.method === "GET" && c.path.startsWith("/channels/gn/messages") ? json([]) : undefined); // the day's sweep: nothing to sweep
+    const dms = () => h.calls.filter((c) => c.method === "POST" && /^\/channels\/[^/]+\/messages$/.test(c.path) && String(c.body?.content).includes("🚨"));
+    // the spontaneous job reads the Lobby questions: another connection holds their table
+    const lock = yield* Effect.acquireRelease(
+      Effect.promise(() => h.t.pool.connect().then(async (c) => (await c.query("BEGIN; LOCK TABLE lobby_prompts IN ACCESS EXCLUSIVE MODE"), c))),
+      (c) => Effect.promise(() => c.query("ROLLBACK").then(() => c.release())),
+    );
+    const pid = yield* Effect.promise(() => lock.query("SELECT pg_backend_pid() AS pid").then((r) => r.rows[0].pid as number));
+    // (only what this lock holds up: other test runs may share the Postgres)
+    const waiting = () => Effect.promise(() => h.t.pool.query("SELECT count(*)::int AS n FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))", [pid]).then((r) => r.rows[0].n as number));
+    const minute = Effect.gen(function* () {
+      const run = yield* Effect.forkChild(Jobs.use((j) => j.minute));
+      for (let i = 0; i < 100 && (yield* waiting()) === 0; i++) yield* io;
+      expect(yield* waiting()).toBe(1); // stuck on the lock
+      yield* to((yield* Clock.currentTimeMillis) + 59_000);
+      expect(run.pollUnsafe()).toBeUndefined(); // not cut off before its minute is up
+      yield* to((yield* Clock.currentTimeMillis) + 1000);
+      return yield* Fiber.join(run);
+    });
+    const first = yield* minute;
+    expect(first.spontaneous).toEqual({ error: expect.stringContaining("the “spontaneous” job took over 1m and was cut off") });
+    expect(first).toHaveProperty("recaps"); // the jobs after it ran
+    expect(first).toHaveProperty("gateway");
+    expect(yield* waiting()).toBe(0); // its query was given up, not left waiting
+    yield* Alerts.use((a) => a.settle);
+    expect(dms()).toHaveLength(1);
+    expect(String(dms()[0].body?.content)).toContain("the “spontaneous” job");
+    // still stuck the next minute: cut off again, counted, not DMed again
+    const second = yield* minute;
+    expect(second.spontaneous).toEqual({ error: expect.stringContaining("cut off") });
+    yield* Alerts.use((a) => a.settle);
+    expect(dms()).toHaveLength(1);
+    void lock;
+  }).pipe(Effect.scoped, h.provide),
 );

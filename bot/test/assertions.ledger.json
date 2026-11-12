@@ -1969,6 +1969,18 @@
    "expect.toBe(0)",
    "expect.toBe(1)",
    "expect.toBe(1)"
+  ],
+  "test \"a job that hangs is cut off after 60 s and reported once; the jobs after it still run\"": [
+   "expect.toBe(1)",
+   "expect.toBeUndefined()",
+   "expect.toEqual({ error: expect.stringContaining(\"the “spontaneous” job took over 1m and was cut off\") })",
+   "expect.toHaveProperty(\"recaps\")",
+   "expect.toHaveProperty(\"gateway\")",
+   "expect.toBe(0)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"the “spontaneous” job\")",
+   "expect.toEqual({ error: expect.stringContaining(\"cut off\") })",
+   "expect.toHaveLength(1)"
   ]
  }
 }
