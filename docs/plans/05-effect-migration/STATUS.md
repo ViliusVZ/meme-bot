@@ -225,7 +225,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -304,6 +304,14 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
+- 2026-11-12 (this commit) live (Live: one Queue of tagged events, one consumer fiber, a
+  FiberHandle per timer; Presence publishes moves and "playing" on a PubSub; test 10
+  `live.test.ts` `bb61bb2` on the old code, `live-clock.test.ts` next commit): broken: events
+  handled at once (red), no net per event (red), the wrap-up early (red), a wrap-up timer kept
+  instead of replaced (red), the heartbeat never stopping (red), an already-due wrap-up retried at
+  once (red); the term's end not draining the queue and strangers' moves handled stayed green:
+  tests added, red since. (A first "timer not replaced" break was a no-op, each check clears the
+  timer first; redone as dropping the clear.)
 - 2026-11-11 `d57d1fe` scheduler (Ticker, start timers in a FiberMap; tests 8 `starts.test.ts`, 9
   `ticker.test.ts`): broken: firing a second early (red), no catch-up (red), a minute forked so
   minutes overlap (red), the watchdog repeating (red) or never firing (red), a start timer armed
@@ -611,6 +619,12 @@ timeout), with the evidence.
   pick on the Lobby question call `openRoom` inside their region, so its wait for another tap's
   room (up to 14 s) and Discord's retries are uninterruptible there too (the claim before them must
   be followed through). Shutdown's 35 s cap still ends the process, as it ended the old promises.
+- **Live, step 5** (phase 5): Presence publishes every change on a PubSub (with the move's time,
+  as the old listener stamped it) and still calls its old listeners, which only tests and
+  spontaneous.test use now; step 8 moves those tests to the subscription and drops the arrays.
+  A name Live doesn't know is learned in a fiber forked into the term's scope, failures logged
+  as before (not alerted). The old `stop()` waited for the queue: the term's end now offers a
+  Stop event and waits for the consumer to reach it, so what's queued is still handled.
 - **The ticker is a §6 boundary** (phase 5, step 4; architecture.md §6 amended): today each minute
   (`tick().catch(…"the minute jobs")`) and each start timer (`.catch(…"starting the game night on
   time")`) reports whatever it lets through and the clock goes on. Kept: one `catchCause` for each,

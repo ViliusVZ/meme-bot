@@ -4,122 +4,201 @@
 //   • someone joining the Lobby during a game night is pulled into the game's room at once
 //   • when a room empties, its 15-minute wrap-up timer starts; it fires exactly on time
 //   • 🎮 spontaneous play (spontaneous.ts): the Lobby question, unplanned sessions, pulling people in
+import { Cause, Clock, Context, Duration, Effect, Fiber, FiberHandle, Layer, PubSub, Queue, Schedule, type Scope } from "effect";
 import type { Env } from "./env.js";
-import * as presence from "./presence.js";
-import * as activity from "./activity.js";
-import * as voice from "./voice.js";
-import * as late from "./late.js";
-import * as spontaneous from "./spontaneous.js";
-import { players } from "./gamenight.js";
-import * as alerts from "./alerts.js";
+import { AppConfig, players } from "./config.js";
+import { Presence } from "./presence.js";
+import { Activity } from "./activity.js";
+import { Voice } from "./voice.js";
+import { LateSlips } from "./late.js";
+import { Spontaneous, type Change } from "./spontaneous.js";
+import { Alerts } from "./alerts.js";
+import { nowSec } from "./clock.js";
+import { forkDetached, runDetached } from "./legacy.js"; // LEGACY-BRIDGE
 
-const HEARTBEAT = 60_000;
-const nowSec = () => Math.floor(Date.now() / 1000);
+const HEARTBEAT = Duration.minutes(1);
+const RETRY = 60_000; // ms: a wrap-up already due means it just failed (Discord trouble): look again in a minute
+const MAX_TIMER = 2 ** 31 - 1; // ms: setTimeout's limit, which the old timers kept to
 
-export function start(env: Env) {
-  const ps = new Set(players(env));
-  let heartbeat: NodeJS.Timeout | null = null;
-  let wrapUp: NodeJS.Timeout | null = null;
-  let lobbyTimer: NodeJS.Timeout | null = null;
-  let stopped = false;
-  // changes are handled one at a time, in order, so a quick leave-and-rejoin can't race itself
-  let queue: Promise<unknown> = Promise.resolve();
-  const enqueue = (label: string, fn: () => Promise<unknown>) => {
-    queue = queue.then(fn).catch((e) => alerts.failed(`live voice (${label})`, e));
-    return queue;
-  };
+/** One thing to handle, in order: Live's queue holds these. */
+type LiveEvent =
+  | { readonly _tag: "Moved"; readonly user: string; readonly from: string | null; readonly to: string | null; readonly at: number }
+  | { readonly _tag: "Playing" }
+  | { readonly _tag: "Heartbeat" }
+  | { readonly _tag: "WrapUpDue" }
+  | { readonly _tag: "LobbyDue" }
+  | { readonly _tag: "Resync" }
+  | { readonly _tag: "Stop" };
 
-  const where = () => new Map([...ps].map((p) => [p, presence.lastKnown(p)]));
-  const occupied = () => new Set([...where().values()].filter(Boolean) as string[]);
+const labels: Record<LiveEvent["_tag"], string> = {
+  Moved: "voice change",
+  Playing: "playing",
+  Heartbeat: "heartbeat",
+  WrapUpDue: "wrap-up",
+  LobbyDue: "lobby",
+  Resync: "resync",
+  Stop: "stop",
+};
 
-  /** Re-check rooms now, and set a timer for the next empty room's wrap-up. */
-  const checkRooms = async () => {
-    if (!presence.isReady()) return;
-    const { archived, nextDue } = await voice.checkRooms(env, occupied());
-    if (archived.length) console.log("rooms wrapped up", archived);
-    if (wrapUp) clearTimeout(wrapUp);
-    wrapUp = null;
-    if (nextDue !== null && !stopped) {
-      // already due means the wrap-up just failed (Discord trouble): try again in a minute, not now
-      const ms = nextDue * 1000 <= Date.now() ? 60_000 : nextDue * 1000 - Date.now() + 500;
-      wrapUp = setTimeout(() => void enqueue("wrap-up", checkRooms), Math.min(ms, 2 ** 31 - 1));
-    }
-  };
+export class Live extends Context.Service<
+  Live,
+  {
+    /**
+     * Watch voice for a leader's term: changes are handled one at a time, in order, so a quick
+     * leave-and-rejoin can't race itself; one change's failure is reported and the next is still
+     * handled. Gives back `resync`, for when the gateway (re)connects with a fresh snapshot. When the
+     * scope closes, nothing new is taken and what's queued is still handled; timers stop.
+     */
+    readonly watch: Effect.Effect<{ readonly resync: Effect.Effect<void> }, never, Scope.Scope>;
+  }
+>()("meme-bot/live") {
+  static readonly layer = Layer.effect(
+    Live,
+    Effect.gen(function* () {
+      const config = yield* AppConfig;
+      const presence = yield* Presence;
+      const activity = yield* Activity;
+      const voice = yield* Voice;
+      const late = yield* LateSlips;
+      const spontaneous = yield* Spontaneous;
+      const alerts = yield* Alerts;
 
-  /** 🎮 Spontaneous play, and a timer for whatever it says is due next (the question's 30 s, say). */
-  const lobby = async (change?: spontaneous.Change) => {
-    if (!presence.isReady()) return;
-    const due = await spontaneous.react(env, where(), nowSec(), change);
-    if (lobbyTimer) clearTimeout(lobbyTimer);
-    lobbyTimer = null;
-    if (due !== null && !stopped) {
-      const ms = Math.max(1000, due * 1000 - Date.now() + 500);
-      lobbyTimer = setTimeout(() => void enqueue("lobby", () => lobby()), Math.min(ms, 2 ** 31 - 1));
-    }
-  };
+      const watch = Effect.gen(function* () {
+        const ps = new Set(yield* Effect.provideService(players, AppConfig, config)); // the stand-ins of an admin call, or the trio
+        const queue = yield* Queue.unbounded<LiveEvent>();
+        const heartbeat = yield* FiberHandle.make();
+        const wrapUp = yield* FiberHandle.make();
+        const lobbyTimer = yield* FiberHandle.make();
+        const offer = (e: LiveEvent) => Queue.offer(queue, e);
+        /** A timer that queues `e` in `ms`; setting one replaces the one before. */
+        const timer = (handle: FiberHandle.FiberHandle, ms: number, e: LiveEvent) =>
+          FiberHandle.run(handle, Effect.sleep(Duration.millis(Math.min(ms, MAX_TIMER))).pipe(Effect.andThen(offer(e))));
 
-  const beat = async () => {
-    if (!presence.isReady()) return; // never record "nobody's here" just because we can't see
-    const w = where();
-    await activity.track(env, w, nowSec());
-    const anyone = [...w.values()].some(Boolean);
-    if (anyone && !heartbeat && !stopped) heartbeat = setInterval(() => void enqueue("heartbeat", beat), HEARTBEAT);
-    if (!anyone && heartbeat) {
-      clearInterval(heartbeat);
-      heartbeat = null;
-    }
-    // busy rooms: keep their last_seen fresh (and their night's event alive)
-    if (anyone) await checkRooms();
-    if (anyone) await lobby();
-  };
+        const where = Effect.map(
+          Effect.forEach([...ps], (p) => Effect.map(presence.lastKnown(p), (c) => [p, c] as const)),
+          (pairs) => new Map(pairs),
+        );
+        const occupied = Effect.map(where, (w) => new Set([...w.values()].filter((c): c is string => !!c)));
 
-  const unsubscribe = presence.onChange((user, from, to) => {
-    if (!ps.has(user) || stopped) return;
-    const t = nowSec();
-    void enqueue("voice change", async () => {
-      if (!presence.hasSnapshot()) return;
-      if (from) await voice.leftRoom(env, from, t);
-      if (to === env.LOBBY_CHANNEL_ID) {
-        const r = await late.watch(env);
-        if (Object.keys(r).length) console.log("late", r);
-      }
-      await activity.track(env, where(), t);
-      await beat();
-      await checkRooms();
-      await lobby({ user, from, to });
-    });
-  });
+        /** Re-check rooms now, and set a timer for the next empty room's wrap-up. */
+        const checkRooms = Effect.gen(function* () {
+          if (!(yield* presence.isReady)) return;
+          const { archived, nextDue } = yield* voice.checkRooms(yield* occupied);
+          if (archived.length) yield* Effect.logInfo(`rooms wrapped up ${archived.join(", ")}`);
+          yield* FiberHandle.clear(wrapUp);
+          if (nextDue === null) return;
+          const now = yield* Clock.currentTimeMillis;
+          yield* timer(wrapUp, nextDue * 1000 <= now ? RETRY : nextDue * 1000 - now + 500, { _tag: "WrapUpDue" });
+        });
 
-  // 🎮 what someone's playing changed (game detection): it may be time to get a room ready
-  const unsubscribePlaying = presence.onPlaying((user, names) => {
-    if (!ps.has(user) || stopped) return;
-    console.log("playing", user, names.length ? names.join(" | ") : "(nothing)"); // what Discord calls each game
-    void enqueue("playing", () => lobby());
-    // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing waits)
-    void spontaneous
-      .learn(env, names)
-      .then((l) => l.length && console.log("learned", JSON.stringify(l)))
-      .catch((e) => console.log("learning a game name failed", e));
-  });
+        /** 🎮 Spontaneous play, and a timer for whatever it says is due next (the question's 30 s, say). */
+        const lobby = (change?: Change) =>
+          Effect.gen(function* () {
+            if (!(yield* presence.isReady)) return;
+            const due = yield* spontaneous.react(yield* where, yield* nowSec, change);
+            yield* FiberHandle.clear(lobbyTimer);
+            if (due === null) return;
+            yield* timer(lobbyTimer, Math.max(1000, due * 1000 - (yield* Clock.currentTimeMillis) + 500), { _tag: "LobbyDue" });
+          });
 
-  /** The gateway (re)connected and sent a fresh snapshot: catch up on everything. */
-  const resync = () =>
-    enqueue("resync", async () => {
-      await beat();
-      await checkRooms();
-      await lobby();
-    });
+        const beat = Effect.gen(function* () {
+          if (!(yield* presence.isReady)) return; // never record "nobody's here" just because we can't see
+          const w = yield* where;
+          yield* activity.track(w, yield* nowSec);
+          const anyone = [...w.values()].some(Boolean);
+          if (anyone) yield* FiberHandle.run(heartbeat, Effect.repeat(Effect.delay(offer({ _tag: "Heartbeat" }), HEARTBEAT), Schedule.forever), { onlyIfMissing: true });
+          else yield* FiberHandle.clear(heartbeat);
+          // busy rooms: keep their last_seen fresh (and their night's event alive)
+          if (anyone) yield* checkRooms;
+          if (anyone) yield* lobby();
+        });
 
-  return {
-    resync,
-    stop: async () => {
-      stopped = true;
-      unsubscribe();
-      unsubscribePlaying();
-      if (heartbeat) clearInterval(heartbeat);
-      if (wrapUp) clearTimeout(wrapUp);
-      if (lobbyTimer) clearTimeout(lobbyTimer);
-      await queue;
-    },
-  };
+        const handle = (e: LiveEvent) => {
+          switch (e._tag) {
+            case "Moved":
+              return Effect.gen(function* () {
+                if (!(yield* presence.hasSnapshot)) return;
+                if (e.from) yield* voice.leftRoom(e.from, e.at);
+                if (e.to === config.lobbyChannelId) {
+                  const r = yield* late.watch;
+                  if (Object.keys(r).length) yield* Effect.logInfo(`late ${JSON.stringify(r)}`);
+                }
+                yield* activity.track(yield* where, e.at);
+                yield* beat;
+                yield* checkRooms;
+                yield* lobby({ user: e.user, from: e.from, to: e.to });
+              });
+            case "Playing":
+            case "LobbyDue":
+              return lobby();
+            case "Heartbeat":
+              return beat;
+            case "WrapUpDue":
+              return checkRooms;
+            case "Resync":
+              return Effect.gen(function* () {
+                yield* beat;
+                yield* checkRooms;
+                yield* lobby();
+              });
+            case "Stop":
+              return Effect.void;
+          }
+        };
+
+        // the voice event loop: one event at a time; a failure is reported (architecture §6) and the loop goes on
+        const consumer = yield* Effect.forkScoped(
+          Effect.gen(function* () {
+            for (;;) {
+              const e = yield* Queue.take(queue);
+              if (e._tag === "Stop") return;
+              yield* handle(e).pipe(
+                Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed(`live voice (${labels[e._tag]})`, Cause.squash(cause)))),
+              );
+            }
+          }),
+        );
+
+        // presence's changes, as events for the players
+        const changes = yield* presence.changes;
+        yield* Effect.forkScoped(
+          Effect.forever(
+            Effect.gen(function* () {
+              const c = yield* PubSub.take(changes);
+              if (!ps.has(c.user)) return;
+              if (c._tag === "Moved") return yield* offer(c);
+              yield* Effect.logInfo(`playing ${c.user} ${c.names.length ? c.names.join(" | ") : "(nothing)"}`); // what Discord calls each game
+              yield* offer({ _tag: "Playing" });
+              // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing waits)
+              yield* Effect.forkScoped(
+                spontaneous.learn(c.names).pipe(
+                  Effect.tap((l) => (l.length ? Effect.logInfo(`learned ${JSON.stringify(l)}`) : Effect.void)),
+                  Effect.catch((e) => Effect.logInfo(`learning a game name failed ${e}`)),
+                ),
+              );
+            }),
+          ),
+        );
+
+        // the term's end: no new changes (the subscription closes first), what's queued is still handled
+        yield* Effect.addFinalizer(() => Effect.andThen(offer({ _tag: "Stop" }), Fiber.await(consumer)));
+
+        return { resync: Effect.asVoid(offer({ _tag: "Resync" })) };
+      });
+
+      return Live.of({ watch });
+    }),
+  );
 }
+
+// the old function, for main.ts until Leadership owns the term
+export function start(env: Env) { // LEGACY-BRIDGE
+  let resync: Effect.Effect<void> = Effect.void; // LEGACY-BRIDGE
+  let ready!: () => void; // LEGACY-BRIDGE
+  const started = new Promise<void>((ok) => (ready = ok)); // LEGACY-BRIDGE
+  const fiber = forkDetached(env, Effect.scoped(Effect.flatMap(Live.use((l) => l.watch), (w) => Effect.andThen(Effect.sync(() => ((resync = w.resync), ready())), Effect.never)))); // LEGACY-BRIDGE
+  return { // LEGACY-BRIDGE
+    resync: () => started.then(() => runDetached(resync)), // LEGACY-BRIDGE
+    stop: () => runDetached(Fiber.interrupt(fiber)), // LEGACY-BRIDGE
+  }; // LEGACY-BRIDGE
+} // LEGACY-BRIDGE

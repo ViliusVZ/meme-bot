@@ -5,13 +5,19 @@
 //
 // 🎮 What people are playing: only with the presence intent (PRESENCES=1). Kept in memory only,
 // never stored: "Playing …" activity names per user, straight from Discord.
-import { Context, Effect, Layer, Ref, Schema } from "effect";
+import { Context, Effect, Layer, PubSub, Ref, Schema, type Scope } from "effect";
+import { nowSec } from "./clock.js";
 import { runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 /** A subscriber threw: logged, and the others still hear about the change. */
 class ListenerFailed extends Schema.TaggedError<ListenerFailed>()("ListenerFailed", { detail: Schema.String }) {}
 
 type Listener = (user: string, from: string | null, to: string | null) => void;
+
+/** What changed, as Live hears it: a voice move (with when we saw it) or what someone's playing. */
+export type PresenceEvent =
+  | { readonly _tag: "Moved"; readonly user: string; readonly from: string | null; readonly to: string | null; readonly at: number }
+  | { readonly _tag: "Playing"; readonly user: string; readonly names: ReadonlyArray<string> };
 type PlayingListener = (user: string, names: string[]) => void;
 
 type State = {
@@ -41,6 +47,8 @@ export class Presence extends Context.Service<
     lastKnown(user: string): Effect.Effect<string | null>;
     /** Subscribe to changes; gives back the unsubscribe. */
     onChange(fn: Listener): Effect.Effect<() => void>;
+    /** Every change from now on, until the scope closes (Live, within the leader's term). */
+    readonly changes: Effect.Effect<PubSub.Subscription<PresenceEvent>, never, Scope.Scope>;
     /** One presence (GUILD_CREATE's list or a PRESENCE_UPDATE): their "Playing …" names. */
     setActivities(user: string, activities: ReadonlyArray<{ type: number; name: string }> | undefined): Effect.Effect<void>;
     /** What they're playing right now (empty: nothing we can see). */
@@ -54,6 +62,7 @@ export class Presence extends Context.Service<
     Presence,
     Effect.gen(function* () {
       const state = yield* Ref.make(empty());
+      const published = yield* PubSub.unbounded<PresenceEvent>();
       // listeners are called synchronously, in order, as the old module did (live.ts queues the work)
       const listeners: Listener[] = [];
       const playingListeners: PlayingListener[] = [];
@@ -61,7 +70,11 @@ export class Presence extends Context.Service<
         Effect.forEach([...fns], (fn) =>
           Effect.try({ try: () => fn(...args), catch: (e) => new ListenerFailed({ detail: String(e) }) }).pipe(Effect.catch((e) => Effect.logWarning(`${what} listener failed ${e.detail}`))),
         );
-      const emit = (user: string, from: string | null, to: string | null) => call(listeners, [user, from, to], "presence");
+      const emit = (user: string, from: string | null, to: string | null) =>
+        Effect.gen(function* () {
+          yield* PubSub.publish(published, { _tag: "Moved", user, from, to, at: yield* nowSec });
+          yield* call(listeners, [user, from, to], "presence");
+        });
       const subscribe = <F>(list: F[], fn: F) =>
         Effect.sync(() => {
           list.push(fn);
@@ -103,6 +116,7 @@ export class Presence extends Context.Service<
         channelOf: (user) => Effect.map(Ref.get(state), (s) => (s.ready ? (s.states.get(user) ?? null) : undefined)),
         lastKnown: (user) => Effect.map(Ref.get(state), (s) => s.states.get(user) ?? null),
         onChange: (fn) => subscribe(listeners, fn),
+        changes: PubSub.subscribe(published),
         setActivities: (user, activities) =>
           Effect.gen(function* () {
             const names = (activities ?? []).filter((a) => a.type === 0 && a.name).map((a) => a.name);
@@ -113,6 +127,7 @@ export class Presence extends Context.Service<
             else games.delete(user);
             yield* Ref.set(state, { ...s, games });
             if (before.join("|") === names.join("|")) return;
+            yield* PubSub.publish(published, { _tag: "Playing", user, names });
             yield* call(playingListeners, [user, names], "playing");
           }),
         playing: (user) => Effect.map(Ref.get(state), (s) => s.games.get(user) ?? []),
