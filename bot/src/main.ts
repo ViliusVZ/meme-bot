@@ -1,99 +1,73 @@
 // Meme Bot 3000. Every running copy serves HTTP (Discord clicks, meme intake); exactly one, the
 // leader, also holds the Discord gateway and runs the scheduler. During a deploy the new copy
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
+//
+// A boundary file (architecture §16): the process edge. The 35 s hard exit, the signal handlers and
+// the two last-resort handlers live here.
 import { fileURLToPath } from "node:url";
-import { connect, acquireLeadership } from "./db/index.js";
-import { runMigrations } from "./db/db.js";
-import { ManagedRuntime, Redacted } from "effect"; // LEGACY-BRIDGE
-import type { Env } from "./env.js";
+import { Deferred, Effect, Layer, ManagedRuntime, Scope } from "effect";
 import { AppConfig } from "./config.js";
 import { appLayer } from "./runtime.js";
+import { runMigrations } from "./db/db.js";
+import { server } from "./app.js";
+import { Alerts } from "./alerts.js";
+import { Leadership } from "./leadership.js";
+import { shutdown } from "./shutdown.js";
 import * as legacy from "./legacy.js"; // LEGACY-BRIDGE
-import { build } from "./app.js";
-import { drain } from "./background.js";
-import * as gateway from "./gateway.js";
-import * as live from "./live.js";
-import * as scheduler from "./scheduler.js";
-import * as alerts from "./alerts.js";
-import * as lifecycle from "./lifecycle.js"; // LEGACY-BRIDGE
 
-// one runtime for the transition: the Effect services, which the code that still takes `env` reaches
-// through legacy.ts. Reading the configuration fails startup with every missing variable named.
+const HARD_EXIT = 35_000; // ms: whatever hangs at shutdown, we're gone (Docker would kill us at 40 anyway; a self-restart has no Docker to)
+
+/** SIGTERM or SIGINT, whichever comes first. */
+const signalled = Effect.callback<string>((resume) => {
+  const on = (s: string) => () => resume(Effect.succeed(s));
+  const term = on("SIGTERM");
+  const int = on("SIGINT");
+  process.once("SIGTERM", term);
+  process.once("SIGINT", int);
+  return Effect.sync(() => {
+    process.off("SIGTERM", term);
+    process.off("SIGINT", int);
+  });
+});
+
+const main = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  const alerts = yield* Alerts;
+  yield* runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)));
+
+  const http = yield* Scope.make();
+  yield* Layer.buildWithScope(server({ host: "0.0.0.0", port: config.port }), http);
+  yield* Effect.logInfo(`listening on :${config.port}`);
+
+  // a clock stuck for 5 minutes: say so, then restart ourselves (Docker starts us again)
+  const stuck = yield* Deferred.make<string>();
+  const onStall = (mins: number) =>
+    Effect.gen(function* () {
+      yield* alerts.failed("the clock (minute jobs)", `one minute's jobs have been stuck for ${mins} min, and no game-night or meme job runs while they are. Restarting myself to unstick it.`);
+      yield* Effect.sleep("2 seconds"); // the DM goes out first
+      yield* Deferred.succeed(stuck, "clock stuck");
+    });
+  const leading = yield* Effect.forkDetach((yield* Leadership).lead({ onStall }));
+
+  const signal = yield* Effect.raceFirst(signalled, Deferred.await(stuck));
+  yield* Effect.sync(() => setTimeout(() => process.exit(1), HARD_EXIT).unref());
+  yield* shutdown(signal, { leading, server: http });
+});
+
+// one runtime for the transition: the code that still takes `env` reaches the services through
+// legacy.ts. Reading the configuration fails startup with every missing variable named.
 const runtime = ManagedRuntime.make(appLayer(AppConfig.layer)); // LEGACY-BRIDGE
 legacy.install(runtime); // LEGACY-BRIDGE
-const config = await runtime.runPromise(AppConfig); // LEGACY-BRIDGE
-const { pool, db } = connect(Redacted.value(config.databaseUrl)); // LEGACY-BRIDGE
-const env: Env = { ...legacy.envFields(config), db }; // LEGACY-BRIDGE
-alerts.setup(env);
 
-await legacy.run(env, runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)))); // LEGACY-BRIDGE
-
-const app = build(env, { leader: lifecycle.isLeader, shuttingDown: lifecycle.isShuttingDown }); // LEGACY-BRIDGE
-await app.listen({ host: "0.0.0.0", port: config.port });
-console.log(`listening on :${config.port}`);
-
-// ---------------------------------------------------------------- leadership
-const stopLeading = new AbortController();
-
-async function lead() {
-  while (!stopLeading.signal.aborted) {
-    let lost!: () => void;
-    const lostP = new Promise<void>((ok) => (lost = ok));
-    const lock = await acquireLeadership(pool, () => lost(), stopLeading.signal);
-    if (!lock) return;
-    lifecycle.setLeader(true); // LEGACY-BRIDGE
-    console.log("leader: took over");
-    const done = new AbortController();
-    const watcher = live.start(env);
-    const clock = scheduler.start(env, {
-      onStall: (mins) => {
-        alerts.failed("the clock (minute jobs)", `one minute's jobs have been stuck for ${mins} min, and no game-night or meme job runs while they are. Restarting myself to unstick it.`);
-        setTimeout(() => void shutdown("clock stuck"), 2000); // the DM goes out first; Docker starts us again
-      },
-    });
-    // the gateway connects in the background, retrying with back-off (say, Discord is down); until
-    // it's up, voice lookups fall back to REST and everything else carries on as normal
-    const gw = gateway.start(env, () => void watcher.resync());
-    // lead until we lose the lock (connection died) or shut down
-    await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
-    lifecycle.setLeader(false); // LEGACY-BRIDGE
-    done.abort();
-    await gw.close().catch((e) => console.log("gateway close", e));
-    await Promise.all([clock.stop(), watcher.stop()]).catch((e) => console.log("leader: stop failed", e));
-    await lock.release();
-    console.log("leader: stepped down");
-    if (!stopLeading.signal.aborted) await new Promise((ok) => setTimeout(ok, 2000));
-  }
-}
-
-const leading = lead();
-
-// ---------------------------------------------------------------- shutdown
-async function shutdown(signal: string) {
-  if (lifecycle.isShuttingDown()) return; // LEGACY-BRIDGE
-  lifecycle.markShuttingDown(); // LEGACY-BRIDGE
-  console.log(`${signal}: shutting down`);
-  // whatever hangs below, we're gone in 35 s (Docker would kill us at 40 anyway; a self-restart has no Docker to)
-  setTimeout(() => process.exit(1), 35_000).unref();
-  // 1. stop leading, so the other copy can take over the gateway and the clock right away; meanwhile
-  //    /health says 503, and within one health check (2 s) Caddy sends new clicks to the other copy
-  stopLeading.abort();
-  const capped = Promise.race([leading, new Promise((ok) => setTimeout(ok, 15_000))]); // never hang here
-  await Promise.all([capped, new Promise((ok) => setTimeout(ok, 3000))]);
-  // 2. stop taking requests and finish what's in flight
-  await app.close();
-  const left = await drain(20_000);
-  if (left) console.log(`exiting with ${left} background task(s) unfinished`);
-  await pool.end();
-  await runtime.dispose(); // the Effect pool and services, last // LEGACY-BRIDGE
-  process.exit(0);
-}
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("unhandledRejection", (e) => alerts.failed("something in the background (unhandled)", e));
+const alert = (what: string, e: unknown) => runtime.runFork(Alerts.use((a) => a.failed(what, e))); // LEGACY-BRIDGE
+process.on("unhandledRejection", (e) => alert("something in the background (unhandled)", e));
 // last resort: log it and exit, Docker restarts us within seconds (better than limping on); the DM
 // gets a moment to go out first
 process.on("uncaughtException", (e) => {
-  alerts.failed("the bot itself (crashed; Docker restarts it)", e);
+  alert("the bot itself (crashed; Docker restarts it)", e);
   setTimeout(() => process.exit(1), 2000);
 });
+
+await runtime.runPromise(main); // LEGACY-BRIDGE
+await runtime.dispose(); // 5. the pool and the services, last // LEGACY-BRIDGE
+process.exit(0);

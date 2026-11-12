@@ -225,7 +225,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live, gateway |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live, gateway, leadership/main/shutdown |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -240,35 +240,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 2 | 3 | 8 |
-| `await` | 6 | 12 | 13 |
+| `async` | 2 | 1 | 8 |
+| `await` | 7 | 2 | 12 |
 | `.then(` | 0 | 0 | 4 |
-| `.catch(` | 52 | 3 | 27 |
+| `.catch(` | 53 | 1 | 27 |
 | `try {` | 1 | 0 | 0 |
-| `new Promise` | 2 | 5 | 1 |
-| `setTimeout/Interval` | 3 | 6 | 0 |
-| `AbortController` | 0 | 2 | 0 |
+| `new Promise` | 2 | 0 | 1 |
+| `setTimeout/Interval` | 3 | 2 | 0 |
+| `AbortController` | 0 | 0 | 0 |
 | `AbortSignal` | 1 | 0 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 3 | 7 | 0 |
+| `console.` | 3 | 0 | 0 |
 | `Date.now/new Date` | 6 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 1 | 0 | 1 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 421 | 20 | 0 |
+| `LEGACY-BRIDGE` | 421 | 11 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 3 | 0 |
 | `runPromise` | 0 | 0 | 1 |
-| `runFork` | 0 | 0 | 1 |
+| `runFork` | 0 | 0 | 2 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **500** | **61** | **67** |
+| **total** | **502** | **20** | **67** |
 
 Import cycles: none.
-Per file: legacy.ts 92, main.ts 50, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, gateway.ts 8, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 92, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, main.ts 9, reddit.ts 9, gateway.ts 8, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, leadership.ts 1, localtime.ts 1, shutdown.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -304,6 +304,13 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
+- 2026-11-12 (this commit) leadership, main, shutdown (Leadership: the lock on a one-connection
+  client per term, Live + Ticker + Gateway in its scope; `shutdown.ts`: the five steps; main.ts an
+  Effect program; tests 11 `leadership.test.ts`, 12 and 14 `shutdown.test.ts`, next commit):
+  broken: no ping (red), no lock (red), /health still leading after the term (red), the clock
+  outside the term (red), no 3 s for the proxy (red), no 15 s cap (red), the server stopped before
+  the term (red), 503 last (red), a second signal running again (red), the drain leaving work
+  running (red).
 - 2026-11-12 `ddd4436` gateway (Gateway: one connection per term, held in its scope;
   `GatewayClient` wraps @discordjs/ws, whose callbacks only queue events for one fiber; test
   `gateway.test.ts` next commit): broken: no 30 s connect limit (red), no doubling (red), no 60 s
@@ -630,6 +637,18 @@ timeout), with the evidence.
   pick on the Lobby question call `openRoom` inside their region, so its wait for another tap's
   room (up to 14 s) and Discord's retries are uninterruptible there too (the claim before them must
   be followed through). Shutdown's 35 s cap still ends the process, as it ended the old promises.
+- **Leadership, main and shutdown, step 7** (phase 5): the lock is taken on a one-connection client
+  in the term's scope and pinged every 5 s (spike S2; today a 15 s ping plus `pg`'s `end` event);
+  closing that connection frees the lock (no separate unlock). Lost → `leader lock: lost <error>`,
+  then `leader: stepped down`, 2 s, try again; can't connect → `leader lock: retrying <error>`.
+  main.ts runs one Effect program (migrations, the server in its own scope, leadership in a fiber,
+  then a signal or a stuck clock, then `shutdown.ts`'s steps), still on the transition's
+  ManagedRuntime: step 8 moves it to `NodeRuntime.runMain` once legacy.ts is gone. The old `pg`
+  pool is no longer opened. `Background.drain` now interrupts what's still running after its
+  20 s (architecture §11: "then interrupts"); before, the process exit ended it.
+- **Step 8 to-do (found on the way):** boundary-file diagnostics comments (main.ts's two
+  `setTimeout`s), the `JSON.stringify` sweep (scheduler, live, cleanup, discord, gemini,
+  spontaneous), Presence's listener arrays (tests move to the subscription), app.ts's `build`.
 - **Gateway, step 6** (phase 5): the library sits behind a `GatewayClient` service (open →
   connect, destroy; events emitted through one callback), so the Gateway's own code (snapshots,
   outages, resumes, 4014, the retry schedule, the 30 s limit) runs under test with a fake

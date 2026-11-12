@@ -9,7 +9,7 @@ export class Background extends Context.Service<
   {
     /** Run `effect` in the background; a failure is reported under `label`, never thrown. */
     run<A, E, R>(effect: Effect.Effect<A, E, R>, label?: string): Effect.Effect<void, never, R>;
-    /** Wait for in-flight background work, up to `timeout`; how many were still running. */
+    /** Wait for in-flight background work, up to `timeout`, then interrupt what's left; how many were left. */
     drain(timeout: Duration.Input): Effect.Effect<number>;
     /** How many are running now (/health). */
     readonly inFlight: Effect.Effect<number>;
@@ -26,10 +26,12 @@ export class Background extends Context.Service<
           // (an interruption is shutdown or a replaced task, not a failure)
           Effect.asVoid(FiberSet.run(set, effect.pipe(Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause))))))),
         drain: (timeout) =>
-          FiberSet.awaitEmpty(set).pipe(
-            Effect.timeoutOption(timeout),
-            Effect.andThen(() => FiberSet.size(set)),
-          ),
+          Effect.gen(function* () {
+            yield* Effect.timeoutOption(FiberSet.awaitEmpty(set), timeout);
+            const left = yield* FiberSet.size(set);
+            if (left) yield* FiberSet.clear(set); // out of time: the rest is interrupted (architecture §11)
+            return left;
+          }),
         inFlight: FiberSet.size(set),
       });
     }),

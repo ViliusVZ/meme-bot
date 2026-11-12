@@ -396,6 +396,12 @@ export const Routes = HttpRouter.use((router) =>
 const routesOn = (statusLayer: Layer.Layer<AppStatus>, context: Context.Context<AppServices>) =>
   Routes.pipe(Layer.provide(statusLayer), Layer.provide(Layer.succeedContext(context)));
 
+/** The HTTP server on its port, over the app's services and its Lifecycle (main.ts builds it in a scope it closes at shutdown). */
+export const server = (o: { host: string; port: number }) =>
+  HttpRouter.serve(Routes.pipe(Layer.provide(AppStatus.layer)), { disableLogger: true }).pipe(
+    Layer.provide(NodeHttpServer.layer(createServer, { host: o.host, port: o.port, gracefulShutdownTimeout: "10 seconds" })),
+  );
+
 export interface Status {
   leader: () => boolean;
   shuttingDown: () => boolean;
