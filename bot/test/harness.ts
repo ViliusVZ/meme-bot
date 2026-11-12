@@ -36,7 +36,7 @@ export const routes = {
   channelExists: ((c) => (c.method === "GET" && /^\/channels\/\d+$/.test(c.path) ? json({ id: c.path.split("/")[2] }) : undefined)) as Route,
 };
 
-type Options = {
+export type Options = {
   /** A throwaway schema with the migrations applied (default true). */
   db?: boolean;
   /** Emptied before each test, in this order. */
@@ -53,7 +53,7 @@ type Options = {
   env?: Partial<Env>;
 };
 
-const API = "https://discord.com/api/v10";
+export const API = "https://discord.com/api/v10";
 
 /**
  * JITTER=1: every stubbed Discord answer and every query is delayed by 0–4 ms, at random. A test
@@ -100,7 +100,7 @@ const UNORDERED: { name: string; pattern: RegExp }[] = [
 ];
 const urlOf = (call: string) => call.split(" ")[1];
 /** The look-up of a private copy's message (interactions.ts / panels.ts, `originalMessage`). */
-const ORIGINAL = /^\/webhooks\/[^/]+\/[^/]+\/messages\/@original$/;
+export const ORIGINAL = /^\/webhooks\/[^/]+\/[^/]+\/messages\/@original$/;
 /**
  * Background reads (also declared in STATUS.md): after a tap, the copy's message is looked up in
  * the background (a GET with no body) while the tap's own work goes on, so where the read lands
@@ -108,7 +108,7 @@ const ORIGINAL = /^\/webhooks\/[^/]+\/[^/]+\/messages\/@original$/;
  * after the other calls; everything they lead to (the panels row, later edits) is still recorded.
  */
 const BACKGROUND_READ = /^GET https:\/\/discord\.com\/api\/v10\/webhooks\/[^/]+\/[^/]+\/messages\/@original -$/;
-function settleOrder(all: string[]): string[] {
+export function settleOrder(all: string[]): string[] {
   const calls = all.filter((c) => !BACKGROUND_READ.test(c));
   const reads = all.filter((c) => BACKGROUND_READ.test(c));
   const out: string[] = [];
@@ -126,9 +126,9 @@ function settleOrder(all: string[]): string[] {
   return reads.length ? [...out, "-- background reads --", ...reads] : out;
 }
 
-type Entry = { method: string; url: string; hash: string; created?: string };
+export type Entry = { method: string; url: string; hash: string; created?: string };
 /** A declared race: drop creates the bot deleted again itself, mask ids, sort. */
-function raceCalls(calls: Entry[], bodies: boolean): string[] {
+export function raceCalls(calls: Entry[], bodies: boolean): string[] {
   const gone = new Set<number>();
   calls.forEach((c, i) => {
     if (c.method !== "DELETE") return;
@@ -143,7 +143,7 @@ function raceCalls(calls: Entry[], bodies: boolean): string[] {
 }
 
 /** A body as text, whatever form fetch was given it in. */
-function bodyText(body: unknown): string | undefined {
+export function bodyText(body: unknown): string | undefined {
   if (body === undefined || body === null) return undefined;
   if (typeof body === "string") return body;
   if (body instanceof Uint8Array) return new TextDecoder().decode(body);
@@ -157,7 +157,7 @@ function bodyText(body: unknown): string | undefined {
  * quotes the error's stack, whose "at …" lines depend on timing and on the code's shape): they are
  * dropped from every string before hashing; the error's own message line stays.
  */
-function canonical(text: string | undefined): string {
+export function canonical(text: string | undefined): string {
   if (text === undefined) return "";
   const frames = /\n[ \t]+at [^\n]*/g;
   try {
@@ -168,10 +168,10 @@ function canonical(text: string | undefined): string {
     return text;
   }
 }
-const hash = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 12);
+export const hash = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 12);
 
 /** A small seeded generator (mulberry32), so shuffles are the same on every run. */
-function seeded(seed: number) {
+export function seeded(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -181,7 +181,7 @@ function seeded(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const seedOf = (name: string) => parseInt(createHash("sha1").update(name).digest("hex").slice(0, 8), 16);
+export const seedOf = (name: string) => parseInt(createHash("sha1").update(name).digest("hex").slice(0, 8), 16);
 
 // Columns that default to the database's own now() (one update in roasts.ts also sets now()). That
 // value is the real time, not the bot's behaviour, so it is masked; when the bot writes the column
@@ -189,7 +189,7 @@ const seedOf = (name: string) => parseInt(createHash("sha1").update(name).digest
 const NOW_COLUMNS: Record<string, string[]> = { roast_bags: ["updated_at"], settings: ["updated_at"] };
 // Date is faked in most tests; this is the wall clock the database's now() follows
 const realNow = () => performance.timeOrigin + performance.now();
-function maskNow(tbl: string, row: string): string {
+export function maskNow(tbl: string, row: string): string {
   const cols = NOW_COLUMNS[tbl];
   if (!cols) return row;
   const r = JSON.parse(row) as Record<string, unknown>;
@@ -197,8 +197,8 @@ function maskNow(tbl: string, row: string): string {
   return JSON.stringify(r);
 }
 
-type Recording = { calls: string[]; db: Record<string, string> };
-type Full = { calls: { method: string; url: string; body: unknown }[]; db: Record<string, unknown[]> };
+export type Recording = { calls: string[]; db: Record<string, string> };
+export type Full = { calls: { method: string; url: string; body: unknown }[]; db: Record<string, unknown[]> };
 
 export function harness(o: Options = {}): Harness {
   const file = basename(expect.getState().testPath ?? "unknown");
