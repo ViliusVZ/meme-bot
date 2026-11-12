@@ -15,7 +15,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
-import { Clock, Duration, Effect, Layer, Logger, ManagedRuntime, Random, Redacted, Schema } from "effect";
+import { Cause, Clock, Duration, Effect, Exit, Layer, Logger, ManagedRuntime, Random, Redacted, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { AppConfig, type AppConfigShape } from "../src/config.js";
 import { appLayerFor, type AppServices } from "../src/runtime.js";
@@ -76,6 +76,11 @@ export type Harness = {
   logs: string[];
   /** Run a test's Effect with the app's services (see the top of this file). */
   provide: <A, E>(self: Effect.Effect<A, E, AppServices>) => Effect.Effect<A, E | StillRunning>;
+  /**
+   * The same as a promise, rejecting with the failure itself: for the few assertions that need one
+   * (`await expect(h.run(x)).rejects.toThrow(…)`, whose matcher chain the ledger keeps).
+   */
+  run<A, E>(self: Effect.Effect<A, E, AppServices>): Promise<A>;
   /** Move the frozen clock (files with a `clock` time). */
   setTime(at: number | string): Effect.Effect<void>;
   /** Game detection and the Gemini key for one call, as `{ ...env, PRESENCES: true, GEMINI_API_KEY: "k" }` did. */
@@ -189,6 +194,12 @@ export function harness(o: Options = {}): Harness {
       const body = Effect.tap(self, () => h.settle).pipe(Effect.provide(logger), Effect.provideService(Random.Random, randomFor(name)));
       return yield* clockFor(Effect.provideContext(body, context));
     });
+
+  h.run = async (self) => {
+    const exit = await Effect.runPromiseExit(h.provide(self));
+    if (Exit.isSuccess(exit)) return exit.value;
+    throw Cause.squash(exit.cause);
+  };
 
   h.setTime = (v) => Effect.sync(() => void (now = at(v)));
 
