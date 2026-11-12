@@ -225,7 +225,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live |
+| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live, gateway |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -240,35 +240,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 2 | 6 | 8 |
-| `await` | 6 | 19 | 13 |
-| `.then(` | 0 | 1 | 4 |
+| `async` | 2 | 3 | 8 |
+| `await` | 6 | 12 | 13 |
+| `.then(` | 0 | 0 | 4 |
 | `.catch(` | 52 | 3 | 27 |
-| `try {` | 1 | 2 | 0 |
-| `new Promise` | 2 | 7 | 1 |
-| `setTimeout/Interval` | 3 | 8 | 0 |
+| `try {` | 1 | 0 | 0 |
+| `new Promise` | 2 | 5 | 1 |
+| `setTimeout/Interval` | 3 | 6 | 0 |
 | `AbortController` | 0 | 2 | 0 |
-| `AbortSignal` | 1 | 2 | 2 |
+| `AbortSignal` | 1 | 0 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 3 | 15 | 0 |
+| `console.` | 3 | 7 | 0 |
 | `Date.now/new Date` | 6 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 1 | 0 | 1 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 421 | 15 | 0 |
+| `LEGACY-BRIDGE` | 421 | 20 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
-| `Effect.tryPromise` | 0 | 1 | 0 |
+| `Effect.tryPromise` | 0 | 3 | 0 |
 | `runPromise` | 0 | 0 | 1 |
 | `runFork` | 0 | 0 | 1 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **500** | **81** | **67** |
+| **total** | **500** | **61** | **67** |
 
 Import cycles: none.
-Per file: legacy.ts 92, main.ts 60, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 92, main.ts 50, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, gateway.ts 8, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -304,6 +304,12 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
+- 2026-11-12 (this commit) gateway (Gateway: one connection per term, held in its scope;
+  `GatewayClient` wraps @discordjs/ws, whose callbacks only queue events for one fiber; test
+  `gateway.test.ts` next commit): broken: no 30 s connect limit (red), no doubling (red), no 60 s
+  cap (red), a refused presence intent not remembered (red), the term's end keeping the trust
+  (red), an outage taken as a snapshot (red), other guilds' voice counted (red), a resume not
+  restoring trust (red).
 - 2026-11-12 `2cfc5f3` live (Live: one Queue of tagged events, one consumer fiber, a
   FiberHandle per timer; Presence publishes moves and "playing" on a PubSub; test 10
   `live.test.ts` `bb61bb2` on the old code, `live-clock.test.ts` next commit): broken: events
@@ -465,6 +471,11 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   harness writes its file even when empty. Exceptions to the baseline go in
   `test/recordings.allowed.json`, each with a reason, and are listed here.
 
+- **2026-11-12, G6: the gateway's two library calls** (phase 5, step 6): `gateway.ts` is a boundary
+  file (architecture §16, @discordjs/ws). Its `manager.connect()` and `manager.destroy()` are now
+  wrapped once each in `Effect.tryPromise`, so the inside count of that pattern goes 1 → 3. The
+  same file dropped async 2, await 3, `.then(` 1, `try {` 1 and `new Promise` 1 (the hand-made
+  timeout and abort race), so nothing else rises. `scripts/leftovers.json` raised to match.
 - **2026-11-12, G6: the signature verifier moved into its boundary file** (phase 5, the HTTP step):
   `verifySignature` left `discord.ts` for `src/verify.ts`, the boundary file architecture §16 names
   for it ("crypto.subtle calls wrapped once in Effect.tryPromise"). The outside counts fell by the
@@ -619,6 +630,13 @@ timeout), with the evidence.
   pick on the Lobby question call `openRoom` inside their region, so its wait for another tap's
   room (up to 14 s) and Discord's retries are uninterruptible there too (the claim before them must
   be followed through). Shutdown's 35 s cap still ends the process, as it ended the old promises.
+- **Gateway, step 6** (phase 5): the library sits behind a `GatewayClient` service (open →
+  connect, destroy; events emitted through one callback), so the Gateway's own code (snapshots,
+  outages, resumes, 4014, the retry schedule, the 30 s limit) runs under test with a fake
+  connection. Each connect attempt has its own scope: a failed or timed-out one is destroyed at
+  once, a good one is held until the term ends. The log lines keep today's text
+  (`gateway: ready`, `gateway: voice snapshot N in voice`, `gateway: connect failed, retrying in
+  N s <error>`).
 - **Live, step 5** (phase 5): Presence publishes every change on a PubSub (with the move's time,
   as the old listener stamped it) and still calls its old listeners, which only tests and
   spontaneous.test use now; step 8 moves those tests to the subscription and drops the arrays.

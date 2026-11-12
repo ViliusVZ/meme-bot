@@ -53,12 +53,12 @@ async function lead() {
     });
     // the gateway connects in the background, retrying with back-off (say, Discord is down); until
     // it's up, voice lookups fall back to REST and everything else carries on as normal
-    const gw = connectGateway(() => void watcher.resync(), done.signal);
+    const gw = gateway.start(env, () => void watcher.resync());
     // lead until we lose the lock (connection died) or shut down
     await Promise.race([lostP, new Promise<void>((ok) => stopLeading.signal.addEventListener("abort", () => ok(), { once: true }))]);
     lifecycle.setLeader(false); // LEGACY-BRIDGE
     done.abort();
-    await (await gw)?.close().catch((e) => console.log("gateway close", e));
+    await gw.close().catch((e) => console.log("gateway close", e));
     await Promise.all([clock.stop(), watcher.stop()]).catch((e) => console.log("leader: stop failed", e));
     await lock.release();
     console.log("leader: stepped down");
@@ -66,26 +66,6 @@ async function lead() {
   }
 }
 
-async function connectGateway(onSnapshot: () => void, signal: AbortSignal) {
-  for (let attempt = 0; !signal.aborted; attempt++) {
-    try {
-      const gw = await gateway.connect(env, onSnapshot, signal);
-      if (signal.aborted) {
-        await gw.close();
-        return null;
-      }
-      return gw;
-    } catch (e) {
-      const wait = Math.min(60_000, 2000 * 2 ** attempt);
-      console.log(`gateway: connect failed, retrying in ${wait / 1000} s`, String(e));
-      await new Promise<void>((ok) => {
-        const t = setTimeout(ok, wait);
-        signal.addEventListener("abort", () => (clearTimeout(t), ok()), { once: true });
-      });
-    }
-  }
-  return null;
-}
 const leading = lead();
 
 // ---------------------------------------------------------------- shutdown

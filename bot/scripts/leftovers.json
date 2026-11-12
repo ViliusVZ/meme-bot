@@ -29,6 +29,6 @@
   "AbortSignal": 2,
   "console.": 15,
   "AbortController": 2,
-  "Effect.tryPromise": 1
+  "Effect.tryPromise": 3
  }
 }
