@@ -1788,5 +1788,39 @@
   "describe \"Live (TestClock)\" > test \"when the term ends, what's queued is still handled\"": [
    "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\"])"
   ]
+ },
+ "gateway.test.ts": {
+  "describe \"the gateway (TestClock)\" > test \"a snapshot is the full picture; a move is seen; an outage and a drop stop the trust; a resume restores it\"": [
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, undefined)",
+   "assert.strictEqual(_, null)",
+   "assert.strictEqual(_, 1)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a failed connect is retried at 2 s, doubling to a minute, each failed attempt torn down\"": [
+   "assert.deepStrictEqual(_, [0, 2, 4, 8, 16, 32, 60, 60])",
+   "assert.strictEqual(_, 7)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a connect that hangs is given up after 30 s and tried again\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 0)",
+   "assert.strictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [0, 32])"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a refused presence intent is reported once, and the next connect goes without it\"": [
+   "assert.deepStrictEqual(_, [\"connecting with the presence intent\"])",
+   "assert.isTrue(_)",
+   "assert.strictEqual(_, GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"the term's end disconnects and stops trusting what we had\"": [
+   "assert.strictEqual(_, \"lobby\")",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, undefined)"
+  ]
  }
 }

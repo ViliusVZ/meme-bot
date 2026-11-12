@@ -304,7 +304,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
-- 2026-11-12 (this commit) gateway (Gateway: one connection per term, held in its scope;
+- 2026-11-12 `ddd4436` gateway (Gateway: one connection per term, held in its scope;
   `GatewayClient` wraps @discordjs/ws, whose callbacks only queue events for one fiber; test
   `gateway.test.ts` next commit): broken: no 30 s connect limit (red), no doubling (red), no 60 s
   cap (red), a refused presence intent not remembered (red), the term's end keeping the trust
