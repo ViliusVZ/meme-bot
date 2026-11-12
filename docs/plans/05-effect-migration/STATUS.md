@@ -57,6 +57,16 @@ off whenever its channel isn't configured (check it).
   qa_all 79/0).
 - **Can't fit:** only the phase 7 audit's minor finding 5 (see "Phase 7 audit").
 - Tonight's 17:00 card is the new code's first real one.
+- **Dry run of tonight's path on the test bot, `79c0a2d`, today's date (16:15–16:23):** the card
+  through `startNight` ("Are we playing today?", vote by 19:15), a real "I'm in" tap (26 ms, the
+  copy opened), quiet yes ×2, World of Warcraft ×3, 16:21 ×3 → "It's on" + the event; me in the
+  Lobby → moved into the room at the start, the ping 0.7 s after 16:21:00, event live, voice
+  tracked into the room and out; late slips to the two not in voice, an ETA; the wrap-up (room to
+  🗄️ Recent games, event ended); a bail from a slip (night off, roast). No failed/WARN/ERROR line.
+  Not exercised live: the 😴 snooze UI (vitest covers it; production has no snooze set).
+- **Production before 17:00 (read-only, 16:20):** no night row for today, no snooze, nobody in
+  voice, no open room, one leader lock in `meme_bot`, clock ticking, the card channel
+  `1567132345213911240`; dev.env and prod.env have the same keys but ALERT_USER_ID.
 
 ## Where we are
 
