@@ -38,14 +38,16 @@ off whenever its channel isn't configured (check it).
 
 **Can't fit (behaviour-neutral only):** (none yet)
 
-### Now (2026-11-12 ~11:20)
+### Now (2026-11-12 ~13:15)
 
-- **Phase 5 done** (audit closed: fixes `a4b5399`, tests `27b53aa`). On the test bot `27b53aa`
-  every QA suite is running again (`<scratchpad>/qa-effect/phase5-27b53aa/`, about an hour) because
-  the audit fixes touched the admin routes' input; the run on `d6a58da` matched the baseline in
-  every suite. **Next: phase 6** (tests become Effect-native; src frozen). If the QA run shows a
-  regression, fix it in src first (still phase 5).
-- **Deployed:** test bot `27b53aa`; production `aa49c52`.
+- **Phase 6 done and audited** (audit closed in phase 7's branch, see "Phase 6 audit" below).
+  **Phase 7 in progress** on branch `effect-p7` (worktree `C:\p\meme-bot-effect-p7`; fast-forward
+  `effect` to it when phase 7 is done): test 16 (`0b87993`, `cf1dbf5`), test 6's last entries
+  (`c4055db`), metrics + OTLP (`374eb97`), the phase 6 audit's test fixes (next commit). Left:
+  read the traces on the test bot, the phase 7 audit, the phase note.
+- **The news (plan 02)** is being ported by a background agent on branch `effect-news` (its own
+  worktree, off `2cbbcb4`); merge it into `effect` before the final build.
+- **Deployed:** test bot: the `50a232d`-era redeploy; production `aa49c52`.
 - **Phase notes posted to the owner in the thread:** phases 4 and 5 (2026-11-12).
 
 # 05 · Status
@@ -88,7 +90,33 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   env's QUIET/PLAYERS → `withOverrides` (src/config.ts); PRESENCES/GEMINI_API_KEY → `h.withConfig`.
   `await t.db.select()…` → `yield* db.select()…` on the app's `Db`.
 
-### Phase 6 done (2026-11-12; audit running)
+### Phase 6 audit (2026-11-12, closed)
+
+- src frozen (empty diff), ledger only added, recordings only added, gate scripts unchanged; 802
+  of 803 old tests run exactly the same number of assertions (the one other is `vi.waitFor`
+  retries); one-rule mutations of src turn the converted tests red as before.
+- **Fixed (test side):** the 19:00 call-out test couldn't fail (no slacker seeded): a new test
+  with a real slacker, red with the claims removed; time-driven.test leaked rooms, games and voice
+  segments between tests: rooms and voice segments are now emptied between them (the 8
+  recordings lost those rows and nothing else, calls unchanged; allowed in
+  `recordings.allowed.json` for that one commit, removed in the next); `games` is not emptied,
+  because the services read its seeded list (emptying it changed the Lobby question), so the
+  first test's play count still carries over in the snapshot; the alert window (a 2 h window passed) and the gateway DM (dropping the DM
+  passed): new tests, each red under that break; the `pg_stat_activity` flake (a hold matched
+  another test run's held statement): holds now match only their own schema's backend
+  (`cf1dbf5`). The committed weaker tests stay (the ledger never changes an entry).
+- **Corrected here:** two of phase 6's four "new" test 6 entries repeat older ones (the Lobby
+  question, `:644` = `:135`; an ETA on a slip, `:691` = `:161`): only the closing and the resumed
+  hold were new. `leadership.test.ts` is plain vitest on its own runtime, not on `test/fx.ts`
+  (declared (2) covers its live polling). Most files run on the frozen Clock, TestClock only in
+  resilience, time, time-driven, live and the files already on Effect (declared (1)). `h.logs` only
+  has lines from fibers that inherit the test's Console (a layer-built fiber, like the alert DM
+  sender, logs to the real console). The harness builds the runtime before emptying and seeding
+  the tables (no layer reads the database at build today). Detached fibers outside Background
+  (`later` in flows, maybe-matrix's `started`) aren't waited for, as before.
+- **The JITTER mode** of the old harness is gone: see "Declared exceptions".
+
+### Phase 6 done (2026-11-12)
 
 - Every test file runs on `test/fx.ts` with `it.effect`; `test/old/`, the old harness and every
   `_reset` are gone (`7bc359f`); what tests describe their config with is `test/env.ts`, the
@@ -742,7 +770,7 @@ order". Evidence: the jitter runs (`JITTER=1` delays every stubbed answer and qu
 with all of these in place, three normal runs and a jitter run of the whole suite give identical
 recordings (see "Numbers").
 
-- **Unordered call groups** (`verification.md` §2a), `test/harness.ts` `UNORDERED`:
+- **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`
     edits every live copy of a card or a poll in one `Promise.all` (polls go through it too:
@@ -805,7 +833,8 @@ recordings (see "Numbers").
   after it, so their recordings differed now and then (seen three times). The test now puts the
   sequence back at the highest id it left; on a quiet run nothing changes (the loser takes none).
 - **Presence's listener arrays** are still in src for the tests (presence.test, spontaneous.test);
-  phase 6 moves those tests to `changes` and removes them (an earlier note said step 8 did).
+  they stay after phase 6 too (declared (5) of "Phase 6 done"; an earlier note said phase 6
+  would remove them).
 
 ## Decisions taken along the way
 
@@ -990,7 +1019,8 @@ timeout), with the evidence.
   `s.tiebreaks`, a table gone since before the baseline. Plan 05 also removed the migrator it
   called; that part is fixed (`b1fa4f1`: it checks the database is migrated and says how). The
   tiebreaks part is left as found.
-- **Discord answers handled by logging or ignoring them** (architecture §6's record rule):
+- **Discord answers handled by logging or ignoring them** (architecture §6's record rule; the
+  phase 7 walk of every service's declared errors added the phase 5 entry points at the end):
   - ignored: a slip edit (attendance `etaOnSlip`, `retireSlips`; late `updateSlip`), the old nudge's
     delete (`clearNudge`), the racing duplicate card's delete (`openNight`), a bail's event end or
     delete (`afterBail`), `resetNight`'s deletes, the sweep's one-by-one deletes, the empty archive
@@ -1000,7 +1030,13 @@ timeout), with the evidence.
     at 03:00 (`editLine`), a voice state (not in voice), a room's channel (`openRoom` recreates
     it), an archived room's delete;
   - logged only: the event going live (`startReminder`), the card refresh at the start, a room
-    note (`note`), a move back to the Lobby (`goBack`), a failed voice lookup (late, Spontaneous).
+    note (`note`), a move back to the Lobby (`goBack`), a failed voice lookup (late, Spontaneous);
+  - phase 5 entry points, logged only: a poll's or /meme's `@original` lookup after the reply
+    (`interactions.ts`: the message id isn't recorded, the poll/meme still works, its later edits
+    skip it), the learn step's failure in `Live` (the name is asked again next time), a room check
+    (`maintainRooms`, retried the next minute), the gateway's close on teardown, a failed alert DM
+    (the alert sender logs it); ignored: the card refreshes `Interactions` starts in the background
+    after a vote (`refreshOpen`: the next minute's refresh redoes them).
 - **Phase 5 must make these one uninterruptible Effect each** (phase 4 audit): the daily meme
   (`jobs.ts`), the meme recaps (`jobs.ts`) and `/meme` (`interactions.ts`) are still promise code,
   each step its own bridge call, so today an interrupted run would release the claim. When they

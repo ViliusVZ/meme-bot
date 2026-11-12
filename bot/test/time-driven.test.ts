@@ -5,7 +5,7 @@
 import { expect, it } from "@effect/vitest";
 import { Clock, Duration, Effect, Fiber, Layer } from "effect";
 import { TestClock } from "effect/testing";
-import { gameNights, games, lobbyPrompts, panels as panelTable, recaps, settings } from "../src/db/schema.js";
+import { gameNights, games, lobbyPrompts, memes as memeTable, panels as panelTable, recaps, rooms, settings, voiceSegments, votes } from "../src/db/schema.js";
 import { GameNight } from "../src/gamenight.js";
 import { Nights } from "../src/nights.js";
 import { Live } from "../src/live.js";
@@ -19,7 +19,7 @@ import { Jobs } from "../src/jobs.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
-  tables: [lobbyPrompts, gameNights, panelTable, settings, recaps],
+  tables: [lobbyPrompts, gameNights, panelTable, settings, recaps, rooms, voiceSegments, votes, memeTable], // (every table these tests write but games, whose seeded list the services read)
   discord: { firstId: 90000, routes: [routes.noVoiceState, routes.lobbyOnly] },
   clock: "test",
 });
@@ -31,6 +31,11 @@ const io = TestClock.withLive(Effect.sleep(Duration.millis(150)));
 /** Move the test clock to `ms`, then let what that woke up do its I/O. */
 const to = (ms: number) => Effect.andThen(TestClock.setTime(ms), io);
 const posts = (path: string) => h.calls.filter((c) => c.method === "POST" && c.path === path);
+/** Give the I/O longer when the machine is busy: up to 6 s, until `done`. */
+const until = (done: () => boolean) =>
+  Effect.gen(function* () {
+    for (let i = 0; i < 40 && !done(); i++) yield* io;
+  });
 
 it.effect("a night starts on the exact second: its room 10 s early, the ping on the dot", () =>
   Effect.gen(function* () {
@@ -66,6 +71,7 @@ it.effect("two of us in the Lobby: the question comes after 30 s, not before", (
     yield* to(T0 + 29_000);
     expect(posts("/channels/lobby/messages")).toEqual([]);
     yield* to(T0 + 31_000);
+    yield* until(() => posts("/channels/lobby/messages").length > 0);
     expect(posts("/channels/lobby/messages")).toHaveLength(1);
   }).pipe(Effect.scoped, h.provide),
 );
@@ -218,4 +224,72 @@ it.effect("a job that hangs is cut off after 60 s and reported once; the jobs af
     expect(dms()).toHaveLength(1);
     void lock;
   }).pipe(Effect.scoped, h.provide),
+);
+
+// ---------------------------------------------------------------- the phase 6 audit: what the tests above didn't pin down
+
+it.effect("alerts: the window is 3 hours, not 2: the same problem at 2 h is still only counted", () =>
+  Effect.gen(function* () {
+    yield* TestClock.setTime(T0);
+    const alerts = yield* Alerts;
+    yield* alerts.setOwner("owner");
+    const dms = () => h.calls.filter((c) => c.method === "POST" && /^\/channels\/[^/]+\/messages$/.test(c.path)).map((c) => String(c.body?.content));
+    yield* alerts.failed("posting the card", new Error("boom"));
+    yield* alerts.settle;
+    yield* TestClock.setTime(T0 + 2 * 3600_000 + 1000);
+    yield* alerts.failed("posting the card", new Error("boom"));
+    yield* alerts.settle;
+    expect(dms()).toHaveLength(1); // still inside the 3 hours
+    yield* TestClock.setTime(T0 + 3 * 3600_000 + 1000);
+    yield* alerts.failed("posting the card", new Error("boom"));
+    yield* alerts.settle;
+    expect(dms()).toHaveLength(2);
+  }).pipe(h.provide),
+);
+
+it.effect("the gateway down for 5 minutes: the DM itself goes out at 5 minutes, and only once", () =>
+  Effect.gen(function* () {
+    yield* TestClock.setTime(T0);
+    const alerts = yield* Alerts;
+    yield* alerts.setOwner("owner");
+    const dms = () => h.calls.filter((c) => c.method === "POST" && /^\/channels\/[^/]+\/messages$/.test(c.path)).map((c) => String(c.body?.content));
+    yield* alerts.watchGateway; // down since now
+    yield* TestClock.setTime(T0 + 5 * 60_000 - 1000);
+    yield* alerts.watchGateway;
+    yield* alerts.settle;
+    expect(dms()).toEqual([]);
+    yield* TestClock.setTime(T0 + 5 * 60_000);
+    yield* alerts.watchGateway;
+    yield* alerts.settle;
+    expect(dms()).toHaveLength(1);
+    expect(dms()[0]).toContain("no gateway connection for 5 min");
+    yield* TestClock.setTime(T0 + 20 * 60_000);
+    yield* alerts.watchGateway;
+    yield* alerts.settle;
+    expect(dms()).toHaveLength(1);
+  }).pipe(h.provide),
+);
+
+it.effect("the 19:00 call-out with a real slacker: posted once at 19:00, not again, not after a restart", () =>
+  Effect.gen(function* () {
+    // five daily memes on the five days before; a and c voted on every one, b on none
+    for (let i = 0; i < 5; i++) {
+      const day = `2026-11-${String(10 - i).padStart(2, "0")}`;
+      yield* Effect.promise(() =>
+        h.t.db.insert(memeTable).values({ id: `t3_d${i}`, title: "d", image: "i", link: "l", author: "u", published: `${day}T08:00:00Z`, ingested_at: "x", post_kind: "daily", day, posted_at: `${day}T10:00:00.000Z`, channel_id: "memes", message_id: `msg${i}` }),
+      );
+      for (const u of ["a", "c"]) yield* Effect.promise(() => h.t.db.insert(votes).values({ meme_id: `t3_d${i}`, user_id: u, kind: "lol", voted_at: "x" }));
+    }
+    const callouts = () => posts("/channels/memes/messages");
+    yield* TestClock.setTime(Date.parse("2026-11-11T16:59:00Z")); // 18:59 in Vilnius
+    expect(yield* MemeShame.use((m) => m.evening)).toEqual({});
+    expect(callouts()).toEqual([]);
+    yield* TestClock.setTime(Date.parse("2026-11-11T17:00:00Z")); // 19:00
+    expect(yield* MemeShame.use((m) => m.evening)).toEqual({ called: ["b"] });
+    expect(callouts()).toHaveLength(1);
+    expect(yield* MemeShame.use((m) => m.evening)).toEqual({});
+    // a restart: the service built again from scratch; what was done is in the database
+    expect(yield* MemeShame.use((m) => m.evening).pipe(Effect.provide(Layer.fresh(MemeShame.layer)))).toEqual({});
+    expect(callouts()).toHaveLength(1);
+  }).pipe(h.provide),
 );

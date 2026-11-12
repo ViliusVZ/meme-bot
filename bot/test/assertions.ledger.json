@@ -1772,6 +1772,10 @@
   ],
   "test \"the admin schema takes what the QA scripts send, null for none included\"": [
    "expect.toBe(200)"
+  ],
+  "test \"a tap is counted and timed (architecture §14 metrics)\"": [
+   "expect.toBe(200)",
+   "expect.toEqual([before[0] + 1, before[1] + 1])"
   ]
  },
  "starts.test.ts": {
@@ -1999,6 +2003,53 @@
    "expect.toContain(\"the “spontaneous” job\")",
    "expect.toEqual({ error: expect.stringContaining(\"cut off\") })",
    "expect.toHaveLength(1)"
+  ],
+  "test \"alerts: the window is 3 hours, not 2: the same problem at 2 h is still only counted\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"the gateway down for 5 minutes: the DM itself goes out at 5 minutes, and only once\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"no gateway connection for 5 min\")",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the 19:00 call-out with a real slacker: posted once at 19:00, not again, not after a restart\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual({ called: [\"b\"] })",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toHaveLength(1)"
+  ]
+ },
+ "metrics.test.ts": {
+  "test \"a minute counts each job run and how long it took; a failing job is counted as failed\"": [
+   "expect.toBe(before.run + 1)",
+   "expect.toBe(timed + 1)",
+   "expect.toBe(before.failed + 1)",
+   "expect.toBe(before.ok)"
+  ],
+  "test \"Discord calls are counted by outcome: ok, or the error's name\"": [
+   "expect.toBe(ok + 1)",
+   "expect.toBe(gone + 1)"
+  ],
+  "test \"alerts: one sent, the same problem again held back as a repeat\"": [
+   "expect.toBe(sent + 1)",
+   "expect.toBe(held + 1)"
+  ],
+  "test \"background work in flight: up while a task runs, back down when it's done\"": [
+   "expect.toBe(1)",
+   "expect.toBe(0)"
+  ],
+  "test \"OTLP_URL set: spans go to the collector (sent on shutdown at the latest)\"": [
+   "expect.toBe(true)",
+   "expect.toContain(\"POST http://otel.test/v1/traces\")"
+  ],
+  "test \"OTLP_URL unset: no exporter at all, and nothing is sent anywhere\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([])"
   ]
  }
 }

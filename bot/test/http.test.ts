@@ -2,10 +2,11 @@
 // token, a bad signature, a malformed body, an unknown admin action, an internal failure, an
 // unknown route, a body over the limit, and /health while shutting down.
 import { expect, it } from "@effect/vitest";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Metric } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { AppStatus, ROUTER_CONFIG, routesOn, type Status } from "../src/app.js";
 import { Alerts } from "../src/alerts.js";
+import { taps, tapTime } from "../src/metrics.js";
 import { AppConfig } from "../src/config.js";
 import type { AppServices } from "../src/runtime.js";
 import { harness } from "./fx.js";
@@ -209,5 +210,18 @@ it.effect("the admin schema takes what the QA scripts send, null for none includ
   Effect.gen(function* () {
     const r = yield* (yield* build(up)).inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a" }, payload: { action: "lobby", players: "qa_s1,qa_s2", where: {}, t: 1794000000, change: null } });
     expect(r.statusCode).toBe(200);
+  }).pipe(h.provide),
+);
+
+it.effect("a tap is counted and timed (architecture §14 metrics)", () =>
+  Effect.gen(function* () {
+    const { pub, sign } = yield* signer();
+    const app = yield* build(up, { publicKey: pub });
+    const ok = Metric.withAttributes(taps, { outcome: "ok" });
+    const before = [(yield* Metric.value(ok)).count, (yield* Metric.value(tapTime)).count];
+    const payload = JSON.stringify({ type: 1 });
+    const r = yield* app.inject({ method: "POST", url: "/interactions", payload, headers: { "content-type": "application/json", "x-signature-ed25519": yield* sign(payload, "42"), "x-signature-timestamp": "42" } });
+    expect(r.statusCode).toBe(200);
+    expect([(yield* Metric.value(ok)).count, (yield* Metric.value(tapTime)).count]).toEqual([before[0] + 1, before[1] + 1]);
   }).pipe(h.provide),
 );

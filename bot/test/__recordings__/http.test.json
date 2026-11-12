@@ -94,5 +94,11 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "a tap is counted and timed (architecture §14 metrics)": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
  }
 }

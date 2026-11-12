@@ -1,0 +1,12 @@
+{
+ "time-driven.test.json": {
+  "two of us in the Lobby: the question comes after 30 s, not before": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "a private copy follows its card for 14 minutes after the last tap, then it's let go": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "the same problem within 3 hours is counted, not re-sent; after 3 hours it's sent with the count": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "Reddit is fetched again 6 hours after the last good refill, and not before": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "the gateway down for 5 minutes is worth one DM, not before, and once": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "the 03:00 sweep runs once a night: not at 02:59, once at 03:00, not again, not after a restart": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "the 19:00 meme-shame call-out runs once a day: not at 18:59, once at 19:00, not again, not after a restart": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only.",
+  "a job that hangs is cut off after 60 s and reported once; the jobs after it still run": "phase 6 audit: time-driven.test now empties rooms and voice_segments between tests; only those leaked rows leave the snapshot (calls unchanged). Allowed for the commit that makes the change only."
+ }
+}
