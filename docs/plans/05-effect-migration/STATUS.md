@@ -1143,6 +1143,11 @@ fixed in it. For the owner to prioritise after the cutover.
 **The final build is `930d912`** (phase 7 + the news + the phase 7 audit's fixes), on the test
 bot since 13:47. Output under `<scratchpad>/qa-effect/final-930d912/`.
 
+- **Every QA suite on `930d912` (`qa_baseline.sh`, 13:49–14:41): all passed.** qa_all 79/0,
+  qa_timing 13/0 (alone: the wrap-up's event ends, which settles the `48dfbdf` failure as the
+  overlap), qa_rooms, qa_stats 17/0, qa_spontaneous ("all good"), qa_slowpoke, qa_late_ui,
+  qa_leaveby as before, qa_maybe_matrix 897/0 (45.5 min). Taps during qa_all: 14, median 26 ms,
+  p95 40, max 55. Memory 120.9 MiB at 54 min uptime.
 - **Browser tap test on `930d912`: passed** (same sequence as below: "I'm in" opened the copy,
   quiet admin votes, the copy followed by itself to "It's on: Enshrouded at 20:00").
   Tap timing: 31, 25, 21, 30, 21, 23, 21 ms; **median 23, p95 31**.
