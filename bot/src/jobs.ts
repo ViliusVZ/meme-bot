@@ -196,7 +196,7 @@ export class Jobs extends Context.Service<
             yield* time(jobTime, Duration.millis((yield* Clock.currentTimeMillis) - t0), { job: name });
           }
           return out;
-        }),
+        }).pipe(Effect.withSpan("minute")),
         postDaily,
         weeklyRecap,
         monthlyRecap,
