@@ -2,6 +2,9 @@
 
 Read `README.md` in this folder first.
 
+> **Since plan 05 (2026-11): the bot is Effect-native.** Build this as Effect services, as the
+> house rules in `README.md` and `bot/README.md` describe (a branch (`wow-news`, f298ce4) written in the old promise style was paused mid-rollout on 2026-11-11; porting it means rewriting `news.ts` as a service).
+
 ## Why
 
 The trio plays World of Warcraft: Forever (Blizzard's permanent "Classic plus" realms, launched

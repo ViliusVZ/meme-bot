@@ -2,6 +2,9 @@
 
 Read `README.md` in this folder first.
 
+> **Since plan 05 (2026-11): the bot is Effect-native.** Build this as Effect services, as the
+> house rules in `README.md` and `bot/README.md` describe (nothing of it is built yet).
+
 ## Why
 
 The owner asked about replacing Rythm with our own music player. That was dropped (it needs a

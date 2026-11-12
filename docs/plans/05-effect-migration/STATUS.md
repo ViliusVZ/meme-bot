@@ -48,6 +48,27 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   env's QUIET/PLAYERS → `withOverrides` (src/config.ts); PRESENCES/GEMINI_API_KEY → `h.withConfig`.
   `await t.db.select()…` → `yield* db.select()…` on the app's `Db`.
 
+### Phase 6 progress (conversion guide: `phase6-conversion.md`)
+
+- On fx.ts and committed: roasts (`ab944f0`), interactions (`ec227bf`).
+- Being converted by parallel subagents (2026-11-12 ~12:00; they edit only their files, never
+  commit; I check and commit each): flows; paths; spontaneous + presence; interruption +
+  maybe-matrix; activity, reddit, time, alerts, live, starts, resilience; db, migrations, memes,
+  panels, hub, logging, overrides, config, discord-errors, http. Mine: discord, ticker, gateway,
+  live-clock, shutdown, leadership (already Effect: imports off `test/old/`).
+- If this note is all that's left after a context loss: the subagents' edits are in the working
+  tree (uncommitted); check each file with the guide's four checks and commit the ones that pass.
+
+### Phase 7 inputs, gathered early
+
+- **Job timeouts (test 16), from production's logs, read-only (2026-11-12):** the journal of
+  `meme-bot-blue`/`-green` goes back to 2026-11-09 (the VPS was rebuilt on the 8th) and holds 53
+  `minute … ms` lines (only minutes that did something or took over 5 s are logged). Slowest:
+  3313 ms (`cleanup`, the 03:00 sweep), 1902 ms (`meme`, the daily), 1113 ms (`start`, a card),
+  1041 ms (`rooms`), then under a second. A minute's time is the sum of its jobs, so no job took
+  longer than 3.3 s. Five times that is 16.5 s, under the floor: **every job's limit is 60 s**.
+  Copy of the lines: `<scratchpad>/prod-minutes.txt`.
+
 ### Browser checks (2026-11-12, owner signed in)
 
 - **Private-copy browser tap test: passed on `52a14ba`.** In the T3 browser as Vithis on the test
