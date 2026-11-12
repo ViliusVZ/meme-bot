@@ -6,8 +6,8 @@ import { Clock, Effect, Fiber, Layer, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { HttpClient, HttpClientError, HttpClientResponse, type HttpClientRequest } from "effect/http";
 import { AppConfig } from "../src/config.js";
-import { Channels } from "./old/channels.js";
-import { Discord, isFinished } from "./old/discord.js";
+import { Channels } from "../src/channels.js";
+import { Discord, isFinished } from "../src/discord.js";
 import { configFromEnv } from "./old/legacy.js";
 import { testEnv } from "./pg.js";
 

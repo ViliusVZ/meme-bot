@@ -1639,6 +1639,21 @@
   "test \"a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)\"": [
    "expect.toEqual([[\"World of Warcraft: Forever\", true]])",
    "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\"]])"
+  ],
+  "fn lobbySequences": [
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([[\"open\", true]])",
+   "expect.toBe(\"open\")",
+   "expect.toEqual([])",
+   "expect.toBe(\"expired\")",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([[\"eta\", true]])",
+   "expect.not.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ paused_until: null, nudge_id: expect.any(String) })",
+   "expect.toEqual([\"yes\", \"yes\"])"
   ]
  },
  "hub.test.ts": {
@@ -1906,6 +1921,54 @@
   ],
   "describe \"shutdown run uninterruptibly (TestClock)\" > test \"as main runs it on a stuck clock, a term that won't end still gets only 15 s\"": [
    "assert.deepStrictEqual(_, [\"15s server stopped\", \"15s shutdown done\"])"
+  ]
+ },
+ "time-driven.test.ts": {
+  "test \"a night starts on the exact second: its room 10 s early, the ping on the dot\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)"
+  ],
+  "test \"two of us in the Lobby: the question comes after 30 s, not before\"": [
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a private copy follows its card for 14 minutes after the last tap, then it's let go\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])"
+  ],
+  "test \"the same problem within 3 hours is counted, not re-sent; after 3 hours it's sent with the count\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toContain(\"1 more time since the last DM about it\")"
+  ],
+  "test \"Reddit is fetched again 6 hours after the last good refill, and not before\"": [
+   "expect.toEqual({ refilling: true })",
+   "expect.toEqual({})",
+   "expect.toEqual({ refilling: true })",
+   "expect.toBe(2)"
+  ],
+  "test \"the gateway down for 5 minutes is worth one DM, not before, and once\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({ gatewayDown: 5 })",
+   "expect.toEqual({})"
+  ],
+  "test \"the 03:00 sweep runs once a night: not at 02:59, once at 03:00, not again, not after a restart\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({ deleted: 0, kept: 0 })",
+   "expect.toBe(1)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)"
+  ],
+  "test \"the 19:00 meme-shame call-out runs once a day: not at 18:59, once at 19:00, not again, not after a restart\"": [
+   "expect.toBe(0)",
+   "expect.toBe(1)",
+   "expect.toBe(1)"
   ]
  }
 }

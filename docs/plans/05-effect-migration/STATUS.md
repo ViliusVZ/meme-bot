@@ -56,6 +56,15 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   maybe-matrix; activity, reddit, time, alerts, live, starts, resilience; db, migrations, memes,
   panels, hub, logging, overrides, config, discord-errors, http. Mine: discord, ticker, gateway,
   live-clock, shutdown, leadership (already Effect: imports off `test/old/`).
+- Done by the subagents (uncommitted, checks green per their reports): spontaneous + presence,
+  flows, paths. Harness fixes to make once every subagent is back (they're told fx.ts is fixed):
+  (1) `h.logs` misses lines from services that re-provide their build context (GameNight's
+  methods carry the app's logger): keep the app's console logger and give the test fiber a
+  Console that writes into `h.logs`, so every line lands there; paths.test's `logged` helper
+  (h.logs + TestConsole) then simplifies. (2) `h.run` reseeds Random per call: paths.test has an
+  in-fiber `promised` helper instead; make that the harness's. (3) Shared helpers several files
+  grew (`waitFor`, the `later` fork-and-join, an `inject` on the test's clock, a pure
+  `wallToUnix` for ledger-pinned matcher text).
 - If this note is all that's left after a context loss: the subagents' edits are in the working
   tree (uncommitted); check each file with the guide's four checks and commit the ones that pass.
 
@@ -68,6 +77,15 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   1041 ms (`rooms`), then under a second. A minute's time is the sum of its jobs, so no job took
   longer than 3.3 s. Five times that is 16.5 s, under the floor: **every job's limit is 60 s**.
   Copy of the lines: `<scratchpad>/prod-minutes.txt`.
+- **Interruption audit (phase 7 step 1), the walk done early (2026-11-12):** test 6 has 15 entries
+  (card, start, roast, late slip, weekly recap, meme call-out, 03:00 sweep, room got ready, auto-move,
+  pull-in, a pick on the Lobby question, lock-in, re-nudge, daily meme, Meme of the Week) plus the
+  learned name's answer + alias; the start is test 8 too; stepping down is test 11. Of §15's named
+  kinds only **the Lobby question itself** (`ask`, spontaneous.ts) has no entry (news isn't on this
+  branch). Other protected regions without one, to add in phase 7: /meme's record, the ETA on a late
+  slip (`etaOnSlip`), the missing third's line (`postLine`), an unplanned session counted
+  (`count`) and finished (`finishSession`), a stage settled (`settle`), a hold resumed
+  (`resumeNight`), the two deadline warnings (maintain), the Lobby question closed (`closePrompt`).
 
 ### Browser checks (2026-11-12, owner signed in)
 

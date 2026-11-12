@@ -1,0 +1,96 @@
+{
+ "a night starts on the exact second: its room 10 s early, the ping on the dot": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 1d140c5facda",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "POST https://discord.com/api/v10/channels/gn/messages 9c6952f81d25",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07718040d408"
+  ],
+  "db": {
+   "game_nights": "1:e5a10420f6a3",
+   "games": "8:a906c10ebcec",
+   "rooms": "1:e57c99f6d359"
+  }
+ },
+ "two of us in the Lobby: the question comes after 30 s, not before": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages 829ee82ecdd0"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "lobby_prompts": "1:158e3f9a7d68",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "a private copy follows its card for 14 minutes after the last tap, then it's let go": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 3b3a66d5c26c"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "the same problem within 3 hours is counted, not re-sent; after 3 hours it's sent with the count": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/90000/messages 277df585568b",
+   "POST https://discord.com/api/v10/channels/90000/messages dc03a3074acf"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "Reddit is fetched again 6 hours after the last good refill, and not before": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:e57c99f6d359",
+   "settings": "1:5fcb4932f825",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "the gateway down for 5 minutes is worth one DM, not before, and once": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/90000/messages 680d22671e0a"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "the 03:00 sweep runs once a night: not at 02:59, once at 03:00, not again, not after a restart": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "recaps": "1:1f99866a6d7b",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ },
+ "the 19:00 meme-shame call-out runs once a day: not at 18:59, once at 19:00, not again, not after a restart": {
+  "calls": [],
+  "db": {
+   "games": "8:a906c10ebcec",
+   "recaps": "1:5fe707e3a04d",
+   "rooms": "1:e57c99f6d359",
+   "voice_segments": "2:6efe47e60048"
+  }
+ }
+}
