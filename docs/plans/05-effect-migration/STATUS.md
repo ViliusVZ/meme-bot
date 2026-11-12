@@ -1172,6 +1172,8 @@ bot since 13:47. Output under `<scratchpad>/qa-effect/final-930d912/`.
   79/0; admin route timings old vs new: copy median 43 vs 47 ms, vote 908 vs 913 ms (the same);
   then `…:930d91201cc6` back, leading in 9 s. Production's rollback is the same command with
   `meme-bot`.
+- **The forced soak's rerun (15:12): 14 passed, 0 failed**, the refill forced through a restart
+  (attempted 6 s after the times were set back). **Phase 8 done, 15:13.**
 - **Browser tap test on `930d912`: passed** (same sequence as below: "I'm in" opened the copy,
   quiet admin votes, the copy followed by itself to "It's on: Enshrouded at 20:00").
   Tap timing: 31, 25, 21, 30, 21, 23, 21 ms; **median 23, p95 31**.
