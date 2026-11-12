@@ -2051,5 +2051,16 @@
    "expect.toBe(true)",
    "expect.toEqual([])"
   ]
+ },
+ "traces.test.ts": {
+  "test \"a tap is one trace, saying what was tapped and by whom\"": [
+   "expect.toEqual([[\"Interactions.handle\", { tapped: \"/meme\", by: \"a\" }]])"
+  ],
+  "test \"a minute is one trace\"": [
+   "expect.toEqual([\"minute\"])"
+  ],
+  "test \"posting a card is one trace\"": [
+   "expect.toEqual([[\"GameNight.startNight\", { by: \"a\", day: \"today\" }]])"
+  ]
  }
 }

@@ -59,6 +59,8 @@ export type Options = Omit<OldOptions, "clock"> & {
 
 type Runtime = ManagedRuntime.ManagedRuntime<AppServices, unknown>;
 
+const JITTER = process.env.JITTER === "1";
+
 export type Harness = {
   /** The throwaway schema, through node-postgres (setup rows; the recorder reads the tables with it). */
   t: TestDb;
@@ -156,6 +158,9 @@ export function harness(o: Options = {}): Harness {
     const text = bodyText(init.body);
     const c: Call = { method: init.method ?? "GET", path, body: text ? JSON.parse(text) : undefined };
     h.calls.push(c);
+    // JITTER=1: every stubbed answer comes 0-4 ms late, so a recording that depends on which of two
+    // answers lands first shows up as a difference between runs (the declared races hold, the rest don't move)
+    if (JITTER) await new Promise((ok) => setTimeout(ok, Math.random() * 4));
     const mine = h.override?.(c);
     if (mine) return mine;
     for (const r of o.discord!.routes ?? []) {
