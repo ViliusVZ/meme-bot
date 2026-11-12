@@ -1654,6 +1654,24 @@
    "expect.toEqual([])",
    "expect.toMatchObject({ paused_until: null, nudge_id: expect.any(String) })",
    "expect.toEqual([\"yes\", \"yes\"])"
+  ],
+  "fn warning": [
+   "expect.toMatchObject({ warned: null, nudge_id: null })",
+   "expect.toEqual([])",
+   "expect.toMatchObject({ warned: stage, nudge_id: expect.any(String) })"
+  ],
+  "fn auditSequences7": [
+   "expect.toMatchObject({ finished: false, counted: false })",
+   "expect.toEqual([])",
+   "expect.toEqual([true, true, \"🎮 <@a> and <@b> played **Valheim** for 15 min\"])",
+   "expect.toBe(1)"
+  ],
+  "test \"an unplanned session counted: interrupted during its claim, the play is counted too (phase 7 audit)\"": [
+   "expect.toBe(true)",
+   "expect.toBe(plays + 1)"
+  ],
+  "test \"/meme: interrupted during its claim, the reply's message id is still recorded (phase 7 audit)\"": [
+   "expect.toMatchObject({ post_kind: \"request\", requested_by: \"a\", message_id: expect.any(String) })"
   ]
  },
  "hub.test.ts": {

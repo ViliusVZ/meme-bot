@@ -21,6 +21,7 @@ import { MemeShame } from "../src/memeshame.js";
 import { Cleanup, snowflakeAt } from "../src/cleanup.js";
 import { Jobs } from "../src/jobs.js";
 import { Presence } from "../src/presence.js";
+import { Interactions } from "../src/interactions.js";
 import { harness, json, routes, type TestDb } from "./fx.js";
 
 const CLOCK = "2026-11-10T19:00:00Z"; // Tuesday 21:00 in Vilnius
@@ -784,3 +785,106 @@ it.effect("a name Gemini placed: interrupted while its answer is written, the al
 // (after every earlier test: these leave rows in tables this file doesn't empty between tests, and
 // the earlier tests' recordings mustn't see them)
 for (const [name, s] of Object.entries(lobbySequences())) define(name, s);
+
+// ---------------------------------------------------------------- the phase 7 interruption audit
+// (after every earlier test, for the same reason as above)
+
+/** The protected regions §15's walk found without an entry: the two deadline warnings, a session wrapped up. */
+function auditSequences7(): Record<string, Sequence> {
+  const night = (stage: "ask" | "game", votes: ReadonlyArray<[string, string]>) =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      yield* db.delete(gameNightVotes); // (not emptied between this file's tests)
+      // voting opened 2 h 40 min ago: 20 minutes to the 3-hour deadline, inside the last 30
+      yield* db.insert(gameNights).values({ day: DAY, stage, message_id: "card", stage_at: now() - 9600, started_by: "a" });
+      for (const [u, c] of votes) yield* db.insert(gameNightVotes).values({ day: DAY, stage, user_id: u, choice: c, voted_at: "x" });
+    });
+  const warning = (stage: "ask" | "game", votes: ReadonlyArray<[string, string]>): Sequence => ({
+    setup: () => night(stage, votes),
+    run: () => GameNight.use((g) => g.maintain),
+    claim: { table: "game_nights", op: "UPDATE", when: "NEW.warned IS NOT NULL AND OLD.warned IS NULL" },
+    record: { table: "game_nights", op: "UPDATE", when: "NEW.nudge_id IS NOT NULL" },
+    post: { method: "POST", path: "/channels/gn/messages" },
+    nothing: () =>
+      Effect.gen(function* () {
+        const db = yield* Db;
+        expect((yield* db.select().from(gameNights))[0]).toMatchObject({ warned: null, nudge_id: null });
+        expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+      }),
+    everything: () =>
+      Effect.gen(function* () {
+        const db = yield* Db;
+        expect((yield* db.select().from(gameNights))[0]).toMatchObject({ warned: stage, nudge_id: expect.any(String) });
+      }),
+  });
+  return {
+    "the last call (its claim → the ping → its id)": warning("ask", [["a", "yes"], ["b", "yes"]]),
+    "a split's last call (its claim → the ping → its id)": warning("game", [["a", "R.E.P.O."], ["b", "Phasmophobia"], ["c", "Palworld"]]),
+    "an unplanned session wrapped up (its claim → the count → the line)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.delete(sessions);
+          yield* db.insert(games).values({ name: "Valheim", emoji: "🪓", added_at: "2026-11-03", plays: 0 }).onConflictDoNothing();
+          yield* db.update(games).set({ plays: 0 }).where(eq(games.name, "Valheim"));
+          // its room is gone, and the two of us were together for 15 minutes
+          yield* db.insert(sessions).values({ day: DAY, game: "Valheim", channel_id: "gone", started_at: now() - 1200, active_since: now() - 900, who: ["a", "b"], message_id: "line-v", line: "🎮 <@a> and <@b> are in **Valheim**" });
+        }),
+      run: () => Spontaneous.use((s) => s.minute(now())),
+      claim: { table: "sessions", op: "UPDATE", when: "NEW.finished AND NOT OLD.finished" },
+      record: { table: "sessions", op: "UPDATE", when: "NEW.line IS DISTINCT FROM OLD.line" },
+      post: { method: "PATCH", path: "/channels/gn/messages/line-v" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          expect((yield* db.select().from(sessions))[0]).toMatchObject({ finished: false, counted: false });
+          expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [s] = yield* db.select().from(sessions);
+          expect([s.finished, s.counted, s.line]).toEqual([true, true, "🎮 <@a> and <@b> played **Valheim** for 15 min"]);
+          expect((yield* db.select().from(games).where(eq(games.name, "Valheim")))[0].plays).toBe(1);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(auditSequences7())) define(name, s);
+
+it.effect("an unplanned session counted: interrupted during its claim, the play is counted too (phase 7 audit)", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* db.delete(sessions);
+    yield* db.insert(games).values({ name: "Valheim", emoji: "🪓", added_at: "2026-11-03", plays: 0 }).onConflictDoNothing();
+    const plays = (yield* db.select().from(games).where(eq(games.name, "Valheim")))[0].plays;
+    yield* db.insert(rooms).values({ channel_id: "val", game: "Valheim", created_at: now() - 86400 }).onConflictDoNothing();
+    // together for 11 minutes already, its line posted: the next look counts it
+    yield* db.insert(sessions).values({ day: DAY, game: "Valheim", channel_id: "val", started_at: now() - 700, active_since: now() - 660, who: ["a", "b"], message_id: "line-c", line: "x" });
+    const held = yield* hold({ table: "sessions", op: "UPDATE", when: "NEW.counted AND NOT OLD.counted" });
+    const fiber = yield* Effect.forkChild(Spontaneous.use((s) => s.react(new Map([["a", "val"], ["b", "val"]]), now())), { startImmediately: true });
+    yield* held.inFlight;
+    const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
+    yield* Fiber.join(stopped);
+    yield* held.done;
+    expect((yield* db.select().from(sessions))[0].counted).toBe(true);
+    expect((yield* db.select().from(games).where(eq(games.name, "Valheim")))[0].plays).toBe(plays + 1);
+  }).pipe(h.provide),
+);
+
+it.effect("/meme: interrupted during its claim, the reply's message id is still recorded (phase 7 audit)", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    for (const tbl of [recaps, votes, memeTable]) yield* db.delete(tbl);
+    yield* db.insert(memeTable).values({ id: "t3_ask", title: "t3_ask", image: "i", link: "l", author: "u", published: "2026-11-07T08:00:00Z", ingested_at: "x", rank: 1 });
+    const held = yield* hold({ table: "memes", op: "UPDATE", when: "OLD.post_kind IS NULL AND NEW.post_kind IS NOT NULL" });
+    const i = { type: 2, token: "tok", data: { name: "meme" }, member: { user: { id: "a", username: "a" } } };
+    const fiber = yield* Effect.forkChild(Interactions.use((x) => x.handle(i)), { startImmediately: true });
+    yield* held.inFlight;
+    const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
+    yield* Fiber.join(stopped);
+    yield* held.done;
+    yield* h.settle; // the record runs after the reply
+    expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", requested_by: "a", message_id: expect.any(String) });
+  }).pipe(h.provide),
+);
