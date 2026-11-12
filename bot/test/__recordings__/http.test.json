@@ -88,5 +88,11 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "the admin schema takes what the QA scripts send, null for none included": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
  }
 }

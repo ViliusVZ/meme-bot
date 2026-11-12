@@ -164,3 +164,8 @@ test("a public key that can't be read answers 500 with the reason, as before", a
   expect(r.json().error).not.toContain("SignatureUnreadable");
   expect(r.json().error).toMatch(/Error/);
 });
+
+test("the admin schema takes what the QA scripts send, null for none included", async () => {
+  const r = await build(env, up).inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a" }, payload: { action: "lobby", players: "qa_s1,qa_s2", where: {}, t: 1794000000, change: null } });
+  expect(r.statusCode).toBe(200);
+});

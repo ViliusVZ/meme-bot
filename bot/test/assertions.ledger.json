@@ -1736,6 +1736,9 @@
    "expect.toBe(500)",
    "expect.not.toContain(\"SignatureUnreadable\")",
    "expect.toMatch(/Error/)"
+  ],
+  "test \"the admin schema takes what the QA scripts send, null for none included\"": [
+   "expect.toBe(200)"
   ]
  },
  "starts.test.ts": {
