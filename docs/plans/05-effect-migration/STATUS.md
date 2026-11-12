@@ -304,7 +304,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
-- 2026-11-12 (this commit) leadership, main, shutdown (Leadership: the lock on a one-connection
+- 2026-11-12 `e3a061a` leadership, main, shutdown (Leadership: the lock on a one-connection
   client per term, Live + Ticker + Gateway in its scope; `shutdown.ts`: the five steps; main.ts an
   Effect program; tests 11 `leadership.test.ts`, 12 and 14 `shutdown.test.ts`, next commit):
   broken: no ping (red), no lock (red), /health still leading after the term (red), the clock

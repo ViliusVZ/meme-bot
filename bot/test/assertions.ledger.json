@@ -1822,5 +1822,35 @@
    "assert.strictEqual(_, 1)",
    "assert.strictEqual(_, undefined)"
   ]
+ },
+ "leadership.test.ts": {
+  "test \"exactly one copy leads; a killed lock connection ends its term, and the other takes over\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([true, false])",
+   "expect.toEqual([])",
+   "expect.toEqual([`${firstName} clock on`, `${firstName} gateway on`, `${firstName} live on`])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)",
+   "expect.toEqual([`${firstName} clock off`, `${firstName} gateway off`, `${firstName} live off`])",
+   "expect.toBe(true)",
+   "expect.toEqual([`${secondName} clock on`, `${secondName} gateway on`, `${secondName} live on`])",
+   "expect.toBe(0)"
+  ]
+ },
+ "shutdown.test.ts": {
+  "describe \"shutdown (TestClock)\" > test \"503 first; the term ends; 3 s for the proxy; the server stops; background gets 20 s\"": [
+   "assert.isTrue(_)",
+   "assert.deepStrictEqual(_, [\"1s term ended\", \"3s server stopped\", \"10s background done\", \"10s shutdown done\"])"
+  ],
+  "describe \"shutdown (TestClock)\" > test \"a term that won't end is given 15 s; background work still unfinished at 20 s is interrupted\"": [
+   "assert.deepStrictEqual(_, [\"15s server stopped\", \"35s shutdown done\"])",
+   "assert.strictEqual(_, 0)"
+  ],
+  "describe \"shutdown (TestClock)\" > test \"a second signal changes nothing\"": [
+   "assert.deepStrictEqual(_, [\"3s server stopped\"])"
+  ],
+  "describe \"the app's layer\" > test \"builds complete with test config (no missing or circular dependency)\"": [
+   "assert.isFunction(_)"
+  ]
  }
 }
