@@ -2,8 +2,8 @@
 // are reported to listeners, when lookups can be trusted, and what the cache keeps.
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { Presence } from "./old/presence.js";
-import { Channels } from "./old/channels.js";
+import { Presence } from "../src/presence.js";
+import { Channels } from "../src/channels.js";
 
 describe("Presence", () => {
   const seen = () => {
