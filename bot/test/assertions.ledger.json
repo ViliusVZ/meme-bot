@@ -1761,5 +1761,32 @@
    "expect.toHaveLength(1)",
    "expect.toEqual([\"b\", \"c\"])"
   ]
+ },
+ "live-clock.test.ts": {
+  "describe \"Live (TestClock)\" > test \"voice events are handled one at a time, in order\"": [
+   "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\", \"leave a\", \"left a\"])"
+  ],
+  "describe \"Live (TestClock)\" > test \"one failing event alerts, and the next one is still handled\"": [
+   "assert.deepStrictEqual(_, [\"live voice (voice change)\"])",
+   "assert.deepStrictEqual(_, [\"leave a\", \"leave b\", \"left b\"])"
+  ],
+  "describe \"Live (TestClock)\" > test \"a room's wrap-up fires exactly at its grace period, never before\"": [
+   "assert.strictEqual(_, before)",
+   "assert.deepStrictEqual(_, [T0 + 900_500])"
+  ],
+  "describe \"Live (TestClock)\" > test \"a replaced wrap-up timer never fires\"": [
+   "assert.isTrue(_, `checks at ${after.slice(before).map((t) => (t - T0) / 1000)}`)",
+   "assert.deepStrictEqual(_, [T0 + 1_800_500])"
+  ],
+  "describe \"Live (TestClock)\" > test \"the heartbeat runs every minute while anyone's in voice, and stops when nobody is\"": [
+   "assert.isTrue(_, `${beats.length} tracks in 3 minutes`)",
+   "assert.strictEqual(_, after)"
+  ],
+  "describe \"Live (TestClock)\" > test \"only the players' moves are handled\"": [
+   "assert.deepStrictEqual(_, [])"
+  ],
+  "describe \"Live (TestClock)\" > test \"when the term ends, what's queued is still handled\"": [
+   "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\"])"
+  ]
  }
 }

@@ -304,7 +304,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 One line per module: date, commit, the three break-it changes tried (`verification.md` §6).
 
-- 2026-11-12 (this commit) live (Live: one Queue of tagged events, one consumer fiber, a
+- 2026-11-12 `2cfc5f3` live (Live: one Queue of tagged events, one consumer fiber, a
   FiberHandle per timer; Presence publishes moves and "playing" on a PubSub; test 10
   `live.test.ts` `bb61bb2` on the old code, `live-clock.test.ts` next commit): broken: events
   handled at once (red), no net per event (red), the wrap-up early (red), a wrap-up timer kept
