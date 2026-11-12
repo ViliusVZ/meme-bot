@@ -11,7 +11,7 @@ import { afterAll, expect, test } from "vitest";
 import pg from "pg";
 import { Effect } from "effect";
 import { DbOptions, runMigrations } from "../src/db/db.js";
-import { run } from "../src/legacy.js";
+import { run } from "./old/legacy.js";
 import { harness } from "./harness.js";
 import { url } from "./pg.js";
 

@@ -1,7 +1,6 @@
 // The leader's clock: the minute jobs at the top of every minute, and an exact timer for each game
 // night about to start (room opens 10 s early, moves and ping on the second).
 import { Cause, Clock, Context, Duration, Effect, Fiber, FiberMap, Layer, Ref, type Scope } from "effect";
-import type { Env } from "./env.js";
 import { Jobs } from "./jobs.js";
 import { GameNight } from "./gamenight.js";
 import { Alerts } from "./alerts.js";
@@ -126,10 +125,4 @@ export class Ticker extends Context.Service<
       });
     }),
   );
-}
-
-
-export interface ClockOptions {
-  onStall?: (mins: number) => void;
-  minute?: (env: Env) => Promise<Record<string, unknown>>;
 }

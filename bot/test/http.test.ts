@@ -5,7 +5,7 @@ import { beforeAll, expect, test, vi } from "vitest";
 import { build } from "./old/app.js";
 import * as alerts from "./old/alerts.js";
 import { harness } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({ discord: { firstId: 40000 }, clock: "2026-11-06T15:00:00Z" });
 let env: Env;

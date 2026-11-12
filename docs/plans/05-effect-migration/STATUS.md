@@ -240,35 +240,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 2 | 1 | 2 |
-| `await` | 7 | 2 | 5 |
+| `async` | 0 | 1 | 0 |
+| `await` | 3 | 2 | 2 |
 | `.then(` | 0 | 0 | 0 |
-| `.catch(` | 53 | 1 | 0 |
-| `try {` | 1 | 0 | 0 |
-| `new Promise` | 2 | 0 | 0 |
-| `setTimeout/Interval` | 3 | 2 | 0 |
+| `.catch(` | 51 | 1 | 0 |
+| `try {` | 0 | 0 | 0 |
+| `new Promise` | 0 | 0 | 0 |
+| `setTimeout/Interval` | 0 | 2 | 0 |
 | `AbortController` | 0 | 0 | 0 |
-| `AbortSignal` | 1 | 0 | 0 |
+| `AbortSignal` | 0 | 0 | 0 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 3 | 0 | 0 |
+| `console.` | 0 | 0 | 0 |
 | `Date.now/new Date` | 6 | 0 | 0 |
 | `Math.random` | 0 | 0 | 0 |
-| `process.env` | 1 | 0 | 1 |
+| `process.env` | 0 | 0 | 0 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 0 |
-| `LEGACY-BRIDGE` | 132 | 6 | 0 |
+| `LEGACY-BRIDGE` | 0 | 4 | 0 |
 | `Effect.promise` | 0 | 0 | 0 |
 | `Effect.tryPromise` | 0 | 3 | 0 |
 | `runPromise` | 0 | 0 | 1 |
-| `runFork` | 0 | 0 | 2 |
+| `runFork` | 0 | 0 | 1 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **213** | **15** | **11** |
+| **total** | **62** | **13** | **4** |
 
 Import cycles: none.
-Per file: legacy.ts 92, db/index.ts 20, spontaneous.ts 19, gamenight.ts 14, env.ts 12, main.ts 9, alerts.ts 7, presence.ts 7, voice.ts 7, interactions.ts 5, reddit.ts 5, activity.ts 4, gemini.ts 4, app.ts 3, gateway.ts 3, verify.ts 3, channels.ts 2, discord.ts 2, late.ts 2, live.ts 2, attendance.ts 1, jobs.ts 1, leadership.ts 1, scheduler.ts 1, shutdown.ts 1, snooze.ts 1.
+Per file: gamenight.ts 14, spontaneous.ts 11, main.ts 7, voice.ts 7, interactions.ts 5, activity.ts 4, app.ts 3, gateway.ts 3, reddit.ts 3, verify.ts 3, discord.ts 2, late.ts 2, live.ts 2, alerts.ts 1, attendance.ts 1, gemini.ts 1, jobs.ts 1, leadership.ts 1, presence.ts 1, scheduler.ts 1, shutdown.ts 1, snooze.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -660,6 +660,24 @@ timeout), with the evidence.
   the other took over 12 ms later, the old container exited 0); qa_all 79/0 (09:31: the roast
   check passes after 09:30, as explained), qa_timing 13/0 (ping 0.58 s), no error/warn lines.
   Step 6 on `0d7f48a`: gateway ready, voice snapshot, qa_rooms and qa_spontaneous as baseline.
+- **Step 8, sub-steps B and C: fresh services per test; legacy.ts, env.ts and the old pool left
+  src** (phase 5): the harness builds a new runtime before each test (3 ms: the pool connects
+  lazily, and the layer builds synchronously, so `runSync` works at once), so the services'
+  `reset` members went; the shims' old `_reset()` calls now restart the runtime (a mid-test
+  restart is what reddit's "a deploy" meant); `alerts.setup` keeps its owner across a restart, as
+  production reads it from config. `LegacyPresences` and `LegacyGeminiKey` went: a bridge call
+  whose `env` turns game detection on or carries a Gemini key gets its own Spontaneous and Gemini
+  built with that configuration over the runtime's other services (both hold no state of their
+  own); an Effect test uses `withPresences`. `src/legacy.ts`, `src/env.ts` and `src/db/index.ts`
+  (the node-postgres pool) moved to `test/old/`; src imports tables from `db/schema.ts`.
+  resilience's "a stuck query gives up after 30 s" now reads the timeouts on the app's own pool
+  (the same assertion). `scripts/import-d1.ts` opens its own node-postgres pool. G6 outside: 62.
+- **Declared: `Alerts.settle` stays** (phase 5, step 8): "wait for the DMs already queued", used
+  by tests that check a DM went out (13 calls). Not transition code once the tests are Effect-
+  native either (a DM is sent by the alert worker's own fiber). It lost its LEGACY-BRIDGE mark.
+- **Found: resilience's fake-timer clock tests log one "lining up the exact start failed"**: the
+  fake `setTimeout` jumps whole minutes while the clock's real query waits, which fires the pool's
+  acquire timeout. Seen before step 8 too; harmless; phase 6's TestClock ends it.
 - **Step 8 to-do (found on the way):** boundary-file diagnostics comments (main.ts's two
   `setTimeout`s), the `JSON.stringify` sweep (scheduler, live, cleanup, discord, gemini,
   spontaneous), Presence's listener arrays (tests move to the subscription), app.ts's `build`.

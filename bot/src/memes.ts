@@ -1,8 +1,7 @@
 // Daily memes: the pool, posting claims, votes, streaks, leaderboards.
 import { and, count, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { Clock, Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { memes, recaps, users, votes } from "./db/index.js";
+import { memes, recaps, users, votes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { nowIso } from "./clock.js";
 

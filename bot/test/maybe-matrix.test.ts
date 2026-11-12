@@ -9,7 +9,7 @@ import * as gn from "./old/gamenight.js";
 import { interaction } from "./old/interactions.js";
 import { gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 type Answer = "yes" | "maybe" | "no" | null;
 type Votes = Record<string, Answer>;

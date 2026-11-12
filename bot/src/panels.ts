@@ -4,8 +4,7 @@
 // game picker after the game's decided, say, so you pick again).
 import { and, eq, lt } from "drizzle-orm";
 import { Context, Effect, Layer, Result, Schema, Semaphore } from "effect";
-import type { Env } from "./env.js";
-import { panels } from "./db/index.js";
+import { panels } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { Discord, EPHEMERAL } from "./discord.js";
 import { nowSec } from "./clock.js";

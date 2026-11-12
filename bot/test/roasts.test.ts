@@ -3,7 +3,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { roastBags } from "../src/db/schema.js";
 import * as roasts from "./old/roasts.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 import { harness } from "./harness.js";
 
 const h = harness({ tables: [roastBags] });

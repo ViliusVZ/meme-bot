@@ -9,7 +9,6 @@ import { REST } from "@discordjs/rest";
 import { WebSocketManager, WebSocketShardEvents } from "@discordjs/ws";
 import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload } from "discord-api-types/v10";
 import { Context, Duration, Effect, Fiber, Layer, Queue, Redacted, Ref, Schema, type Scope } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import { Presence } from "./presence.js";
 import { Channels, type Channel } from "./channels.js";

@@ -3,7 +3,6 @@
 // about it before the trio does. The same problem again within 3 hours is counted, not re-sent, and
 // there's a cap overall, so a bad day is a handful of DMs, never a flood.
 import { Clock, Context, Deferred, Effect, Layer, Queue, Ref } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import { Discord } from "./discord.js";
 import { Presence } from "./presence.js";
@@ -55,9 +54,8 @@ export class Alerts extends Context.Service<
     /** A minute job: say so if the gateway has been down 5 minutes (once per outage). */
     readonly watchGateway: Effect.Effect<{ gatewayDown?: number }>;
     /** Tests: wait for the DMs queued so far. */
-    readonly settle: Effect.Effect<void>; // LEGACY-BRIDGE
+    readonly settle: Effect.Effect<void>;
     /** Tests: forget throttles and the DM channel. */
-    readonly reset: Effect.Effect<void>; // LEGACY-BRIDGE
   }
 >()("meme-bot/alerts") {
   static readonly layer = Layer.effect(
@@ -155,11 +153,10 @@ export class Alerts extends Context.Service<
           yield* report("staying connected to Discord", `no gateway connection for ${mins} min: Lobby pulls, room wrap-ups and voice stats fall back to slower checks until it's back`);
           return { gatewayDown: mins };
         }).pipe(Effect.withSpan("Alerts.watchGateway")),
-        settle: Effect.gen(function* () { // LEGACY-BRIDGE
-          const d = yield* Ref.get(last); // LEGACY-BRIDGE
-          if (d) yield* Deferred.await(d); // LEGACY-BRIDGE
-        }), // LEGACY-BRIDGE
-        reset: Ref.set(state, fresh()), // LEGACY-BRIDGE
+        settle: Effect.gen(function* () {
+          const d = yield* Ref.get(last);
+          if (d) yield* Deferred.await(d);
+        }),
       });
     }),
   );

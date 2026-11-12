@@ -3,8 +3,7 @@
 // up early. Only the automatic card sleeps: 🎮 Play today and 📅 Plan a day still work.
 import { eq } from "drizzle-orm";
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
-import type { Env } from "./env.js";
-import { settings } from "./db/index.js";
+import { settings } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, allowedMentions, players } from "./config.js";
 import { Discord, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";

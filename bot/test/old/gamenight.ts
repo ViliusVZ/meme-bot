@@ -2,13 +2,13 @@
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/gamenight.js";
 // moved out to break import cycles (plan 05); still offered from here to the tests
-export { players } from "../../src/env.js";
+export { players } from "./env.js";
 export { local, pollHour, wallToUnix, weekday } from "./localtime.js";
 export { getNight, isOver } from "./nights.js";
 export { addGame, emojiFor, gameLabel, games, removeGame } from "./games.js";
-import { run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { Outcome, StartResult, When, deadlineFor, parseTimeFor, timeOptionsFor } from "../../src/gamenight.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 
 type Defer = (p: Promise<unknown>) => void;
 import { Effect } from "effect";

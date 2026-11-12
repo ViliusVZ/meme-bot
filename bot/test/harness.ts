@@ -13,9 +13,9 @@ import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 import type { PgTable } from "drizzle-orm/pg-core";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 import { drain } from "./old/background.js";
-import { install, configFromEnv } from "../src/legacy.js";
+import { install, configFromEnv, onRestart, sticky } from "./old/legacy.js";
 import { makeRuntime } from "./old/runtime.js";
 import { testDb, testEnv, url } from "./pg.js";
 
@@ -71,6 +71,7 @@ export type Harness = {
   /** This test's own answers; reset to null before each test. */
   override: Route | null;
   /** The app's runtime for this file (a test that forks a service call and interrupts it). */
+  /** The app's runtime for this test (fresh each test; a restart mid-test builds a new one). */
   runtime: ReturnType<typeof makeRuntime>;
   /**
    * Declare that this test races on purpose (several callers at once, one wins), so which one wins
@@ -209,6 +210,15 @@ export function harness(o: Options = {}): Harness {
   let tables: string[] = [];
   let nextId = 0;
   let runtime: ReturnType<typeof makeRuntime> | undefined;
+  let fresh: () => ReturnType<typeof makeRuntime> = () => {
+    throw new Error("no runtime before beforeAll");
+  };
+  const closing: Promise<void>[] = [];
+  const use = (rt: ReturnType<typeof makeRuntime>) => {
+    runtime = rt;
+    h.runtime = rt;
+    install(rt);
+  };
   let nextCopyId = 0;
   let random: { mockRestore(): void } | undefined;
   let racing: { mask: Record<string, string[]>; bodies: boolean; calls: boolean } | null = null;
@@ -290,14 +300,21 @@ export function harness(o: Options = {}): Harness {
     } else h.env = testEnv({} as never, o.env);
     // the app's services for this file (plan 05 transition: old code reaches them through legacy.ts)
     // (on this file's throwaway schema, the same one the old pool uses)
-    runtime = makeRuntime(configFromEnv(h.env, { databaseUrl: url() }), h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {});
-    await runtime.context();
-    h.runtime = runtime;
-    install(runtime);
+    fresh = () => makeRuntime(configFromEnv({ ...h.env, ALERT_USER_ID: sticky.owner ?? h.env.ALERT_USER_ID }, { databaseUrl: url() }), h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {});
+    use(fresh());
+    await runtime!.context();
+    // a restart mid-test (the old `_reset()` hooks: a deploy): a new runtime with fresh state, the old one closed
+    onRestart(() => {
+      const old = runtime;
+      use(fresh());
+      if (old) closing.push(old.dispose());
+    });
   });
   afterAll(async () => {
+    onRestart(null);
     install(null);
     await runtime?.dispose();
+    await Promise.all(closing.splice(0));
     Object.defineProperty(globalThis, "fetch", { configurable: true, writable: true, value: realFetch });
     const dir = fileURLToPath(new URL("./__recordings__/", import.meta.url));
     mkdirSync(dir, { recursive: true });
@@ -325,6 +342,11 @@ export function harness(o: Options = {}): Harness {
     }
     current = { calls: [], full: [] };
     racing = null;
+    // every test starts with fresh services (plan 05, phase 5 step 8: the reset hooks are gone)
+    sticky.owner = undefined;
+    const previous = runtime;
+    use(fresh());
+    if (previous) closing.push(previous.dispose());
   });
   afterEach(async () => {
     // the recording is of a finished test: let deferred work (followups, panel edits) land first

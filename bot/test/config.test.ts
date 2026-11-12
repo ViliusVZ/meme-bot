@@ -7,8 +7,8 @@ import { ConfigProvider, Effect, FiberSet, Logger, Redacted } from "effect";
 import { AppConfig, ConfigMissing, Overrides, allowedMentions, players, quiet, readConfig, withOverrides } from "../src/config.js";
 import { Background, drain } from "./old/background.js";
 import { Discord } from "./old/discord.js";
-import { loadConfig } from "../src/env.js";
-import { legacyEnv, run } from "../src/legacy.js";
+import { loadConfig } from "./old/env.js";
+import { legacyEnv, run } from "./old/legacy.js";
 import { harness } from "./harness.js";
 
 const h = harness({ db: false, discord: { firstId: 100 } });

@@ -2,9 +2,10 @@
 // bot's database connections give up on a stuck query instead of hanging the job behind it.
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import * as scheduler from "./old/scheduler.js";
-import { connect } from "../src/db/index.js";
+import { Effect } from "effect";
+import { SqlClient } from "effect/sql";
 import { build } from "./old/app.js";
-import { testEnv, url } from "./pg.js";
+import { testEnv } from "./pg.js";
 import { harness, type TestDb } from "./harness.js";
 
 const h = harness();
@@ -55,11 +56,7 @@ test("a minute stuck for 5 minutes is reported once, so the bot can restart itse
 });
 
 test("a query stuck on a lock gives up after 30 s instead of hanging its job", async () => {
-  const { pool } = connect(url());
-  try {
-    const { rows } = await pool.query("SELECT current_setting('statement_timeout') AS st, current_setting('idle_in_transaction_session_timeout') AS idle");
-    expect(rows[0]).toEqual({ st: "30s", idle: "1min" });
-  } finally {
-    await pool.end();
-  }
+  // the app's own pool (src/db/db.ts), as every job uses it
+  const rows = await h.runtime.runPromise(Effect.flatMap(SqlClient.SqlClient, (sql) => sql`SELECT current_setting('statement_timeout') AS st, current_setting('idle_in_transaction_session_timeout') AS idle`));
+  expect(rows[0]).toEqual({ st: "30s", idle: "1min" });
 });

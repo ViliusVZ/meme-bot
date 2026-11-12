@@ -9,8 +9,7 @@
 // lookups fall back to REST, per player.
 import { and, asc, desc, eq, isNull, like, not, sql } from "drizzle-orm";
 import { Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, rooms } from "./db/index.js";
+import { gameNights, rooms } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2, isFinished } from "./discord.js";

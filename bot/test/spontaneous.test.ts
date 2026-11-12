@@ -10,9 +10,9 @@ import { interaction } from "./old/interactions.js";
 import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
 import * as gemini from "./old/gemini.js";
 import * as gn from "./old/gamenight.js";
-import { loadConfig } from "../src/env.js";
+import { loadConfig } from "./old/env.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({
   tables: [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms, activityGuesses, settings],

@@ -1,8 +1,9 @@
-// Configuration from the environment, plus the shared handles every module gets as `env`.
-import { Cause, ConfigProvider, Effect, Exit, Redacted } from "effect"; // LEGACY-BRIDGE
-import type { Db } from "./db/index.js";
-import { readConfig } from "./config.js"; // LEGACY-BRIDGE
-import { envFields } from "./legacy.js"; // LEGACY-BRIDGE
+// The old `env` object and its loader, for the tests until phase 6 (plan 05: it left src in phase 5,
+// step 8; the app reads AppConfig).
+import { Cause, ConfigProvider, Effect, Exit, Redacted } from "effect";
+import type { Db } from "./db.js";
+import { readConfig } from "../../src/config.js";
+import { envFields } from "./legacy.js";
 
 export interface Env {
   db: Db;
@@ -34,15 +35,15 @@ export interface Env {
 export type Config = Omit<Env, "db" | "QUIET"> & { DATABASE_URL: string; PORT: number };
 
 /** The environment, read by Config (config.ts); the old shape, for the code that still takes `env`. */
-export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config { // LEGACY-BRIDGE
-  const exit = Effect.runSyncExit(readConfig.pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(e))))); // LEGACY-BRIDGE
-  if (Exit.isFailure(exit)) { // LEGACY-BRIDGE
-    const e = Cause.squash(exit.cause); // LEGACY-BRIDGE
-    throw new Error(e instanceof Error ? e.message : String(e)); // "missing environment: A, B", as always // LEGACY-BRIDGE
-  } // LEGACY-BRIDGE
-  const c = exit.value; // LEGACY-BRIDGE
-  return { DATABASE_URL: Redacted.value(c.databaseUrl), PORT: c.port, ...envFields(c) }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
+export function loadConfig(e: NodeJS.ProcessEnv = process.env): Config {
+  const exit = Effect.runSyncExit(readConfig.pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(e)))));
+  if (Exit.isFailure(exit)) {
+    const e = Cause.squash(exit.cause);
+    throw new Error(e instanceof Error ? e.message : String(e)); // "missing environment: A, B", as always
+  }
+  const c = exit.value;
+  return { DATABASE_URL: Redacted.value(c.databaseUrl), PORT: c.port, ...envFields(c) };
+}
 
 /** The trio's user ids (moved here from gamenight.ts: everything below it needs them). */
 export const players = (env: Env) => env.PLAYERS.split(",").map((s) => s.trim()).filter(Boolean);

@@ -3,9 +3,9 @@
 export * from "../../src/late.js";
 // the data half moved to attendance.ts; still offered from here to the tests
 export { declare, etas, expect, get, markArrived, render, retireSlips, type Attendance } from "./attendance.js";
-import { run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { LateSlips } from "../../src/late.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 
 // the old functions, for the code that isn't on Effect yet
 const asOld = (e: unknown) => {

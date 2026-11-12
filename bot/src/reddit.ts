@@ -5,12 +5,11 @@ import { XMLParser } from "fast-xml-parser";
 import { eq } from "drizzle-orm";
 import { Cause, Clock, Context, DateTime, Duration, Effect, FiberHandle, Layer, Option, Ref, Schedule, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
-import { settings } from "./db/index.js";
+import { settings } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Memes, type Incoming } from "./memes.js";
 import { Alerts } from "./alerts.js";
-import type { Env } from "./env.js";
 
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
@@ -99,7 +98,6 @@ export class Reddit extends Context.Service<
     /** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
     readonly refilling: Effect.Effect<boolean>;
     /** Tests: forget everything in memory, as a restart would. */
-    readonly reset: Effect.Effect<void>; // LEGACY-BRIDGE
   }
 >()("meme-bot/reddit") {
   static readonly layer = Layer.effect(
@@ -179,7 +177,6 @@ export class Reddit extends Context.Service<
       return Reddit.of({
         maybeRefill,
         refilling: Effect.map(FiberHandle.get(handle), Option.isSome),
-        reset: Ref.set(state, initial), // LEGACY-BRIDGE
       });
     }),
   );

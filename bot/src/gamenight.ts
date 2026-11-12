@@ -35,7 +35,7 @@ import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Spontaneous } from "./spontaneous.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
-import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/index.js";
+import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/schema.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import type { Night } from "./nights.js";
 

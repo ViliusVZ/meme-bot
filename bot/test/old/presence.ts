@@ -1,7 +1,8 @@
 // The old functions of src/presence.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/presence.js";
-import { runSync } from "../../src/legacy.js";
+import { runSync } from "./legacy.js";
+import { restart } from "./legacy.js";
 import { Presence } from "../../src/presence.js";
 import { Listener, PlayingListener } from "../../src/presence.js";
 
@@ -19,4 +20,5 @@ export const setActivities = (user: string, activities: { type: number; name: st
 export const playing = (user: string) => runSync(Presence.use((p) => p.playing(user)));
 export const onPlaying = (fn: PlayingListener) => runSync(Presence.use((p) => p.onPlaying(fn)));
 /** Tests only. */
-export const _reset = () => runSync(Presence.use((p) => p.reset));
+/** Fresh state: a new runtime (every in-memory state starts again, as after a deploy). */
+export const _reset = () => restart();

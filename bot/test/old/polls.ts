@@ -1,9 +1,9 @@
 // The old functions of src/polls.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/polls.js";
-import { run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { Polls } from "../../src/polls.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 import { Mine } from "../../src/panels.js";
 
 // the old functions, for the code that isn't on Effect yet

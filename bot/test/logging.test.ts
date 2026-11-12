@@ -2,7 +2,7 @@
 // annotations as key=value, secrets redacted (plan 05, architecture.md §14).
 import { expect, test, vi } from "vitest";
 import { Effect, Redacted } from "effect";
-import { run } from "../src/legacy.js";
+import { run } from "./old/legacy.js";
 import { harness } from "./harness.js";
 
 const h = harness({ db: false });

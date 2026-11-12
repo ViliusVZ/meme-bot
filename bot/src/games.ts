@@ -2,8 +2,7 @@
 // without importing it back (plan 05 removes that import cycle).
 import { asc, desc, eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { games as gameTable } from "./db/index.js";
+import { games as gameTable } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { nowIso } from "./clock.js";
 

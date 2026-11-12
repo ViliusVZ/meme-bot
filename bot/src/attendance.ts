@@ -3,8 +3,7 @@
 // late.ts, which calls back into game night (plan 05 removes that import cycle).
 import { and, eq, isNull, like, not, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, nightAttendance, rooms } from "./db/index.js";
+import { gameNights, nightAttendance, rooms } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Discord, type DiscordError, IS_COMPONENTS_V2 } from "./discord.js";

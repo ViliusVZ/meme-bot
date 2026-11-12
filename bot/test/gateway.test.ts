@@ -12,7 +12,7 @@ import { Presence } from "./old/presence.js";
 import { Channels } from "./old/channels.js";
 import { AppConfig } from "../src/config.js";
 import { Alerts } from "./old/alerts.js";
-import { configFromEnv } from "../src/legacy.js";
+import { configFromEnv } from "./old/legacy.js";
 import { testEnv } from "./pg.js";
 
 const T0 = Date.parse("2026-11-10T19:00:00Z");

@@ -10,8 +10,7 @@
 // Placeholders: {who} the culprit, {a} {b} the two culprits, {V} {K} {L} a specific person.
 import { eq, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Random } from "effect";
-import type { Env } from "./env.js";
-import { roastBags } from "./db/index.js";
+import { roastBags } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 
 const V = "306836805825593344"; // Vithis: programmer, built this bot

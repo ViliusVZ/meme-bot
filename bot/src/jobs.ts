@@ -3,8 +3,7 @@
 // and one failing job doesn't stop the others.
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { Cause, Clock, Context, DateTime, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { memes } from "./db/index.js";
+import { memes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";

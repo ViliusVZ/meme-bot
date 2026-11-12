@@ -2,7 +2,7 @@
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/localtime.js";
 import { localAt, pollHourOf, wallToUnixIn, weekdayOf } from "../../src/localtime.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 
 /** Wall-clock parts in the configured timezone. */
 export function local(env: Env, d?: Date) {

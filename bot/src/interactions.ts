@@ -2,8 +2,7 @@
 // Discord's 3 seconds; anything slow (posting, animating, pinging) continues in the background.
 import { and, gte, isNull, lt, sql } from "drizzle-orm";
 import { Clock, Context, DateTime, Effect, Layer, Match, Schema } from "effect";
-import type { Env } from "./env.js";
-import { memes } from "./db/index.js";
+import { memes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { avatarUrl, Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2, Response as R } from "./discord.js";

@@ -3,7 +3,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { voiceSegments } from "../src/db/schema.js";
 import { build } from "./old/app.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 import { harness } from "./harness.js";
 
 const h = harness({ tables: [voiceSegments], discord: { firstId: 100 }, clock: "2026-11-06T15:00:00Z" });

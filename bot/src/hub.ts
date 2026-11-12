@@ -1,7 +1,6 @@
 // Button-first entry points: /help (private) and the pinned "Game Night HQ" panel share the same
 // guide and action buttons, so nobody has to remember a single command.
 import { Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import type { DbError } from "./db/db.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";

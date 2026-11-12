@@ -8,7 +8,7 @@ import { HttpClient, HttpClientError, HttpClientResponse, type HttpClientRequest
 import { AppConfig } from "../src/config.js";
 import { Channels } from "./old/channels.js";
 import { Discord, isFinished } from "./old/discord.js";
-import { configFromEnv } from "../src/legacy.js";
+import { configFromEnv } from "./old/legacy.js";
 import { testEnv } from "./pg.js";
 
 type Fixture = { request: { method: string; path: string }; status: number; body: Record<string, unknown> };

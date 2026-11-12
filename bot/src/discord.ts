@@ -4,7 +4,6 @@
 // @original) have their own rule. The signature check and the small helpers stay plain functions.
 import { Context, Duration, Effect, Layer, Option, Redacted, Schedule, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
-import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import { Channels, type Channel } from "./channels.js";
 

@@ -6,8 +6,7 @@
 // answer highlighted (see gamenight.ts).
 import { and, eq, isNull } from "drizzle-orm";
 import { Context, Effect, Layer, Match } from "effect";
-import type { Env } from "./env.js";
-import { polls, pollVotes } from "./db/index.js";
+import { polls, pollVotes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";

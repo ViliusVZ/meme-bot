@@ -8,7 +8,7 @@ import * as presence from "./old/presence.js";
 import * as alerts from "./old/alerts.js";
 import { lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "../src/db/schema.js";
 import { harness, routes, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({
   tables: [lobbyPrompts, readyRooms, sessions, voiceSegments, rooms],

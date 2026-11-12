@@ -5,7 +5,6 @@
 //   • when a room empties, its 15-minute wrap-up timer starts; it fires exactly on time
 //   • 🎮 spontaneous play (spontaneous.ts): the Lobby question, unplanned sessions, pulling people in
 import { Cause, Clock, Context, Duration, Effect, Fiber, FiberHandle, Layer, PubSub, Queue, Schedule, type Scope } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig, players } from "./config.js";
 import { Presence } from "./presence.js";
 import { Activity } from "./activity.js";

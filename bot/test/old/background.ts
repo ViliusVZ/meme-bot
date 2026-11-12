@@ -1,7 +1,7 @@
 // The old functions of src/background.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/background.js";
-import { runDetached, runSync } from "../../src/legacy.js";
+import { runDetached, runSync } from "./legacy.js";
 import { Background } from "../../src/background.js";
 import { Duration, Effect } from "effect";
 

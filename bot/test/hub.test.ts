@@ -3,7 +3,7 @@ import { beforeAll, expect, test } from "vitest";
 import * as hub from "./old/hub.js";
 import { games } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({ tables: [games] });
 let t: TestDb;

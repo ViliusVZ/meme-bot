@@ -2,8 +2,7 @@
 // read a night without importing it back (plan 05 removes that import cycle).
 import { eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, type Stage } from "./db/index.js";
+import { gameNights, type Stage } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { LocalTime } from "./localtime.js";
 import { nowSec } from "./clock.js";

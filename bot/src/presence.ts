@@ -54,7 +54,6 @@ export class Presence extends Context.Service<
     playing(user: string): Effect.Effect<string[]>;
     onPlaying(fn: PlayingListener): Effect.Effect<() => void>;
     /** Tests only (until phase 5 builds the state fresh per test). */
-    readonly reset: Effect.Effect<void>; // LEGACY-BRIDGE
   }
 >()("meme-bot/presence") {
   static readonly layer = Layer.effect(
@@ -131,11 +130,6 @@ export class Presence extends Context.Service<
           }),
         playing: (user) => Effect.map(Ref.get(state), (s) => s.games.get(user) ?? []),
         onPlaying: (fn) => subscribe(playingListeners, fn),
-        reset: Effect.gen(function* () { // LEGACY-BRIDGE
-          yield* Ref.set(state, empty()); // LEGACY-BRIDGE
-          listeners.length = 0; // LEGACY-BRIDGE
-          playingListeners.length = 0; // LEGACY-BRIDGE
-        }), // LEGACY-BRIDGE
       });
     }),
   );

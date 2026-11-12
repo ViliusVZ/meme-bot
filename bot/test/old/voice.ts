@@ -1,9 +1,9 @@
 // The old functions of src/voice.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/voice.js";
-import { run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { Opened, RoomStillCreating, Voice, roomLine } from "../../src/voice.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 import { isDiscordError } from "../../src/voice.js";
 
 // the old functions, for the code that isn't on Effect yet, with today's error texts (callers log

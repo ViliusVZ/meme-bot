@@ -1,10 +1,10 @@
 // The old functions of src/app.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/app.js";
-import { appContext } from "../../src/legacy.js";
+import { appContext } from "./legacy.js";
 import { AppStatus, type Status } from "../../src/app.js";
 import { HttpRouter, HttpServer } from "effect/http";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 import { Context, Effect, Layer } from "effect";
 import { AppServices } from "../../src/runtime.js";
 import { routesOn } from "../../src/app.js";

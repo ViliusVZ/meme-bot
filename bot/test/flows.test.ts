@@ -16,7 +16,7 @@ import * as snooze from "./old/snooze.js";
 import { interaction } from "./old/interactions.js";
 import { drain } from "./old/background.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({
   tables: [panels, gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings],

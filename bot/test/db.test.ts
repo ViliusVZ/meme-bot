@@ -6,7 +6,7 @@ import { SqlClient } from "effect/sql";
 import { eq, sql } from "drizzle-orm";
 import { gameNights, games } from "../src/db/schema.js";
 import { Db } from "../src/db/db.js";
-import { run } from "../src/legacy.js";
+import { run } from "./old/legacy.js";
 import { harness } from "./harness.js";
 
 const h = harness({ tables: [gameNights, games] });

@@ -12,7 +12,7 @@ import { Background } from "./old/background.js";
 import { Alerts } from "./old/alerts.js";
 import { appLayerFor } from "./old/runtime.js";
 import { Leadership } from "../src/leadership.js";
-import { configFromEnv } from "../src/legacy.js";
+import { configFromEnv } from "./old/legacy.js";
 import { testEnv, url } from "./pg.js";
 
 const T0 = Date.parse("2026-11-10T19:00:00Z");

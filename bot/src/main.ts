@@ -13,7 +13,6 @@ import { server } from "./app.js";
 import { Alerts } from "./alerts.js";
 import { Leadership } from "./leadership.js";
 import { shutdown } from "./shutdown.js";
-import * as legacy from "./legacy.js"; // LEGACY-BRIDGE
 
 const HARD_EXIT = 35_000; // ms: whatever hangs at shutdown, we're gone (Docker would kill us at 40 anyway; a self-restart has no Docker to)
 
@@ -54,10 +53,8 @@ const main = Effect.gen(function* () {
   yield* shutdown(signal, { leading, server: http });
 });
 
-// one runtime for the transition: the code that still takes `env` reaches the services through
-// legacy.ts. Reading the configuration fails startup with every missing variable named.
+// reading the configuration fails startup with every missing variable named
 const runtime = ManagedRuntime.make(appLayer(AppConfig.layer)); // LEGACY-BRIDGE
-legacy.install(runtime); // LEGACY-BRIDGE
 
 const alert = (what: string, e: unknown) => runtime.runFork(Alerts.use((a) => a.failed(what, e))); // LEGACY-BRIDGE
 process.on("unhandledRejection", (e) => alert("something in the background (unhandled)", e));

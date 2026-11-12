@@ -18,7 +18,7 @@ import { LateSlips } from "./old/late.js";
 import { Activity } from "./old/activity.js";
 import { MemeShame } from "./old/memeshame.js";
 import { Cleanup, snowflakeAt } from "./old/cleanup.js";
-import { LegacyPresences } from "../src/legacy.js";
+import { withPresences } from "./old/legacy.js";
 import { Jobs } from "./old/jobs.js";
 import * as presence from "./old/presence.js";
 import * as channels from "./old/channels.js";
@@ -343,7 +343,7 @@ function auditSequences(): Record<string, Sequence> {
         await wow();
         twoPlaying();
       },
-      run: () => Spontaneous.use((s) => s.react(new Map(), now())).pipe(Effect.provideService(LegacyPresences, true)),
+      run: () => Spontaneous.use((s) => s.react(new Map(), now())).pipe(withPresences),
       claim: { table: "ready_rooms", op: "INSERT" },
       record: { table: "rooms", op: "UPDATE", when: "OLD.channel_id LIKE 'pending:%'" },
       post: { method: "POST", path: "/guilds/guild/channels" },
@@ -363,7 +363,7 @@ function auditSequences(): Record<string, Sequence> {
           { user_id: "c", channel_id: "lobby", started_at: now() - 50, last_seen: now() },
         ]);
       },
-      run: () => Spontaneous.use((s) => s.react(new Map([["b", "lobby"], ["c", "lobby"]]), now())).pipe(Effect.provideService(LegacyPresences, true)),
+      run: () => Spontaneous.use((s) => s.react(new Map([["b", "lobby"], ["c", "lobby"]]), now())).pipe(withPresences),
       claim: { table: "lobby_prompts", op: "INSERT" },
       record: { table: "rooms", op: "UPDATE", when: "OLD.channel_id LIKE 'pending:%'" },
       post: { method: "POST", path: "/guilds/guild/channels" },

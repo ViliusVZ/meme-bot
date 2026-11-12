@@ -1,13 +1,17 @@
 // The old functions of src/alerts.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/alerts.js";
-import { run, runDetached, runSync } from "../../src/legacy.js";
+import { run, runDetached, runSync } from "./legacy.js";
+import { restart, sticky } from "./legacy.js";
 import { Alerts } from "../../src/alerts.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 
 // the old functions, for the code that isn't on Effect yet
 /** Turn DMs on (main.ts); without ALERT_USER_ID (the test bot, tests) failures are only logged. */
-export const setup = (env: Env) => runSync(Alerts.use((a) => a.setOwner(env.ALERT_USER_ID)));
+export const setup = (env: Env) => {
+  sticky.owner = env.ALERT_USER_ID; // production reads it from its configuration, so it survives a restart
+  runSync(Alerts.use((a) => a.setOwner(env.ALERT_USER_ID)));
+};
 export const failed = (what: string, error: unknown, ...context: unknown[]) => runSync(Alerts.use((a) => a.failed(what, error, ...context)));
 export const report = (what: string, error: unknown, context: unknown[] = []) => runSync(Alerts.use((a) => a.report(what, error, context)));
 export const test = (env: Env, to?: string) =>
@@ -18,4 +22,8 @@ export const watchGateway = (env: Env) => run(env, Alerts.use((a) => a.watchGate
 /** Tests: wait for queued DMs. */
 export const _settle = () => runDetached(Alerts.use((a) => a.settle));
 /** Tests: forget throttles and the DM channel. */
-export const _reset = () => runSync(Alerts.use((a) => a.reset));
+/** Fresh alerts (and every other in-memory state): a new runtime, with no owner. */
+export const _reset = () => {
+  sticky.owner = undefined;
+  restart();
+};

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { maybeRefill, parseFeed, refilling, _reset } from "./old/reddit.js";
-import { settings } from "../src/db/index.js";
+import { settings } from "./old/db.js";
 import * as alerts from "./old/alerts.js";
 import { testEnv } from "./pg.js";
 import { harness, type TestDb } from "./harness.js";

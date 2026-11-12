@@ -1,9 +1,9 @@
 // The old functions of src/memes.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/memes.js";
-import { run, runSync } from "../../src/legacy.js";
+import { run, runSync } from "./legacy.js";
 import { Incoming, Memes, VoteKind, utcDayNow, type StreakRow } from "../../src/memes.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 import { nowIso } from "../../src/clock.js";
 
 // the old functions, for the code that isn't on Effect yet

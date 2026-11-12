@@ -17,8 +17,7 @@
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
 import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Match, Schema } from "effect";
-import type { Env } from "./env.js";
-import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/index.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, IS_COMPONENTS_V2 } from "./discord.js";
@@ -29,7 +28,6 @@ import { Presence } from "./presence.js";
 import { Gemini } from "./gemini.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { LegacyGeminiKey, LegacyPresences } from "./legacy.js"; // LEGACY-BRIDGE
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
@@ -139,13 +137,8 @@ export class Spontaneous extends Context.Service<
       const alerts = yield* Alerts;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
-      const presencesOn = Effect.gen(function* () { // LEGACY-BRIDGE
-        return (yield* LegacyPresences) ?? config.presences; // LEGACY-BRIDGE
-      }); // LEGACY-BRIDGE
-      const hasGeminiKey = Effect.gen(function* () { // LEGACY-BRIDGE
-        const legacy = yield* LegacyGeminiKey; // LEGACY-BRIDGE
-        return legacy === null ? !!config.geminiApiKey : !!legacy; // LEGACY-BRIDGE
-      }); // LEGACY-BRIDGE
+      const presencesOn = Effect.succeed(config.presences);
+      const hasGeminiKey = Effect.succeed(!!config.geminiApiKey);
       const sessionIs = (s: { day: string; game: string }) => and(eq(sessions.day, s.day), eq(sessions.game, s.game));
 
       // ---------------------------------------------------------------- what's planned

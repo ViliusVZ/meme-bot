@@ -23,7 +23,6 @@ export class Channels extends Context.Service<
     /** The cached list, or null before the gateway has sent one. */
     readonly cached: Effect.Effect<ReadonlyArray<Channel> | null>;
     /** Tests only (until phase 5 builds the state fresh per test). */
-    readonly reset: Effect.Effect<void>; // LEGACY-BRIDGE
   }
 >()("meme-bot/channels") {
   static readonly layer = Layer.effect(
@@ -56,7 +55,6 @@ export class Channels extends Context.Service<
           }),
         invalidate: Ref.update(state, (s) => ({ ...s, ready: false })),
         cached: Effect.map(Ref.get(state), (s) => (s.ready ? [...s.cache.values()] : null)),
-        reset: Ref.set(state, { cache: new Map(), ready: false }), // LEGACY-BRIDGE
       });
     }),
   );

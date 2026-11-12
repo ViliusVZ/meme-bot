@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
 

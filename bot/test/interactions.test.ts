@@ -7,7 +7,7 @@ import * as memes from "./old/memes.js";
 import * as polls from "./old/polls.js";
 import { memes as memeTable, polls as pollTable, pollVotes, users, votes } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({
   tables: [pollVotes, pollTable, votes, memeTable, users],

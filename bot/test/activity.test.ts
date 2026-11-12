@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vi
 import * as act from "./old/activity.js";
 import { gameNights, games, recaps, voiceSegments } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const H = 3600;
 const T0 = Date.parse("2026-11-06T17:00:00Z") / 1000; // Friday 19:00 in Vilnius

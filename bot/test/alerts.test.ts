@@ -5,7 +5,7 @@ import * as presence from "./old/presence.js";
 import { defer, drain } from "./old/background.js";
 import { harness, json } from "./harness.js";
 import { testEnv } from "./pg.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 
 const h = harness({
   db: false,

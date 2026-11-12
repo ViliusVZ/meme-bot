@@ -9,13 +9,17 @@
 // migrate`): the old migrator this called went with plan 05.
 import { readFileSync } from "node:fs";
 import { sql } from "drizzle-orm";
-import { connect } from "../src/db/index.js";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as s from "../src/db/schema.js";
 
 const [file, flag] = process.argv.slice(2);
 if (!file || !process.env.DATABASE_URL) throw new Error("usage: DATABASE_URL=… tsx scripts/import-d1.ts export.json [--replace]");
 const d1 = JSON.parse(readFileSync(file, "utf8")) as Record<string, Record<string, any>[]>;
-const { pool, db } = connect(process.env.DATABASE_URL);
+// its own pool (the app runs on @effect/sql-pg; this one-off script keeps node-postgres)
+pg.types.setTypeParser(pg.types.builtins.INT8, (v) => Number(v));
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle({ client: pool });
 const migrated = await pool.query(`SELECT to_regclass('memes') IS NOT NULL AS ok`);
 if (!migrated.rows[0].ok) throw new Error("the database isn't migrated yet: start the bot against it once (or npx drizzle-kit migrate), then import");
 

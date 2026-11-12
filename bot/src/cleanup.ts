@@ -8,8 +8,7 @@
 // device, and they disappear when Discord reloads.
 import { and, gte, inArray, or, sql } from "drizzle-orm";
 import { Clock, Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, nightAttendance } from "./db/index.js";
+import { gameNights, nightAttendance } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";

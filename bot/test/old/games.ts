@@ -1,9 +1,9 @@
 // The old functions of src/games.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/games.js";
-import { run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { Games } from "../../src/games.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 
 // the old functions, for the code that isn't on Effect yet
 export const games = (env: Env, limit = 25) => run(env, Games.use((g) => g.list(limit)));

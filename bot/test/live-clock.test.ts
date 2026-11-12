@@ -13,7 +13,7 @@ import { Voice } from "./old/voice.js";
 import { LateSlips } from "./old/late.js";
 import { Spontaneous } from "./old/spontaneous.js";
 import { Alerts } from "./old/alerts.js";
-import { configFromEnv } from "../src/legacy.js";
+import { configFromEnv } from "./old/legacy.js";
 import { testEnv } from "./pg.js";
 
 const T0 = Date.parse("2026-11-10T19:00:00Z");

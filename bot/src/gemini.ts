@@ -6,9 +6,7 @@
 import { eq } from "drizzle-orm";
 import { Context, DateTime, Duration, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
-import type { Env } from "./env.js";
-import { settings } from "./db/index.js";
-import { LegacyGeminiKey } from "./legacy.js"; // LEGACY-BRIDGE
+import { settings } from "./db/schema.js";
 import { AppConfig } from "./config.js";
 import { Db, type DbError } from "./db/db.js";
 import { LocalTime } from "./localtime.js";
@@ -60,8 +58,7 @@ export class Gemini extends Context.Service<
       });
 
       const ask = Effect.fn("Gemini.ask")(function* <T>(prompt: string, schema: object, decode: Schema.Decoder<T>) {
-        const legacy = yield* LegacyGeminiKey; // LEGACY-BRIDGE
-        const key = legacy === null ? config.geminiApiKey : legacy === undefined ? undefined : Redacted.make(legacy); // LEGACY-BRIDGE
+        const key = config.geminiApiKey;
         if (!key) return null;
         // (the budget's database round trip can fail, as it always could: that isn't "no answer")
         if (!(yield* spend)) {

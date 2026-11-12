@@ -6,7 +6,7 @@ import { beforeAll, expect, test } from "vitest";
 import { api, editOriginal, isNotFound } from "./old/discord.js";
 import * as voice from "./old/voice.js";
 import * as presence from "./old/presence.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 import { harness, json } from "./harness.js";
 
 type Fixture = { note: string; request: { method: string; path: string }; status: number; body: { message: string; code: number; errors?: unknown; retry_after?: number } };

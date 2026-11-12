@@ -4,8 +4,7 @@
 // nobody gets it more than once every 3 days.
 import { and, desc, eq, gt, inArray, like, lte, sql } from "drizzle-orm";
 import { Clock, Context, DateTime, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
-import { memes, recaps, votes } from "./db/index.js";
+import { memes, recaps, votes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, allowedMentions, players } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";

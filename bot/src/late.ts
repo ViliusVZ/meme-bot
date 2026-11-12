@@ -12,8 +12,7 @@
 // late and still isn't here 10 min after their ETA gets a slip like everyone else.
 import { and, eq, gt, isNull, lte } from "drizzle-orm";
 import { Context, Effect, Layer, Match } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, nightAttendance, rooms } from "./db/index.js";
+import { gameNights, nightAttendance, rooms } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, allowedMentions, players } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";

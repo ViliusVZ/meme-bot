@@ -12,8 +12,7 @@
 // /gamestats shows any period; a recap is posted in #game-night after each week, month and year.
 import { and, eq, gte, lte, lt, min, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Match } from "effect";
-import type { Env } from "./env.js";
-import { gameNights, rooms, voiceSegments } from "./db/index.js";
+import { gameNights, rooms, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";

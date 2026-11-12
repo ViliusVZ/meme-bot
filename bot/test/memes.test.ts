@@ -4,7 +4,7 @@ import { beforeAll, expect, test, vi } from "vitest";
 import { memes as memeTable, recaps, users, votes } from "../src/db/schema.js";
 import * as jobs from "./old/jobs.js";
 import * as memes from "./old/memes.js";
-import type { Env } from "../src/env.js";
+import type { Env } from "./old/env.js";
 import { harness, json } from "./harness.js";
 
 const h = harness({ tables: [votes, memeTable, recaps, users], clock: "2026-11-06T10:00:00Z", discord: { firstId: 100 } });

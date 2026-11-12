@@ -1,9 +1,9 @@
 // The old functions of src/spontaneous.ts, for the tests until phase 6 makes them Effect-native
 // (plan 05, phase 5 step 8: the transition left src; the tests change only their imports).
 export * from "../../src/spontaneous.js";
-import { LegacyGeminiKey, LegacyPresences, run } from "../../src/legacy.js";
+import { run } from "./legacy.js";
 import { Change, Spontaneous, names } from "../../src/spontaneous.js";
-import type { Env } from "../../src/env.js";
+import type { Env } from "./env.js";
 import { Where } from "../../src/spontaneous.js";
 
 // the old functions, for the code that isn't on Effect yet
