@@ -2,6 +2,7 @@
 
 By 16:30 today: (1) the migration finished, merged to `main`, pushed, running in production; (2)
 plan 02 (WoW: Forever news) finished and live too. They will probably game tonight.
+**Owner, 12:40: "No. Everything ships today."** Both go to production today, no exceptions.
 
 **Timetable (Vilnius; adjust the middle, never the end):**
 - by ~14:15: phase 6 audit closed, phase 7 done, news ported (an Effect `News` service, typed
@@ -18,16 +19,18 @@ plan 02 (WoW: Forever news) finished and live too. They will probably game tonig
   silent posts, plan 02).
 - 16:00–16:30: margin; watch prod logs and alerts.
 
-**Rules:** no check dropped; save time with parallel work and no idling. Fix audit findings by
-risk to tonight (taps, card, starts, voice, late/snooze first). Anything that can't fit must have no
-effect on behaviour, and is listed here and in the owner's note. After cutover, misbehaviour not
-fixable in minutes → roll back the rehearsed way. **No prod deploys after 16:30** except a rollback.
-At ~16:10 with the cutover gate not green: don't start it, leave prod on `aa49c52`, say plainly
-what is and isn't done, continue on the test bot only. News not green by the final build → cut over
-without it; ship it as a second deploy only if green and time allows before 16:30, else tomorrow
-(say so). Tonight is a real game night on the new code: no deploys, no QA that could post in the
-real server during the evening. Notes to the thread: final build on the test bot; cutover done;
-16:30 final state.
+**Rules:** no check dropped; save time with parallel work (news port, audits, phase 7 pieces, drill
+prep all overlap), no idle minutes, no turn ended while anything is outstanding. Fix audit findings
+by risk to tonight (taps, card, starts, voice, late/snooze first). Anything that can't fit must
+have no effect on behaviour, and is listed here and in the owner's note. **16:30 is the target;
+if it slips, keep going and ship the moment it's green, still today.** After 16:30 the one
+constraint: no prod deploy while anyone is in voice or a game night is inside its start window;
+take the first quiet moment (check voice state and tonight's night read-only before pushing). At
+16:30 tell the owner what's left and when it's expected, then carry on without waiting. News behind
+the migration → cut the migration over first, ship the news as a second deploy the same day (don't
+hold the cutover, don't drop the news). After a deploy, misbehaviour not fixable quickly → roll
+back the rehearsed way, fix on the test bot, ship again today. No QA that could post in the real
+server. Notes to the thread: final build on the test bot; cutover done; 16:30 state.
 
 **Plan 02 port:** the old session is stopped; this run owns it. Source: `origin/wow-news` =
 `f298ce4` (two commits on `f401685`, old code). Never work in `C:\p\meme-bot`. The news must be
