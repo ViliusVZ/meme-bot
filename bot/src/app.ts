@@ -9,13 +9,13 @@ import { memes } from "./db/schema.js";
 import { Db } from "./db/db.js";
 import { AppConfig, withOverrides } from "./config.js";
 import { Discord, EPHEMERAL, Response as R } from "./discord.js";
-import { importPublicKey, verifySignature } from "./verify.js";
+import { importPublicKey, SignatureUnreadable, verifySignature } from "./verify.js";
 import { Background } from "./background.js";
 import { Interactions } from "./interactions.js";
-import { Memes } from "./memes.js";
+import { Memes, type Incoming } from "./memes.js";
 import { memeMessage } from "./ui.js";
 import { Jobs } from "./jobs.js";
-import { GameNight, type Deferred } from "./gamenight.js";
+import { GameNight } from "./gamenight.js";
 import { Hub } from "./hub.js";
 import { Polls } from "./polls.js";
 import { Voice } from "./voice.js";
@@ -92,9 +92,17 @@ class NotOurs extends Schema.TaggedError<NotOurs>()("NotOurs", { text: Schema.St
 
 const BODY_LIMIT = ByteSize.mebibytes(1);
 /** A failure as Fastify's error handler printed it (`String(e)`), which the 500 answer carries. */
-const errorText = (e: unknown) => (e instanceof NotOurs ? e.text : e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? `Error: ${e.message}` : String(e));
-const json = (body: unknown, status = 200) => HttpServerResponse.jsonUnsafe(body, { status });
-const nope = HttpServerResponse.text("nope", { status: 401 });
+/**
+ * A failure as the old error handler printed it (`String(e)`): Discord's errors with the "Error: "
+ * prefix the old thrown Errors had (QA and the owner's greps read these), our own wrapped text as is.
+ */
+const errorText = (e: unknown) => (e instanceof NotOurs ? e.text : e instanceof SignatureUnreadable ? e.detail : e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? `Error: ${e.message}` : String(e));
+const json = (body: unknown, status = 200) => HttpServerResponse.jsonUnsafe(body, { status, contentType: "application/json; charset=utf-8" });
+const text = (body: string, status = 200) => HttpServerResponse.text(body, { status, contentType: "text/plain; charset=utf-8" });
+const nope = text("nope", 401);
+
+/** Paths match as Fastify matched them: case matters, and a trailing slash is another path. */
+export const ROUTER_CONFIG = { caseSensitive: true, ignoreTrailingSlash: false } as const;
 
 /** The body as text, within the limit (a larger one is the sender's problem, as Fastify had it). */
 const bodyText = (req: HttpServerRequest.HttpServerRequest) =>
@@ -102,13 +110,55 @@ const bodyText = (req: HttpServerRequest.HttpServerRequest) =>
     Effect.provideService(HttpIncomingMessage.MaxBodySize, BODY_LIMIT),
     Effect.mapError(() => new NotOurs({ text: "FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large" })),
   );
-/** A JSON body, or {} for none or garbage (the admin and ingest routes always read it this way). */
-const parse = (req: HttpServerRequest.HttpServerRequest) =>
-  Effect.map(bodyText(req), (text): Record<string, any> => {
-    if (!text) return {};
-    const r = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))(text);
-    return r._tag === "Some" && r.value && typeof r.value === "object" ? (r.value as Record<string, any>) : {};
-  });
+/** A request body that isn't what the route takes: the sender's mistake, answered 400 (README difference 4; it used to become {}). */
+export class BadRequest extends Schema.TaggedError<BadRequest>()("BadRequest", { message: Schema.String }) {}
+
+const Text = Schema.String;
+const Num = Schema.Union([Schema.Number, Schema.String]); // the code reads it with Number(), as before
+const Seat = Schema.Record(Schema.String, Schema.NullOr(Schema.String)); // user → channel (null: not in voice)
+/** What the admin and ingest routes read, every field optional (each action takes what it needs). */
+const Input = Schema.Struct({
+  action: Schema.optional(Text),
+  user: Schema.optional(Text),
+  clicker: Schema.optional(Text),
+  day: Schema.optional(Text),
+  choice: Schema.optional(Schema.Union([Text, Schema.Number])),
+  value: Schema.optional(Schema.NullOr(Text)),
+  players: Schema.optional(Text),
+  t: Schema.optional(Num),
+  offset: Schema.optional(Num),
+  within: Schema.optional(Num),
+  poll: Schema.optional(Num),
+  kind: Schema.optional(Text),
+  recaps: Schema.optional(Schema.Unknown),
+  minute: Schema.optional(Schema.Unknown),
+  track: Schema.optional(Seat),
+  where: Schema.optional(Seat),
+  answer: Schema.optional(Schema.Struct({ id: Num, user: Text, what: Text, game: Schema.optional(Text) })),
+  change: Schema.optional(Schema.Struct({ user: Text, from: Schema.NullOr(Text), to: Schema.NullOr(Text) })),
+  game: Schema.optional(Text),
+  emoji: Schema.optional(Schema.NullOr(Text)),
+  message: Schema.optional(Text),
+  period: Schema.optional(Text),
+  ids: Schema.optional(Schema.Array(Text)),
+  // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
+  memes: Schema.optional(Schema.Array(Schema.Unknown)),
+  post_daily: Schema.optional(Schema.Unknown),
+  method: Schema.optional(Text),
+  path: Schema.optional(Text),
+  body: Schema.optional(Schema.Unknown),
+});
+type Input = typeof Input.Type;
+/** A field an action needs: a missing one goes on as undefined, as it always did (the action answers for it). */
+const given = (v: string | undefined) => v as string;
+// (`value` likewise: QA sends null for none, and the action has always been handed it as is)
+
+/** The JSON object a route was sent ({} for no body); anything else is a 400. */
+const decode = (body: string) =>
+  body ? Schema.decodeUnknownEffect(Schema.fromJsonString(Input))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) }))) : Effect.succeed<Input>({});
+
+/** Fastify's 404, word for word. */
+const notFound = (req: HttpServerRequest.HttpServerRequest) => json({ message: `Route ${req.method}:${req.url} not found`, error: "Not Found", statusCode: 404 }, 404);
 
 export const Routes = HttpRouter.use((router) =>
   Effect.gen(function* () {
@@ -140,22 +190,42 @@ export const Routes = HttpRouter.use((router) =>
      * Fastify's error handler did (a route is a boundary for what its handler lets through).
      */
     const route = <E>(method: "GET" | "POST", path: HttpRouter.PathInput, handler: (req: HttpServerRequest.HttpServerRequest) => Effect.Effect<HttpServerResponse.HttpServerResponse, E>) =>
-      router.add(method, path, (req) =>
-        handler(req).pipe(
-          Effect.catchCause((cause) => {
-            if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt;
-            const e = Cause.squash(cause);
-            return Effect.gen(function* () {
-              yield* Effect.logInfo(`http error ${req.method} ${req.url} ${errorText(e)}`);
-              if (!(e instanceof NotOurs)) yield* alerts.report(`${req.method} ${req.url.split("?")[0]}`, e);
-              return json({ error: errorText(e) }, 500);
-            });
-          }),
-        ),
+      Effect.gen(function* () {
+        const handled = (req: HttpServerRequest.HttpServerRequest) =>
+          handler(req).pipe(
+            Effect.catchCause((cause) => {
+              if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt;
+              const e = Cause.squash(cause);
+              if (e instanceof BadRequest) return Effect.succeed(json({ error: e.message }, 400));
+              return Effect.gen(function* () {
+                yield* Effect.logInfo(`http error ${req.method} ${req.url} ${errorText(e)}`);
+                if (!(e instanceof NotOurs)) yield* alerts.report(`${req.method} ${req.url.split("?")[0]}`, e);
+                return json({ error: errorText(e) }, 500);
+              });
+            }),
+          );
+        // a request runs to the end even when the caller hangs up (as Fastify's handlers did): a tap's
+        // timing line and its 3 s alert are for exactly the slow ones
+        yield* router.add(method, path, handled, { uninterruptible: true });
+        // Fastify answered HEAD for every GET route; this router has no HEAD, so the catch-all below does
+        if (method === "GET") heads.set(path, handled);
+      });
+    const heads = new Map<string, (req: HttpServerRequest.HttpServerRequest) => Effect.Effect<HttpServerResponse.HttpServerResponse>>();
+    /**
+     * A route that takes a bearer token and a JSON body: the body is read first (a body over the limit
+     * is answered before the token is looked at, as Fastify read bodies before its handlers), then
+     * the token, then the body's schema.
+     */
+    const withToken = <E>(secret: Redacted.Redacted<string>, path: HttpRouter.PathInput, handler: (input: Input) => Effect.Effect<HttpServerResponse.HttpServerResponse, E>) =>
+      route("POST", path, (req) =>
+        Effect.gen(function* () {
+          const body = yield* bodyText(req);
+          if (!authorized(req.headers.authorization, Redacted.value(secret))) return nope;
+          return yield* handler(yield* decode(body));
+        }),
       );
-    /** An admin route: the bearer check first. */
-    const admin = <E>(path: HttpRouter.PathInput, handler: (req: HttpServerRequest.HttpServerRequest) => Effect.Effect<HttpServerResponse.HttpServerResponse, E>) =>
-      route("POST", path, (req) => (authorized(req.headers.authorization, Redacted.value(config.adminSecret)) ? handler(req) : Effect.succeed(nope)));
+    /** An admin route (maintenance and QA scripts). */
+    const admin = <E>(path: HttpRouter.PathInput, handler: (input: Input) => Effect.Effect<HttpServerResponse.HttpServerResponse, E>) => withToken(config.adminSecret, path, handler);
     const answer = (value: unknown) => (value === undefined ? HttpServerResponse.empty() : json(value));
 
     yield* route("GET", "/health", () =>
@@ -180,13 +250,14 @@ export const Routes = HttpRouter.use((router) =>
       }),
     );
 
-    yield* route("GET", "/", () => Effect.succeed(HttpServerResponse.text("Meme Bot 3000 🔥")));
+    yield* route("GET", "/", () => Effect.succeed(text("Meme Bot 3000 🔥")));
 
     yield* route("POST", "/interactions", (req) =>
       Effect.gen(function* () {
+        // Discord's signature covers the exact bytes, so the raw text is what's checked (and then parsed)
         const body = yield* bodyText(req);
         const ok = yield* verifySignature(req.headers["x-signature-ed25519"], req.headers["x-signature-timestamp"], body, publicKey);
-        if (!ok) return HttpServerResponse.text("bad signature", { status: 401 });
+        if (!ok) return text("bad signature", 401);
         const i = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(body);
         const raw = (i ?? {}) as { type?: number; data?: { custom_id?: string; name?: string }; member?: { user?: { username?: string } }; user?: { username?: string }; message?: { flags?: number } };
         const what = raw.data?.custom_id ?? (raw.data?.name ? `/${raw.data.name}` : `type ${raw.type}`);
@@ -207,7 +278,8 @@ export const Routes = HttpRouter.use((router) =>
           Effect.catchCause((cause) =>
             Cause.hasInterruptsOnly(cause)
               ? Effect.interrupt
-              : Effect.as(alerts.failed(`a tap (${what})`, Cause.squash(cause), who), {
+              : // a private apology beats Discord's generic "This interaction failed"
+                Effect.as(alerts.failed(`a tap (${what})`, Cause.squash(cause), who), {
                   type: R.Message,
                   data: { content: "Something went wrong on my end 🤕 Try again in a moment.", flags: EPHEMERAL },
                 }),
@@ -217,11 +289,9 @@ export const Routes = HttpRouter.use((router) =>
       }),
     );
 
-    yield* route("POST", "/ingest", (req) =>
+    yield* withToken(config.ingestSecret, "/ingest", (input) =>
       Effect.gen(function* () {
-        if (!authorized(req.headers.authorization, Redacted.value(config.ingestSecret))) return nope;
-        const input = yield* parse(req);
-        const ingested = yield* memeService.ingest(input.memes ?? []);
+        const ingested = yield* memeService.ingest((input.memes ?? []) as ReadonlyArray<Incoming>);
         const daily = input.post_daily ? yield* jobs.postDaily : null;
         return json({ ingested, daily });
       }),
@@ -230,10 +300,9 @@ export const Routes = HttpRouter.use((router) =>
     // ---------------------------------------------------------------- admin (maintenance + QA)
 
     // raw bot-token passthrough for maintenance scripts
-    yield* admin("/admin/discord", (req) =>
+    yield* admin("/admin/discord", (input) =>
       Effect.gen(function* () {
-        const input = yield* parse(req);
-        return answer(yield* discord.request(input.method ?? "GET", input.path, input.body ?? undefined).pipe(Effect.catch((e) => Effect.succeed({ error: errorText(e) }))));
+        return answer(yield* discord.request(input.method ?? "GET", input.path ?? "", input.body ?? undefined).pipe(Effect.catch((e) => Effect.succeed({ error: errorText(e) }))));
       }),
     );
 
@@ -254,12 +323,12 @@ export const Routes = HttpRouter.use((router) =>
       }),
     );
 
-    yield* admin("/admin/recap", (req) => Effect.flatMap(parse(req), (input) => Effect.map(input.period === "month" ? jobs.monthlyRecap : jobs.weeklyRecap, answer)));
+    yield* admin("/admin/recap", (input) => Effect.map(input.period === "month" ? jobs.monthlyRecap : jobs.weeklyRecap, answer));
 
     // seed ids that were posted before the bot had a database
-    yield* admin("/admin/mark-posted", (req) =>
+    yield* admin("/admin/mark-posted", (input) =>
       Effect.gen(function* () {
-        const ids: string[] = (yield* parse(req)).ids ?? [];
+        const ids = input.ids ?? [];
         const at = yield* nowIso;
         if (ids.length)
           yield* db
@@ -274,12 +343,11 @@ export const Routes = HttpRouter.use((router) =>
     );
 
     // testing without pinging anyone
-    yield* admin("/admin/gamenight", (req) =>
+    yield* admin("/admin/gamenight", (input) =>
       Effect.gen(function* () {
-        const input = yield* parse(req);
         const quiet = withOverrides({ quiet: true });
         // 📊🎮 QA with stand-in players, so real voice time is never touched
-        const standIns = withOverrides({ quiet: true, ...(input.players ? { players: String(input.players).split(",").map((s) => s.trim()).filter(Boolean) } : {}) });
+        const standIns = withOverrides({ quiet: true, ...(input.players !== undefined ? { players: input.players.split(",").map((s) => s.trim()).filter(Boolean) } : {}) });
         const today = Effect.map(time.now, (l) => l.day);
         return yield* Match.value(String(input.action)).pipe(
           Match.when("start", () => Effect.map(quiet(gameNight.startNight(input.user, true)), answer)),
@@ -321,33 +389,33 @@ export const Routes = HttpRouter.use((router) =>
               }),
             ),
           ),
-          Match.when("reset", () => Effect.flatMap(input.day ? Effect.succeed(String(input.day)) : today, (day) => Effect.map(gameNight.resetNight(day), answer))),
+          Match.when("reset", () => Effect.flatMap(input.day !== undefined ? Effect.succeed(input.day) : today, (day) => Effect.map(gameNight.resetNight(day), answer))),
           Match.when("plan", () => Effect.map(quiet(gameNight.startNight(input.user, true, input.day)), answer)),
-          Match.when("room", () => Effect.map(voice.openRoom(input.game, input.emoji ?? null, { by: input.user }), answer)),
+          Match.when("room", () => Effect.map(voice.openRoom(given(input.game), input.emoji ?? null, { by: input.user }), answer)),
           Match.when("rooms", () => Effect.map(voice.maintainRooms, answer)),
           Match.when("late", () =>
             Effect.gen(function* () {
               // simulate a late-slip click by its owner, then update the slip
-              const r = yield* quiet(late.act(input.day, input.user, input.clicker ?? input.user, String(input.choice)));
-              const row = yield* attendances.get(input.day, input.user);
-              if (!r.notice && row?.message_id) yield* discord.editMessage(config.gameChannelId, row.message_id, yield* attendances.render(input.day, input.user));
+              const r = yield* quiet(late.act(given(input.day), given(input.user), given(input.clicker ?? input.user), String(input.choice)));
+              const row = yield* attendances.get(given(input.day), given(input.user));
+              if (!r.notice && row?.message_id) yield* discord.editMessage(config.gameChannelId, row.message_id, yield* attendances.render(given(input.day), given(input.user)));
               return answer({ ...r, row });
             }),
           ),
           Match.when("poll-vote", () =>
             quiet(
               Effect.gen(function* () {
-                const r = yield* polls.act(Number(input.poll), input.user, String(input.choice));
+                const r = yield* polls.act(Number(input.poll), given(input.user), String(input.choice));
                 yield* polls.refresh(Number(input.poll));
                 return answer(r);
               }),
             ),
           ),
           // 🚨 proves alert DMs arrive: to the owner, or to `user` (the test bot has no owner set)
-          Match.when("alert-test", () => Effect.map(alerts.test(input.user), answer)),
+          Match.when("alert-test", () => Effect.map(alerts.test(input.user ?? config.alertUserId), answer)),
           Match.when("poll-render", () => Effect.map(polls.render(Number(input.poll), input.user), answer)),
           // someone's private copy of a card (what they see after tapping it)
-          Match.when("copy", () => Effect.flatMap(input.day ? Effect.succeed(String(input.day)) : today, (day) => Effect.map(gameNight.render(day, input.user), answer))),
+          Match.when("copy", () => Effect.flatMap(input.day !== undefined ? Effect.succeed(input.day) : today, (day) => Effect.map(gameNight.render(day, input.user), answer))),
           Match.when("hub", () =>
             Effect.gen(function* () {
               // update the pinned panel in place (the given one, or ours that's already pinned); only
@@ -361,7 +429,7 @@ export const Routes = HttpRouter.use((router) =>
                 existing = list.find((m) => m?.author?.id === config.discordAppId && m.components?.length)?.id;
               }
               const panel = yield* hub.hubPanel;
-              if (existing) return answer(yield* discord.editMessage(config.gameChannelId, existing, panel));
+              if (existing) return answer(yield* discord.request("PATCH", `/channels/${config.gameChannelId}/messages/${existing}`, panel)); // Discord's whole answer, as before
               const msg = yield* discord.createMessage(config.gameChannelId, panel);
               yield* discord.pin(config.gameChannelId, msg.id);
               return answer({ hub: msg.id });
@@ -371,10 +439,13 @@ export const Routes = HttpRouter.use((router) =>
             quiet(
               Effect.gen(function* () {
                 const day = input.day ?? (yield* today);
-                // QA wants the side effects done before it looks: the tap's later work runs right here
-                const pending: Parameters<Deferred>[0][] = [];
-                const r = yield* gameNight.act(day, input.user, input.choice, input.value, (e) => Effect.sync(() => void pending.push(e)));
-                yield* Effect.forEach(pending, (e) => Effect.ignore(e), { concurrency: "unbounded", discard: true });
+                // QA wants the side effects done before it looks: the tap's later work starts at once, as a
+                // tap's would, and the answer waits for all of it
+                const pending: Fiber.Fiber<void>[] = [];
+                const r = yield* gameNight.act(day, given(input.user), given(input.choice === undefined ? undefined : String(input.choice)), input.value as string | undefined, (e) =>
+                  Effect.map(Effect.forkDetach(Effect.ignore(e), { startImmediately: true }), (f) => void pending.push(f)),
+                );
+                yield* Effect.forEach(pending, Fiber.join, { discard: true });
                 if (r.update) yield* gameNight.refresh(day);
                 return answer(r);
               }),
@@ -386,8 +457,14 @@ export const Routes = HttpRouter.use((router) =>
     );
 
     // an unknown route answers as Fastify did
-    yield* router.add("*", "*", (req) =>
-      Effect.succeed(json({ message: `Route ${req.method}:${req.url} not found`, error: "Not Found", statusCode: 404 }, 404)),
+    yield* router.add(
+      "*",
+      "*",
+      (req) => {
+        const head = req.method === "HEAD" ? heads.get(req.url.split("?")[0]) : undefined;
+        return head ? head(req) : Effect.succeed(notFound(req));
+      },
+      { uninterruptible: true },
     );
   }),
 );
@@ -398,7 +475,7 @@ export const routesOn = (statusLayer: Layer.Layer<AppStatus>, context: Context.C
 
 /** The HTTP server on its port, over the app's services and its Lifecycle (main.ts builds it in a scope it closes at shutdown). */
 export const server = (o: { host: string; port: number }) =>
-  HttpRouter.serve(Routes.pipe(Layer.provide(AppStatus.layer)), { disableLogger: true }).pipe(
+  HttpRouter.serve(Routes.pipe(Layer.provide(AppStatus.layer)), { disableLogger: true, disableListenLog: true, routerConfig: ROUTER_CONFIG }).pipe(
     Layer.provide(NodeHttpServer.layer(createServer, { host: o.host, port: o.port, gracefulShutdownTimeout: "10 seconds" })),
   );
 

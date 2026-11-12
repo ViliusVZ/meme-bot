@@ -101,7 +101,6 @@ export class Reddit extends Context.Service<
     readonly maybeRefill: Effect.Effect<{ refilling?: boolean }, DbError>;
     /** A refill is in flight (postDaily waits for it, so the daily pick sees fresh ranks). */
     readonly refilling: Effect.Effect<boolean>;
-    /** Tests: forget everything in memory, as a restart would. */
   }
 >()("meme-bot/reddit") {
   static readonly layer = Layer.effect(

@@ -3,7 +3,7 @@
 // The lock is a session advisory lock on a connection of its own, so it's released the moment that
 // copy stops or loses its connection (spike S2: a one-connection client in the term's scope).
 import { PgClient } from "@effect/sql-pg";
-import { Context, Duration, Effect, Layer, Ref, type Scope } from "effect";
+import { Context, Duration, Effect, Exit, Layer, Ref, Schema, Scope } from "effect";
 import { Reactivity } from "effect/reactivity";
 import { AppConfig } from "./config.js";
 import { DbOptions, int8AsNumber } from "./db/db.js";
@@ -14,8 +14,13 @@ import { Gateway } from "./gateway.js";
 
 const LEADER_LOCK = 4_242_002;
 const TRY_AGAIN = Duration.seconds(1); // someone else leads: ask again in a second
-const PING = Duration.seconds(5); // a killed connection fails the next statement at once; nothing reports it without one
+const PING = Duration.seconds(1); // a killed connection fails the next statement at once; nothing reports it without one
+const PING_TIMEOUT = Duration.seconds(2); // a hung socket: a ping that doesn't come back is a lost lock too
+const KEEPALIVE = Duration.seconds(10); // TCP keepalive on the lock's connection, so the OS notices a dead peer
 const BETWEEN_TERMS = Duration.seconds(2);
+
+/** The lock's connection stopped answering. */
+export class LockLost extends Schema.TaggedError<LockLost>()("LockLost", { detail: Schema.String }) {}
 
 export interface LeadOptions {
   /** One minute's jobs have been stuck this many minutes (main restarts the bot). */
@@ -45,18 +50,29 @@ export class Leadership extends Context.Service<
       const gateway = yield* Gateway;
       const reactivity = yield* Reactivity.Reactivity;
 
-      /** Everything a leader runs, until the scope closes: the order of shutdown is the reverse. */
+      /**
+       * Everything a leader runs, until the scope closes. Each part has its own scope, so the term's end
+       * goes in today's order: /health stops saying we lead, then the gateway closes (the other copy
+       * can connect), then the clock and live voice stop together (a start under way finishes, what's
+       * queued is handled).
+       */
       const inTerm = (opts: LeadOptions): Effect.Effect<void, never, Scope.Scope> =>
         Effect.gen(function* () {
           yield* lifecycle.setLeader(true);
           yield* Effect.logInfo("leader: took over");
-          const watching = yield* live.watch;
-          yield* Effect.forkScoped(ticker.run({ onStall: opts.onStall }));
+          const [voice, clock, gw] = [yield* Scope.make(), yield* Scope.make(), yield* Scope.make()];
+          yield* Effect.addFinalizer(() =>
+            Effect.gen(function* () {
+              yield* lifecycle.setLeader(false);
+              yield* Scope.close(gw, Exit.void);
+              yield* Effect.all([Scope.close(clock, Exit.void), Scope.close(voice, Exit.void)], { concurrency: 2, discard: true });
+            }),
+          );
+          const watching = yield* live.watch.pipe(Scope.provide(voice));
+          yield* Effect.forkIn(ticker.run({ onStall: opts.onStall }).pipe(Scope.provide(clock)), clock);
           // the gateway connects in the background, retrying with back-off (say, Discord is down); until
           // it's up, voice lookups fall back to REST and everything else carries on as normal
-          yield* gateway.hold(watching.resync);
-          // first thing at the term's end: /health stops saying we lead
-          yield* Effect.addFinalizer(() => lifecycle.setLeader(false));
+          yield* gateway.hold(watching.resync).pipe(Scope.provide(gw));
         });
 
       const term = (opts: LeadOptions) =>
@@ -69,6 +85,7 @@ export class Leadership extends Context.Service<
                 applicationName: config.appName,
                 startupOptions: options.startupOptions,
                 types: int8AsNumber(),
+                keepAlive: KEEPALIVE,
               }).pipe(Effect.provideService(Reactivity.Reactivity, reactivity));
               for (;;) {
                 const [row] = yield* client<{ ok: boolean }>`SELECT pg_try_advisory_lock(${LEADER_LOCK}) AS ok`;
@@ -82,7 +99,7 @@ export class Leadership extends Context.Service<
                   yield* inTerm(opts);
                   for (;;) {
                     yield* Effect.sleep(PING);
-                    yield* client`SELECT 1`;
+                    yield* client`SELECT 1`.pipe(Effect.timeoutOrElse({ duration: PING_TIMEOUT, orElse: () => Effect.fail(new LockLost({ detail: "the ping didn't come back in 2 s" })) }));
                   }
                 }),
               );

@@ -19,8 +19,8 @@ const statusFile = join(root, "..", "docs", "plans", "05-effect-migration", "STA
 
 const PATTERNS = {
   async: /\basync\b/g,
-  // `Fiber.await`, `Deferred.await` are Effect APIs, not the keyword
-  await: /(?<![.\w])await\b/g,
+  // `Fiber.await`, `Deferred.await` are Effect APIs, not the keyword (a spread, `...await`, still counts)
+  await: /(?<![\w$])(?<!(?<!\.)\.)await\b/g,
   ".then(": /\.then\(/g,
   // `Effect.catch(` is Effect's typed handler, not a promise's
   ".catch(": /(?<!\bEffect)\.catch\(/g,
@@ -35,13 +35,18 @@ const PATTERNS = {
   "Math.random": /\bMath\.random\b/g,
   "process.env": /\bprocess\.env\b/g,
   ": any": /:\s*any\b/g,
+  // `any` as a type argument or in a union: `Record<string, any>`, `Array<any>`, `string | any`
+  "<any>": /[<,|&]\s*any\b(?=\s*[>,|&\]\)])/g,
   "as any": /\bas any\b/g,
   _reset: /\b_reset\b/g,
   "LEGACY-BRIDGE": /LEGACY-BRIDGE/g,
   "Effect.promise": /\bEffect\.promise\b/g,
   "Effect.tryPromise": /\bEffect\.tryPromise\b/g,
-  runPromise: /\brunPromise\b/g,
-  runFork: /\brunFork\b/g,
+  // with their variants: runPromiseExit, runPromiseWith, runForkWith, …
+  runPromise: /\brunPromise\w*/g,
+  runFork: /\brunFork\w*/g,
+  runSync: /\brunSync\w*/g,
+  runCallback: /\brunCallback\w*/g,
   "Effect.orDie": /\bEffect\.orDie\b/g,
   "@effect-diagnostics": /@effect-diagnostics/g,
   "@ts-": /@ts-/g,
@@ -62,7 +67,7 @@ const printer = ts.createPrinter({ removeComments: true });
 const counts = {}; // file → pattern → n
 const bridge = {}; // file → pattern → n, on lines marked LEGACY-BRIDGE (the transition's own code)
 // never allowed, transition code or not
-const NEVER = new Set([": any", "as any", "Effect.orDie", "@ts-", "@effect-diagnostics"]);
+const NEVER = new Set([": any", "<any>", "as any", "Effect.orDie", "@ts-", "@effect-diagnostics"]);
 const imports = new Map(); // file → files it imports at runtime
 for (const f of files) {
   const text = readFileSync(f, "utf8");

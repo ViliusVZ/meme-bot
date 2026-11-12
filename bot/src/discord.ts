@@ -1,7 +1,7 @@
 // Discord's REST API as a service: one typed method per endpoint the bot uses, today's retry rules
 // as schedules, Discord's errors told apart by status and code (not by searching their text), and
 // our own channel changes reported to the channel cache. Interaction webhooks (followups,
-// @original) have their own rule. The signature check and the small helpers stay plain functions.
+// @original) have their own rule. (The signature check lives in verify.ts.)
 import { Context, Duration, Effect, Layer, Option, Redacted, Schedule, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { AppConfig } from "./config.js";
@@ -127,7 +127,7 @@ const isMethod = (m: string): m is Method => m === "GET" || m === "POST" || m ==
 export class Discord extends Context.Service<
   Discord,
   {
-    /** Any endpoint (the admin passthrough, and the old api() during the transition). */
+    /** Any endpoint, answered as Discord sent it (the admin passthrough, the hub action). */
     request(method: string, path: string, body?: unknown): Effect.Effect<unknown, DiscordError>;
     createMessage(channelId: string, body: unknown): Effect.Effect<typeof Message.Type, DiscordError>;
     editMessage(channelId: string, messageId: string, body: unknown): Effect.Effect<typeof Message.Type, DiscordError>;
@@ -332,16 +332,6 @@ const RATE_LIMIT_CAP = Duration.seconds(10);
 const RATE_LIMIT_MARGIN = Duration.millis(100);
 /** Interaction webhooks: 400 ms, 800 ms, 1.2 s. */
 export const WEBHOOK_STEP_MS = 400;
-
-// ---------------------------------------------------------------- the old functions, for code that isn't on Effect yet
-
-
-
-
-
-
-
-
 
 export function messageLink(guildId: string, channelId: string, messageId: string) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;

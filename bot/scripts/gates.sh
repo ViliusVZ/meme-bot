@@ -41,7 +41,8 @@ echo "== G5 assertions"
 node scripts/assertions.mjs --check --base baseline || red "G5 assertions"
 
 echo "== G6 leftovers"
-node scripts/leftovers.mjs ${LEFTOVERS_FLAGS:-} > coverage/leftovers.txt || { cat coverage/leftovers.txt; red "G6 leftovers"; }
+# from phase 5 on: nothing promise-style outside the boundary files (verification.md §3, G6)
+node scripts/leftovers.mjs ${LEFTOVERS_FLAGS:---final} > coverage/leftovers.txt || { cat coverage/leftovers.txt; red "G6 leftovers"; }
 tail -1 coverage/leftovers.txt
 
 echo "== G7 build"

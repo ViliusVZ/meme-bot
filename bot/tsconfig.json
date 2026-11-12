@@ -63,7 +63,7 @@
           "duplicatePackage": "error",
           "layerMergeAllWithDependencies": "error"
         },
-        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectWarningsInTscExitCode": false,
         "keyPatterns": [
           {
             "target": "service",

@@ -47,15 +47,14 @@ export class Alerts extends Context.Service<
     failed(what: string, error: unknown, ...context: unknown[]): Effect.Effect<void>;
     /** DM the owner about a problem (logged by the caller). Never fails; DMs go out one at a time. */
     report(what: string, error: unknown, context?: unknown[]): Effect.Effect<void>;
-    /** Who gets the DMs (main.ts: ALERT_USER_ID); none on the test bot and in tests. */
+    /** Who gets the DMs (from ALERT_USER_ID at startup; tests set one); none on the test bot. */
     setOwner(userId: string | undefined): Effect.Effect<void>;
     /** 🧪 The admin route's test: proves DMs reach someone (the owner by default). */
     test(to: string | undefined): Effect.Effect<{ sent: string } | { skipped: string }, import("./discord.js").DiscordError>;
     /** A minute job: say so if the gateway has been down 5 minutes (once per outage). */
     readonly watchGateway: Effect.Effect<{ gatewayDown?: number }>;
-    /** Tests: wait for the DMs queued so far. */
+    /** Wait for the DMs queued so far (tests that check a DM went out; declared in STATUS.md). */
     readonly settle: Effect.Effect<void>;
-    /** Tests: forget throttles and the DM channel. */
   }
 >()("meme-bot/alerts") {
   static readonly layer = Layer.effect(

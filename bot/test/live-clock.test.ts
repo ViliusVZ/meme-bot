@@ -13,6 +13,7 @@ import { Voice } from "./old/voice.js";
 import { LateSlips } from "./old/late.js";
 import { Spontaneous } from "./old/spontaneous.js";
 import { Alerts } from "./old/alerts.js";
+import { Background } from "../src/background.js";
 import { configFromEnv } from "./old/legacy.js";
 import { testEnv } from "./pg.js";
 
@@ -61,7 +62,7 @@ const setup = (stand: Stand = {}) =>
           }),
           Layer.mock(LateSlips, { watch: Effect.succeed({}) }),
           Layer.mock(Spontaneous, { react: () => Effect.succeed(null), learn: () => Effect.succeed([]) }),
-          Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }),
+          Background.layer.pipe(Layer.provideMerge(Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }))),
         ),
       ),
     );

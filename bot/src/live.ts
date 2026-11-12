@@ -12,6 +12,7 @@ import { Voice } from "./voice.js";
 import { LateSlips } from "./late.js";
 import { Spontaneous, type Change } from "./spontaneous.js";
 import { Alerts } from "./alerts.js";
+import { Background } from "./background.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 
@@ -61,6 +62,7 @@ export class Live extends Context.Service<
       const late = yield* LateSlips;
       const spontaneous = yield* Spontaneous;
       const alerts = yield* Alerts;
+      const background = yield* Background;
 
       const watch = Effect.gen(function* () {
         const ps = new Set(yield* Effect.provideService(players, AppConfig, config)); // the stand-ins of an admin call, or the trio
@@ -167,19 +169,23 @@ export class Live extends Context.Service<
               if (!ps.has(c.user)) return;
               if (c._tag === "Moved") return yield* offer(c);
               yield* Effect.logInfo(`playing ${c.user} ${c.names.length ? c.names.join(" | ") : "(nothing)"}`); // what Discord calls each game
+              // what someone's playing changed: it may be time to get a room ready
               yield* offer({ _tag: "Playing" });
-              // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing waits)
-              yield* Effect.forkScoped(
+              // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing
+              // waits, and it isn't cut short when the term ends: background work drains at shutdown)
+              yield* background.run(
                 spontaneous.learn(c.names).pipe(
                   Effect.tap((l) => (l.length ? Effect.logInfo(`learned ${jsonText(l)}`) : Effect.void)),
                   Effect.catch((e) => Effect.logInfo(`learning a game name failed ${e}`)),
                 ),
+                "learning a game name",
               );
             }),
           ),
         );
 
-        // the term's end: no new changes (the subscription closes first), what's queued is still handled
+        // the term's end: what's queued is still handled (this runs first: a Stop goes in behind it and
+        // the loop is waited for; the subscription and the timers close after)
         yield* Effect.addFinalizer(() => Effect.andThen(offer({ _tag: "Stop" }), Fiber.await(consumer)));
 
         return { resync: Effect.asVoid(offer({ _tag: "Resync" })) };

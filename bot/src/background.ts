@@ -28,7 +28,9 @@ export class Background extends Context.Service<
           Effect.gen(function* () {
             yield* Effect.timeoutOption(FiberSet.awaitEmpty(set), timeout);
             const left = yield* FiberSet.size(set);
-            if (left) yield* FiberSet.clear(set); // out of time: the rest is interrupted (architecture §11)
+            // out of time: the rest is interrupted (architecture §11), without waiting for it, so the count
+            // is logged at once (a task in a protected region finishes first, or the hard exit ends it)
+            if (left) yield* Effect.forkDetach(FiberSet.clear(set), { startImmediately: true });
             return left;
           }),
         inFlight: FiberSet.size(set),

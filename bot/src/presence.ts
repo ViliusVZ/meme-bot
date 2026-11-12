@@ -53,7 +53,6 @@ export class Presence extends Context.Service<
     /** What they're playing right now (empty: nothing we can see). */
     playing(user: string): Effect.Effect<string[]>;
     onPlaying(fn: PlayingListener): Effect.Effect<() => void>;
-    /** Tests only (until phase 5 builds the state fresh per test). */
   }
 >()("meme-bot/presence") {
   static readonly layer = Layer.effect(
@@ -61,7 +60,8 @@ export class Presence extends Context.Service<
     Effect.gen(function* () {
       const state = yield* Ref.make(empty());
       const published = yield* PubSub.unbounded<PresenceEvent>();
-      // listeners are called synchronously, in order, as the old module did (live.ts queues the work)
+      // listeners are called synchronously, in order, as the old module did; only the tests still
+      // subscribe this way (Live reads `changes`), until phase 6 moves them to the subscription
       const listeners: Listener[] = [];
       const playingListeners: PlayingListener[] = [];
       const call = <A extends unknown[]>(fns: ((...a: A) => void)[], args: A, what: string) =>

@@ -50,7 +50,13 @@ const main = Effect.gen(function* () {
       yield* Effect.sleep("2 seconds"); // the DM goes out first
       yield* Deferred.succeed(stuck, "clock stuck");
     });
-  const leading = yield* Effect.forkDetach((yield* Leadership).lead({ onStall }));
+  // leadership runs until shutdown; should it ever die of a bug, that's reported (main is a boundary,
+  // architecture §6), as the old `lead()` rejection reached the unhandled-rejection alert
+  const leading = yield* Effect.forkDetach(
+    (yield* Leadership).lead({ onStall }).pipe(
+      Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed("something in the background (unhandled)", Cause.squash(cause)))),
+    ),
+  );
 
   const stop = (why: string) =>
     Effect.andThen(
@@ -59,8 +65,9 @@ const main = Effect.gen(function* () {
       shutdown(why, { leading, server: http }),
     );
   // run until a signal (runMain interrupts us) or a stuck clock; either way, shut down in order
+  // (a signal arriving during the "clock stuck" shutdown doesn't cut it short: the steps run to the end)
   yield* Deferred.await(stuck).pipe(
-    Effect.flatMap(stop),
+    Effect.flatMap((why) => Effect.uninterruptible(stop(why))),
     Effect.onInterrupt(() => Effect.suspend(() => stop(signal))),
   );
 });

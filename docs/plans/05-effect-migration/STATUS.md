@@ -38,33 +38,59 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   findings, post the phase 5 note, start phase 6.
 - **Deployed:** test bot `d6a58da`; production `aa49c52`.
 - **Phase 5 audit (fe593e7..d6a58da) back; fixing, in this order** ([x] = done, commit):
-  1. [ ] HTTP routes uninterruptible (a dropped client cut the tap mid-way and lost its timing line
+  1. [x] HTTP routes uninterruptible (a dropped client cut the tap mid-way and lost its timing line
      and 3 s alert; Fastify ran handlers to the end); in-flight requests waited for at close.
-  2. [ ] gateway's event loop: a per-event net (a defect froze voice for the term, silently).
-  3. [ ] main: leadership's fiber reported if it dies (as the old `lead()` rejection was); the
+  2. [x] gateway's event loop: a per-event net (a defect froze voice for the term, silently).
+  3. [x] main: leadership's fiber reported if it dies (as the old `lead()` rejection was); the
      gateway's `open` as `Effect.try` (a constructor throw ended the retries silently).
-  4. [ ] G6: `leftovers.json` outside counts to the real ones (0) so nothing can climb back;
+  4. [x] G6: `leftovers.json` outside counts to the real ones (0) so nothing can climb back;
      `Record<string, any>` in app.ts; `runFork`/`runPromise` patterns catch `…With`/`…Exit`;
      the `...await` gap.
-  5. [ ] admin `alert-test` without `user` goes to the owner again.
-  6. [ ] term end: `/health` stops saying leader first (a services scope closed after it), gateway,
+  5. [x] admin `alert-test` without `user` goes to the owner again.
+  6. [x] term end: `/health` stops saying leader first (a services scope closed after it), gateway,
      then clock, then Live, as before; a start already under way still logs `started on time`
      (its result kept: stop by a Deferred, not an interrupt); learn-a-name work in Background
      (kept running after the term, as before) and its answer + alias write in one region; /meme's
      record write uninterruptible; STATUS's "done or not started" wording corrected.
-  7. [ ] leader ping every 1 s with a 2 s timeout and TCP keepalive (architecture §… as decided).
-  8. [ ] defects that skip what were catch-alls: armStarts back behind the ticker's net; the rest
+  7. [x] leader ping every 1 s with a 2 s timeout and TCP keepalive (architecture §… as decided).
+  8. [x] defects that skip what were catch-alls: armStarts back behind the ticker's net; the rest
      declared (§6 policy) with the sites listed.
-  9. [ ] drift: SignatureUnreadable keeps its reason; the @original log lines print the error;
+  9. [x] drift: SignatureUnreadable keeps its reason; the @original log lines print the error;
      admin `day: ""`/`players: ""` as before; HEAD for GET routes, exact-case paths, no trailing
      slash, `charset=utf-8`, /ingest reads the body before the token check (all as Fastify); the
      hub answer body; a SIGTERM during a "clock stuck" shutdown doesn't cut it short; the gateway
      close error logged.
-  10. [ ] declarations: gate/diagnostic changes listed under Declared exceptions; "Diagnostics
+  10. [x] declarations: gate/diagnostic changes listed under Declared exceptions; "Diagnostics
      switched off: main.ts 3"; §2b's resilience note; Presence's arrays wording; the warnings
      option off in tsconfig.json; README difference #4 (admin bodies → 400) implemented; the route
      `catchCause` in architecture §6.
-  11. [ ] lost "why" comments restored; stale comments fixed.
+  11. [x] lost "why" comments restored; stale comments fixed.
+  All eleven done (this commit and the tests after it). What wasn't changed, and why:
+  - **Not covered by a test, checked by reading:** the routes' `uninterruptible` (the web handler
+    the tests use never aborts a request), the production `GatewayClient`'s `Effect.try` around
+    the library's constructors (the fake fails its own way), main.ts's wiring (it is the process
+    edge: leadership's report, the stuck-clock shutdown run uninterruptibly). The shutdown steps
+    themselves are tested uninterruptible too (15 s cap).
+  - **Defects skip what were catch-alls (finding 8), kept as architecture §6 has it:** a bug in
+    a tap's background parts (interactions.ts: a poll's or a game's follow-up post, the "Couldn't
+    post…" message), in the daily meme's thread (jobs.ts: the job is reported after the meme went
+    out), now reaches its boundary (the tap's, the job's), which reports it. Typed failures are
+    handled as before. Lining the starts up is behind the ticker's own net again.
+  - **Smaller drift kept (README "intended differences" don't list them, so: decided here):**
+    a 2xx Discord answer without an `id` is `DiscordUnexpected` (releases a daily's claim; Discord
+    always sends one); the background drain reports its count at once and interrupts the rest
+    behind it; the gateway close error is logged again; `/ingest` and the admin routes read the
+    body before the token (as Fastify did).
+  - **The admin schema (README difference 4):** a body that isn't a JSON object of the admin fields
+    (each optional, typed as QA sends them) is a 400 with the decode's reason; the meme batch on
+    `/ingest` is passed on unchecked beyond being an array (its shape is the fetcher's).
+  - **The leader ping** is now every 1 s with a 2 s timeout and TCP keepalive (10 s), as decided
+    in phase 2; the step 7 note saying 5 s was wrong.
+  - **A term's end** now goes: `/health` not leader, the gateway, then the clock and Live
+    together; a start under way finishes and logs `started on time`; sleeping timers stand down
+    through a Deferred. A minute running at the term's end is still interrupted (decision above),
+    so its `minute … ms` line is lost and a job can be cut between statements that aren't a
+    claim region (as at a crash); every claim region runs to the end.
 - **Rerun after a context loss:** if the QA run's summary (`<scratchpad>/qa-effect/phase5-d6a58da/summary.txt`)
   doesn't end with "done", run `qa_baseline.sh` again (test bot only); if the audit's report is
   lost, start it again with RUN.md §8's brief for fe593e7..HEAD.
@@ -297,20 +323,23 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 0 | 0 | 0 |
 | `: any` | 0 | 0 | 0 |
+| `<any>` | 0 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 0 |
 | `LEGACY-BRIDGE` | 0 | 0 | 0 |
 | `Effect.promise` | 0 | 0 | 0 |
 | `Effect.tryPromise` | 0 | 4 | 0 |
 | `runPromise` | 0 | 0 | 0 |
-| `runFork` | 0 | 0 | 0 |
+| `runFork` | 0 | 1 | 0 |
+| `runSync` | 0 | 0 | 0 |
+| `runCallback` | 0 | 0 | 0 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 3 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **0** | **9** | **0** |
+| **total** | **0** | **10** | **0** |
 
 Import cycles: none.
-Per file: main.ts 5, gateway.ts 2, verify.ts 2.
+Per file: main.ts 6, gateway.ts 2, verify.ts 2.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -622,8 +651,24 @@ recordings (see "Numbers").
   recording (the old stubs let a test's late calls land in the next test's list); `paths` now
   empties `panels` before each test (the racing copy test's rows leaked into five later tests);
   the stub's id counter restarts per test (it ran on across a file).
-- **Assertion changes** (`verification.md` §2b): none
-- **Diagnostics switched off** in boundary files: none
+- **Assertion changes** (`verification.md` §2b): none in text. One test now checks a different
+  pool with the same assertion: resilience's "a stuck query gives up after 30 s" reads the
+  timeouts on the app's own pool (src/db/db.ts) since the old pool left src (phase 5, step 8).
+- **Diagnostics switched off** in boundary files: main.ts, three, each with its reason on the
+  line (the two hard-exit `setTimeout`s, the entry point's `Effect.provide`).
+- **Gate and diagnostic changes in phase 5** (each also under "Deviations from the plan"):
+  - G6: `await` and `.catch(` patterns exact (they matched `Fiber.await` and `Effect.catch(`);
+    `runPromise`/`runFork` patterns take their variants (`…With`, `…Exit`) and `runSync`/
+    `runCallback` are counted; `any` as a type argument is counted and never allowed; G6 runs
+    with `--final` from phase 5 on, and `leftovers.json` holds today's counts (0 outside the
+    boundary files; inside: `Effect.tryPromise` 4, `setTimeout` 2, `runFork` 1 (main's
+    last-resort handlers), `@effect-diagnostics` 3).
+  - G1: the warning-level diagnostics are errors for src, and warnings fail it too
+    (`ignoreEffectWarningsInTscExitCode` off); the tests keep warnings until phase 6
+    (`tsconfig.test.json`; `npm run check` runs both).
+  - `Alerts.settle` stays as a test seam (13 tests wait for a DM).
+- **Presence's listener arrays** are still in src for the tests (presence.test, spontaneous.test);
+  phase 6 moves those tests to `changes` and removes them (an earlier note said step 8 did).
 
 ## Decisions taken along the way
 
@@ -778,8 +823,8 @@ timeout), with the evidence.
   same wording, interrupts re-raised. Without it a defect would end the leader's clock silently
   (the watchdog only sees a minute that runs too long, not one that never comes).
 - **A term's end interrupts the running minute** (phase 5, step 4): the old `stop()` waited for it.
-  Every claim in the minute's jobs is uninterruptible from the claim on (test 6), so an interrupted
-  minute leaves each job done or not started, and `stop` returns once nothing of the term runs
+  Every claim region in the minute's jobs runs to the end (test 6), so no claim is left half done;
+  a job can still be cut between other statements, as at a crash, and `stop` returns once nothing of the term runs
   (the old one could hand over while a slow minute still ran past shutdown's 15 s).
 - **Reddit's refill fiber is background work** (a §6 boundary, like `Background`'s tasks): its
   `catchCause` reports any failure with the refill's own rule (logged while the pool is fresh, a DM

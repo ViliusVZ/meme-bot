@@ -1,6 +1,6 @@
 // The leader's clock: the minute jobs at the top of every minute, and an exact timer for each game
 // night about to start (room opens 10 s early, moves and ping on the second).
-import { Cause, Clock, Context, Duration, Effect, Fiber, FiberMap, Layer, Ref, type Scope } from "effect";
+import { Cause, Clock, Context, Deferred, Duration, Effect, FiberMap, Layer, Ref, type Scope } from "effect";
 import { Jobs } from "./jobs.js";
 import { GameNight } from "./gamenight.js";
 import { Alerts } from "./alerts.js";
@@ -19,8 +19,9 @@ export interface TickerOptions {
 }
 
 /**
- * The clock's own net (architecture §6: the ticker, per minute and per start timer, as today's
- * `.catch`): a failure is reported and the clock goes on. Being stopped isn't a failure.
+ * The clock's own net (architecture §6: the ticker, per minute, per start timer and for lining the
+ * starts up, as today's `.catch`es): a failure is reported and the clock goes on. Being stopped isn't
+ * a failure.
  */
 const reported = (alerts: Alerts["Service"], what: string, ...context: string[]) => <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.catchCause(Effect.asVoid(effect), (cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed(what, Cause.squash(cause), ...context)));
@@ -60,6 +61,11 @@ export class Ticker extends Context.Service<
           yield* Effect.addFinalizer(() => Ref.set(lastTick, null));
           const tickStarted = yield* Ref.make<number | null>(null);
           const starts = yield* FiberMap.make<string>(); // `${day}@${start_at}` → its start timer
+          // the term's end: timers still sleeping stand down (the next leader arms its own); a start
+          // already under way runs to the end, its log line and report included (added after the
+          // FiberMap, so this runs before the map interrupts what's left: the holds)
+          const ending = yield* Deferred.make<void>();
+          yield* Effect.addFinalizer(() => Deferred.succeed(ending, undefined));
 
           const armStarts = Effect.gen(function* () {
             const now = Math.floor((yield* Clock.currentTimeMillis) / 1000);
@@ -67,9 +73,10 @@ export class Ticker extends Context.Service<
               yield* FiberMap.run(
                 starts,
                 `${n.day}@${n.start_at}`,
-                gameNight.startOnTime(n).pipe(
+                gameNight.startOnTime(n, Deferred.await(ending)).pipe(
                   Effect.tap((ok) => (ok ? Effect.logInfo(`started on time ${n.day} ${n.game}`) : Effect.void)),
                   reported(alerts, "starting the game night on time", n.day),
+                  Effect.uninterruptible,
                   Effect.andThen(Effect.sleep(HOLD_KEY)),
                 ),
                 { onlyIfMissing: true },
@@ -80,7 +87,7 @@ export class Ticker extends Context.Service<
           const tick = Effect.gen(function* () {
             const t0 = yield* Clock.currentTimeMillis;
             yield* Ref.set(tickStarted, t0);
-            yield* armStarts.pipe(Effect.catch((e) => alerts.failed("lining up the exact start", e)));
+            yield* armStarts.pipe(reported(alerts, "lining up the exact start")); // as today, a failure here never costs the minute its jobs
             const out = yield* minute;
             const ms = (yield* Clock.currentTimeMillis) - t0;
             // quiet minutes aren't worth a log line; anything that did something (or failed) is

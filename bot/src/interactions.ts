@@ -384,7 +384,7 @@ export class Interactions extends Context.Service<
               yield* later(
                 original(token).pipe(
                   Effect.flatMap((m) => polls.setMessage(id, m.channel_id, m.id)),
-                  Effect.catch((e) => Effect.logInfo(`poll @original ${e}`)),
+                  Effect.catch((e) => Effect.logInfo(`poll @original ${e._tag}: ${e.message}`)),
                 ),
               );
               return reply({ type: R.Message, data: yield* polls.render(id) });
@@ -439,10 +439,12 @@ export class Interactions extends Context.Service<
                         if (!pick || !(yield* memeService.claim(pick.id, "request", { requestedBy: user.id })))
                           return ephemeral("The meme well is dry 🏜️ The pool refills every few hours, so try again later.");
                         const meme = { ...pick, post_kind: "request" as const, requested_by: user.id };
+                        // (the record is the last step of the claim's region: it runs to the end too)
                         yield* later(
                           original(token).pipe(
                             Effect.flatMap((m) => memeService.setMessage(pick.id, m.channel_id, m.id)),
-                            Effect.catch((e) => Effect.logInfo(`no @original ${e}`)),
+                            Effect.catch((e) => Effect.logInfo(`no @original ${e._tag}: ${e.message}`)),
+                            Effect.uninterruptible,
                           ),
                         );
                         return reply({ type: R.Message, data: memeMessage(meme, {}, config.subreddit) });

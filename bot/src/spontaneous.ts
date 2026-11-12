@@ -225,8 +225,13 @@ or a browser, or you aren't sure), answer null.`,
           );
           if (!r) continue; // no answer to be had today: claimed, so tomorrow it's tried again
           const game = list.find((g) => g.toLowerCase() === r.game?.toLowerCase()) ?? null;
-          yield* db.update(activityGuesses).set({ game, answered: true }).where(eq(activityGuesses.activity, name));
-          if (game) yield* db.insert(gameAliases).values({ activity: name, game, added_by: "gemini" }).onConflictDoNothing();
+          // the answer and its alias together (answered with no alias would never be asked again)
+          yield* Effect.uninterruptible(
+            Effect.gen(function* () {
+              yield* db.update(activityGuesses).set({ game, answered: true }).where(eq(activityGuesses.activity, name));
+              if (game) yield* db.insert(gameAliases).values({ activity: name, game, added_by: "gemini" }).onConflictDoNothing();
+            }),
+          );
           learned.push({ activity: name, game });
         }
         return learned;

@@ -572,8 +572,6 @@ export const syncCopies = Effect.fnUntraced(function* (day: string, mine?: Mine)
   yield* (yield* Panels).sync(`gn:${day}`, (user, notice) => renderCard(day, user, notice).pipe(Effect.provideContext(ctx)), mine);
 });
 
-/** Remember a private copy of a day's card, so it follows along (panels.ts). */
-
 
 /** Slow side effects of a tap (pings, the event): handed to whoever answers the tap, to run after it. */
 type Later = (effect: Effect.Effect<unknown, DbError | DiscordError | NightGone, Needs>) => Effect.Effect<void>;
@@ -1298,8 +1296,6 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
 });
-
-/** Private heads-up after a click, when we also re-render the card. */
 
 // ---------------------------------------------------------------- rendering
 

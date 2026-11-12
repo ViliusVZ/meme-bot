@@ -8,7 +8,7 @@
 import { REST } from "@discordjs/rest";
 import { WebSocketManager, WebSocketShardEvents } from "@discordjs/ws";
 import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload } from "discord-api-types/v10";
-import { Context, Duration, Effect, Fiber, Layer, Queue, Redacted, Ref, Schema, type Scope } from "effect";
+import { Cause, Context, Duration, Effect, Fiber, Layer, Queue, Redacted, Ref, Schema, type Scope } from "effect";
 import { AppConfig } from "./config.js";
 import { Presence } from "./presence.js";
 import { Channels, type Channel } from "./channels.js";
@@ -39,7 +39,7 @@ export interface Socket {
 /** Makes connections (@discordjs/ws in production; a fake in tests). */
 export class GatewayClient extends Context.Service<
   GatewayClient,
-  { open(intents: number, emit: (e: GatewayEvent) => void): Effect.Effect<Socket> }
+  { open(intents: number, emit: (e: GatewayEvent) => void): Effect.Effect<Socket, GatewayUnavailable> }
 >()("meme-bot/gateway/GatewayClient") {
   static readonly layer = Layer.effect(
     GatewayClient,
@@ -47,7 +47,8 @@ export class GatewayClient extends Context.Service<
       const config = yield* AppConfig;
       return GatewayClient.of({
         open: (intents, emit) =>
-          Effect.sync(() => {
+          // a constructor that throws is a failed connect too: logged and tried again, as before
+          Effect.try({ catch: (e) => new GatewayUnavailable({ detail: String(e) }), try: () => {
             const token = Redacted.value(config.discordToken);
             const manager = new WebSocketManager({ token, intents, rest: new REST({ version: "10" }).setToken(token), shardCount: 1 });
             // the library's callbacks: each only queues what happened (§16)
@@ -58,9 +59,9 @@ export class GatewayClient extends Context.Service<
             manager.on(WebSocketShardEvents.Error, (e: Error) => emit({ _tag: "Error", message: e.message }));
             return {
               connect: Effect.tryPromise({ try: () => Promise.resolve(manager.connect()), catch: (e) => new GatewayUnavailable({ detail: String(e) }) }),
-              destroy: Effect.ignore(Effect.tryPromise(() => Promise.resolve(manager.destroy()))),
+              destroy: Effect.tryPromise(() => Promise.resolve(manager.destroy())).pipe(Effect.catch((e) => Effect.logInfo(`gateway close ${String(e)}`))),
             };
-          }),
+          } }),
       });
     }),
   );
@@ -154,7 +155,17 @@ export class Gateway extends Context.Service<
           const intents =
             GatewayIntentBits.Guilds | GatewayIntentBits.GuildVoiceStates | (config.presences && !(yield* Ref.get(presencesRefused)) ? GatewayIntentBits.GuildPresences : 0);
           const events = yield* Queue.unbounded<GatewayEvent>();
-          yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(events), (e) => handle(e, onSnapshot))));
+          // the gateway's event loop (architecture §6): one event's failure is reported and the next is
+          // still handled; without it one bad payload would leave voice frozen for the rest of the term
+          yield* Effect.forkScoped(
+            Effect.forever(
+              Effect.flatMap(Queue.take(events), (e) =>
+                handle(e, onSnapshot).pipe(
+                  Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.interrupt : alerts.failed(`a gateway event (${e._tag === "Dispatch" ? e.payload.t : e._tag})`, Cause.squash(cause)))),
+                ),
+              ),
+            ),
+          );
           const socket = yield* Effect.acquireRelease(
             client.open(intents, (e) => void Queue.offerUnsafe(events, e)),
             (s) => Effect.andThen(Effect.andThen(presence.invalidate, channels.invalidate), s.destroy),
