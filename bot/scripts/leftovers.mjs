@@ -19,9 +19,11 @@ const statusFile = join(root, "..", "docs", "plans", "05-effect-migration", "STA
 
 const PATTERNS = {
   async: /\basync\b/g,
-  await: /\bawait\b/g,
+  // `Fiber.await`, `Deferred.await` are Effect APIs, not the keyword
+  await: /(?<![.\w])await\b/g,
   ".then(": /\.then\(/g,
-  ".catch(": /\.catch\(/g,
+  // `Effect.catch(` is Effect's typed handler, not a promise's
+  ".catch(": /(?<!\bEffect)\.catch\(/g,
   "try {": /\btry\s*\{/g,
   "new Promise": /\bnew Promise\b/g,
   "setTimeout/Interval": /\bset(Timeout|Interval)\(/g,

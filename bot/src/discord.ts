@@ -6,6 +6,7 @@ import { Context, Duration, Effect, Layer, Option, Redacted, Schedule, Schema } 
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { AppConfig } from "./config.js";
 import { Channels, type Channel } from "./channels.js";
+import { jsonText } from "./json.js";
 
 const API = "https://discord.com/api/v10";
 const USER_AGENT = "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)";
@@ -81,17 +82,11 @@ export type DiscordError = DiscordNotFound | DiscordRejected | DiscordUnavailabl
 /** Discord's answer when an event was ended (by us, by hand, or by Discord) or deleted. */
 export const isFinished = (e: DiscordError) =>
   e._tag === "DiscordNotFound" ||
-  (e._tag === "DiscordRejected" && JSON.stringify(e.errors ?? null).includes("INVALID_END_BY_STATUS"));
+  (e._tag === "DiscordRejected" && jsonText(e.errors ?? null).includes("INVALID_END_BY_STATUS"));
 
 const ErrorBody = Schema.Struct({ message: Schema.optional(Schema.String), code: Schema.optional(Schema.Number), errors: Schema.optional(Schema.Unknown) });
 const decodeErrorBody = (text: string) =>
-  Option.getOrElse(
-    Option.flatMap(
-      Option.liftThrowable(JSON.parse)(text),
-      (j) => Option.fromNullishOr(Schema.decodeUnknownOption(ErrorBody)(j).pipe(Option.getOrUndefined)),
-    ),
-    () => ({ message: text, code: undefined, errors: undefined }) as typeof ErrorBody.Type,
-  );
+  Option.getOrElse(Schema.decodeUnknownOption(Schema.fromJsonString(ErrorBody))(text), () => ({ message: text, code: undefined, errors: undefined }) as typeof ErrorBody.Type);
 
 /** One attempt failed in a way a retry may fix (internal to the retry schedule). */
 class Transient extends Schema.TaggedError<Transient>()("Transient", {
@@ -179,8 +174,8 @@ export class Discord extends Context.Service<
           let req = HttpClientRequest.make(method)(API + path).pipe(
             HttpClientRequest.setHeaders({ Authorization: `Bot ${Redacted.value(config.discordToken)}`, "Content-Type": "application/json", "User-Agent": USER_AGENT }),
           );
-          if (body !== undefined) req = HttpClientRequest.bodyText(req, JSON.stringify(body), "application/json");
-          const res = yield* http.execute(req).pipe(Effect.catch((e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))));
+          if (body !== undefined) req = HttpClientRequest.bodyText(req, jsonText(body), "application/json");
+          const res = yield* http.execute(req).pipe(Effect.mapError((e) => new Transient({ kind: "network", last: String(e), delayMs: 0 })));
           if (res.status === 429) {
             const j = (yield* res.json.pipe(Effect.orElseSucceed(() => ({})))) as { retry_after?: number };
             const retryAfter = typeof j?.retry_after === "number" ? Duration.seconds(j.retry_after) : RATE_LIMIT_DEFAULT;
@@ -196,7 +191,7 @@ export class Discord extends Context.Service<
           }
           if (res.status === 204) return null;
           // a 2xx we can't read is final (the old code threw at once; the request did go through)
-          return (yield* res.json.pipe(Effect.catch((e) => Effect.fail(new DiscordUnexpected({ method, path, detail: String(e).slice(0, 300) }))))) as unknown;
+          return (yield* res.json.pipe(Effect.mapError((e) => new DiscordUnexpected({ method, path, detail: String(e).slice(0, 300) })))) as unknown;
         }).pipe(
           Effect.timeout(ATTEMPT_TIMEOUT),
           Effect.catchTag("TimeoutError", (e) => Effect.fail(new Transient({ kind: "network", last: String(e), delayMs: 0 }))),
@@ -260,7 +255,7 @@ export class Discord extends Context.Service<
         Effect.gen(function* () {
           const once = Effect.gen(function* () {
             let req = HttpClientRequest.make(method)(url);
-            if (body !== undefined) req = HttpClientRequest.bodyText(req, JSON.stringify(body), "application/json");
+            if (body !== undefined) req = HttpClientRequest.bodyText(req, jsonText(body), "application/json");
             // no answer at all, or none within 10 s (reading it included): null, tried again like a 404
             const got = yield* Effect.gen(function* () {
               const res = yield* http.execute(req);

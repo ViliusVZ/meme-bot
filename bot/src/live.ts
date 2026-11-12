@@ -13,6 +13,7 @@ import { LateSlips } from "./late.js";
 import { Spontaneous, type Change } from "./spontaneous.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
+import { jsonText } from "./json.js";
 
 const HEARTBEAT = Duration.minutes(1);
 const RETRY = 60_000; // ms: a wrap-up already due means it just failed (Discord trouble): look again in a minute
@@ -119,7 +120,7 @@ export class Live extends Context.Service<
                 if (e.from) yield* voice.leftRoom(e.from, e.at);
                 if (e.to === config.lobbyChannelId) {
                   const r = yield* late.watch;
-                  if (Object.keys(r).length) yield* Effect.logInfo(`late ${JSON.stringify(r)}`);
+                  if (Object.keys(r).length) yield* Effect.logInfo(`late ${jsonText(r)}`);
                 }
                 yield* activity.track(yield* where, e.at);
                 yield* beat;
@@ -170,7 +171,7 @@ export class Live extends Context.Service<
               // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing waits)
               yield* Effect.forkScoped(
                 spontaneous.learn(c.names).pipe(
-                  Effect.tap((l) => (l.length ? Effect.logInfo(`learned ${JSON.stringify(l)}`) : Effect.void)),
+                  Effect.tap((l) => (l.length ? Effect.logInfo(`learned ${jsonText(l)}`) : Effect.void)),
                   Effect.catch((e) => Effect.logInfo(`learning a game name failed ${e}`)),
                 ),
               );

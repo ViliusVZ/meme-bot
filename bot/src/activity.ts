@@ -16,7 +16,7 @@ import { gameNights, rooms, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
-import { localAt, wallToUnixIn } from "./localtime.js";
+import { calendar, localAt, wallToUnixIn } from "./localtime.js";
 import { Memes } from "./memes.js";
 import { Games } from "./games.js";
 import { Spontaneous } from "./spontaneous.js";
@@ -41,7 +41,7 @@ export function periodAt(w: When, kind: Kind, offset = 0) {
   const l = localOf(w);
   return Match.value(kind).pipe(
     Match.when("week", () => {
-      const dow = (new Date(Date.UTC(l.y, l.m - 1, l.d)).getUTCDay() + 6) % 7; // Monday = 0
+      const dow = calendar(l.y, l.m, l.d).mondayFirst; // Monday = 0
       const monday = l.d - dow + 7 * offset;
       return { from: wallToUnixIn(w.zone, l.y, l.m, monday, 0, 0), to: wallToUnixIn(w.zone, l.y, l.m, monday + 7, 0, 0) };
     }),
@@ -54,7 +54,7 @@ export function periodAt(w: When, kind: Kind, offset = 0) {
 
 function periodLabel(zone: string, kind: Kind, offset: number, from: number, to: number, plain = false) {
   if (plain) offset = -99; // no "This week ·" prefix
-  const fmt = (sec: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: zone, ...o }).format(new Date(sec * 1000));
+  const fmt = (sec: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: zone, ...o }).format(sec * 1000);
   return Match.value(kind).pipe(
     Match.when("all", () => "All time"),
     Match.when("year", () => (offset === 0 ? `This year · ${fmt(from, { year: "numeric" })}` : fmt(from, { year: "numeric" }))),
@@ -150,7 +150,7 @@ function whenWePlay(zone: string, cs: Call[]) {
   if (!cs.length) return null;
   const dayOf = (sec: number) => {
     const l = localAt(zone, sec * 1000);
-    return (new Date(Date.UTC(l.y, l.m - 1, l.d)).getUTCDay() + 6) % 7;
+    return calendar(l.y, l.m, l.d).mondayFirst;
   };
   const perDay = new Array(7).fill(0);
   for (const c of cs) perDay[dayOf(c.start)] += c.end - c.start;
@@ -404,7 +404,7 @@ export class Activity extends Context.Service<
           if (l.hour < 10) return {};
           const done: Record<string, string> = {};
           const due: [Kind, string][] = [];
-          const dow = (new Date(Date.UTC(l.y, l.m - 1, l.d)).getUTCDay() + 6) % 7;
+          const dow = calendar(l.y, l.m, l.d).mondayFirst;
           if (dow === 0) due.push(["week", "Last week"]);
           if (l.d === 1) due.push(["month", "Last month"]);
           if (l.d === 1 && l.m === 1) due.push(["year", "Last year"]);

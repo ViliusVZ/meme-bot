@@ -10,6 +10,7 @@ import { settings } from "./db/schema.js";
 import { AppConfig } from "./config.js";
 import { Db, type DbError } from "./db/db.js";
 import { LocalTime } from "./localtime.js";
+import { jsonText } from "./json.js";
 
 const MODEL = "gemini-3.8-flash";
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all
@@ -68,7 +69,7 @@ export class Gemini extends Context.Service<
         const req = HttpClientRequest.post(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`).pipe(
           HttpClientRequest.setHeaders({ "Content-Type": "application/json", "x-goog-api-key": Redacted.value(key) }),
           HttpClientRequest.bodyText(
-            JSON.stringify({
+            jsonText({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0, thinkingConfig: { thinkingLevel: "low" } },
             }),

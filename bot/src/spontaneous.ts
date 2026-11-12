@@ -28,6 +28,7 @@ import { Presence } from "./presence.js";
 import { Gemini } from "./gemini.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
+import { jsonText } from "./json.js";
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
@@ -214,7 +215,7 @@ export class Spontaneous extends Context.Service<
             .returning({ a: activityGuesses.activity });
           if (!claim) continue;
           const r = yield* gemini.ask(
-            `Discord shows a friend "Playing ${JSON.stringify(name)}". Our friend group's game list: ${JSON.stringify(list)}.
+            `Discord shows a friend "Playing ${jsonText(name)}". Our friend group's game list: ${jsonText(list)}.
 Is it one of the games on the list? Answer that game's name exactly as written in the list only if it
 is clearly the same game (an edition, expansion, client, launcher or longer name of it, like "World of
 Warcraft Classic" for "World of Warcraft"). If it's anything else (another game, an app like an editor
@@ -485,7 +486,7 @@ or a browser, or you aren't sure), answer null.`,
           Effect.gen(function* () {
             const claimed = yield* db
               .update(rooms)
-              .set({ pulled: sql`${rooms.pulled} || ${JSON.stringify([user])}::jsonb` })
+              .set({ pulled: sql`${rooms.pulled} || ${jsonText([user])}::jsonb` })
               .where(and(eq(rooms.channel_id, r.channel_id), not(sql`${rooms.pulled} ? ${user}`)))
               .returning({ id: rooms.channel_id });
             if (!claimed.length) return;

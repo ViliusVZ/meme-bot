@@ -91,7 +91,8 @@ export class Panels extends Context.Service<
           if (id === undefined) {
             const r = yield* discord.originalMessage(token);
             if (!r?.ok) return yield* new CopyNotFound({ status: r?.status });
-            id = (JSON.parse(r.text) as { id: string }).id;
+            // the copy's message: its id (a body that isn't one can't be tracked either)
+            id = (yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Struct({ id: Schema.String })))(r.text).pipe(Effect.mapError(() => new CopyNotFound({ status: r.status })))).id;
           }
           const t = yield* nowSec;
           yield* db

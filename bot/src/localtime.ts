@@ -2,10 +2,16 @@
 // of gamenight.ts so the modules game night itself uses can read the local time without importing
 // it back (plan 05 removes that import cycle). The arithmetic is plain functions (pinned by
 // test/time.test.ts); LocalTime gives it the configured zone and the current time from Clock.
-import { Clock, Context, Effect, Layer } from "effect";
+import { Clock, Context, DateTime, Effect, Layer } from "effect";
 import { AppConfig } from "./config.js";
 
 export type Local = { y: number; m: number; d: number; day: string; hour: number; minute: number; hm: string };
+
+/** The calendar date `days` after y-m-d (months 1-based; the day may overflow, as Date.UTC allows). */
+export function calendar(y: number, m: number, d: number, days = 0) {
+  const p = DateTime.toPartsUtc(DateTime.makeUnsafe(Date.UTC(y, m - 1, d + days)));
+  return { y: p.year, m: p.month, d: p.day, iso: DateTime.formatIsoDateUtc(DateTime.makeUnsafe(Date.UTC(y, m - 1, d + days))), mondayFirst: (p.weekDay + 6) % 7 };
+}
 
 /** Wall-clock parts in `timeZone` at `ms` (epoch milliseconds). Intl handles Lithuanian DST for us. */
 export function localAt(timeZone: string, ms: number): Local {

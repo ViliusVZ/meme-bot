@@ -28,7 +28,7 @@ import { Discord, type DiscordError } from "./discord.js";
 import { Games } from "./games.js";
 import { Nights } from "./nights.js";
 import { Attendances } from "./attendance.js";
-import { localAt, pollHourOf, wallToUnixIn, weekdayOf } from "./localtime.js";
+import { calendar, localAt, pollHourOf, wallToUnixIn, weekdayOf } from "./localtime.js";
 import { Alerts } from "./alerts.js";
 import { Panels, type Mine } from "./panels.js";
 import { Snoozes } from "./snooze.js";
@@ -124,8 +124,8 @@ export function parseTimeFor(w: When, raw: string, day = today(w)): number | str
   let t = wallToUnixIn(w.zone, y, mo, d, +m[1], +(m[2] ?? 0));
   if (+m[1] < 6 && (!isToday || t < w.now)) {
     // the small hours after the night: same wall time on the next calendar day (DST-safe)
-    const next = new Date(Date.UTC(y, mo - 1, d + 1));
-    t = wallToUnixIn(w.zone, next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), +m[1], +(m[2] ?? 0));
+    const next = calendar(y, mo, d, 1);
+    t = wallToUnixIn(w.zone, next.y, next.m, next.d, +m[1], +(m[2] ?? 0));
   }
   if (t < w.now + 120) return `**${clock(w, t)}** has already passed ⏰`;
   if (isToday && t > w.now + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
@@ -1621,7 +1621,8 @@ const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
 export const planPickerCard = Effect.gen(function* () {
   const db = yield* Db;
   const first = today(yield* when);
-  const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${first}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10));
+  const [fy, fm, fd] = first.split("-").map(Number);
+  const days = Array.from({ length: 7 }, (_, i) => calendar(fy, fm, fd, i).iso);
   const existing = yield* db
     .select({ day: gameNights.day, stage: gameNights.stage })
     .from(gameNights)

@@ -4,6 +4,7 @@ import { Cause, Clock, Context, Duration, Effect, Fiber, FiberMap, Layer, Ref, t
 import { Jobs } from "./jobs.js";
 import { GameNight } from "./gamenight.js";
 import { Alerts } from "./alerts.js";
+import { jsonText } from "./json.js";
 
 const LOOKAHEAD = 120; // seconds: nights starting this soon get their own timer
 const STALL = 5 * 60_000; // one minute's jobs running this long are stuck (every call has a timeout, so it's a bug)
@@ -84,7 +85,7 @@ export class Ticker extends Context.Service<
             const ms = (yield* Clock.currentTimeMillis) - t0;
             // quiet minutes aren't worth a log line; anything that did something (or failed) is
             const busy = Object.entries(out).filter(([, v]) => isBusy(v));
-            if (busy.length || ms > 5000) yield* Effect.logInfo(`minute ${ms} ms ${JSON.stringify(Object.fromEntries(busy))}`);
+            if (busy.length || ms > 5000) yield* Effect.logInfo(`minute ${ms} ms ${jsonText(Object.fromEntries(busy))}`);
           }).pipe(
             Effect.ensuring(
               Effect.gen(function* () {

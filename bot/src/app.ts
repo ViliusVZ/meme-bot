@@ -9,7 +9,7 @@ import { memes } from "./db/schema.js";
 import { Db } from "./db/db.js";
 import { AppConfig, withOverrides } from "./config.js";
 import { Discord, EPHEMERAL, Response as R } from "./discord.js";
-import { verifySignature } from "./verify.js";
+import { importPublicKey, verifySignature } from "./verify.js";
 import { Background } from "./background.js";
 import { Interactions } from "./interactions.js";
 import { Memes } from "./memes.js";
@@ -116,6 +116,8 @@ export const Routes = HttpRouter.use((router) =>
     const db = yield* Db;
     const discord = yield* Discord;
     const status = yield* AppStatus;
+    // imported on the first signed request, then kept (a key that can't be read stays unreadable)
+    const publicKey = yield* Effect.cached(importPublicKey(status.publicKey));
     const background = yield* Background;
     const interactions = yield* Interactions;
     const memeService = yield* Memes;
@@ -183,7 +185,7 @@ export const Routes = HttpRouter.use((router) =>
     yield* route("POST", "/interactions", (req) =>
       Effect.gen(function* () {
         const body = yield* bodyText(req);
-        const ok = yield* verifySignature(req.headers["x-signature-ed25519"], req.headers["x-signature-timestamp"], body, status.publicKey);
+        const ok = yield* verifySignature(req.headers["x-signature-ed25519"], req.headers["x-signature-timestamp"], body, publicKey);
         if (!ok) return HttpServerResponse.text("bad signature", { status: 401 });
         const i = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(body);
         const raw = (i ?? {}) as { type?: number; data?: { custom_id?: string; name?: string }; member?: { user?: { username?: string } }; user?: { username?: string }; message?: { flags?: number } };

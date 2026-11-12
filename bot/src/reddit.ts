@@ -31,16 +31,20 @@ export function parseFeed(xml: string): Incoming[] {
   const feed = parser.parse(xml)?.feed;
   const entries = [feed?.entry ?? []].flat();
   const out: Incoming[] = [];
-  entries.forEach((e: any, i: number) => {
-    const content = unescape(String(e.content?.["#text"] ?? e.content ?? ""));
+  // the parser's output has no fixed shape: each field is read defensively
+  type Node = { "#text"?: unknown; "@href"?: unknown; name?: unknown } | string | undefined;
+  type Entry = { content?: Node; link?: Node | Node[]; id?: unknown; title?: Node; author?: { name?: unknown }; published?: unknown };
+  const text = (n: Node) => (typeof n === "object" && n !== null ? (n["#text"] ?? n) : (n ?? ""));
+  (entries as Entry[]).forEach((e, i) => {
+    const content = unescape(String(text(e.content)));
     const image = content.match(IMAGE)?.[1];
     if (!image) return;
     const links = [e.link].flat();
     out.push({
       id: String(e.id),
-      title: unescape(String(e.title?.["#text"] ?? e.title ?? "")),
+      title: unescape(String(text(e.title))),
       image,
-      link: links.find((l: any) => l?.["@href"])?.["@href"] ?? "",
+      link: String(links.map((l) => (typeof l === "object" && l !== null ? l["@href"] : undefined)).find(Boolean) ?? ""),
       author: String(e.author?.name ?? ""),
       published: String(e.published ?? ""),
       rank: i + 1,

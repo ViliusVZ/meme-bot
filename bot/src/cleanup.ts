@@ -15,6 +15,7 @@ import { Discord, type DiscordError } from "./discord.js";
 import { Memes } from "./memes.js";
 import { Nights } from "./nights.js";
 import { LocalTime } from "./localtime.js";
+import { jsonText } from "./json.js";
 
 const HOUR = 3; // local
 const KEEP_AFTER_START = 6 * 3600;
@@ -73,7 +74,7 @@ export class Cleanup extends Context.Service<
           if (!page.length) break;
           for (const m of page) {
             if (m.author.id !== me || m.pinned || keep.has(m.id) || createdMs(m.id) >= cutoffMs) continue;
-            if (JSON.stringify(m.components ?? []).includes("recap ·")) continue; // 📊 weekly/monthly/yearly recaps stay
+            if (jsonText(m.components ?? []).includes("recap ·")) continue; // 📊 weekly/monthly/yearly recaps stay
             doomed.push(m.id);
           }
           before = page[page.length - 1].id;
