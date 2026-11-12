@@ -38,16 +38,23 @@ off whenever its channel isn't configured (check it).
 
 **Can't fit (behaviour-neutral only):** (none yet)
 
-### Now (2026-11-12 ~13:15)
+### Now (2026-11-12 ~13:25)
 
-- **Phase 6 done and audited** (audit closed in phase 7's branch, see "Phase 6 audit" below).
-  **Phase 7 in progress** on branch `effect-p7` (worktree `C:\p\meme-bot-effect-p7`; fast-forward
-  `effect` to it when phase 7 is done): test 16 (`0b87993`, `cf1dbf5`), test 6's last entries
-  (`c4055db`), metrics + OTLP (`374eb97`), the phase 6 audit's test fixes (next commit). Left:
-  read the traces on the test bot, the phase 7 audit, the phase note.
-- **The news (plan 02)** is being ported by a background agent on branch `effect-news` (its own
-  worktree, off `2cbbcb4`); merge it into `effect` before the final build.
-- **Deployed:** test bot: the `50a232d`-era redeploy; production `aa49c52`.
+- **Phase 7 done** (audit running in the background, findings due ~13:55): `effect` = `48dfbdf`
+  = phase 7 (`effect-p7`) + the news port (`effect-news`, `ef2c2b2`), all gates green, pushed.
+  **Phase 8 starting** on that build on the test bot.
+- **Deploy finding:** the first test-bot deploy of `48dfbdf` failed its migration ("relation
+  news_items already exists"): the old `wow-news` branch had once been deployed to the test bot,
+  leaving its table (39 test rows, no migration record) behind. Dropped on the test database only
+  (`meme_bot_dev`); production has no such table (checked read-only: `to_regclass` null, 13
+  migration records), so it takes the same fresh path. The old copy kept serving throughout.
+- **Cutover merge:** `main` has `aa49c52`, `155029f`, `0afa875`, all three already in `effect`
+  as patch-equivalent commits (`git log --cherry-mark` shows `=`). A trial merge conflicts in 13
+  files; resolve every one to `effect`'s side, then `git diff effect` must be empty before the
+  merge commit.
+- **The news agent's worktree** was made by the Agent tool under `C:\p\meme-bot\.claude\worktrees\`
+  (inside the old checkout's folder, not its files); removed after the merge, and its leftover
+  branch (at `aa49c52`, nothing of its own) deleted. Tell the owner.
 - **Phase notes posted to the owner in the thread:** phases 4 and 5 (2026-11-12).
 
 # 05 · Status
@@ -1103,3 +1110,22 @@ Bugs and weak spots in the existing behaviour, noticed during the migration and 
 fixed in it. For the owner to prioritise after the cutover.
 
 ## Drill and soak results (phase 8)
+
+On the final build `48dfbdf` (phase 7 + the news), test bot, 2026-11-12. Output under
+`<scratchpad>/qa-effect/final-48dfbdf/`.
+
+- **Browser tap test, private copy: passed.** As Vithis on a quiet QA card (2026-12-28, planned
+  by K): "I'm in" opened the copy; then quiet admin votes only (L yes; all three Enshrouded; all
+  three 20:00 through `custom`, since `time` takes unix seconds) and the copy followed by itself to
+  "It's on: Enshrouded at 20:00" with the late buttons. Card reset after.
+- **Tap timing, browser:** card "I'm in" then six taps on the copy: 55, 27, 34, 40, 22, 19, 29 ms;
+  median 29, p95 55 (old code 49 / 101; phase 5 21 / 49).
+- **The news, end to end on the test bot:** the first automatic run after the deploy saw 37
+  topics, marked 36 old and posted 1 (the newest Forever topic, "Prepare for Forever…", with a
+  Gemini summary): no backlog dump. Forced fallback (`POST /admin/news {"fallback": true}`) after
+  forgetting two old topics: the Forever-titled one ("WoW: Forever Hotfixes - November 11") was
+  posted title-only, the other ("No gold from quests…") skipped. Both posts carry flags 36864
+  (components v2 + suppress notifications: "@silent message" in the client).
+- **Production's news channel, prepared:** parent category `1567132343595040869` (the real
+  #game-night's), guild `968922621662076988`; the test channel has no permission overwrites and
+  the topic "WoW: Forever news from Blizzard, picked out by the bot. Silent, at most 5 a day."
