@@ -1,7 +1,7 @@
 // The metrics (architecture §14): jobs, Discord calls, alerts and background work are counted, and
 // OTLP_URL switches the export on (and nothing goes out without it).
 import { expect, it } from "@effect/vitest";
-import { Deferred, Effect, Layer, ManagedRuntime, Metric, Option } from "effect";
+import { Deferred, Duration, Effect, Layer, ManagedRuntime, Metric, Option } from "effect";
 import { OtlpExporter } from "effect/observability";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import { Alerts } from "../src/alerts.js";
@@ -101,4 +101,16 @@ it.effect("OTLP_URL unset: no exporter at all, and nothing is sent anywhere", ()
     yield* Effect.promise(() => runtime.dispose());
     expect(sent).toEqual([]);
   }),
+);
+
+it.effect("background work in flight: a task interrupted (drain out of time) is counted down too", () =>
+  Effect.gen(function* () {
+    const background = yield* Background;
+    const before = (yield* Metric.value(backgroundInFlight)).value;
+    yield* background.run(Effect.never);
+    expect((yield* Metric.value(backgroundInFlight)).value).toBe(before + 1);
+    expect(yield* background.drain(Duration.millis(20))).toBe(1);
+    yield* Effect.sleep(Duration.millis(50));
+    expect((yield* Metric.value(backgroundInFlight)).value).toBe(before);
+  }).pipe(h.provide),
 );

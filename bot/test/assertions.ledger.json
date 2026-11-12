@@ -2060,6 +2060,11 @@
   "test \"OTLP_URL unset: no exporter at all, and nothing is sent anywhere\"": [
    "expect.toBe(true)",
    "expect.toEqual([])"
+  ],
+  "test \"background work in flight: a task interrupted (drain out of time) is counted down too\"": [
+   "expect.toBe(before + 1)",
+   "expect.toBe(1)",
+   "expect.toBe(before)"
   ]
  },
  "news.test.ts": {
@@ -2194,6 +2199,35 @@
   "test \"the minute's jobs include the news check (what the Ticker runs)\"": [
    "expect.toEqual({ checking: true })",
    "expect.toHaveLength(1)"
+  ],
+  "test \"never one good check yet: the owner hears after a day of trying, not on the first failure\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toBe(true)"
+  ],
+  "test \"the check's time can't be saved: the check doesn't start, and the next minute tries again\"": [
+   "expect.toBe(\"Failure\")",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the “updated” line is silent too, and mentions nobody\"": [
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toEqual([1 << 12, { parse: [] }])"
+  ],
+  "test \"a day's “updated” line counts toward the next posts' cap of 5\"": [
+   "expect.toEqual([\"Forever a\"])",
+   "expect.toEqual([\"updated: Forever a\"])",
+   "expect.toEqual([\"Forever n0\", \"Forever n1\", \"Forever n2\", \"Forever n3\"])"
+  ],
+  "test \"one check at a time: while one is running, the next minute doesn't start another\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(true)",
+   "expect.toEqual({})",
+   "expect.toBe(false)",
+   "expect.toHaveLength(1)"
   ]
  },
  "traces.test.ts": {
@@ -2205,6 +2239,10 @@
   ],
   "test \"posting a card is one trace\"": [
    "expect.toEqual([[\"GameNight.startNight\", { by: \"a\", day: \"today\" }]])"
+  ],
+  "test \"an interaction's token never lands in a span (its webhook calls are left out)\"": [
+   "expect.toBeGreaterThan(0)",
+   "expect.toEqual([])"
   ]
  }
 }

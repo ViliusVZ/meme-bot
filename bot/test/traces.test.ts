@@ -5,6 +5,7 @@ import { Effect, Option, Tracer } from "effect";
 import { GameNight } from "../src/gamenight.js";
 import { Interactions } from "../src/interactions.js";
 import { Jobs } from "../src/jobs.js";
+import { Discord } from "../src/discord.js";
 import { harness } from "./fx.js";
 
 const h = harness({ discord: { firstId: 95000 }, clock: "2026-11-10T17:00:00Z" });
@@ -40,5 +41,21 @@ it.effect("a minute is one trace", () =>
 it.effect("posting a card is one trace", () =>
   Effect.gen(function* () {
     expect(yield* roots(GameNight.use((g) => g.startNight("a")))).toEqual([["GameNight.startNight", { by: "a", day: "today" }]]);
+  }).pipe(h.provide),
+);
+
+it.effect("an interaction's token never lands in a span (its webhook calls are left out)", () =>
+  Effect.gen(function* () {
+    const spans: Tracer.NativeSpan[] = [];
+    const tracer = Tracer.make({
+      span(o) {
+        const s = new Tracer.NativeSpan(o);
+        spans.push(s);
+        return s;
+      },
+    });
+    yield* Discord.use((d) => d.editOriginal("tok-secret", { content: "x" })).pipe(Effect.withTracer(tracer));
+    expect(spans.length).toBeGreaterThan(0);
+    expect(spans.filter((s) => JSON.stringify([s.name, ...s.attributes]).includes("tok-secret"))).toEqual([]);
   }).pipe(h.provide),
 );

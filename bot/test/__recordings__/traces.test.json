@@ -30,5 +30,17 @@
    "recaps": "1:7b8f7df99221",
    "settings": "1:e684586edf80"
   }
+ },
+ "an interaction's token never lands in a span (its webhook calls are left out)": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/webhooks/app/tok-secret/messages/@original 42b0ffcd0c97"
+  ],
+  "db": {
+   "game_night_votes": "1:f6ce6d7cc34a",
+   "game_nights": "1:ce0eae95f3b1",
+   "games": "8:44c5a8b0c098",
+   "recaps": "1:7b8f7df99221",
+   "settings": "1:e684586edf80"
+  }
  }
 }

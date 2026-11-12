@@ -36,7 +36,7 @@ server. Notes to the thread: final build on the test bot; cutover done; 16:30 st
 `f298ce4` (two commits on `f401685`, old code). Never work in `C:\p\meme-bot`. The news must be
 off whenever its channel isn't configured (check it).
 
-**Can't fit (behaviour-neutral only):** (none yet)
+**Can't fit (behaviour-neutral only):** test 6 entries for the news's "updated" claim and /meme's background record (phase 7 audit, finding 8: tests only, the code is protected); the phase 7 audit's minor finding 5 (an overstated alert text in a rare case).
 
 ### Now (2026-11-12 ~13:25)
 
@@ -97,7 +97,36 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   env's QUIET/PLAYERS → `withOverrides` (src/config.ts); PRESENCES/GEMINI_API_KEY → `h.withConfig`.
   `await t.db.select()…` → `yield* db.select()…` on the app's `Db`.
 
-### Phase 6 audit (2026-11-12, closed)
+### Phase 7 audit (2026-11-12, closed; covered the news port too)
+
+No blocker for tonight. Proven fine: the 60 s limit waits for a protected step (never runs it
+twice, never gives a claim back on the timeout); OTLP unset builds nothing; metric updates can't
+fail or block a tap; the new spans change no error types or interruptibility; the news is fully
+off with `NEWS_CHANNEL_ID` unset, its migration drops nothing, posting is once-only, the first run
+marks the backlog seen and lets only the newest Forever item through, game-name matching keeps its
+single model; every old `news.test.ts` expectation is carried over.
+- **Fixed** (news): the `running` flag stayed up for good when saving the check's time failed
+  (the news silently off until a restart): it's put down on any failure before the check is
+  under way; the very first failed check, with no good check ever, DMed the owner at once: the
+  24 hours now count from the first attempt (`first` in the stored times); a first run stopped
+  half way would have posted the backlog later, 5 a day: the new topics go in in one statement;
+  posts with the same `published_at` had no defined order: the older topic goes first (the
+  recordings are unchanged by that). Each with a test that was red on the old code.
+- **Fixed** (phase 7): an interaction's webhook URL (its token, valid 15 min) would have been in
+  exported spans once OTLP is on: webhook calls get no span (`HttpClient.TracerDisabledWhen`); the
+  background gauge could stay one too high around shutdown: counted inside the task, the count
+  down set up in the same uninterruptible step. Tests red without each.
+- **Kept, minor (finding 5):** a job past 60 s inside a protected step finishes that step once,
+  then reports "cut off" (Effect delivers the interruption the moment the step ends, so finished
+  and cut off look the same from outside). Only reachable when Discord itself is that slow; the
+  cost is one alert DM that overstates it. Not changed: the alert text is recorded by test 16.
+- **Kept, minor:** the news shares Gemini's 15-a-day budget with game-name matching; `/admin/news`
+  takes any truthy `fallback`; a post Discord refuses for good holds the queue behind it (it's
+  given back and tried again each run). Four news mutations stayed green: three now have tests
+  that go red under them (the daily cap without `updated_day`, the "updated" line's silent flag,
+  the `running` guard); the update claim's protection and /meme's background record (test 6
+  covers it only at shutdown) are left as test gaps, listed under "Can't fit" at the top.
+
 
 - src frozen (empty diff), ledger only added, recordings only added, gate scripts unchanged; 802
   of 803 old tests run exactly the same number of assertions (the one other is `vi.waitFor`

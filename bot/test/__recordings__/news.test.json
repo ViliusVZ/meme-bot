@@ -293,5 +293,81 @@
    "news_items": "1:ef75e1dbe582",
    "settings": "2:0ac8fb05dc85"
   }
+ },
+ "never one good check yet: the owner hears after a day of trying, not on the first failure": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:38590b491be4"
+  }
+ },
+ "the check's time can't be saved: the check doesn't start, and the next minute tries again": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_items": "1:ef75e1dbe582",
+   "settings": "1:0e2e5ee05677"
+  }
+ },
+ "the “updated” line is silent too, and mentions nobody": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/50.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/c/360/show.json -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent 92a0b91e6663",
+   "POST https://discord.com/api/v10/channels/news/messages 44946a75dbad",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://discord.com/api/v10/channels/news/messages 2a117ed1e380"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_items": "2:c574f43d608f",
+   "settings": "2:3a1599690e74"
+  }
+ },
+ "a day's “updated” line counts toward the next posts' cap of 5": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/90.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/c/360/show.json -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent f69cfb4242dd",
+   "POST https://discord.com/api/v10/channels/news/messages a094ef7e7e0b",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://discord.com/api/v10/channels/news/messages f4a4e8641d0d",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/60.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/61.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/62.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/63.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/64.json -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent 8f2b0d579057",
+   "POST https://discord.com/api/v10/channels/news/messages 4b3c5fd2079d",
+   "POST https://discord.com/api/v10/channels/news/messages 7c89f4382a46",
+   "POST https://discord.com/api/v10/channels/news/messages a896d9c7c73e",
+   "POST https://discord.com/api/v10/channels/news/messages 5158686d9197"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_items": "7:d20554723344",
+   "settings": "2:331808b7fcf8"
+  }
+ },
+ "one check at a time: while one is running, the next minute doesn't start another": {
+  "calls": [
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_items": "1:89d05552ecf3",
+   "settings": "1:143c6ef1372d"
+  }
  }
 }

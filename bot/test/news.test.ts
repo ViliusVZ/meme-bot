@@ -454,3 +454,95 @@ it.effect("the minute's jobs include the news check (what the Ticker runs)", () 
     expect(calls.filter((c) => c.path === FEED)).toHaveLength(1);
   }).pipe(h.provide),
 );
+
+// ---------------------------------------------------------------- the phase 7 audit's findings
+
+it.effect("never one good check yet: the owner hears after a day of trying, not on the first failure", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    const at = (t: number) => setTime(t * 1000);
+    const told = () => h.logs.join(" ").includes("checking WoW: Forever news failed");
+    feedStatus = 403; // the forums refuse the server, from the very first check
+    const t0 = now();
+    expect(yield* news.check).toEqual({ checking: true });
+    yield* h.settle;
+    expect(told()).toBe(false);
+    yield* at(t0 + 600);
+    expect(yield* news.check).toEqual({ checking: true });
+    yield* h.settle;
+    expect(told()).toBe(false);
+    yield* at(t0 + 86400 + 60);
+    yield* news.check;
+    yield* h.settle;
+    expect(told()).toBe(true);
+  }).pipe(h.provide),
+);
+
+it.effect("the check's time can't be saved: the check doesn't start, and the next minute tries again", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    feed = rss([[1, 1, "Old"]]);
+    const refuse = (on: boolean) =>
+      Effect.promise(() =>
+        on
+          ? h.t.pool.query(`CREATE OR REPLACE FUNCTION qa_refuse() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'refused'; END $$ LANGUAGE plpgsql; CREATE TRIGGER qa_refuse BEFORE INSERT OR UPDATE ON settings FOR EACH ROW WHEN (NEW.key = 'wow_news') EXECUTE FUNCTION qa_refuse()`)
+          : h.t.pool.query("DROP TRIGGER IF EXISTS qa_refuse ON settings"),
+      );
+    yield* refuse(true);
+    const failed = yield* Effect.exit(news.check);
+    yield* refuse(false);
+    expect(failed._tag).toBe("Failure");
+    expect(yield* news.running).toBe(false);
+    expect(yield* news.check).toEqual({ checking: true });
+    yield* h.settle;
+    expect(calls.filter((c) => c.path === FEED)).toHaveLength(1);
+  }).pipe(h.provide),
+);
+
+// ---------------------------------------------------------------- the phase 7 audit's test gaps
+
+it.effect("the “updated” line is silent too, and mentions nobody", () =>
+  Effect.gen(function* () {
+    feed = rss([[1, 1, "Old"]]);
+    yield* run();
+    feed = rss([[1, 1, "Old"], [50, 1, "WoW: Forever Hotfixes"]]);
+    verdicts = say([50]);
+    yield* run();
+    feed = rss([[1, 1, "Old"], [50, 3, "WoW: Forever Hotfixes"]]);
+    expect(yield* run(now() + 1800)).toMatchObject({ posted: ["updated: WoW: Forever Hotfixes"] });
+    const line = posted().at(-1)!.body;
+    expect([line.flags & (1 << 12), line.allowed_mentions]).toEqual([1 << 12, { parse: [] }]);
+  }).pipe(h.provide),
+);
+
+it.effect("a day's “updated” line counts toward the next posts' cap of 5", () =>
+  Effect.gen(function* () {
+    feed = rss([[1, 1, "Old"]]);
+    yield* run();
+    verdicts = (ts) => say(ts)(ts);
+    feed = rss([[1, 1, "Old"], [90, 1, "Forever a", 90]]);
+    expect((yield* run()).posted).toEqual(["Forever a"]);
+    yield* setTime("2026-11-12T08:00:00Z");
+    feed = rss([[1, 1, "Old"], [90, 2, "Forever a", 90]]);
+    expect((yield* run()).posted).toEqual(["updated: Forever a"]); // today's first
+    feed = rss([[1, 1, "Old"], [90, 2, "Forever a", 90], ...Array.from({ length: 5 }, (_, i) => [60 + i, 1, `Forever n${i}`, 50 - i] as [number, number, string, number])]);
+    expect((yield* run(now() + 1800)).posted).toEqual(["Forever n0", "Forever n1", "Forever n2", "Forever n3"]); // 4 more, not 5
+  }).pipe(h.provide),
+);
+
+it.effect("one check at a time: while one is running, the next minute doesn't start another", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    let answer!: (r: Response) => void;
+    const slow = new Promise<Response>((ok) => (answer = ok));
+    h.override = (c) => (c.path === FEED ? (slow as unknown as Response) : undefined);
+    expect(yield* news.check).toEqual({ checking: true });
+    yield* setTime((now() + EVERY + 60) * 1000);
+    expect(yield* news.running).toBe(true);
+    expect(yield* news.check).toEqual({}); // the first one is still on the forums
+    answer(new Response(rss([[1, 1, "Old"]]), { status: 200 }));
+    yield* h.settle;
+    expect(yield* news.running).toBe(false);
+    expect(calls.filter((c) => c.path === FEED)).toHaveLength(1);
+  }).pipe(h.provide),
+);
