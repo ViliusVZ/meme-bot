@@ -9,6 +9,7 @@ import { HttpRouter, HttpServer } from "effect/http";
 import { News, FEED, FORUM, ASK_AGAIN, FALLBACK_AFTER, EVERY, parseFeed } from "../src/news.js";
 import { AppConfig } from "../src/config.js";
 import { Gemini } from "../src/gemini.js";
+import { Jobs } from "../src/jobs.js";
 import { AppStatus, ROUTER_CONFIG, routesOn } from "../src/app.js";
 import { Db } from "../src/db/db.js";
 import { newsItems, settings } from "../src/db/schema.js";
@@ -441,5 +442,15 @@ it.effect("POST /admin/news: the feed down is answered 500 with what went wrong"
     const r = yield* admin({});
     expect(r.statusCode).toBe(500);
     expect(r.body).toContain("blue tracker -> 503");
+  }).pipe(h.provide),
+);
+
+it.effect("the minute's jobs include the news check (what the Ticker runs)", () =>
+  Effect.gen(function* () {
+    feed = rss([[1, 1, "Old"]]);
+    const out = yield* Jobs.use((j) => j.minute);
+    expect(out["wow-news"]).toEqual({ checking: true });
+    yield* h.settle;
+    expect(calls.filter((c) => c.path === FEED)).toHaveLength(1);
   }).pipe(h.provide),
 );

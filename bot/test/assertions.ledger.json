@@ -2109,6 +2109,10 @@
   "test \"POST /admin/news: the feed down is answered 500 with what went wrong\"": [
    "expect.toBe(500)",
    "expect.toContain(\"blue tracker -> 503\")"
+  ],
+  "test \"the minute's jobs include the news check (what the Ticker runs)\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
   ]
  }
 }

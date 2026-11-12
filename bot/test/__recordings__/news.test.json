@@ -279,5 +279,19 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "the minute's jobs include the news check (what the Ticker runs)": {
+  "calls": [
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_items": "1:ef75e1dbe582",
+   "settings": "2:0ac8fb05dc85"
+  }
  }
 }
