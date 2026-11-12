@@ -785,6 +785,16 @@ recordings (see "Numbers").
   700,000), so when the read lands doesn't shift the ids of everything else. Shown: three flows
   panel tests and the paths copy test changed under jitter only through this read's position and
   the ids that followed; stable with it.
+- **JITTER since phase 6 (restored in phase 7, `38ea5b0`):** it now delays stubbed answers only
+  (0-4 ms), not queries: the app's queries go through its own Effect pool, which the harness
+  doesn't wrap. The phase 7 jitter run of the whole suite (854 tests, all passed) differed from
+  HEAD in 3 recordings: the old gateway test ended before its DM went out (it now waits for the
+  alert sender: a test-side race, fixed); and, once each in that run and once in 6 more jitter
+  runs of the file, a private copy opened by the tap just before missed one edit, because its
+  background lookup (`Panels.track`, the background read above) landed after the next sync, so
+  that sync didn't see it yet (the next one does); one fewer stubbed answer shifts every later id
+  by one, which is why that test's `game_nights` row differed too. Same behaviour as the old code
+  (the copy is tracked in the background there too); never seen without jitter.
 - **Declared races** (`h.race(reason, { mask, bodies, calls })`), each a test whose point is
   several callers at once. A create the bot deletes again in the same test cancels out with its
   delete, ids in URLs are masked, calls sorted; the database is hashed in full except the named
