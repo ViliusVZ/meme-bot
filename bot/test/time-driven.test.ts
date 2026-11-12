@@ -147,6 +147,7 @@ it.effect("the gateway down for 5 minutes is worth one DM, not before, and once"
     expect(yield* alerts.watchGateway).toEqual({ gatewayDown: 5 });
     yield* TestClock.setTime(T0 + 20 * 60_000);
     expect(yield* alerts.watchGateway).toEqual({}); // once per outage
+    yield* alerts.settle; // (the DM is out before the recording is taken)
   }).pipe(h.provide),
 );
 
