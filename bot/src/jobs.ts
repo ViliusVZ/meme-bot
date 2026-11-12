@@ -2,7 +2,7 @@
 // is idempotent and guarded by the database, so a run can be repeated, skipped or overlap safely,
 // and one failing job doesn't stop the others.
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { Cause, Clock, Context, DateTime, Effect, Layer } from "effect";
+import { Cause, Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
 import { memes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
@@ -20,6 +20,18 @@ import { Alerts } from "./alerts.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const DAY_MS = 864e5;
+/**
+ * The longest a job may take before it's cut off, reported and the next job run (test 16). The
+ * slowest job production logged took 3.3 s (the 03:00 sweep); five times that is under the floor.
+ */
+const JOB_LIMIT = Duration.seconds(60);
+
+/** A job ran past JOB_LIMIT and was interrupted. */
+export class JobTimedOut extends Schema.TaggedError<JobTimedOut>()("JobTimedOut", { job: Schema.String }) {
+  override get message() {
+    return `the “${this.job}” job took over ${Duration.format(JOB_LIMIT)} and was cut off`;
+  }
+}
 const iso = (ms: number) => DateTime.formatIso(DateTime.makeUnsafe(ms));
 /** A failure as today's `String(e)` printed it (the minute's result names failures with it). */
 const errorText = (e: unknown) => (e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? `Error: ${e.message}` : String(e));
@@ -167,6 +179,7 @@ export class Jobs extends Context.Service<
           for (const [name, job] of JOBS) {
             const ran: Effect.Effect<unknown, { readonly _tag: string }> = job;
             out[name] = yield* ran.pipe(
+              Effect.timeoutOrElse({ duration: JOB_LIMIT, orElse: () => Effect.fail(new JobTimedOut({ job: name })) }),
               Effect.withSpan(`job ${name}`),
               Effect.catchCause((cause) => {
                 if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt;
