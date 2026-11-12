@@ -22,8 +22,8 @@ import { appLayerFor, type AppServices } from "../src/runtime.js";
 import { Background } from "../src/background.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Gemini } from "../src/gemini.js";
-import { configFromEnv } from "./old/legacy.js";
-import type { Env } from "./old/env.js";
+import { configFromEnv } from "./env.js";
+import type { Env } from "./env.js";
 import { testDb, testEnv, url } from "./pg.js";
 import {
   API,
@@ -44,9 +44,9 @@ import {
   type Recording,
   type Route,
   type TestDb,
-} from "./harness.js";
+} from "./recorder.js";
 
-export { json, routes, type Call, type Route, type TestDb } from "./harness.js";
+export { json, routes, type Call, type Route, type TestDb } from "./recorder.js";
 
 export type Options = Omit<OldOptions, "clock"> & {
   /**

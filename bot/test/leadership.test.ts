@@ -12,7 +12,7 @@ import { Live } from "../src/live.js";
 import { Ticker } from "../src/scheduler.js";
 import { Gateway } from "../src/gateway.js";
 import { AppConfig } from "../src/config.js";
-import { configFromEnv } from "./old/legacy.js";
+import { configFromEnv } from "./env.js";
 import { testEnv, url } from "./pg.js";
 
 const LEADER_LOCK = 4_242_002;

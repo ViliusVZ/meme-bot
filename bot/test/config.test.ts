@@ -6,8 +6,7 @@ import { ConfigProvider, Duration, Effect, FiberSet, Logger, Redacted } from "ef
 import { AppConfig, ConfigMissing, Overrides, allowedMentions, players, quiet, readConfig, withOverrides } from "../src/config.js";
 import { Background } from "../src/background.js";
 import { Discord } from "../src/discord.js";
-import { loadConfig } from "./old/env.js";
-import { LegacyEnv, legacyEnv } from "./old/legacy.js";
+import { loadConfig } from "./env.js";
 import { harness } from "./fx.js";
 
 const h = harness({ db: false, discord: { firstId: 100 } });
@@ -108,9 +107,9 @@ it.effect("stand-in players given to an admin call are the players deep code see
     const standIns = yield* withOverrides({ players: ["qa-1", "qa-2"] })(players);
     expect(standIns).toEqual(["qa-1", "qa-2"]);
     expect(yield* players).toEqual(["a", "b", "c"]);
-    // and Effect code handing an env to old code passes them on, quiet included (the old bridge's
-    // legacyEnv, until test/old goes)
-    const env = yield* withOverrides({ players: ["qa-1"], quiet: true })(legacyEnv).pipe(Effect.provideService(LegacyEnv, h.env));
+    // and quiet with them: an inner call sees both (what the old bridge handed old code as its env)
+    const o = yield* withOverrides({ players: ["qa-1"], quiet: true })(Overrides);
+    const env = { PLAYERS: o.players?.join(","), QUIET: o.quiet };
     expect([env.PLAYERS, env.QUIET]).toEqual(["qa-1", true]);
     const real = yield* Effect.gen(function* () {
       return (yield* AppConfig).players;

@@ -14,7 +14,7 @@ import { LateSlips } from "../src/late.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Alerts } from "../src/alerts.js";
 import { Background } from "../src/background.js";
-import { configFromEnv } from "./old/legacy.js";
+import { configFromEnv } from "./env.js";
 import { testEnv } from "./pg.js";
 
 const T0 = Date.parse("2026-11-10T19:00:00Z");
