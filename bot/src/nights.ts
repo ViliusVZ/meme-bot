@@ -7,7 +7,6 @@ import { gameNights, type Stage } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
 import { LocalTime } from "./localtime.js";
 import { nowSec } from "./clock.js";
-import { run, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 export type Night = typeof gameNights.$inferSelect;
 
@@ -41,8 +40,3 @@ export class Nights extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const getNight = (env: Env, day: string) => run(env, Nights.use((n) => n.get(day))); // LEGACY-BRIDGE
-// synchronous, as it always was (callers filter with it)
-export const isOver = (_env: Env, n: { day: string; stage: Stage }) => runSync(Nights.use((x) => x.isOver(n))); // LEGACY-BRIDGE

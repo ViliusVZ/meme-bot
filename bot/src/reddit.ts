@@ -11,7 +11,6 @@ import { AppConfig } from "./config.js";
 import { Memes, type Incoming } from "./memes.js";
 import { Alerts } from "./alerts.js";
 import type { Env } from "./env.js";
-import { run, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
@@ -185,8 +184,3 @@ export class Reddit extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const maybeRefill = (env: Env) => run(env, Reddit.use((r) => r.maybeRefill)); // LEGACY-BRIDGE
-export const refilling = () => runSync(Reddit.use((r) => r.refilling)); // LEGACY-BRIDGE
-export const _reset = () => runSync(Reddit.use((r) => r.reset)); // LEGACY-BRIDGE

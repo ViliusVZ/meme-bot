@@ -3,9 +3,9 @@
 // reported while the next is still handled (part of test 10, plan 05 verification.md §7).
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import * as live from "../src/live.js";
-import * as presence from "../src/presence.js";
-import * as alerts from "../src/alerts.js";
+import * as live from "./old/live.js";
+import * as presence from "./old/presence.js";
+import * as alerts from "./old/alerts.js";
 import { lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "../src/db/schema.js";
 import { harness, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

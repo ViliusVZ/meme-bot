@@ -14,7 +14,6 @@ import { LateSlips } from "./late.js";
 import { Spontaneous, type Change } from "./spontaneous.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { forkDetached, runDetached } from "./legacy.js"; // LEGACY-BRIDGE
 
 const HEARTBEAT = Duration.minutes(1);
 const RETRY = 60_000; // ms: a wrap-up already due means it just failed (Discord trouble): look again in a minute
@@ -190,15 +189,3 @@ export class Live extends Context.Service<
     }),
   );
 }
-
-// the old function, for main.ts until Leadership owns the term
-export function start(env: Env) { // LEGACY-BRIDGE
-  let resync: Effect.Effect<void> = Effect.void; // LEGACY-BRIDGE
-  let ready!: () => void; // LEGACY-BRIDGE
-  const started = new Promise<void>((ok) => (ready = ok)); // LEGACY-BRIDGE
-  const fiber = forkDetached(env, Effect.scoped(Effect.flatMap(Live.use((l) => l.watch), (w) => Effect.andThen(Effect.sync(() => ((resync = w.resync), ready())), Effect.never)))); // LEGACY-BRIDGE
-  return { // LEGACY-BRIDGE
-    resync: () => started.then(() => runDetached(resync)), // LEGACY-BRIDGE
-    stop: () => runDetached(Fiber.interrupt(fiber)), // LEGACY-BRIDGE
-  }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE

@@ -2,7 +2,6 @@
 // deploy or restart waits for it to finish before the process exits.
 import { Cause, Context, Duration, Effect, FiberSet, Layer } from "effect";
 import { Alerts } from "./alerts.js";
-import { runDetached, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 export class Background extends Context.Service<
   Background,
@@ -37,14 +36,3 @@ export class Background extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-/** Run `p` in the background; failures are logged with `label`, never thrown. */
-export function defer(p: Promise<unknown>, label = "background work") { // LEGACY-BRIDGE
-  runSync(Background.use((b) => b.run(Effect.promise(() => p), label))); // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
-
-/** Wait for in-flight background work, up to `ms`. */
-export const drain = (ms: number) => runDetached(Background.use((b) => b.drain(Duration.millis(ms)))); // LEGACY-BRIDGE
-
-export const inFlight = () => runSync(Background.use((b) => b.inFlight)); // LEGACY-BRIDGE

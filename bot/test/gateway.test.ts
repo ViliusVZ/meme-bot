@@ -7,11 +7,11 @@ import { assert, describe, it } from "@effect/vitest";
 import { Clock, Effect, Exit, Layer, Ref, Scope } from "effect";
 import { TestClock } from "effect/testing";
 import { GatewayDispatchEvents, GatewayIntentBits } from "discord-api-types/v10";
-import { Gateway, GatewayClient, GatewayUnavailable, type GatewayEvent } from "../src/gateway.js";
-import { Presence } from "../src/presence.js";
-import { Channels } from "../src/channels.js";
+import { Gateway, GatewayClient, GatewayUnavailable, type GatewayEvent } from "./old/gateway.js";
+import { Presence } from "./old/presence.js";
+import { Channels } from "./old/channels.js";
 import { AppConfig } from "../src/config.js";
-import { Alerts } from "../src/alerts.js";
+import { Alerts } from "./old/alerts.js";
 import { configFromEnv } from "../src/legacy.js";
 import { testEnv } from "./pg.js";
 

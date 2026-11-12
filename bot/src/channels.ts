@@ -3,7 +3,6 @@
 // channel we just made is known before its event arrives). Room upkeep reads it every minute and on
 // every room it opens, which over REST would run into Discord's rate limit on that endpoint.
 import { Context, Effect, Layer, Ref } from "effect";
-import { runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 export type Channel = { id: string; name: string; type: number; position: number; parent_id?: string | null };
 
@@ -62,13 +61,3 @@ export class Channels extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const snapshot = (list: Channel[]) => runSync(Channels.use((c) => c.snapshot(list))); // LEGACY-BRIDGE
-export const upsert = (c: Channel) => runSync(Channels.use((s) => s.upsert(c))); // LEGACY-BRIDGE
-export const reposition = (moves: { id: string; position: number }[]) => runSync(Channels.use((c) => c.reposition(moves))); // LEGACY-BRIDGE
-export const remove = (id: string) => runSync(Channels.use((c) => c.remove(id))); // LEGACY-BRIDGE
-export const invalidate = () => runSync(Channels.use((c) => c.invalidate)); // LEGACY-BRIDGE
-export const cached = (): Channel[] | null => runSync(Channels.use((c) => c.cached)) as Channel[] | null; // LEGACY-BRIDGE
-/** Tests only. */
-export const _reset = () => runSync(Channels.use((c) => c.reset)); // LEGACY-BRIDGE

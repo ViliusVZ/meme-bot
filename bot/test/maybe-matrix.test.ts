@@ -5,8 +5,8 @@
 //   round 3: final call, ✅ or ✖️ only, 1 h · a no always wins · no answer by a deadline = ghost
 // Real Postgres, Discord stubbed, the clock moved by hand. Friday 2026-11-06, 17:00 Vilnius.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import * as gn from "../src/gamenight.js";
-import { interaction } from "../src/interactions.js";
+import * as gn from "./old/gamenight.js";
+import { interaction } from "./old/interactions.js";
 import { gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

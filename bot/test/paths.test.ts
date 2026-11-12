@@ -2,17 +2,17 @@
 // one-hour re-nudge, /meme. Together with flows.test.ts every database query in src/ runs here.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import * as gn from "../src/gamenight.js";
-import * as polls from "../src/polls.js";
-import * as voice from "../src/voice.js";
-import * as attendance from "../src/attendance.js";
-import * as late from "../src/late.js";
-import * as memes from "../src/memes.js";
-import * as jobs from "../src/jobs.js";
-import * as presence from "../src/presence.js";
-import * as channels from "../src/channels.js";
-import { build } from "../src/app.js";
-import { interaction } from "../src/interactions.js";
+import * as gn from "./old/gamenight.js";
+import * as polls from "./old/polls.js";
+import * as voice from "./old/voice.js";
+import * as attendance from "./old/attendance.js";
+import * as late from "./old/late.js";
+import * as memes from "./old/memes.js";
+import * as jobs from "./old/jobs.js";
+import * as presence from "./old/presence.js";
+import * as channels from "./old/channels.js";
+import { build } from "./old/app.js";
+import { interaction } from "./old/interactions.js";
 import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, pollVotes, panels } from "../src/db/schema.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";
@@ -302,7 +302,7 @@ test("clicking the card opens your private copy; clicking your copy updates it i
 });
 
 test("🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay", async () => {
-  const { snowflakeAt, nightly } = await import("../src/cleanup.js");
+  const { snowflakeAt, nightly } = await import("./old/cleanup.js");
   vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
   const old = Date.parse("2026-11-05T15:00:00Z"); // yesterday 17:00
   const fresh = Date.parse("2026-11-06T01:02:00Z"); // after 03:00 today
@@ -345,7 +345,7 @@ test("a meme vote shows who voted what under the bar, without pinging", async ()
 });
 
 test("😐 meme slackers: called out at 19:00, once a day, at most every 3 days each", async () => {
-  const { evening, slackers } = await import("../src/memeshame.js");
+  const { evening, slackers } = await import("./old/memeshame.js");
   // five daily memes, posted on the five days before Friday
   for (let i = 0; i < 5; i++) {
     const day = `2026-11-0${5 - i}`;
@@ -596,7 +596,7 @@ test("a poll: tapping your answer again takes your vote back", async () => {
 });
 
 test("🧹 a sweep that fails is tried again the next minute", async () => {
-  const { snowflakeAt, nightly } = await import("../src/cleanup.js");
+  const { snowflakeAt, nightly } = await import("./old/cleanup.js");
   vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
   const old = snowflakeAt(Date.parse("2026-11-05T15:00:00Z"), 1);
   let down = true;
@@ -612,7 +612,7 @@ test("🧹 a sweep that fails is tried again the next minute", async () => {
 });
 
 test("🧹 the sweep goes back page by page, 100 at a time", async () => {
-  const { snowflakeAt, sweep } = await import("../src/cleanup.js");
+  const { snowflakeAt, sweep } = await import("./old/cleanup.js");
   vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z"));
   const old = Date.parse("2026-11-05T15:00:00Z");
   const first = Array.from({ length: 100 }, (_, i) => ({ id: snowflakeAt(old, 200 - i), author: { id: "bot" } })); // newest first
@@ -626,7 +626,7 @@ test("🧹 the sweep goes back page by page, 100 at a time", async () => {
 });
 
 test("🧹 a night that started in the last 6 hours keeps its card through the sweep", async () => {
-  const { snowflakeAt, sweep } = await import("../src/cleanup.js");
+  const { snowflakeAt, sweep } = await import("./old/cleanup.js");
   vi.setSystemTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
   const card = snowflakeAt(Date.parse("2026-11-05T17:00:00Z"), 1);
   await t.db.insert(gameNights).values({ day: "2026-11-05", stage: "set", game: "R.E.P.O.", start_at: Date.parse("2026-11-05T23:30:00Z") / 1000, reminded: true, message_id: card });
@@ -647,7 +647,7 @@ async function fiveDailyMemes() {
 }
 
 test("😐 a call-out that fails is tried again the next minute, for whoever's still due", async () => {
-  const { evening } = await import("../src/memeshame.js");
+  const { evening } = await import("./old/memeshame.js");
   await fiveDailyMemes();
   for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, "a", "lol"); // only a votes
   vi.setSystemTime(Date.parse("2026-11-06T17:05:00Z")); // 19:05
@@ -659,7 +659,7 @@ test("😐 a call-out that fails is tried again the next minute, for whoever's s
 });
 
 test("😐 skipping the latest three in a row is enough", async () => {
-  const { slackers } = await import("../src/memeshame.js");
+  const { slackers } = await import("./old/memeshame.js");
   await fiveDailyMemes();
   for (let i = 0; i < 5; i++) await memes.castVote(env, `t3_d${i}`, "a", "lol");
   for (const i of [3, 4]) await memes.castVote(env, `t3_d${i}`, "b", "fire"); // b voted on the two oldest only
@@ -669,7 +669,7 @@ test("😐 skipping the latest three in a row is enough", async () => {
 });
 
 test("😐 a meme up for less than 6 hours doesn't count yet", async () => {
-  const { slackers } = await import("../src/memeshame.js");
+  const { slackers } = await import("./old/memeshame.js");
   await fiveDailyMemes();
   for (let i = 0; i < 3; i++) {
     // three posted this afternoon (unlikely, but the rule only looks at when they went up)

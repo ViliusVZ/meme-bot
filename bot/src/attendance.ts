@@ -10,10 +10,9 @@ import { AppConfig } from "./config.js";
 import { Discord, type DiscordError, IS_COMPONENTS_V2 } from "./discord.js";
 import { Voice } from "./voice.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 export type Attendance = typeof nightAttendance.$inferSelect;
-type Changes = Partial<Omit<Attendance, "day" | "user_id">>;
+export type Changes = Partial<Omit<Attendance, "day" | "user_id">>;
 
 const mention = (id: string) => `<@${id}>`;
 
@@ -160,17 +159,3 @@ export function slipFor(day: string, user: string, row: Attendance, game: string
   // edits never re-ping; the first post overrides this with a ping for the late person only
   return { flags: IS_COMPONENTS_V2, allowed_mentions: { parse: [] as string[] }, components: [{ type: 17, accent_color: accent, components: body }] as unknown[] };
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const get = (env: Env, day: string, user: string) => run(env, Attendances.use((a) => a.get(day, user))); // LEGACY-BRIDGE
-export const put = (env: Env, day: string, user: string, set: Changes) => run(env, Attendances.use((a) => a.put(day, user, set))); // LEGACY-BRIDGE
-export const expect = (env: Env, day: string, user: string, eta: number | null) => run(env, Attendances.use((a) => a.expect(day, user, eta))); // LEGACY-BRIDGE
-export const etas = (env: Env, day: string) => run(env, Attendances.use((a) => a.etas(day))); // LEGACY-BRIDGE
-export const declare = (env: Env, day: string, user: string, mins: number) => // LEGACY-BRIDGE
-  run(env, Attendances.use((a) => a.declare(day, user, mins))).catch((e: unknown) => { // LEGACY-BRIDGE
-    throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // today's text, which the alert DM quotes // LEGACY-BRIDGE
-  }); // LEGACY-BRIDGE
-export const markArrived = (env: Env, day: string, users: string[]) => run(env, Attendances.use((a) => a.markArrived(day, users))); // LEGACY-BRIDGE
-export const retireSlips = (env: Env, day: string) => run(env, Attendances.use((a) => a.retireSlips(day))); // LEGACY-BRIDGE
-export const render = (env: Env, day: string, user: string) => run(env, Attendances.use((a) => a.render(day, user))); // LEGACY-BRIDGE
-export const slip = (_env: Env, day: string, user: string, row: Attendance, game: string, startAt?: number, roomId?: string) => slipFor(day, user, row, game, startAt, roomId); // LEGACY-BRIDGE

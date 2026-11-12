@@ -3,7 +3,6 @@
 // it back (plan 05 removes that import cycle). The arithmetic is plain functions (pinned by
 // test/time.test.ts); LocalTime gives it the configured zone and the current time from Clock.
 import { Clock, Context, Effect, Layer } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 
 export type Local = { y: number; m: number; d: number; day: string; hour: number; minute: number; hm: string };
@@ -74,25 +73,4 @@ export class LocalTime extends Context.Service<
       });
     }),
   );
-}
-
-// the old functions, for the code that isn't on Effect yet (the same arithmetic)
-/** Wall-clock parts in the configured timezone. */
-export function local(env: Env, d?: Date) {
-  return localAt(env.TIMEZONE, d ? d.getTime() : Date.now()); // LEGACY-BRIDGE
-}
-
-/** Unix seconds for a wall-clock time in the configured timezone. */
-export function wallToUnix(env: Env, y: number, m: number, d: number, hour: number, minute: number) {
-  return wallToUnixIn(env.TIMEZONE, y, m, d, hour, minute);
-}
-
-/** Local hour of the automatic daily card on `day`: 17:00, but 14:00 on Saturdays and Sundays. */
-export function pollHour(env: Env, day: string) {
-  return pollHourOf(day, Number(env.GAME_POLL_HOUR), Number(env.GAME_POLL_HOUR_WEEKEND));
-}
-
-/** "Friday", for cards about a day other than today. */
-export function weekday(_env: Env, day: string) {
-  return weekdayOf(day);
 }

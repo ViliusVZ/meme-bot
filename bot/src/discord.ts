@@ -7,7 +7,6 @@ import { HttpClient, HttpClientRequest } from "effect/http";
 import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import { Channels, type Channel } from "./channels.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const API = "https://discord.com/api/v10";
 const USER_AGENT = "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)";
@@ -342,39 +341,13 @@ export const WEBHOOK_STEP_MS = 400;
 
 // ---------------------------------------------------------------- the old functions, for code that isn't on Effect yet
 
-/** Today's error, as text: "<METHOD> <path> -> 404 <body>" etc., which old callers match on. */
-const asOldError = (e: DiscordError) => new Error(e.message); // LEGACY-BRIDGE
 
-/** Discord REST call with the bot token (the Discord service's rules). */
-export async function api(env: Env, method: string, path: string, body?: unknown): Promise<any> { // LEGACY-BRIDGE
-  return run(env, Discord.use((d) => d.request(method, path, body)).pipe(Effect.mapError(asOldError))); // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
 
-/** All channels: from the live cache, or over REST when we don't have one. */
-export async function listChannels(env: Env): Promise<Channel[]> { // LEGACY-BRIDGE
-  return run(env, Discord.use((d) => d.listChannels).pipe(Effect.mapError(asOldError))) as Promise<Channel[]>; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
 
-/** True when an api() error is Discord's 404 (the thing is gone). */
-export const isNotFound = (e: unknown) => / -> 404 /.test(String(e)); // LEGACY-BRIDGE
 
-const asResponse = (r: WebhookResult) => (r ? new globalThis.Response(r.status === 204 || r.status === 205 || r.status === 304 ? null : r.text, { status: r.status }) : null); // LEGACY-BRIDGE
 
-/** Interaction webhooks (followups, @original) don't need the bot token. */
-export function followup(env: Env, token: string, body: unknown) { // LEGACY-BRIDGE
-  return run(env, Discord.use((d) => d.followup(token, body))).then(asResponse); // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
 
-/** Fill in a deferred ("thinking…") interaction response. */
-export function editOriginal(env: Env, token: string, body: unknown) { // LEGACY-BRIDGE
-  return run(env, Discord.use((d) => d.editOriginal(token, body))).then(asResponse); // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
 
-export async function originalMessage(env: Env, token: string): Promise<{ id: string; channel_id: string }> { // LEGACY-BRIDGE
-  const r = await run(env, Discord.use((d) => d.originalMessage(token))); // LEGACY-BRIDGE
-  if (!r?.ok) throw new Error(`@original -> ${r?.status}`); // LEGACY-BRIDGE
-  return JSON.parse(r.text) as { id: string; channel_id: string }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE
 
 export function messageLink(guildId: string, channelId: string, messageId: string) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;

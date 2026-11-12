@@ -16,7 +16,6 @@ import { Discord, type DiscordError } from "./discord.js";
 import { Memes } from "./memes.js";
 import { Nights } from "./nights.js";
 import { LocalTime } from "./localtime.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const HOUR = 3; // local
 const KEEP_AFTER_START = 6 * 3600;
@@ -120,12 +119,6 @@ export class Cleanup extends Context.Service<
   );
 }
 
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const sweep = (env: Env, cutoffMs: number) => run(env, Cleanup.use((c) => c.sweep(cutoffMs))).catch(asOld); // LEGACY-BRIDGE
-export const nightly = (env: Env) => run(env, Cleanup.use((c) => c.nightly)).catch(asOld); // LEGACY-BRIDGE
 
 /** A snowflake for a given time (tests). */
 export const snowflakeAt = (ms: number, n = 0) => String(((BigInt(ms) - DISCORD_EPOCH) << 22n) + BigInt(n));

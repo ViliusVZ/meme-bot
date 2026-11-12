@@ -1,7 +1,7 @@
 // 📊 Stats maths and voice tracking, against a real Postgres: calls, time together, game time,
 // periods, recaps, and segments opened/extended/closed by live voice changes.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
-import * as act from "../src/activity.js";
+import * as act from "./old/activity.js";
 import { gameNights, games, recaps, voiceSegments } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

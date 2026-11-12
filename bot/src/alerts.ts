@@ -7,7 +7,6 @@ import type { Env } from "./env.js";
 import { AppConfig } from "./config.js";
 import { Discord } from "./discord.js";
 import { Presence } from "./presence.js";
-import { run, runDetached, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 const QUIET_FOR = 3 * 3600_000; // the same problem again within this: counted, mentioned next time
 const BURST = 5; // at most this many DMs…
@@ -165,18 +164,3 @@ export class Alerts extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-/** Turn DMs on (main.ts); without ALERT_USER_ID (the test bot, tests) failures are only logged. */
-export const setup = (env: Env) => runSync(Alerts.use((a) => a.setOwner(env.ALERT_USER_ID))); // LEGACY-BRIDGE
-export const failed = (what: string, error: unknown, ...context: unknown[]) => runSync(Alerts.use((a) => a.failed(what, error, ...context))); // LEGACY-BRIDGE
-export const report = (what: string, error: unknown, context: unknown[] = []) => runSync(Alerts.use((a) => a.report(what, error, context))); // LEGACY-BRIDGE
-export const test = (env: Env, to?: string) => // LEGACY-BRIDGE
-  run(env, Alerts.use((a) => a.test(to ?? env.ALERT_USER_ID))).catch((e: unknown) => { // LEGACY-BRIDGE
-    throw e instanceof Error && "_tag" in e ? new Error(e.message) : e; // today's error text // LEGACY-BRIDGE
-  }); // LEGACY-BRIDGE
-export const watchGateway = (env: Env) => run(env, Alerts.use((a) => a.watchGateway)); // LEGACY-BRIDGE
-/** Tests: wait for queued DMs. */
-export const _settle = () => runDetached(Alerts.use((a) => a.settle)); // LEGACY-BRIDGE
-/** Tests: forget throttles and the DM channel. */
-export const _reset = () => runSync(Alerts.use((a) => a.reset)); // LEGACY-BRIDGE

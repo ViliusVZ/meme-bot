@@ -14,7 +14,6 @@ import { AppConfig } from "./config.js";
 import { Presence } from "./presence.js";
 import { Channels, type Channel } from "./channels.js";
 import { Alerts } from "./alerts.js";
-import { forkDetached, runDetached } from "./legacy.js"; // LEGACY-BRIDGE
 
 const CONNECT_TIMEOUT = Duration.seconds(30);
 const DISALLOWED_INTENTS = 4014;
@@ -187,9 +186,3 @@ export class Gateway extends Context.Service<
     }),
   );
 }
-
-// the old shape, for main.ts until Leadership owns the term: connect in the background, close when done
-export function start(env: Env, onSnapshot: () => void) { // LEGACY-BRIDGE
-  const fiber = forkDetached(env, Effect.scoped(Effect.andThen(Gateway.use((g) => g.hold(Effect.sync(onSnapshot))), Effect.never))); // LEGACY-BRIDGE
-  return { close: () => runDetached(Fiber.interrupt(fiber)) }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE

@@ -19,7 +19,6 @@ import { Presence } from "./presence.js";
 import type { Channel } from "./channels.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 export type Room = typeof rooms.$inferSelect;
 export type Opened = { channelId: string; moved: string[]; reused: boolean };
@@ -46,7 +45,7 @@ export class RoomStillCreating extends Schema.TaggedError<RoomStillCreating>()("
   }
 }
 
-const isDiscordError = (e: { readonly _tag: string }): e is DiscordError => e._tag.startsWith("Discord");
+export const isDiscordError = (e: { readonly _tag: string }): e is DiscordError => e._tag.startsWith("Discord");
 
 /** When an open room's wrap-up is due if it stays empty (unix seconds). */
 export const wrapUpAt = (r: Room) => (r.last_seen ? r.last_seen + EMPTY_GRACE : r.created_at + NEVER_JOINED_GRACE);
@@ -445,20 +444,3 @@ export class Voice extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet, with today's error texts (callers log
-// them and the alert DM quotes them)
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof RoomStillCreating || (e instanceof Error && "_tag" in e && isDiscordError(e as { _tag: string })) ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const voiceChannel = (env: Env, user: string) => run(env, Voice.use((v) => v.voiceChannel(user))).catch(asOld); // LEGACY-BRIDGE
-export const openRooms = (env: Env) => run(env, Voice.use((v) => v.openRooms)); // LEGACY-BRIDGE
-export const openRoom = (env: Env, game: string, emoji: string | null, opts: { day?: string; by?: string; move?: boolean } = {}) => // LEGACY-BRIDGE
-  run(env, Voice.use((v) => v.openRoom(game, emoji, opts))).catch(asOld); // LEGACY-BRIDGE
-export const moveFromLobby = (env: Env, channelId: string) => run(env, Voice.use((v) => v.moveFromLobby(channelId))); // LEGACY-BRIDGE
-export const whereIs = (env: Env) => run(env, Voice.use((v) => v.whereIs)); // LEGACY-BRIDGE
-export const checkRooms = (env: Env, occupied: Set<string>, t?: number) => run(env, Voice.use((v) => v.checkRooms(occupied, t))); // LEGACY-BRIDGE
-export const leftRoom = (env: Env, channelId: string, t?: number) => run(env, Voice.use((v) => v.leftRoom(channelId, t))); // LEGACY-BRIDGE
-export const maintainRooms = (env: Env) => run(env, Voice.use((v) => v.maintainRooms)).catch(asOld); // LEGACY-BRIDGE
-export const roomPicker = (env: Env) => run(env, Voice.use((v) => v.roomPicker)); // LEGACY-BRIDGE
-export const roomResult = (env: Env, r: Opened) => roomLine(env.LOBBY_CHANNEL_ID, r); // LEGACY-BRIDGE

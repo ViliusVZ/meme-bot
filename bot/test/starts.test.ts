@@ -5,7 +5,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { Deferred, Effect, Fiber } from "effect";
 import { gameNights, games, lobbyPrompts, nightAttendance, rooms, sessions, voiceSegments } from "../src/db/schema.js";
-import { Ticker } from "../src/scheduler.js";
+import { Ticker } from "./old/scheduler.js";
 import { harness, routes, type TestDb } from "./harness.js";
 
 const h = harness({

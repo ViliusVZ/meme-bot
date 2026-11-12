@@ -22,7 +22,6 @@ import { Memes } from "./memes.js";
 import { Games } from "./games.js";
 import { Spontaneous } from "./spontaneous.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 export type Segment = typeof voiceSegments.$inferSelect;
 export type Kind = "week" | "month" | "year" | "all";
@@ -33,8 +32,7 @@ const CALL_GAP = 180; // together again within this, in any channel → still th
 const mention = (u: string) => `<@${u}>`;
 
 /** The bot's time zone and the current unix second (the pure helpers take it). */
-type When = { readonly zone: string; readonly now: number };
-const W = (env: Env): When => ({ zone: env.TIMEZONE, now: Math.floor(Date.now() / 1000) }); // LEGACY-BRIDGE
+export type When = { readonly zone: string; readonly now: number };
 const localOf = (w: When, sec = w.now) => localAt(w.zone, sec * 1000);
 
 // ---------------------------------------------------------------- periods
@@ -54,7 +52,6 @@ export function periodAt(w: When, kind: Kind, offset = 0) {
     Match.orElse(() => ({ from: 0, to: w.now + 1 })),
   );
 }
-export const period = (env: Env, kind: Kind, offset = 0) => periodAt(W(env), kind, offset); // LEGACY-BRIDGE
 
 function periodLabel(zone: string, kind: Kind, offset: number, from: number, to: number, plain = false) {
   if (plain) offset = -99; // no "This week ·" prefix
@@ -444,13 +441,3 @@ export class Activity extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const track = (env: Env, where: Map<string, string | null>, t?: number) => run(env, Activity.use((a) => a.track(where, t))); // LEGACY-BRIDGE
-export const crunch = (env: Env, from: number, to: number) => run(env, Activity.use((a) => a.crunch(from, to))); // LEGACY-BRIDGE
-export const statsBody = (env: Env, title: string, s: Crunched, prev?: Crunched, prevName?: string) => run(env, Activity.use((a) => a.statsBody(title, s, prev, prevName))); // LEGACY-BRIDGE
-export const statsPanel = (env: Env, kind: Kind = "week", offset = 0, sharedBy?: string) => run(env, Activity.use((a) => a.statsPanel(kind, offset, sharedBy))); // LEGACY-BRIDGE
-export const recaps = (env: Env) => run(env, Activity.use((a) => a.recaps)).catch(asOld); // LEGACY-BRIDGE

@@ -7,18 +7,17 @@
 // never stored: "Playing …" activity names per user, straight from Discord.
 import { Context, Effect, Layer, PubSub, Ref, Schema, type Scope } from "effect";
 import { nowSec } from "./clock.js";
-import { runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 /** A subscriber threw: logged, and the others still hear about the change. */
 class ListenerFailed extends Schema.TaggedError<ListenerFailed>()("ListenerFailed", { detail: Schema.String }) {}
 
-type Listener = (user: string, from: string | null, to: string | null) => void;
+export type Listener = (user: string, from: string | null, to: string | null) => void;
 
 /** What changed, as Live hears it: a voice move (with when we saw it) or what someone's playing. */
 export type PresenceEvent =
   | { readonly _tag: "Moved"; readonly user: string; readonly from: string | null; readonly to: string | null; readonly at: number }
   | { readonly _tag: "Playing"; readonly user: string; readonly names: ReadonlyArray<string> };
-type PlayingListener = (user: string, names: string[]) => void;
+export type PlayingListener = (user: string, names: string[]) => void;
 
 type State = {
   states: Map<string, string>; // user → voice channel (absent = not in voice)
@@ -141,19 +140,3 @@ export class Presence extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet (all synchronous, as they always were)
-export const snapshot = (voiceStates: { user_id: string; channel_id: string | null }[]) => runSync(Presence.use((p) => p.snapshot(voiceStates))); // LEGACY-BRIDGE
-export const update = (user: string, channel: string | null) => runSync(Presence.use((p) => p.update(user, channel))); // LEGACY-BRIDGE
-export const invalidate = () => runSync(Presence.use((p) => p.invalidate)); // LEGACY-BRIDGE
-export const revalidate = () => runSync(Presence.use((p) => p.revalidate)); // LEGACY-BRIDGE
-export const isReady = () => runSync(Presence.use((p) => p.isReady)); // LEGACY-BRIDGE
-export const hasSnapshot = () => runSync(Presence.use((p) => p.hasSnapshot)); // LEGACY-BRIDGE
-export const channelOf = (user: string) => runSync(Presence.use((p) => p.channelOf(user))); // LEGACY-BRIDGE
-export const lastKnown = (user: string) => runSync(Presence.use((p) => p.lastKnown(user))); // LEGACY-BRIDGE
-export const onChange = (fn: Listener) => runSync(Presence.use((p) => p.onChange(fn))); // LEGACY-BRIDGE
-export const setActivities = (user: string, activities: { type: number; name: string }[] | undefined) => runSync(Presence.use((p) => p.setActivities(user, activities))); // LEGACY-BRIDGE
-export const playing = (user: string) => runSync(Presence.use((p) => p.playing(user))); // LEGACY-BRIDGE
-export const onPlaying = (fn: PlayingListener) => runSync(Presence.use((p) => p.onPlaying(fn))); // LEGACY-BRIDGE
-/** Tests only. */
-export const _reset = () => runSync(Presence.use((p) => p.reset)); // LEGACY-BRIDGE

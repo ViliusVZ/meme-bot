@@ -2,8 +2,8 @@
 // counts once, a missed day starts over, and a streak shows only while it's alive.
 import { beforeAll, expect, test, vi } from "vitest";
 import { memes as memeTable, recaps, users, votes } from "../src/db/schema.js";
-import * as jobs from "../src/jobs.js";
-import * as memes from "../src/memes.js";
+import * as jobs from "./old/jobs.js";
+import * as memes from "./old/memes.js";
 import type { Env } from "../src/env.js";
 import { harness, json } from "./harness.js";
 

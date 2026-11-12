@@ -3,7 +3,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { Effect } from "effect";
 import { panels } from "../src/db/schema.js";
-import { Panels } from "../src/panels.js";
+import { Panels } from "./old/panels.js";
 import { run } from "../src/legacy.js";
 import type { Env } from "../src/env.js";
 import { harness } from "./harness.js";

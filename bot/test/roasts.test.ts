@@ -2,7 +2,7 @@
 // saw last, so no line ever shows up twice in a row.
 import { beforeAll, expect, test } from "vitest";
 import { roastBags } from "../src/db/schema.js";
-import * as roasts from "../src/roasts.js";
+import * as roasts from "./old/roasts.js";
 import type { Env } from "../src/env.js";
 import { harness } from "./harness.js";
 

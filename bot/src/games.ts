@@ -6,7 +6,6 @@ import type { Env } from "./env.js";
 import { games as gameTable } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
 import { nowIso } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 export interface Game {
   name: string;
@@ -61,10 +60,3 @@ export class Games extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const games = (env: Env, limit = 25) => run(env, Games.use((g) => g.list(limit))); // LEGACY-BRIDGE
-export const addGame = (env: Env, raw: string, user: string) => run(env, Games.use((g) => g.add(raw, user))); // LEGACY-BRIDGE
-export const removeGame = (env: Env, name: string) => run(env, Games.use((g) => g.remove(name))); // LEGACY-BRIDGE
-export const gameLabel = (env: Env) => run(env, Games.use((g) => g.label)); // LEGACY-BRIDGE
-export const emojiFor = (env: Env, game: string) => run(env, Games.use((g) => g.emojiFor(game))); // LEGACY-BRIDGE

@@ -3,9 +3,9 @@
 // what the typed errors are built from (plan 05, verification.md §2d).
 import { readdirSync, readFileSync } from "node:fs";
 import { beforeAll, expect, test } from "vitest";
-import { api, editOriginal, isNotFound } from "../src/discord.js";
-import * as voice from "../src/voice.js";
-import * as presence from "../src/presence.js";
+import { api, editOriginal, isNotFound } from "./old/discord.js";
+import * as voice from "./old/voice.js";
+import * as presence from "./old/presence.js";
 import type { Env } from "../src/env.js";
 import { harness, json } from "./harness.js";
 

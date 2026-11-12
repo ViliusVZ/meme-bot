@@ -5,7 +5,6 @@ import type { Env } from "./env.js";
 import { Jobs } from "./jobs.js";
 import { GameNight } from "./gamenight.js";
 import { Alerts } from "./alerts.js";
-import { forkDetached, runDetached, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 const LOOKAHEAD = 120; // seconds: nights starting this soon get their own timer
 const STALL = 5 * 60_000; // one minute's jobs running this long are stuck (every call has a timeout, so it's a bug)
@@ -129,19 +128,8 @@ export class Ticker extends Context.Service<
   );
 }
 
-// the old functions, for the code that isn't on Effect yet (main.ts, the fake-timer tests)
-export const sinceTick = () => runSync(Ticker.use((t) => t.sinceTick)); // LEGACY-BRIDGE
 
 export interface ClockOptions {
   onStall?: (mins: number) => void;
   minute?: (env: Env) => Promise<Record<string, unknown>>;
 }
-
-export function start(env: Env, opts: ClockOptions = {}) { // LEGACY-BRIDGE
-  const ticker: TickerOptions = { // LEGACY-BRIDGE
-    onStall: opts.onStall ? (mins) => Effect.sync(() => opts.onStall!(mins)) : undefined, // LEGACY-BRIDGE
-    minute: opts.minute ? Effect.promise(() => opts.minute!(env)) : undefined, // LEGACY-BRIDGE
-  }; // LEGACY-BRIDGE
-  const fiber = forkDetached(env, Effect.scoped(Ticker.use((t) => t.run(ticker)))); // LEGACY-BRIDGE
-  return { stop: () => runDetached(Fiber.interrupt(fiber)) }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE

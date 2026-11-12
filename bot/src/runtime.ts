@@ -1,5 +1,5 @@
 // The app's services, as one layer. main.ts runs it with the real configuration; tests with theirs.
-import { Layer, Logger, ManagedRuntime } from "effect";
+import { Layer, Logger } from "effect";
 import { Reactivity } from "effect/reactivity";
 import type { PgClient } from "@effect/sql-pg";
 import type { SqlClient } from "effect/sql";
@@ -46,6 +46,8 @@ export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClie
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
   readonly db?: { readonly startupOptions?: string };
+  /** Outbound HTTP (Discord, Reddit, the Blizzard feed, Gemini): fetch, unless a test gives its own. */
+  readonly http?: Layer.Layer<HttpClient.HttpClient>;
 }
 
 /**
@@ -55,12 +57,6 @@ export interface LayerOptions {
  */
 export const LoggerLive = Logger.layer([Logger.consoleLogFmt]);
 
-/**
- * Outbound HTTP (Discord, Reddit, the Blizzard feed, Gemini). Fetch is read from the global on every
- * request, not captured once (FetchHttpClient's default, spike S5), so the tests' global fetch stub
- * and its recorder see the Effect client's requests too, until phase 6 gives the tests a fake client.
- */
-const HttpLive = FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, ((input, init) => globalThis.fetch(input, init)) as typeof globalThis.fetch))); // LEGACY-BRIDGE
 
 /** Our trace ids are no business of Discord's, Reddit's or Google's: no traceparent header outbound. */
 const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, false);
@@ -80,13 +76,10 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Alerts.layer),
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer)),
     Layer.provideMerge(
-      Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, HttpLive, NoTracePropagation),
+      Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, options.http ?? FetchHttpClient.layer, NoTracePropagation),
     ),
     Layer.provideMerge(LoggerLive),
   );
 
 /** The app's layer for a configuration already read (tests). */
 export const appLayerFor = (config: AppConfigShape, options: LayerOptions = {}) => appLayer(Layer.succeed(AppConfig, config), options);
-
-/** One runtime for the transition: promise code reaches the services through it (legacy.ts). */
-export const makeRuntime = (config: AppConfigShape, options: LayerOptions = {}) => ManagedRuntime.make(appLayerFor(config, options)); // LEGACY-BRIDGE

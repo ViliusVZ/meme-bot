@@ -13,7 +13,6 @@ import { Memes } from "./memes.js";
 import { Roasts } from "./roasts.js";
 import { LocalTime } from "./localtime.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const HOUR = 19; // local
 const WINDOW = 5; // daily memes looked at
@@ -169,10 +168,3 @@ export class MemeShame extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const slackers = (env: Env, t?: number) => run(env, MemeShame.use((m) => m.slackers(t))); // LEGACY-BRIDGE
-export const evening = (env: Env) => run(env, MemeShame.use((m) => m.evening)).catch(asOld); // LEGACY-BRIDGE

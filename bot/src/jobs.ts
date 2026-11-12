@@ -19,7 +19,6 @@ import { MemeShame } from "./memeshame.js";
 import { Spontaneous } from "./spontaneous.js";
 import { Alerts } from "./alerts.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const DAY_MS = 864e5;
 const iso = (ms: number) => DateTime.formatIso(DateTime.makeUnsafe(ms));
@@ -186,12 +185,3 @@ export class Jobs extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const minute = (env: Env) => run(env, Jobs.use((j) => j.minute)); // LEGACY-BRIDGE
-export const postDaily = (env: Env) => run(env, Jobs.use((j) => j.postDaily)).catch(asOld); // LEGACY-BRIDGE
-export const weeklyRecap = (env: Env) => run(env, Jobs.use((j) => j.weeklyRecap)).catch(asOld); // LEGACY-BRIDGE
-export const monthlyRecap = (env: Env) => run(env, Jobs.use((j) => j.monthlyRecap)).catch(asOld); // LEGACY-BRIDGE

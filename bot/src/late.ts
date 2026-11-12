@@ -22,7 +22,6 @@ import { GameNight, type NightGone } from "./gamenight.js";
 import { Voice } from "./voice.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const LATE_AFTER = 10 * 60; // grace before a late slip
 const WATCH_FOR = 3 * 3600; // stop watching this long after the start
@@ -174,12 +173,3 @@ export class LateSlips extends Context.Service<
   );
 }
 
-// the data half moved to attendance.ts; still offered from here to existing callers
-export { declare, etas, expect, get, markArrived, render, retireSlips, type Attendance } from "./attendance.js";
-
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const watch = (env: Env) => run(env, LateSlips.use((l) => l.watch)); // LEGACY-BRIDGE
-export const act = (env: Env, day: string, owner: string, clicker: string, choice: string) => run(env, LateSlips.use((l) => l.act(day, owner, clicker, choice))).catch(asOld); // LEGACY-BRIDGE

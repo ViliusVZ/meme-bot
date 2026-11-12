@@ -14,9 +14,9 @@ import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { Env } from "../src/env.js";
-import { drain } from "../src/background.js";
+import { drain } from "./old/background.js";
 import { install, configFromEnv } from "../src/legacy.js";
-import { makeRuntime } from "../src/runtime.js";
+import { makeRuntime } from "./old/runtime.js";
 import { testDb, testEnv, url } from "./pg.js";
 
 export type Call = { method: string; path: string; body: any };

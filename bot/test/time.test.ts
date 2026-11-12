@@ -4,7 +4,7 @@ import { test as vt, afterEach } from "vitest";
 // Fakes the clock.
 import assert from "node:assert/strict";
 
-import * as gn from "../src/gamenight.js";
+import * as gn from "./old/gamenight.js";
 import { harness } from "./harness.js";
 
 harness({ db: false }); // the app's runtime (the old functions reach the Effect services through it)

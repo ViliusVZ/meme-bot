@@ -30,7 +30,6 @@ import { Lifecycle } from "./lifecycle.js";
 import { LocalTime } from "./localtime.js";
 import { nowIso, nowSec } from "./clock.js";
 import { Ticker } from "./scheduler.js";
-import { appContext, runDetached } from "./legacy.js"; // LEGACY-BRIDGE
 import type { AppServices } from "./runtime.js";
 
 export const COMMANDS = [
@@ -393,7 +392,7 @@ export const Routes = HttpRouter.use((router) =>
 );
 
 /** The app's routes, on everything they need but the server and the status. */
-const routesOn = (statusLayer: Layer.Layer<AppStatus>, context: Context.Context<AppServices>) =>
+export const routesOn = (statusLayer: Layer.Layer<AppStatus>, context: Context.Context<AppServices>) =>
   Routes.pipe(Layer.provide(statusLayer), Layer.provide(Layer.succeedContext(context)));
 
 /** The HTTP server on its port, over the app's services and its Lifecycle (main.ts builds it in a scope it closes at shutdown). */
@@ -406,33 +405,3 @@ export interface Status {
   leader: () => boolean;
   shuttingDown: () => boolean;
 }
-
-/**
- * The old app object, for the code that isn't on Effect yet: main.ts listens and closes it, the
- * tests inject requests (Fastify's `inject`, over the web handler).
- */
-export function build(env: Env, status: Status) { // LEGACY-BRIDGE
-  const statusLayer = Layer.succeed(AppStatus, AppStatus.of({ leader: Effect.sync(status.leader), shuttingDown: Effect.sync(status.shuttingDown), publicKey: env.DISCORD_PUBLIC_KEY })); // LEGACY-BRIDGE
-  const webOn = (ctx: Context.Context<AppServices>) => HttpRouter.toWebHandler(routesOn(statusLayer, ctx).pipe(Layer.provide(HttpServer.layerServices)), { disableLogger: true }); // LEGACY-BRIDGE
-  let web: Promise<ReturnType<typeof webOn>> | null = null; // LEGACY-BRIDGE
-  let server: Fiber.Fiber<unknown, unknown> | null = null; // LEGACY-BRIDGE
-  return { // LEGACY-BRIDGE
-    async inject(o: { method: string; url: string; payload?: unknown; headers?: Record<string, string> }) { // LEGACY-BRIDGE
-      web ??= appContext().then(webOn); // LEGACY-BRIDGE
-      const { handler } = await web; // LEGACY-BRIDGE
-      const body = o.payload === undefined ? undefined : typeof o.payload === "string" ? o.payload : JSON.stringify(o.payload); // LEGACY-BRIDGE
-      const headers = { ...(body !== undefined && typeof o.payload !== "string" ? { "content-type": "application/json" } : {}), ...o.headers }; // LEGACY-BRIDGE
-      const res = await handler(new Request(`http://local${o.url}`, { method: o.method, headers, body })); // LEGACY-BRIDGE
-      const text = await res.text(); // LEGACY-BRIDGE
-      return { statusCode: res.status, body: text, json: () => JSON.parse(text) }; // LEGACY-BRIDGE
-    }, // LEGACY-BRIDGE
-    async listen(o: { host: string; port: number }) { // LEGACY-BRIDGE
-      const ctx = await appContext(); // LEGACY-BRIDGE
-      const serve = HttpRouter.serve(routesOn(statusLayer, ctx), { disableLogger: true }).pipe(Layer.provide(NodeHttpServer.layer(createServer, { host: o.host, port: o.port, gracefulShutdownTimeout: "10 seconds" }))); // LEGACY-BRIDGE
-      server = await runDetached(Effect.forkDetach(Layer.launch(serve))); // LEGACY-BRIDGE
-    }, // LEGACY-BRIDGE
-    async close() { // LEGACY-BRIDGE
-      if (server) await runDetached(Fiber.interrupt(server)); // LEGACY-BRIDGE
-    }, // LEGACY-BRIDGE
-  }; // LEGACY-BRIDGE
-} // LEGACY-BRIDGE

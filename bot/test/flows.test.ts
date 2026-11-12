@@ -2,19 +2,19 @@
 // playing?" to the start ping, secret ballots, reopen, split re-votes, polls, rooms, latecomers,
 // memes. Catches query mistakes long before the live QA suite does.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
-import * as gn from "../src/gamenight.js";
-import * as polls from "../src/polls.js";
-import * as voice from "../src/voice.js";
-import * as late from "../src/late.js";
-import * as memes from "../src/memes.js";
-import * as jobs from "../src/jobs.js";
-import * as presence from "../src/presence.js";
+import * as gn from "./old/gamenight.js";
+import * as polls from "./old/polls.js";
+import * as voice from "./old/voice.js";
+import * as late from "./old/late.js";
+import * as memes from "./old/memes.js";
+import * as jobs from "./old/jobs.js";
+import * as presence from "./old/presence.js";
 import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, panels, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
-import * as roasts from "../src/roasts.js";
-import * as memeshame from "../src/memeshame.js";
-import * as snooze from "../src/snooze.js";
-import { interaction } from "../src/interactions.js";
-import { drain } from "../src/background.js";
+import * as roasts from "./old/roasts.js";
+import * as memeshame from "./old/memeshame.js";
+import * as snooze from "./old/snooze.js";
+import { interaction } from "./old/interactions.js";
+import { drain } from "./old/background.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";
 

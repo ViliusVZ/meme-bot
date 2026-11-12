@@ -2,9 +2,9 @@
 // panel's range, retired and half-filled buttons.
 import { beforeAll, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
-import { interaction } from "../src/interactions.js";
-import * as memes from "../src/memes.js";
-import * as polls from "../src/polls.js";
+import { interaction } from "./old/interactions.js";
+import * as memes from "./old/memes.js";
+import * as polls from "./old/polls.js";
 import { memes as memeTable, polls as pollTable, pollVotes, users, votes } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

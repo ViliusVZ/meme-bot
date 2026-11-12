@@ -2,7 +2,7 @@
 // code sees are the stand-ins, and the real trio's rows are untouched.
 import { beforeAll, expect, test } from "vitest";
 import { voiceSegments } from "../src/db/schema.js";
-import { build } from "../src/app.js";
+import { build } from "./old/app.js";
 import type { Env } from "../src/env.js";
 import { harness } from "./harness.js";
 

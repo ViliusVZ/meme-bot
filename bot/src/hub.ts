@@ -6,7 +6,6 @@ import { AppConfig } from "./config.js";
 import type { DbError } from "./db/db.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { Games } from "./games.js";
-import { run, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 const text = (content: string) => ({ type: 10, content });
 const divider = { type: 14, divider: true, spacing: 1 };
@@ -150,8 +149,3 @@ export const addGameModal = () => ({
   title: "Add a game",
   components: [{ type: 1, components: [{ type: 4, custom_id: "value", style: 1, label: "Game name", placeholder: "Lethal Company", max_length: 60, required: true }] }],
 });
-
-// the old functions, for the code that isn't on Effect yet
-export const helpMessage = (_env: Env) => runSync(Hub.use((h) => h.helpMessage)); // LEGACY-BRIDGE
-export const hubPanel = (_env: Env) => runSync(Hub.use((h) => h.hubPanel)); // LEGACY-BRIDGE
-export const gamesManager = (env: Env, notice?: string) => run(env, Hub.use((h) => h.gamesManager(notice))); // LEGACY-BRIDGE

@@ -13,7 +13,6 @@ import { Context, Effect, Layer, Random } from "effect";
 import type { Env } from "./env.js";
 import { roastBags } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const V = "306836805825593344"; // Vithis: programmer, built this bot
 const K = "212567787896307713"; // Koral: Venipak courier, has the kurjeriai crew
@@ -241,8 +240,5 @@ export class Roasts extends Context.Service<
   );
 }
 
-// the old functions, for the code that isn't on Effect yet
-export const next = (env: Env, users: string[]) => run(env, Roasts.use((r) => r.next(users))); // LEGACY-BRIDGE
-export const draw = (env: Env, family: string, all: string[], fits: string[]) => run(env, Roasts.use((r) => r.draw(family, all, fits))); // LEGACY-BRIDGE
 
 export const _pools = { SOLO, PERSONAL, DUO, PAIRS, TRIO, SOLO_ALL, DUO_ALL };

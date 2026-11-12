@@ -13,7 +13,6 @@ import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { Panels, type Mine } from "./panels.js";
 import { nowIso } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 type Poll = typeof polls.$inferSelect;
 type Outcome = { notice?: string; update: boolean };
@@ -226,15 +225,3 @@ export class Polls extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
-export const createPoll = (env: Env, user: string, question: string, rawOptions: string) => run(env, Polls.use((p) => p.create(user, question, rawOptions))); // LEGACY-BRIDGE
-export const pollAct = (env: Env, id: number, user: string, action: string) => run(env, Polls.use((p) => p.act(id, user, action))); // LEGACY-BRIDGE
-export const isClosed = (env: Env, id: number) => run(env, Polls.use((p) => p.isClosed(id))); // LEGACY-BRIDGE
-export const setMessage = (env: Env, id: number, channelId: string, messageId: string) => run(env, Polls.use((p) => p.setMessage(id, channelId, messageId))); // LEGACY-BRIDGE
-export const refreshPoll = (env: Env, id: number, mine?: Mine) => run(env, Polls.use((p) => p.refresh(id, mine))).catch(asOld); // LEGACY-BRIDGE
-export const syncPollPanels = (env: Env, id: number, mine?: Mine) => run(env, Polls.use((p) => p.syncPanels(id, mine))); // LEGACY-BRIDGE
-export const renderPoll = (env: Env, id: number, viewer?: string, notice?: string) => run(env, Polls.use((p) => p.render(id, viewer, notice))); // LEGACY-BRIDGE

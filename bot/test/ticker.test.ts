@@ -4,11 +4,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Clock, Effect, Fiber, Layer, Ref } from "effect";
 import { TestClock } from "effect/testing";
-import { Ticker } from "../src/scheduler.js";
-import { Jobs } from "../src/jobs.js";
-import { GameNight } from "../src/gamenight.js";
-import { Alerts } from "../src/alerts.js";
-import type { Night } from "../src/nights.js";
+import { Ticker } from "./old/scheduler.js";
+import { Jobs } from "./old/jobs.js";
+import { GameNight } from "./old/gamenight.js";
+import { Alerts } from "./old/alerts.js";
+import type { Night } from "./old/nights.js";
 
 const START = Date.parse("2026-11-09T17:00:30Z");
 

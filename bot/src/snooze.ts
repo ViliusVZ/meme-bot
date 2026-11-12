@@ -13,7 +13,6 @@ import { LocalTime } from "./localtime.js";
 import { Nights } from "./nights.js";
 import { utcDayAt } from "./memes.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const KEY = "snooze";
 export type Span = "3d" | "week" | "month";
@@ -148,11 +147,3 @@ export class Snoozes extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const current = (env: Env) => run(env, Snoozes.use((s) => s.current)); // LEGACY-BRIDGE
-export const isSnoozed = (env: Env, day: string) => run(env, Snoozes.use((s) => s.isSnoozed(day))); // LEGACY-BRIDGE
-export const nextCard = (env: Env) => run(env, Snoozes.use((s) => s.nextCard)); // LEGACY-BRIDGE
-export const snooze = (env: Env, user: string, span: Span) => run(env, Snoozes.use((s) => s.snooze(user, span))); // LEGACY-BRIDGE
-export const wake = (env: Env, user: string) => run(env, Snoozes.use((s) => s.wake(user))); // LEGACY-BRIDGE
-export const panel = (env: Env, notice?: string) => run(env, Snoozes.use((s) => s.panel(notice))); // LEGACY-BRIDGE

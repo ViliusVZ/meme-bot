@@ -2,14 +2,14 @@
 // sessions (the quiet line, counting, wrapping up), pulling people in, and ↩ back to the Lobby.
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import * as spontaneous from "../src/spontaneous.js";
-import * as presence from "../src/presence.js";
-import * as channels from "../src/channels.js";
-import * as activity from "../src/activity.js";
-import { interaction } from "../src/interactions.js";
+import * as spontaneous from "./old/spontaneous.js";
+import * as presence from "./old/presence.js";
+import * as channels from "./old/channels.js";
+import * as activity from "./old/activity.js";
+import { interaction } from "./old/interactions.js";
 import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
-import * as gemini from "../src/gemini.js";
-import * as gn from "../src/gamenight.js";
+import * as gemini from "./old/gemini.js";
+import * as gn from "./old/gamenight.js";
 import { loadConfig } from "../src/env.js";
 import { harness, json, routes, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

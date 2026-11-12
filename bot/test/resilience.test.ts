@@ -1,9 +1,9 @@
 // Resilience: the leader's clock notices when it's stuck (and /health shows how it's ticking), and the
 // bot's database connections give up on a stuck query instead of hanging the job behind it.
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
-import * as scheduler from "../src/scheduler.js";
+import * as scheduler from "./old/scheduler.js";
 import { connect } from "../src/db/index.js";
-import { build } from "../src/app.js";
+import { build } from "./old/app.js";
 import { testEnv, url } from "./pg.js";
 import { harness, type TestDb } from "./harness.js";
 

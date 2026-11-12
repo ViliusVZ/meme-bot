@@ -1,8 +1,8 @@
 // 🚨 Alert DMs: what the owner gets when something breaks, and how repeats and bursts are held back.
 import { beforeAll, beforeEach, expect, test, vi } from "vitest";
-import * as alerts from "../src/alerts.js";
-import * as presence from "../src/presence.js";
-import { defer, drain } from "../src/background.js";
+import * as alerts from "./old/alerts.js";
+import * as presence from "./old/presence.js";
+import { defer, drain } from "./old/background.js";
 import { harness, json } from "./harness.js";
 import { testEnv } from "./pg.js";
 import type { Env } from "../src/env.js";

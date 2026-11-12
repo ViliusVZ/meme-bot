@@ -8,10 +8,10 @@ import { Context, DateTime, Duration, Effect, Layer, Option, Redacted, Schema } 
 import { HttpClient, HttpClientRequest } from "effect/http";
 import type { Env } from "./env.js";
 import { settings } from "./db/index.js";
+import { LegacyGeminiKey } from "./legacy.js"; // LEGACY-BRIDGE
 import { AppConfig } from "./config.js";
 import { Db, type DbError } from "./db/db.js";
 import { LocalTime } from "./localtime.js";
-import { LegacyGeminiKey, run } from "./legacy.js"; // LEGACY-BRIDGE
 
 const MODEL = "gemini-3.8-flash";
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all
@@ -96,7 +96,3 @@ export class Gemini extends Context.Service<
     }),
   );
 }
-
-// the old function, for the code that isn't on Effect yet: any JSON answer, typed by the caller
-export const ask = <T>(env: Env, prompt: string, schema: object): Promise<T | null> => // LEGACY-BRIDGE
-  run(env, Gemini.use((g) => g.ask(prompt, schema, Schema.Unknown))) as Promise<T | null>; // LEGACY-BRIDGE

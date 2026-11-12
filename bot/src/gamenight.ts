@@ -20,7 +20,6 @@
 // a poll gets posted, so the 17:00 job, /playtoday and retries can never produce two polls.
 import { and, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer, Match, Result, Schema } from "effect";
-import type { Env } from "./env.js";
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
 import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
 import { Roasts } from "./roasts.js";
@@ -36,20 +35,13 @@ import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Spontaneous } from "./spontaneous.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/index.js";
-import { followup, EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
-import * as panels from "./panels.js";
+import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import type { Night } from "./nights.js";
 
-// moved out to break import cycles (plan 05); still offered from here to existing callers
-export { players } from "./env.js";
-export { local, pollHour, wallToUnix, weekday } from "./localtime.js";
-export { getNight, isOver, type Night } from "./nights.js";
-export { addGame, emojiFor, gameLabel, games, removeGame } from "./games.js";
+export type { Night } from "./nights.js";
 
-type Votes = Record<string, string>; // user id → choice
-type Defer = (p: Promise<unknown>) => void;
+export type Votes = Record<string, string>; // user id → choice
 /** What to tell the clicker privately, and whether the card should be re-rendered. */
 export type Outcome = { notice?: string; update: boolean };
 
@@ -67,7 +59,6 @@ const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted betwe
 
 const mention = (id: string) => `<@${id}>`;
 const ts = (sec: number, style: string) => `<t:${sec}:${style}>`;
-const nowSec = () => Math.floor(Date.now() / 1000); // LEGACY-BRIDGE
 const ROOM_EARLY = 10; // a night's room opens this many seconds before the start, so the moves land on the dot
 const ok: Outcome = { update: true };
 const say = (notice: string, update = false): Outcome => ({ notice, update });
@@ -79,7 +70,6 @@ export type When = { readonly zone: string; readonly now: number };
 const when = Effect.gen(function* () {
   return { zone: (yield* AppConfig).timezone, now: yield* currentSec } as When;
 });
-const W = (env: Env): When => ({ zone: env.TIMEZONE, now: nowSec() }); // LEGACY-BRIDGE
 const localOf = (w: When, sec = w.now) => localAt(w.zone, sec * 1000);
 const today = (w: When) => localOf(w).day;
 
@@ -121,7 +111,6 @@ export function timeOptionsFor(w: When, n: Night, v: Votes) {
   const room = Math.max(0, 8 - voted.length);
   return [...new Set([...voted, ...presets.filter((p) => !voted.includes(p)).slice(0, room)])].sort((a, b) => a - b);
 }
-export const timeOptions = (env: Env, n: Night, v: Votes) => timeOptionsFor(W(env), n, v); // LEGACY-BRIDGE
 
 /**
  * Parses "20", "20:15", "2015", "20.15" or "20h15" typed into the custom-time box, as a time on
@@ -142,7 +131,6 @@ export function parseTimeFor(w: When, raw: string, day = today(w)): number | str
   if (isToday && t > w.now + 18 * 3600) return "That's a bit far out. Pick a time in the next 18 hours.";
   return t;
 }
-export const parseTime = (env: Env, raw: string, day?: string) => parseTimeFor(W(env), raw, day); // LEGACY-BRIDGE
 
 /** The least time we must all get together, or the night doesn't fit. */
 export const MIN_TOGETHER = 3600;
@@ -216,7 +204,6 @@ export function deadlineFor(w: When, n: Pick<Night, "day" | "stage_at"> & Partia
   }
   return awakeTime(w, t);
 }
-export const voteDeadline = (env: Env, n: Pick<Night, "day" | "stage_at"> & Partial<Pick<Night, "stage" | "maybes">>) => deadlineFor(W(env), n); // LEGACY-BRIDGE
 
 /** After the last hold it's yes or no: no more maybes. */
 const finalCall = (n: Night) => n.stage === "ask" && n.maybes >= HOLDS.length && !n.paused_until;
@@ -415,10 +402,6 @@ const revealOff = Effect.fnUntraced(function* (day: string) {
 
 export type StartResult = { started: boolean; day: string; message_id: string | null; stage: Stage };
 
-/** Discord's typed errors turned back into today's error text, for the promise code that reads it. */
-const asOld = (e: unknown) => { // LEGACY-BRIDGE
-  throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // LEGACY-BRIDGE
-}; // LEGACY-BRIDGE
 
 /**
  * Posts the card for a day (today by default) if there isn't one yet. `by` is the player who ran
@@ -426,7 +409,7 @@ const asOld = (e: unknown) => { // LEGACY-BRIDGE
  * schedule, which only acts in the poll hour. Either way the INSERT OR IGNORE on the day decides
  * who wins, so a day planned in advance is never posted again by the schedule.
  */
-const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, forDay?: string) {
+export const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, forDay?: string) {
   const config = yield* AppConfig;
   const db = yield* Db;
   const discord = yield* Discord;
@@ -485,11 +468,9 @@ const openNight = Effect.fnUntraced(function* (by?: string, anyHour = false, for
   }
   return posted;
 });
-export const startNight = (env: Env, by?: string, anyHour = false, forDay?: string): Promise<StartResult | { skipped: string }> => // LEGACY-BRIDGE
-  run(env, openNight(by, anyHour, forDay)).catch(asOld); // LEGACY-BRIDGE
 
 /** A claimed day whose card failed to post (today's or a planned one): try again. */
-const retryCards = Effect.gen(function* () {
+export const retryCards = Effect.gen(function* () {
   const db = yield* Db;
   const days = yield* db
     .select({ day: gameNights.day })
@@ -498,10 +479,9 @@ const retryCards = Effect.gen(function* () {
   for (const { day } of days) yield* openNight(undefined, true, day);
   return days.map((d) => d.day);
 });
-export const retryUnposted = (env: Env) => run(env, retryCards).catch(asOld); // LEGACY-BRIDGE
 
 /** Re-render every open card (after the game list changes, say). */
-const refreshCards = Effect.gen(function* () {
+export const refreshCards = Effect.gen(function* () {
   const db = yield* Db;
   const open = yield* db
     .select({ day: gameNights.day })
@@ -509,10 +489,9 @@ const refreshCards = Effect.gen(function* () {
     .where(and(gte(gameNights.day, today(yield* when)), inArray(gameNights.stage, OPEN)));
   for (const { day } of open) yield* refreshCard(day);
 });
-export const refreshOpen = (env: Env) => run(env, refreshCards).catch(asOld); // LEGACY-BRIDGE
 
 /** Cards left open past their time get closed so their buttons stop working. */
-const closeStaleCards = Effect.gen(function* () {
+export const closeStaleCards = Effect.gen(function* () {
   const db = yield* Db;
   const nights = yield* Nights;
   const open = yield* db
@@ -524,7 +503,6 @@ const closeStaleCards = Effect.gen(function* () {
   for (const day of stale) yield* closeCard(day);
   return stale;
 });
-export const closeStale = (env: Env) => run(env, closeStaleCards).catch(asOld); // LEGACY-BRIDGE
 
 /**
  * Closes a card that's past its time. From the minute job it re-renders the card itself; from a click
@@ -574,7 +552,7 @@ const callNightOff = Effect.fnUntraced(function* (n: Night, who: Record<string, 
  * we playing?" card then gets reposted by the next minute, and later stages simply stop trying to
  * edit it. `mine` is the panel a tap just answered, so its notice survives the sync.
  */
-const refreshCard = Effect.fnUntraced(function* (day: string, mine?: Mine) {
+export const refreshCard = Effect.fnUntraced(function* (day: string, mine?: Mine) {
   const config = yield* AppConfig;
   const db = yield* Db;
   const n = yield* (yield* Nights).get(day);
@@ -587,18 +565,14 @@ const refreshCard = Effect.fnUntraced(function* (day: string, mine?: Mine) {
   }
   yield* syncCopies(day, mine);
 });
-export const refresh = (env: Env, day: string, mine?: Mine) => run(env, refreshCard(day, mine)).catch(asOld); // LEGACY-BRIDGE
 
 /** Bring everyone's private copies of a day's card up to date (panels.ts). */
-const syncCopies = Effect.fnUntraced(function* (day: string, mine?: Mine) {
+export const syncCopies = Effect.fnUntraced(function* (day: string, mine?: Mine) {
   const ctx = yield* Effect.context<Effect.Services<ReturnType<typeof renderCard>>>();
   yield* (yield* Panels).sync(`gn:${day}`, (user, notice) => renderCard(day, user, notice).pipe(Effect.provideContext(ctx)), mine);
 });
-export const syncPanels = (env: Env, day: string, mine?: Mine) => run(env, syncCopies(day, mine)); // LEGACY-BRIDGE
 
 /** Remember a private copy of a day's card, so it follows along (panels.ts). */
-export const trackPanel = (env: Env, day: string, user: string, token: string, messageId?: string) =>
-  panels.track(env, `gn:${day}`, user, token, messageId);
 
 
 /** Slow side effects of a tap (pings, the event): handed to whoever answers the tap, to run after it. */
@@ -610,7 +584,7 @@ export type Deferred = (effect: Effect.Effect<unknown, DbError | DiscordError | 
  * A player clicked something. Slow side effects (events, pings) go through `later` so the
  * interaction can be answered within Discord's 3 seconds.
  */
-const actOn = Effect.fnUntraced(function* (day: string, user: string, action: string, value: string | undefined, later: Later) {
+export const actOn = Effect.fnUntraced(function* (day: string, user: string, action: string, value: string | undefined, later: Later) {
   const db = yield* Db;
   const nights = yield* Nights;
   const w = yield* when;
@@ -763,8 +737,6 @@ const actOn = Effect.fnUntraced(function* (day: string, user: string, action: st
   yield* settle(day, user, later);
   return { update: true };
 });
-export const act = (env: Env, day: string, user: string, action: string, value: string | undefined, defer: Defer): Promise<Outcome> => // LEGACY-BRIDGE
-  run(env, actOn(day, user, action, value, (e) => Effect.sync(() => defer(run(env, e).catch(asOld))))).catch(asOld); // LEGACY-BRIDGE
 
 /**
  * ⏰ Running late. Before the start we wait for everyone (all together or not at all), so the start
@@ -986,7 +958,7 @@ const afterBail = Effect.fnUntraced(function* (n: Night) {
 });
 
 /** A late slip's 😴: same as 🚪, the whole night is off. */
-const bailOn = Effect.fnUntraced(function* (day: string, user: string) {
+export const bailOn = Effect.fnUntraced(function* (day: string, user: string) {
   const n = yield* (yield* Nights).get(day);
   if (n?.stage !== "set") return false;
   if (!(yield* callNightOff(n, { [user]: "out" }))) return false;
@@ -994,10 +966,9 @@ const bailOn = Effect.fnUntraced(function* (day: string, user: string) {
   yield* afterBail(n);
   return true;
 });
-export const bailFromSlip = (env: Env, day: string, user: string) => run(env, bailOn(day, user)).catch(asOld); // LEGACY-BRIDGE
 
 /** Post a night's roast if it's due (exactly once: claimed in the database first). */
-const postRoastOf = (day: string) =>
+export const postRoastOf = (day: string) =>
   // claim → post is never cut short (architecture §15); a failed post gives the claim back
   Effect.uninterruptible(
     Effect.gen(function* () {
@@ -1033,10 +1004,9 @@ const postRoastOf = (day: string) =>
       return true;
     }),
   );
-export const postRoast = (env: Env, day: string) => run(env, postRoastOf(day)).catch(asOld); // LEGACY-BRIDGE
 
 /** Every minute: roasts that were held for the morning. */
-const dueRoastsNow = Effect.gen(function* () {
+export const dueRoastsNow = Effect.gen(function* () {
   const db = yield* Db;
   const now = yield* currentSec;
   const due = yield* db
@@ -1047,7 +1017,6 @@ const dueRoastsNow = Effect.gen(function* () {
   for (const { day } of due) if (yield* postRoastOf(day)) posted.push(day);
   return posted;
 });
-export const dueRoasts = (env: Env) => run(env, dueRoastsNow).catch(asOld); // LEGACY-BRIDGE
 
 /** A hold is up: the maybes are cleared and those players asked again, with an hour to answer. */
 const resumeNight = (n: Night) => Effect.uninterruptible(resumeOnce(n)); // the claim → the card → the ping (§15)
@@ -1095,7 +1064,7 @@ const errorText = (e: unknown) => (e instanceof Error && "_tag" in e && String(e
  * anyone who's left a stage waiting for an hour (once per stage), and ping the squad when a
  * locked-in night starts.
  */
-const maintainAll = Effect.gen(function* () {
+export const maintainAll = Effect.gen(function* () {
   const db = yield* Db;
   const alerts = yield* Alerts;
   const w = yield* when;
@@ -1125,7 +1094,6 @@ const maintainAll = Effect.gen(function* () {
   for (const n of due) if (n.start_at! >= t - 1800 && (yield* claimStart(n))) done.reminded = n.day;
   return done;
 });
-export const maintain = (env: Env) => run(env, maintainAll).catch(asOld); // LEGACY-BRIDGE
 
 const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: boolean, done: Record<string, unknown>) {
   const db = yield* Db;
@@ -1219,7 +1187,7 @@ const sleepUntil = (ms: number) =>
   Effect.flatMap(Clock.currentTimeMillis, (now) => Effect.sleep(Duration.millis(Math.max(0, ms - now))));
 
 /** Locked-in nights starting after now and by `until` (unix seconds) that haven't started yet. */
-const upcoming = Effect.fnUntraced(function* (until: number) {
+export const upcoming = Effect.fnUntraced(function* (until: number) {
   const db = yield* Db;
   const now = yield* currentSec;
   return yield* db
@@ -1227,14 +1195,13 @@ const upcoming = Effect.fnUntraced(function* (until: number) {
     .from(gameNights)
     .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), gt(gameNights.start_at, now), lte(gameNights.start_at, until)));
 });
-export const upcomingStarts = (env: Env, until: number) => run(env, upcoming(until)); // LEGACY-BRIDGE
 
 /**
  * Starts due by `until` (unix seconds): wait for them, open the room a few seconds early, then
  * move everyone and ping at the exact start time. The scheduler calls this every minute for the
  * next two; the claim in claimStart makes overlapping calls harmless.
  */
-const startsDue = Effect.fnUntraced(function* (until: number) {
+export const startsDue = Effect.fnUntraced(function* (until: number) {
   const started: string[] = [];
   const due = yield* upcoming(until);
   // every start at once: each waits for its own second, and one start's failure doesn't cut the others short
@@ -1246,23 +1213,18 @@ const startsDue = Effect.fnUntraced(function* (until: number) {
   if (failed) return yield* failed.failure;
   return started;
 });
-export const preciseStarts = (env: Env, until: number) => run(env, startsDue(until)); // LEGACY-BRIDGE
 
 /**
  * Wait until just before the night's start, then run it on the dot (unless it was cancelled or moved
  * meanwhile). `stop` ends the wait early (shutting down: the next leader, or the minute job, starts it).
  */
-const startAt = Effect.fnUntraced(function* (n: Night, stop: Effect.Effect<void> = Effect.never) {
+export const startAt = Effect.fnUntraced(function* (n: Night, stop: Effect.Effect<void> = Effect.never) {
   const stopped = yield* sleepUntil((n.start_at! - ROOM_EARLY) * 1000).pipe(Effect.as(false), Effect.raceFirst(Effect.as(stop, true)));
   if (stopped) return false;
   const fresh = yield* (yield* Nights).get(n.day);
   if (fresh?.stage !== "set" || fresh.start_at !== n.start_at) return false;
   return yield* claimStart(fresh, fresh.start_at! * 1000);
 });
-/** The old signal, as something to wait on. */
-const aborted = (signal?: AbortSignal): Effect.Effect<void> => // LEGACY-BRIDGE
-  signal ? Effect.callback<void>((resume) => (signal.aborted ? resume(Effect.void) : signal.addEventListener("abort", () => resume(Effect.void), { once: true }))) : Effect.never; // LEGACY-BRIDGE
-export const startOnTime = (env: Env, n: Night, signal?: AbortSignal) => run(env, startAt(n, aborted(signal))); // LEGACY-BRIDGE
 
 /**
  * Claim the start (once, whoever gets there first), then run it; a failure releases the claim. A
@@ -1338,7 +1300,6 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
 });
 
 /** Private heads-up after a click, when we also re-render the card. */
-export const notify = (env: Env, token: string, notice: string) => followup(env, token, { content: notice, flags: EPHEMERAL });
 
 // ---------------------------------------------------------------- rendering
 
@@ -1357,7 +1318,7 @@ const rows = (buttons: unknown[]) => Array.from({ length: Math.ceil(buttons.leng
  * The card. With a `viewer` it's their private copy: their picks highlighted, plus `notice` (what
  * just happened) on top. Without one it's the public card everyone sees.
  */
-const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, notice?: string) {
+export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, notice?: string) {
   const config = yield* AppConfig;
   const games = yield* Games;
   const w = yield* when;
@@ -1594,7 +1555,6 @@ const renderCard = Effect.fnUntraced(function* (day: string, viewer?: string, no
     components: [{ type: 17, accent_color: COLORS[n.stage], components: body }],
   };
 });
-export const render = (env: Env, day: string, viewer?: string, notice?: string) => run(env, renderCard(day, viewer, notice)); // LEGACY-BRIDGE
 
 /** The top of your private panel: what you've answered for the night's current step. */
 const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
@@ -1658,7 +1618,7 @@ const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
 });
 
 /** Ephemeral "which day?" picker for planning ahead: today plus the next 6 days. */
-const planPickerCard = Effect.gen(function* () {
+export const planPickerCard = Effect.gen(function* () {
   const db = yield* Db;
   const first = today(yield* when);
   const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${first}T12:00:00Z`) + i * 864e5).toISOString().slice(0, 10));
@@ -1688,7 +1648,6 @@ const planPickerCard = Effect.gen(function* () {
     ],
   };
 });
-export const planPicker = (env: Env) => run(env, planPickerCard); // LEGACY-BRIDGE
 
 const modal = (custom_id: string, title: string, input: object) => ({
   custom_id,
@@ -1703,7 +1662,7 @@ export const customTimeModal = (day: string) =>
   modal(`gn:${day}:custom`, "Pick your own start time", { label: "Earliest time you can start (HH:MM)", placeholder: "20:15", max_length: 5 });
 
 /** 🏁 "I have to leave by…", prefilled with your current one; submitting it empty clears it. */
-const leaveBy = Effect.fnUntraced(function* (day: string, user: string) {
+export const leaveBy = Effect.fnUntraced(function* (day: string, user: string) {
   const w = yield* when;
   const current = (yield* votes(day, "until"))[user];
   return modal(`gn:${day}:until`, "When do you have to leave?", {
@@ -1714,10 +1673,9 @@ const leaveBy = Effect.fnUntraced(function* (day: string, user: string) {
     ...(current ? { value: clock(w, Number(current)) } : {}),
   });
 });
-export const leaveByModal = (env: Env, day: string, user: string) => run(env, leaveBy(day, user)); // LEGACY-BRIDGE
 
 /** Testing/maintenance: wipe a day's night (card, nudge, event, votes). */
-const wipeNight = Effect.fnUntraced(function* (day: string) {
+export const wipeNight = Effect.fnUntraced(function* (day: string) {
   const config = yield* AppConfig;
   const db = yield* Db;
   const discord = yield* Discord;
@@ -1734,7 +1692,6 @@ const wipeNight = Effect.fnUntraced(function* (day: string) {
   );
   return { reset: true };
 });
-export const resetNight = (env: Env, day: string) => run(env, wipeNight(day)); // LEGACY-BRIDGE
 
 /** A day's votes and attendance (reopen and reset start the day over). */
 const clearDay = (tx: DbTx, day: string) =>

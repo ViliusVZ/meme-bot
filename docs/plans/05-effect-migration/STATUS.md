@@ -240,35 +240,35 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 2 | 1 | 8 |
-| `await` | 7 | 2 | 12 |
-| `.then(` | 0 | 0 | 4 |
-| `.catch(` | 53 | 1 | 27 |
+| `async` | 2 | 1 | 2 |
+| `await` | 7 | 2 | 5 |
+| `.then(` | 0 | 0 | 0 |
+| `.catch(` | 53 | 1 | 0 |
 | `try {` | 1 | 0 | 0 |
-| `new Promise` | 2 | 0 | 1 |
+| `new Promise` | 2 | 0 | 0 |
 | `setTimeout/Interval` | 3 | 2 | 0 |
 | `AbortController` | 0 | 0 | 0 |
-| `AbortSignal` | 1 | 0 | 2 |
+| `AbortSignal` | 1 | 0 | 0 |
 | `fetch(` | 0 | 0 | 0 |
 | `console.` | 3 | 0 | 0 |
-| `Date.now/new Date` | 6 | 0 | 3 |
+| `Date.now/new Date` | 6 | 0 | 0 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 1 | 0 | 1 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
-| `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 421 | 11 | 0 |
-| `Effect.promise` | 0 | 0 | 2 |
+| `_reset` | 0 | 0 | 0 |
+| `LEGACY-BRIDGE` | 132 | 6 | 0 |
+| `Effect.promise` | 0 | 0 | 0 |
 | `Effect.tryPromise` | 0 | 3 | 0 |
 | `runPromise` | 0 | 0 | 1 |
 | `runFork` | 0 | 0 | 2 |
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **502** | **20** | **67** |
+| **total** | **213** | **15** | **11** |
 
 Import cycles: none.
-Per file: legacy.ts 92, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, main.ts 9, reddit.ts 9, gateway.ts 8, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, leadership.ts 1, localtime.ts 1, shutdown.ts 1.
+Per file: legacy.ts 92, db/index.ts 20, spontaneous.ts 19, gamenight.ts 14, env.ts 12, main.ts 9, alerts.ts 7, presence.ts 7, voice.ts 7, interactions.ts 5, reddit.ts 5, activity.ts 4, gemini.ts 4, app.ts 3, gateway.ts 3, verify.ts 3, channels.ts 2, discord.ts 2, late.ts 2, live.ts 2, attendance.ts 1, jobs.ts 1, leadership.ts 1, scheduler.ts 1, shutdown.ts 1, snooze.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -646,6 +646,20 @@ timeout), with the evidence.
   ManagedRuntime: step 8 moves it to `NodeRuntime.runMain` once legacy.ts is gone. The old `pg`
   pool is no longer opened. `Background.drain` now interrupts what's still running after its
   20 s (architecture §11: "then interrupts"); before, the process exit ended it.
+- **Step 8, sub-step A: the bridges left src for `test/old/`** (phase 5): every top-level
+  `LEGACY-BRIDGE` function moved, unchanged, into `test/old/<module>.ts`, which re-exports the
+  module (`export * from "../../src/<module>.js"`), so the tests changed only their import paths
+  (verification §1: phases 2-5 may change how a function is called). A few internals the bridges
+  call (gamenight's module-level effects, some types) are now exported from src. Two
+  unused env helpers went (`trackPanel`, `notify`); localtime's env helpers moved too. The test
+  runtime's global-fetch HTTP client moved to `test/old/runtime.ts` (`LayerOptions.http`); src
+  uses `FetchHttpClient.layer`. G6 outside 502 → 213. Phase 6 removes `test/old/` as the tests
+  become Effect-native.
+- **Step 7's live check** (test bot `e7eef4d`, logs `<scratchpad>/qa-effect/main-e7eef4d/`): the
+  new main started; old → new and new → new handovers clean (stepped down 0.15 s after SIGTERM,
+  the other took over 12 ms later, the old container exited 0); qa_all 79/0 (09:31: the roast
+  check passes after 09:30, as explained), qa_timing 13/0 (ping 0.58 s), no error/warn lines.
+  Step 6 on `0d7f48a`: gateway ready, voice snapshot, qa_rooms and qa_spontaneous as baseline.
 - **Step 8 to-do (found on the way):** boundary-file diagnostics comments (main.ts's two
   `setTimeout`s), the `JSON.stringify` sweep (scheduler, live, cleanup, discord, gemini,
   spontaneous), Presence's listener arrays (tests move to the subscription), app.ts's `build`.

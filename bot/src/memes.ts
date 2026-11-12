@@ -5,7 +5,6 @@ import type { Env } from "./env.js";
 import { memes, recaps, users, votes } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
 import { nowIso } from "./clock.js";
-import { run, runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 export const VOTES = [
   { key: "fire", emoji: "🔥", weight: 3, persona: "🔥 Hype Machine" },
@@ -34,7 +33,7 @@ export function score(t: Tally) {
 }
 
 export type Incoming = Pick<Meme, "id" | "title" | "image" | "link" | "author" | "published" | "rank">;
-type StreakRow = { streak: number; best_streak: number; last_vote_day: string | null };
+export type StreakRow = { streak: number; best_streak: number; last_vote_day: string | null };
 
 export interface UserStats {
   kinds: Tally;
@@ -228,23 +227,3 @@ export class Memes extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const now = () => runSync(nowIso); // LEGACY-BRIDGE
-export const utcDay = (offsetDays = 0) => runSync(utcDayNow(offsetDays)); // LEGACY-BRIDGE
-export const ingest = (env: Env, incoming: Incoming[]) => run(env, Memes.use((m) => m.ingest(incoming))); // LEGACY-BRIDGE
-export const getMeme = (env: Env, id: string) => run(env, Memes.use((m) => m.get(id))); // LEGACY-BRIDGE
-export const tally = (env: Env, memeId: string) => run(env, Memes.use((m) => m.tally(memeId))); // LEGACY-BRIDGE
-export const voters = (env: Env, memeId: string) => run(env, Memes.use((m) => m.voters(memeId))); // LEGACY-BRIDGE
-export const claim = (env: Env, id: string, kind: "daily" | "request", extra: { day?: string; requestedBy?: string }) => run(env, Memes.use((m) => m.claim(id, kind, extra))); // LEGACY-BRIDGE
-export const unclaim = (env: Env, id: string) => run(env, Memes.use((m) => m.unclaim(id))); // LEGACY-BRIDGE
-export const setMessage = (env: Env, id: string, channelId: string, messageId: string) => run(env, Memes.use((m) => m.setMessage(id, channelId, messageId))); // LEGACY-BRIDGE
-export const castVote = (env: Env, memeId: string, userId: string, kind: VoteKind) => run(env, Memes.use((m) => m.castVote(memeId, userId, kind))); // LEGACY-BRIDGE
-export const bumpStreak = (env: Env, userId: string, name: string) => run(env, Memes.use((m) => m.bumpStreak(userId, name))); // LEGACY-BRIDGE
-export const liveStreak = (u: Pick<StreakRow, "streak" | "last_vote_day"> | null) => runSync(Memes.use((m) => m.liveStreak(u))); // LEGACY-BRIDGE
-export const leaderboard = (env: Env, sinceIso: string | null, untilIso: string | null, limit: number) => run(env, Memes.use((m) => m.leaderboard(sinceIso, untilIso, limit))); // LEGACY-BRIDGE
-export const topVoter = (env: Env, sinceIso: string, untilIso: string) => run(env, Memes.use((m) => m.topVoter(sinceIso, untilIso))); // LEGACY-BRIDGE
-export const longestLiveStreak = (env: Env) => run(env, Memes.use((m) => m.longestLiveStreak)); // LEGACY-BRIDGE
-export const userStats = (env: Env, userId: string) => run(env, Memes.use((m) => m.userStats(userId))); // LEGACY-BRIDGE
-export const claimRecap = (env: Env, period: string) => run(env, Memes.use((m) => m.claimRecap(period))); // LEGACY-BRIDGE
-export const unclaimRecap = (env: Env, period: string) => run(env, Memes.use((m) => m.unclaimRecap(period))); // LEGACY-BRIDGE

@@ -1,7 +1,6 @@
 // Where this copy stands: leading or not, shutting down or not. /health reads both; the server's
 // watchdog and Caddy act on them.
 import { Context, Effect, Layer, Ref } from "effect";
-import { runSync } from "./legacy.js"; // LEGACY-BRIDGE
 
 export class Lifecycle extends Context.Service<
   Lifecycle,
@@ -27,9 +26,3 @@ export class Lifecycle extends Context.Service<
     }),
   );
 }
-
-// for main.ts and app.ts until they move to Effect
-export const isLeader = () => runSync(Lifecycle.use((l) => l.leader)); // LEGACY-BRIDGE
-export const isShuttingDown = () => runSync(Lifecycle.use((l) => l.shuttingDown)); // LEGACY-BRIDGE
-export const setLeader = (leading: boolean) => runSync(Lifecycle.use((l) => l.setLeader(leading))); // LEGACY-BRIDGE
-export const markShuttingDown = () => runSync(Lifecycle.use((l) => l.markShuttingDown)); // LEGACY-BRIDGE

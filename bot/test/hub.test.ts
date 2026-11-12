@@ -1,6 +1,6 @@
 // The HQ panel, /help and the 🕹️ game list manager.
 import { beforeAll, expect, test } from "vitest";
-import * as hub from "../src/hub.js";
+import * as hub from "./old/hub.js";
 import { games } from "../src/db/schema.js";
 import { harness, type TestDb } from "./harness.js";
 import type { Env } from "../src/env.js";

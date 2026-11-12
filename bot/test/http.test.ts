@@ -2,8 +2,8 @@
 // token, a bad signature, a malformed body, an unknown admin action, an internal failure, an
 // unknown route, a body over the limit, and /health while shutting down.
 import { beforeAll, expect, test, vi } from "vitest";
-import { build } from "../src/app.js";
-import * as alerts from "../src/alerts.js";
+import { build } from "./old/app.js";
+import * as alerts from "./old/alerts.js";
 import { harness } from "./harness.js";
 import type { Env } from "../src/env.js";
 

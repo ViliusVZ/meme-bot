@@ -9,7 +9,6 @@ import { panels } from "./db/index.js";
 import { Db, type DbError } from "./db/db.js";
 import { Discord, EPHEMERAL } from "./discord.js";
 import { nowSec } from "./clock.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 /** Discord takes edits to a tap's reply for 15 minutes; stop a little before that. */
 const LIFE = 14 * 60;
@@ -106,9 +105,3 @@ export class Panels extends Context.Service<
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const track = (env: Env, card: string, user: string, token: string, messageId?: string) => // LEGACY-BRIDGE
-  run(env, Panels.use((p) => p.track(card, user, token, messageId))).catch((e: unknown) => { // LEGACY-BRIDGE
-    throw e instanceof CopyNotFound ? new Error(e.message) : e; // today's text, which the alert DM quotes // LEGACY-BRIDGE
-  }); // LEGACY-BRIDGE

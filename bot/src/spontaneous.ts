@@ -29,7 +29,7 @@ import { Presence } from "./presence.js";
 import { Gemini } from "./gemini.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { LegacyGeminiKey, LegacyPresences, run } from "./legacy.js"; // LEGACY-BRIDGE
+import { LegacyGeminiKey, LegacyPresences } from "./legacy.js"; // LEGACY-BRIDGE
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
@@ -46,7 +46,7 @@ const RETRY_GUESS = 86400; // Gemini couldn't answer: ask about that name again 
 const mention = (u: string) => `<@${u}>`;
 const real = not(like(rooms.channel_id, "pending:%"));
 
-type Where = ReadonlyMap<string, string | null>;
+export type Where = ReadonlyMap<string, string | null>;
 export type Change = { user: string; from: string | null; to: string | null };
 type Room = typeof rooms.$inferSelect;
 type Session = typeof sessions.$inferSelect;
@@ -715,17 +715,3 @@ or a browser, or you aren't sure), answer null.`,
     }),
   );
 }
-
-// the old functions, for the code that isn't on Effect yet
-export const react = (env: Env, where: Where, t?: number, change?: Change) => // LEGACY-BRIDGE
-  run(env, Spontaneous.use((s) => s.react(where, t, change))).catch((e: unknown) => { // LEGACY-BRIDGE
-    throw e instanceof Error && "_tag" in e && String(e._tag).startsWith("Discord") ? new Error(e.message) : e; // today's text, which the alert DM quotes // LEGACY-BRIDGE
-  }); // LEGACY-BRIDGE
-export const learn = (env: Env, names: string[], t?: number) => run(env, Spontaneous.use((s) => s.learn(names, t))); // LEGACY-BRIDGE
-export const recentGames = (env: Env, n?: number) => run(env, Spontaneous.use((s) => s.recentGames(n))); // LEGACY-BRIDGE
-export const answer = (env: Env, id: number, user: string, what: string, game?: string) => run(env, Spontaneous.use((s) => s.answer(id, user, what, game))); // LEGACY-BRIDGE
-export const goBack = (env: Env, channel: string, users: string[], messageId: string | undefined, t?: number) => // LEGACY-BRIDGE
-  run(env, Spontaneous.use((s) => s.goBack(channel, users, messageId, t))); // LEGACY-BRIDGE
-export const absorb = (env: Env, day: string, game: string) => run(env, Spontaneous.use((s) => s.absorb(day, game))); // LEGACY-BRIDGE
-export const minute = (env: Env, t?: number) => run(env, Spontaneous.use((s) => s.minute(t))); // LEGACY-BRIDGE
-export const counted = (env: Env, fromDay: string, toDay: string) => run(env, Spontaneous.use((s) => s.counted(fromDay, toDay))); // LEGACY-BRIDGE

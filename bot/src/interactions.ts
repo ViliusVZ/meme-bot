@@ -24,7 +24,6 @@ import { Spontaneous, type Notice } from "./spontaneous.js";
 import { LocalTime } from "./localtime.js";
 import { Nights } from "./nights.js";
 import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.js";
-import { run } from "./legacy.js"; // LEGACY-BRIDGE
 
 // ---------------------------------------------------------------- the parts of an interaction the bot reads
 
@@ -504,6 +503,3 @@ export class Interactions extends Context.Service<
     }),
   );
 }
-
-// the old function, for the code that isn't on Effect yet (app.ts's route, the tests)
-export const interaction = (i: unknown, env: Env): Promise<object> => run(env, Interactions.use((x) => x.handle(i))); // LEGACY-BRIDGE
