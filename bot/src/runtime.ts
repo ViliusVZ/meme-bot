@@ -63,6 +63,9 @@ export const LoggerLive = Logger.layer([Logger.consoleLogFmt]);
 /** Our trace ids are no business of Discord's, Reddit's or Google's: no traceparent header outbound. */
 const NoTracePropagation = Layer.succeed(HttpClient.TracerPropagationEnabled, false);
 
+/** An interaction's webhook URL carries its token (valid 15 minutes): those calls get no span, so no export can hold one. */
+const NoWebhookSpans = Layer.succeed(HttpClient.TracerDisabledWhen, (request) => request.url.includes("/webhooks/"));
+
 /**
  * Logs, metrics and spans exported over OTLP, only when OTLP_URL is set (architecture §14); the
  * log lines still go to stdout as well.
@@ -91,7 +94,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer)),
     Layer.provideMerge(OtlpLive),
     Layer.provideMerge(
-      Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, options.http ?? FetchHttpClient.layer, NoTracePropagation),
+      Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, options.http ?? FetchHttpClient.layer, NoTracePropagation, NoWebhookSpans),
     ),
     Layer.provideMerge(LoggerLive),
   );

@@ -87,7 +87,8 @@ export class ForumError extends Schema.TaggedError<ForumError>()("ForumError", {
   }
 }
 
-const Times = Schema.Struct({ ok: Schema.Number, tried: Schema.Number });
+// `first`: the first attempt while there has never been a good check (the 24 hours count from it)
+const Times = Schema.Struct({ ok: Schema.Number, tried: Schema.Number, first: Schema.optional(Schema.Number) });
 const Asked = Schema.Struct({ at: Schema.Number });
 const Topic = Schema.Struct({ category_id: Schema.Number });
 const Category = Schema.Struct({ category: Schema.Struct({ name: Schema.String }) });
@@ -211,37 +212,34 @@ export class News extends Context.Service<
         const [{ n }] = yield* db.select({ n: sql<number>`count(*)::int` }).from(newsItems);
         const first = n === 0;
         const known = new Map((yield* db.select().from(newsItems).where(inArray(newsItems.topic_id, [...newest.keys()]))).map((x) => [x.topic_id, x]));
-        let fresh = 0;
+        const rows: Array<typeof newsItems.$inferInsert> = [];
         for (const p of newest.values()) {
           const k = known.get(p.topic);
           if (!k) {
             const firstPost = posts.filter((x) => x.topic === p.topic).sort((a, b) => a.post - b.post)[0];
             const section = first ? null : yield* sectionOf(p.topic); // (the first run judges none of these)
-            yield* db
-              .insert(newsItems)
-              .values({ topic_id: p.topic, title: p.title, link: firstPost.link, excerpt: firstPost.excerpt, section, published_at: firstPost.published, seen_at: t, state: first ? "old" : "new", last_post: p.post, told_post: first ? p.post : 0 })
-              .onConflictDoNothing();
-            fresh++;
+            rows.push({ topic_id: p.topic, title: p.title, link: firstPost.link, excerpt: firstPost.excerpt, section, published_at: firstPost.published, seen_at: t, state: first ? "old" : "new", last_post: p.post, told_post: first ? p.post : 0 });
           } else if (p.post > k.last_post) {
             yield* db.update(newsItems).set({ last_post: p.post }).where(eq(newsItems.topic_id, p.topic));
           }
         }
+        if (rows.length) yield* db.insert(newsItems).values(rows).onConflictDoNothing();
         if (first) {
           // a channel that opens with nothing at all looks broken: let the newest Forever item through
           const [hello] = yield* db
             .select()
             .from(newsItems)
             .where(and(eq(newsItems.state, "old"), sql`${newsItems.title} ILIKE '%forever%'`))
-            .orderBy(sql`${newsItems.published_at} DESC`)
+            .orderBy(sql`${newsItems.published_at} DESC`, sql`${newsItems.topic_id} DESC`)
             .limit(1);
           if (hello) yield* db.update(newsItems).set({ state: "new", told_post: 0, section: yield* sectionOf(hello.topic_id) }).where(eq(newsItems.topic_id, hello.topic_id));
         }
-        return fresh;
+        return rows.length;
       });
 
       /** Everything waiting to be judged, in one question to Gemini; the title rule after 6 h of silence. */
       const judge = Effect.fn("News.judge")(function* (t: number, fallback: boolean) {
-        const waiting = yield* db.select().from(newsItems).where(eq(newsItems.state, "new")).orderBy(asc(newsItems.published_at));
+        const waiting = yield* db.select().from(newsItems).where(eq(newsItems.state, "new")).orderBy(asc(newsItems.published_at), asc(newsItems.topic_id));
         if (!waiting.length) return 0;
         // Gemini's free tier is often busy: something new is asked about at once, the same lot again only
         // every 2 hours (the daily budget is shared with game-name matching), then the title rule decides
@@ -281,7 +279,7 @@ export class News extends Context.Service<
           .where(sql`${newsItems.posted_at} >= ${dayStart} OR ${newsItems.updated_day} = ${l.day}`);
         let left = DAILY_POSTS - n;
         const done: string[] = [];
-        const due = yield* db.select().from(newsItems).where(eq(newsItems.state, "post")).orderBy(asc(newsItems.published_at));
+        const due = yield* db.select().from(newsItems).where(eq(newsItems.state, "post")).orderBy(asc(newsItems.published_at), asc(newsItems.topic_id)); // (ties: the older topic first)
         for (const item of due) {
           if (left <= 0) break;
           // claim → post → its id is never cut short (architecture §15); a refused post gives the claim back
@@ -353,7 +351,6 @@ export class News extends Context.Service<
         const s = (yield* read(KEY, Times)) ?? { ok: 0, tried: 0 };
         if (t - s.ok < EVERY || (s.tried > s.ok && t - s.tried < RETRY)) return {};
         yield* Ref.set(running, true);
-        yield* save(KEY, { ...s, tried: t });
         // Gemini can take minutes: never on the minute job's own time
         const once = Effect.gen(function* () {
           const r = yield* run({ at: t });
@@ -363,12 +360,15 @@ export class News extends Context.Service<
           Effect.catchCause((cause) => {
             if (Cause.hasInterruptsOnly(cause)) return Effect.void;
             const e = Cause.squash(cause);
-            if (t - s.ok < STALE) return Effect.logInfo(`wow news check failed, retrying in 10 min: ${e instanceof Error ? e.message : String(e)}`);
+            if (t - (s.ok || (s.first ?? t)) < STALE) return Effect.logInfo(`wow news check failed, retrying in 10 min: ${e instanceof Error ? e.message : String(e)}`);
             return alerts.failed("checking WoW: Forever news", e);
           }),
           Effect.ensuring(Ref.set(running, false)),
         );
-        yield* background.run(once, "checking WoW: Forever news");
+        // (anything failing before the check is under way puts the flag down again, or the news would stop)
+        yield* Effect.andThen(save(KEY, { ...s, tried: t, ...(s.ok ? {} : { first: s.first ?? t }) }), background.run(once, "checking WoW: Forever news")).pipe(
+          Effect.onError(() => Ref.set(running, false)),
+        );
         return { checking: true };
       }).pipe(Effect.withSpan("News.check"));
 

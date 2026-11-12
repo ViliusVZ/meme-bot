@@ -25,16 +25,22 @@ export class Background extends Context.Service<
         run: (effect, label = "background work") =>
           // the boundary for background work: whatever a task lets through is reported, per task
           // (an interruption is shutdown or a replaced task, not a failure)
-          Effect.gen(function* () {
-            yield* Metric.update(backgroundInFlight, yield* Ref.updateAndGet(running, (n) => n + 1));
-            yield* FiberSet.run(
+          Effect.asVoid(
+            FiberSet.run(
               set,
-              effect.pipe(
-                Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause)))),
-                Effect.ensuring(Effect.flatMap(Ref.updateAndGet(running, (n) => n - 1), (n) => Metric.update(backgroundInFlight, n))),
+              // (counted inside the task, so a task that never starts, on a closed set, is never counted;
+              // the count up and the count down's setup can't be cut apart)
+              Effect.uninterruptibleMask((restore) =>
+                Effect.flatMap(Ref.updateAndGet(running, (n) => n + 1), (n) => Metric.update(backgroundInFlight, n)).pipe(
+                  Effect.andThen(
+                    restore(effect.pipe(Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : alerts.failed(label, Cause.squash(cause)))))).pipe(
+                      Effect.ensuring(Effect.flatMap(Ref.updateAndGet(running, (n) => n - 1), (n) => Metric.update(backgroundInFlight, n))),
+                    ),
+                  ),
+                ),
               ),
-            );
-          }),
+            ),
+          ),
         drain: (timeout) =>
           Effect.gen(function* () {
             yield* Effect.timeoutOption(FiberSet.awaitEmpty(set), timeout);
