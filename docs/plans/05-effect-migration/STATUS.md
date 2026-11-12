@@ -556,7 +556,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical but for message and event ids, phase 5 end (`d6a58da`, all-Effect, 2026-11-12) |
 | `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), card and ping printed, phase 5 end (`d6a58da`, all-Effect, 2026-11-12) |
 | `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | 897 passed, 0 failed, 50.7 min (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
-| Tap handling, median / 95th percentile (ms) | old code `aa49c52` on the test bot, 2026-11-12, real taps in the T3 browser (card I'm in, then six taps on the private copy): 49 / 101 (63, 101, 69, 49, 29, 32, 22) | `52a14ba` (phase 5, HTTP + Ticker), same sequence: 21 / 49 (49, 18, 27, 23, 16, 21, 17); none near 1,500 ms. To repeat on the final code in phase 8 |
+| Tap handling, median / 95th percentile (ms) | old code `aa49c52` on the test bot, 2026-11-12, real taps in the T3 browser (card I'm in, then six taps on the private copy): 49 / 101 (63, 101, 69, 49, 29, 32, 22) | `52a14ba` (phase 5, HTTP + Ticker), same sequence: 21 / 49 (49, 18, 27, 23, 16, 21, 17); final build `930d912` (phase 8): **23 / 31** (31, 25, 21, 30, 21, 23, 21); none near 1,500 ms |
 | Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | 97.4 MiB at 58 min uptime, after every suite (phase 5 end (`d6a58da`, all-Effect, 2026-11-12); the Effect runtime starts larger; the soak's rule is growth, phase 8) |
 
 ## Versions in use
