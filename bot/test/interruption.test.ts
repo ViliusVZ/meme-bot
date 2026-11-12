@@ -6,8 +6,8 @@
 import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { Duration, Effect, Fiber } from "effect";
-import { activityGuesses, fleeting, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { Duration, Effect, Fiber, Layer } from "effect";
+import { activityGuesses, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -22,6 +22,8 @@ import { Cleanup, snowflakeAt } from "../src/cleanup.js";
 import { Jobs } from "../src/jobs.js";
 import { Presence } from "../src/presence.js";
 import { Interactions } from "../src/interactions.js";
+import { News, FEED, FORUM } from "../src/news.js";
+import { AppConfig } from "../src/config.js";
 import { harness, json, routes, type TestDb } from "./fx.js";
 
 const CLOCK = "2026-11-10T19:00:00Z"; // Tuesday 21:00 in Vilnius
@@ -888,3 +890,41 @@ it.effect("/meme: interrupted during its claim, the reply's message id is still 
     expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", requested_by: "a", message_id: expect.any(String) });
   }).pipe(h.provide),
 );
+// ⚔️ (after every earlier test, for the same reason: news_items isn't emptied between this file's tests)
+function newsSequences(): Record<string, Sequence> {
+  return {
+  "a WoW: Forever news post (its claim → the post → its id)": {
+  setup: () =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      yield* db.delete(newsItems);
+      yield* db.insert(newsItems).values({ topic_id: 5, title: "WoW: Forever Hotfixes", link: `${FORUM}/t/slug/5/1`, published_at: now() - 3600, seen_at: now() - 600, state: "post", last_post: 1 });
+      // an empty feed: the item already judged is the only thing to do
+      h.override = (c) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : undefined);
+    }),
+  run: () =>
+    Effect.gen(function* () {
+      // the news channel configured for this call (this file's configuration has none)
+      const config = yield* AppConfig;
+      const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
+      return yield* News.use((n) => n.run()).pipe(Effect.provide(news), Effect.orDie);
+    }),
+  claim: { table: "news_items", op: "UPDATE", when: "NEW.state = 'posted' AND OLD.state = 'post'" },
+  record: { table: "news_items", op: "UPDATE", when: "OLD.message_id = 'posting' AND NEW.message_id <> 'posting'" },
+  post: { method: "POST", path: "/channels/news/messages" },
+  nothing: () =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      expect((yield* db.select().from(newsItems)).map((r) => [r.state, r.message_id])).toEqual([["post", null]]);
+      expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+    }),
+  everything: () =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      const [r] = yield* db.select().from(newsItems);
+      expect([r.state, r.message_id === null || r.message_id === "posting"]).toEqual(["posted", false]);
+    }),
+  },
+  };
+}
+for (const [name, s] of Object.entries(newsSequences())) define(name, s);

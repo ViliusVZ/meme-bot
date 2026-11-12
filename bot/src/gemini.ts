@@ -13,6 +13,8 @@ import { LocalTime } from "./localtime.js";
 import { jsonText } from "./json.js";
 
 const MODEL = "gemini-3.8-flash";
+/** The fast one first; when it's busy (the free tier often is), the newer, slower one (news.ts). */
+export const FAST_THEN_NEWER = ["gemini-3.5-flash", "gemini-3.8-flash"] as const;
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all
 const TIMEOUT = Duration.minutes(5); // a thinking model can take minutes; nothing waits on this
 const KEY = "gemini_budget";
@@ -30,9 +32,10 @@ export class Gemini extends Context.Service<
   {
     /**
      * One question with a JSON answer in the shape of `schema` (Gemini's OpenAPI subset), decoded
-     * with `decode`, or null when there's no answer to be had right now.
+     * with `decode`, or null when there's no answer to be had right now. `models` are tried in turn
+     * while one is busy or failing (one request of the day's budget either way).
      */
-    ask<T>(prompt: string, schema: object, decode: Schema.Decoder<T>): Effect.Effect<T | null, DbError>;
+    ask<T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models?: ReadonlyArray<string>): Effect.Effect<T | null, DbError>;
   }
 >()("meme-bot/gemini") {
   static readonly layer = Layer.effect(
@@ -58,7 +61,7 @@ export class Gemini extends Context.Service<
         return true;
       });
 
-      const ask = Effect.fn("Gemini.ask")(function* <T>(prompt: string, schema: object, decode: Schema.Decoder<T>) {
+      const ask = Effect.fn("Gemini.ask")(function* <T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models: ReadonlyArray<string> = [MODEL]) {
         const key = config.geminiApiKey;
         if (!key) return null;
         // (the budget's database round trip can fail, as it always could: that isn't "no answer")
@@ -66,7 +69,7 @@ export class Gemini extends Context.Service<
           yield* Effect.logInfo("gemini: daily budget used up");
           return null;
         }
-        const req = HttpClientRequest.post(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`).pipe(
+        const request = (model: string) => HttpClientRequest.post(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`).pipe(
           HttpClientRequest.setHeaders({ "Content-Type": "application/json", "x-goog-api-key": Redacted.value(key) }),
           HttpClientRequest.bodyText(
             jsonText({
@@ -76,8 +79,8 @@ export class Gemini extends Context.Service<
             "application/json",
           ),
         );
-        const answer = Effect.gen(function* () {
-          const res = yield* http.execute(req);
+        const answer = (model: string) => Effect.gen(function* () {
+          const res = yield* http.execute(request(model));
           if (res.status < 200 || res.status >= 300) {
             const text = yield* res.text;
             return yield* new GeminiError({ reason: `${res.status} ${text.slice(0, 200)}` });
@@ -87,8 +90,15 @@ export class Gemini extends Context.Service<
           if (!text) return null;
           return yield* Schema.decodeUnknownEffect(Schema.fromJsonString(decode))(text);
         }).pipe(Effect.timeout(TIMEOUT));
-        // any trouble: no answer (the caller has its plain fallback)
-        return yield* answer.pipe(Effect.catch((e) => Effect.as(Effect.logInfo(`gemini: ${"reason" in e ? e.reason : String(e)}`), null)));
+        // any trouble: the next model, then no answer (the caller has its plain fallback)
+        for (const model of models) {
+          const got = yield* answer(model).pipe(
+            Effect.map((a) => ({ a })),
+            Effect.catch((e) => Effect.as(Effect.logInfo(`gemini: ${models.length > 1 ? `${model} ` : ""}${"reason" in e ? e.reason : String(e)}`), undefined)),
+          );
+          if (got) return got.a;
+        }
+        return null;
       });
       return Gemini.of({ ask });
     }),

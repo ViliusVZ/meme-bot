@@ -1,0 +1,423 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8176470b-b4f1-4c3f-b95f-b7a030370cb2",
+  "prevIds": [
+    "3fa590e3-153a-4f64-a14f-5cbfba1a2fd6"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "news_items"
+      ],
+      "writes": [
+        "s|tbl|public.news_items",
+        "n|tbl|public.news_items",
+        "e|tbl|public.news_items",
+        "n|rel|public.news_items",
+        "n|type|public.news_items",
+        "n|rel|public.news_items_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "memes",
+        "one_daily_per_day"
+      ],
+      "writes": [
+        "s|idx|public.one_daily_per_day",
+        "n|idx|public.one_daily_per_day",
+        "e|idx|public.one_daily_per_day",
+        "n|rel|public.one_daily_per_day"
+      ],
+      "reads": [
+        "n|tbl|public.memes",
+        "n|sch|public",
+        "n|col|public.memes.day"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "783e006d3b20418d"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "memes",
+        "memes_posted"
+      ],
+      "writes": [
+        "s|idx|public.memes_posted",
+        "n|idx|public.memes_posted",
+        "e|idx|public.memes_posted",
+        "n|rel|public.memes_posted"
+      ],
+      "reads": [
+        "n|tbl|public.memes",
+        "n|sch|public",
+        "n|col|public.memes.posted_at"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "1b7a0b36bbe8a9eb"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "memes",
+        "memes_pool"
+      ],
+      "writes": [
+        "s|idx|public.memes_pool",
+        "n|idx|public.memes_pool",
+        "e|idx|public.memes_pool",
+        "n|rel|public.memes_pool"
+      ],
+      "reads": [
+        "n|tbl|public.memes",
+        "n|sch|public",
+        "n|col|public.memes.published"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "28639f885272cdb2"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "voice_segments",
+        "voice_segments_one_open"
+      ],
+      "writes": [
+        "s|idx|public.voice_segments_one_open",
+        "n|idx|public.voice_segments_one_open",
+        "e|idx|public.voice_segments_one_open",
+        "n|rel|public.voice_segments_one_open"
+      ],
+      "reads": [
+        "n|tbl|public.voice_segments",
+        "n|sch|public",
+        "n|col|public.voice_segments.user_id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "4ba4158a6a0be0a2"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "lobby_prompts",
+        "lobby_prompts_current"
+      ],
+      "writes": [
+        "s|idx|public.lobby_prompts_current",
+        "n|idx|public.lobby_prompts_current",
+        "e|idx|public.lobby_prompts_current",
+        "n|rel|public.lobby_prompts_current"
+      ],
+      "reads": [
+        "n|tbl|public.lobby_prompts",
+        "n|sch|public",
+        "n|col|public.lobby_prompts.current"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "70674942ecf73612"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "news_items",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "topic_id",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "title",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "link",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "excerpt",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "section",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "published_at",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "seen_at",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "state",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "summary",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "last_post",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "told_post",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "message_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "posted_at",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "updated_day",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_items",
+        "name": "news_items_pkey",
+        "columns": [
+          "topic_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"one_daily_per_day\"]",
+      "set": {
+        "where": "\"post_kind\" = 'daily'"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"memes_posted\"]",
+      "set": {
+        "where": "\"post_kind\" IS NOT NULL"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"memes_pool\"]",
+      "set": {
+        "where": "\"post_kind\" IS NULL"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"voice_segments_one_open\"]",
+      "set": {
+        "where": "\"open\""
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"lobby_prompts_current\"]",
+      "set": {
+        "where": "\"current\""
+      }
+    }
+  ]
+}

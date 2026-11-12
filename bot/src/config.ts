@@ -36,6 +36,8 @@ export interface AppConfigShape {
   readonly presences: boolean;
   /** 🧠 Gemini, free tier: judgment calls only; unset means none are made. */
   readonly geminiApiKey: Redacted.Redacted<string> | undefined;
+  /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
+  readonly newsChannelId: string | undefined;
   readonly appName: string;
   readonly revision: string;
   /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
@@ -75,6 +77,7 @@ export const readConfig = Effect.gen(function* () {
   const or = (name: string, fallback: string) => optional(name).pipe(Config.map(Option.getOrElse(() => fallback)));
   const alertUserId = Option.getOrUndefined(yield* optional("ALERT_USER_ID"));
   const geminiApiKey = Option.getOrUndefined(yield* optional("GEMINI_API_KEY"));
+  const newsChannelId = Option.getOrUndefined(yield* optional("NEWS_CHANNEL_ID"));
   const config: AppConfigShape = {
     databaseUrl: Redacted.make(get("DATABASE_URL")),
     port: Number(yield* or("PORT", "3000")),
@@ -100,6 +103,7 @@ export const readConfig = Effect.gen(function* () {
     alertUserId,
     presences: (yield* or("PRESENCES", "")) === "1",
     geminiApiKey: geminiApiKey === undefined ? undefined : Redacted.make(geminiApiKey),
+    newsChannelId,
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
     otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),
