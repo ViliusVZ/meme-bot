@@ -36,7 +36,7 @@ server. Notes to the thread: final build on the test bot; cutover done; 16:30 st
 `f298ce4` (two commits on `f401685`, old code). Never work in `C:\p\meme-bot`. The news must be
 off whenever its channel isn't configured (check it).
 
-**Can't fit (behaviour-neutral only):** test 6 entries for the news's "updated" claim and /meme's background record (phase 7 audit, finding 8: tests only, the code is protected); the phase 7 audit's minor finding 5 (an overstated alert text in a rare case).
+**Can't fit:** only the phase 7 audit's minor finding 5 (when Discord itself takes over 60 s inside a post, the alert DM says "cut off" although the post went out once; changing the text changes test 16's recording). Everything else from the audits is done.
 
 ### Now (2026-11-12 ~13:25)
 
@@ -124,8 +124,8 @@ single model; every old `news.test.ts` expectation is carried over.
   takes any truthy `fallback`; a post Discord refuses for good holds the queue behind it (it's
   given back and tried again each run). Four news mutations stayed green: three now have tests
   that go red under them (the daily cap without `updated_day`, the "updated" line's silent flag,
-  the `running` guard); the update claim's protection and /meme's background record (test 6
-  covers it only at shutdown) are left as test gaps, listed under "Can't fit" at the top.
+  the `running` guard), and test 6 now has entries for the update claim and for /meme's record
+  cut off during its background lookup (`ad9d514`), each red with its region made interruptible.
 
 
 - src frozen (empty diff), ledger only added, recordings only added, gate scripts unchanged; 802
