@@ -135,7 +135,7 @@ const Input = Schema.Struct({
   track: Schema.optional(Seat),
   where: Schema.optional(Seat),
   answer: Schema.optional(Schema.Struct({ id: Num, user: Text, what: Text, game: Schema.optional(Text) })),
-  change: Schema.optional(Schema.Struct({ user: Text, from: Schema.NullOr(Text), to: Schema.NullOr(Text) })),
+  change: Schema.optional(Schema.NullOr(Schema.Struct({ user: Text, from: Schema.NullOr(Text), to: Schema.NullOr(Text) }))), // QA sends null for none
   game: Schema.optional(Text),
   emoji: Schema.optional(Schema.NullOr(Text)),
   message: Schema.optional(Text),
@@ -374,7 +374,7 @@ export const Routes = HttpRouter.use((router) =>
                 // "LOBBY" stands for the configured Lobby, so a script needn't know its id
                 const where = new Map(Object.entries((input.where ?? {}) as Record<string, string | null>).map(([u, c]) => [u, c === "LOBBY" ? config.lobbyChannelId : c]));
                 yield* activity.track(where, t);
-                return answer({ due: yield* spontaneous.react(where, t, input.change) });
+                return answer({ due: yield* spontaneous.react(where, t, input.change ?? undefined) });
               }),
             ),
           ),
