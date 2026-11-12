@@ -16,6 +16,17 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   open a second Discord tab. Before a login check, look at it: signed in → run the check; not →
   remind the owner once and do other work first. Both checks must be done before cutover.
 
+### Browser checks (2026-11-12, owner signed in)
+
+- **Private-copy browser tap test: passed on `52a14ba`.** In the T3 browser as Vithis on the test
+  server: "I'm in" on a quiet QA card (2026-12-28, planned by K) opened the private copy; then
+  quiet admin votes only (L yes; all three Enshrouded; all three 20:00) and the copy followed by
+  itself: ask → "Pick a game" → "When can you start?" → "It's on: Enshrouded at 20:00" with the
+  late buttons. Screenshot `C:/Users/viliu/.t3/userdata/browser-artifacts/browser-screenshot-discord-com-mwd6lqef-5e541e92.png`.
+  Helper: `<scratchpad>/tapqa.py` (setup / vote / state / reset, test bot only, quiet).
+- **Tap timings:** old code baseline taken (test bot on `aa49c52`, then `effect` put back:
+  `bb61bb2`). Numbers in the Numbers table. Both to be repeated on the final code in phase 8.
+
 ### Resume here (paused 2026-11-11 ~22:55: the owner turned the PC off)
 
 - **Step:** phase 5, step 4 (Ticker + start timers) is **done and committed**: code `d57d1fe`,
@@ -29,8 +40,13 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   `startup_failure` (GitHub never started it: zero jobs, no workflow change). The check that ran
   afterwards (qa_all 79/0, qa_timing 13/0, Fastify-style 404) hit the old `34f31cb`. The next
   deploy above covers the HTTP step and the Ticker together.
-- **Deployed:** test bot `34f31cb` (phase 4 + audit fixes; healthy at 22:30). Production
-  `aa49c52` (phases 0+1, landed 2026-11-11 19:21). Nothing in flight.
+- **Deployed (2026-11-12 08:55):** test bot `bb61bb2` (= the Ticker step + test commits).
+  Production `aa49c52` (phases 0+1, landed 2026-11-11 19:21). Nothing in flight.
+- **Step 4's live check done** (`52a14ba`, logs `<scratchpad>/qa-effect/ticker-52a14ba/`): health
+  ok with the version, the unknown route answers Fastify's 404 body, qa_timing 13/0 (ping 0.61 s),
+  qa_all 78/1: "one roast in the channel" failed because the run was at 08:34 and a roast waits
+  for 09:30 (`MORNING` in gamenight.ts, the same in the old code); every earlier run was in the
+  evening. qa_all to be run again after 09:30 to show it.
 - **Branch:** `effect` pushed to origin, at this STATUS commit (after `745e3b8`). Tags
   `baseline`, `pre-effect` and the branch `pre-effect-build` are on origin.
 - **Gone after a reboot, and how to bring it back:**
@@ -224,24 +240,24 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 <!-- leftovers -->
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
-| `async` | 8 | 6 | 8 |
-| `await` | 20 | 19 | 13 |
-| `.then(` | 2 | 1 | 3 |
-| `.catch(` | 53 | 3 | 27 |
+| `async` | 2 | 6 | 8 |
+| `await` | 6 | 19 | 13 |
+| `.then(` | 0 | 1 | 4 |
+| `.catch(` | 52 | 3 | 27 |
 | `try {` | 1 | 2 | 0 |
-| `new Promise` | 2 | 7 | 0 |
-| `setTimeout/Interval` | 6 | 8 | 0 |
+| `new Promise` | 2 | 7 | 1 |
+| `setTimeout/Interval` | 3 | 8 | 0 |
 | `AbortController` | 0 | 2 | 0 |
 | `AbortSignal` | 1 | 2 | 2 |
 | `fetch(` | 0 | 0 | 0 |
-| `console.` | 8 | 15 | 0 |
-| `Date.now/new Date` | 10 | 0 | 3 |
+| `console.` | 3 | 15 | 0 |
+| `Date.now/new Date` | 6 | 0 | 3 |
 | `Math.random` | 0 | 0 | 0 |
 | `process.env` | 1 | 0 | 1 |
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 4 |
-| `LEGACY-BRIDGE` | 410 | 15 | 0 |
+| `LEGACY-BRIDGE` | 421 | 15 | 0 |
 | `Effect.promise` | 0 | 0 | 2 |
 | `Effect.tryPromise` | 0 | 1 | 0 |
 | `runPromise` | 0 | 0 | 1 |
@@ -249,10 +265,10 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `Effect.orDie` | 0 | 0 | 0 |
 | `@effect-diagnostics` | 0 | 0 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **524** | **81** | **65** |
+| **total** | **500** | **81** | **67** |
 
 Import cycles: none.
-Per file: legacy.ts 92, main.ts 60, gamenight.ts 45, live.ts 37, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
+Per file: legacy.ts 92, main.ts 60, gamenight.ts 45, spontaneous.ts 31, app.ts 29, discord.ts 23, voice.ts 22, presence.ts 21, db/index.ts 20, memes.ts 19, alerts.ts 18, gateway.ts 18, activity.ts 15, attendance.ts 14, live.ts 13, env.ts 12, polls.ts 11, scheduler.ts 11, channels.ts 10, jobs.ts 9, reddit.ts 9, late.ts 8, snooze.ts 8, interactions.ts 7, background.ts 6, cleanup.ts 6, games.ts 6, gemini.ts 6, memeshame.ts 6, lifecycle.ts 5, panels.ts 5, hub.ts 4, nights.ts 3, roasts.ts 3, verify.ts 3, runtime.ts 2, localtime.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -273,7 +289,7 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 | `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical to the baseline's output (ids and times masked), `bdc5fed` |
 | `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), `bdc5fed` (its printout lists the channel's latest messages, so it differs with whatever ran before it) |
 | `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | |
-| Tap handling, median / 95th percentile (ms) | pending: real taps in the T3 browser (Discord logged out at 16:20) | |
+| Tap handling, median / 95th percentile (ms) | old code `aa49c52` on the test bot, 2026-11-12, real taps in the T3 browser (card I'm in, then six taps on the private copy): 49 / 101 (63, 101, 69, 49, 29, 32, 22) | `52a14ba` (phase 5, HTTP + Ticker), same sequence: 21 / 49 (49, 18, 27, 23, 16, 21, 17); none near 1,500 ms. To repeat on the final code in phase 8 |
 | Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | |
 
 ## Versions in use
