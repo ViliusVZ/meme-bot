@@ -47,7 +47,8 @@ def container():
 
 def logs(since):
     """The test bot's log lines since `since` (UTC, 'YYYY-MM-DD HH:MM:SS')."""
-    return ssh(f"journalctl -q -o cat --since '{since} UTC' CONTAINER_TAG={APP} 2>/dev/null || true", check=False).splitlines()
+    # (the journal needs sudo; each colour logs under its own container name)
+    return ssh(f"sudo journalctl -q -o cat --since '{since} UTC' SYSLOG_IDENTIFIER={APP}-blue SYSLOG_IDENTIFIER={APP}-green 2>/dev/null || true", check=False).splitlines()
 
 
 def utc():
@@ -110,7 +111,7 @@ def handover():
     since = utc()
     image = ssh(f"docker inspect --format '{{{{.Config.Image}}}}' {container()}").strip()
     for _ in range(2):
-        ssh(f"sudo host-watch pause 30m >/dev/null; deploy-app {APP} {image} >/dev/null 2>&1", check=False)
+        ssh(f"sudo host-watch pause 30m >/dev/null; sudo deploy-app {APP} {image} >/dev/null 2>&1", check=False)  # (images.env is the deploy user's)
         ok(until(leading, 120), "leading again after the deploy")
     lines = logs(since)
     took, stepped = [l for l in lines if "took over" in l], [l for l in lines if "stepped down" in l]
