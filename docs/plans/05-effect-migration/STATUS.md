@@ -1140,8 +1140,22 @@ fixed in it. For the owner to prioritise after the cutover.
 
 ## Drill and soak results (phase 8)
 
-On the final build `48dfbdf` (phase 7 + the news), test bot, 2026-11-12. Output under
-`<scratchpad>/qa-effect/final-48dfbdf/`.
+**The final build is `930d912`** (phase 7 + the news + the phase 7 audit's fixes), on the test
+bot since 13:47. Output under `<scratchpad>/qa-effect/final-930d912/`.
+
+- **Browser tap test on `930d912`: passed** (same sequence as below: "I'm in" opened the copy,
+  quiet admin votes, the copy followed by itself to "It's on: Enshrouded at 20:00").
+  Tap timing: 31, 25, 21, 30, 21, 23, 21 ms; **median 23, p95 31**.
+- **The news on `930d912`:** a forgotten Forever topic, forced fallback: posted once, title only,
+  flags 36864 (silent); the next forced run: `{}`.
+- **On `48dfbdf` before it** (the build the audit fixes replaced; its QA pass was stopped during
+  maybe_matrix when the fixes were ready): qa_all 79/0, qa_stats 17/0, rooms, spontaneous,
+  slowpoke, late_ui, leaveby as before; qa_timing 12/1 (the wrap-up's event still live: the forced
+  soak's admin ticks ran `maintainRooms` alongside the Ticker's own minute, which production never
+  does; rerun alone on the final build); the soak without restarts 13/1 (its refill check met a
+  refill QA's own ticks had started). Everything is rerun on `930d912`.
+
+Earlier, on `48dfbdf`:
 
 - **Browser tap test, private copy: passed.** As Vithis on a quiet QA card (2026-12-28, planned
   by K): "I'm in" opened the copy; then quiet admin votes only (L yes; all three Enshrouded; all
