@@ -1148,6 +1148,25 @@ bot since 13:47. Output under `<scratchpad>/qa-effect/final-930d912/`.
   overlap), qa_rooms, qa_stats 17/0, qa_spontaneous ("all good"), qa_slowpoke, qa_late_ui,
   qa_leaveby as before, qa_maybe_matrix 897/0 (45.5 min). Taps during qa_all: 14, median 26 ms,
   p95 40, max 55. Memory 120.9 MiB at 54 min uptime.
+- **Fault drills on `930d912` (15:00–15:09): 23 passed, 0 failed.** Lock lost: stepped down,
+  took over in 3 s; every connection dropped: ok again within seconds, no restart, the next
+  minute's jobs ran; handover (the same image deployed twice): 3 took over, 2 stepped down, clock
+  under 120; stopped 5 s before / half a second after a start: the night started once each time;
+  hard kill mid-minute: leads again, no Reddit refetch, refill time unchanged; five restarts in two
+  minutes: leading at the end, no Reddit fetch, no alert storm. (A first run at 14:50 had 3 log
+  checks fail and the handover never redeploy: the drills read the journal without sudo by a tag
+  nothing carries, and `deploy-app` needs sudo (images.env is the deploy user's): fixed `c36ee96`,
+  rerun above.)
+- **Forced soak on `930d912`:** with restarts (poll card, daily meme, recaps, each forced again
+  and across a restart: nothing repeats) and **6000 minute ticks back to back, 0 job errors**
+  (274 s). Its refill check failed: it set the times back in the database, which a running bot
+  never rereads (once per process, as the old code); the check now forces it through a restart
+  (`fd170a3`), rerun after the rollback rehearsal.
+- **soak_watch** (13:49 on): every OFF line is a deliberate restart (soak and drills) or the
+  gateway reconnecting right after one; nothing else. **Memory: 111.6 MB at start, 120.9 MiB
+  after the QA hour (no restart): ~9 MB growth under full load**, well under the 30 MB rule.
+- **Admin route timings, new code:** copy median 47 ms (p95 51); vote median 913 ms (p95 1264,
+  max 1725; each vote waits for its card refresh and every copy's edit).
 - **Browser tap test on `930d912`: passed** (same sequence as below: "I'm in" opened the copy,
   quiet admin votes, the copy followed by itself to "It's on: Enshrouded at 20:00").
   Tap timing: 31, 25, 21, 30, 21, 23, 21 ms; **median 23, p95 31**.
