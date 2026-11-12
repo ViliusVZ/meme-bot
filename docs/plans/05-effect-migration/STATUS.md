@@ -38,29 +38,25 @@ off whenever its channel isn't configured (check it).
 
 **Can't fit:** only the phase 7 audit's minor finding 5 (when Discord itself takes over 60 s inside a post, the alert DM says "cut off" although the post went out once; changing the text changes test 16's recording). Everything else from the audits is done.
 
-### Now (2026-11-12 ~13:25)
+### Now (2026-11-12 15:25): DONE, in production
 
-- **Phase 7 done** (audit running in the background, findings due ~13:55): `effect` = `48dfbdf`
-  = phase 7 (`effect-p7`) + the news port (`effect-news`, `ef2c2b2`), all gates green, pushed.
-  **Phase 8 starting** on that build on the test bot.
-- **Deploy finding:** the first test-bot deploy of `48dfbdf` failed its migration ("relation
-  news_items already exists"): the old `wow-news` branch had once been deployed to the test bot,
-  leaving its table (39 test rows, no migration record) behind. Dropped on the test database only
-  (`meme_bot_dev`); production has no such table (checked read-only: `to_regclass` null, 13
-  migration records), so it takes the same fresh path. The old copy kept serving throughout.
-- **Cutover merge:** `main` has `aa49c52`, `155029f`, `0afa875`, all three already in `effect`
-  as patch-equivalent commits (`git log --cherry-mark` shows `=`). A trial merge conflicts in 13
-  files; resolve every one to `effect`'s side, then `git diff effect` must be empty before the
-  merge commit.
-- **The news agent's worktree** was made by the Agent tool under `C:\p\meme-bot\.claude\worktrees\`
-  (inside the old checkout's folder, not its files); removed after the merge, and its leftover
-  branch (at `aa49c52`, nothing of its own) deleted. Tell the owner.
-- **Phase notes posted to the owner in the thread:** phases 4 and 5 (2026-11-12).
-
-# 05 · Status
-
-The one place that says where the migration stands. Every session reads this first and updates
-it last. Keep it short: facts and numbers, newest entry at the top of each list.
+- **Cutover 15:18:** `main` = `6643bb7` (a merge of `effect` into `aa49c52`, its tree exactly
+  effect's), deployed by CI to the test bot and production; production checks: version, 14
+  migrations (the news one applied), a clean handover, no failed/ERROR/WARN lines.
+- **The news on 15:22:** `⚔️・wow-news` (`1570427645949386802`) created under 🎮 Game Night on the
+  real server; `NEWS_CHANNEL_ID` in `deploy/prod.env` (`79c0a2d`). First run: 37 topics seen, 36
+  marked old, 1 silent post (flags 36864, no mentions): no backlog dump.
+- **One deploy hiccup:** the first CI run of `6643bb7` failed at the test bot's deploy step (prod
+  skipped, untouched): the rollback rehearsal's `sudo deploy-app` had left the test bot's
+  `images.env` owned by root. Fixed (`chown deploy:deploy`, mode 664) and rerun. **After any
+  deploy by hand with sudo (a rollback), give `images.env` back to `deploy` or CI's next deploy
+  fails.**
+- **Rollback, if ever needed:** `ssh vps "sudo host-watch pause 30m; sudo deploy-app meme-bot
+  ghcr.io/viliusvz/meme-bot:aa49c52a24f7"`, then `sudo chown deploy:deploy
+  /srv/apps/meme-bot/images.env`. Rehearsed on the test bot today (old code over the new database:
+  qa_all 79/0).
+- **Can't fit:** only the phase 7 audit's minor finding 5 (see "Phase 7 audit").
+- Tonight's 17:00 card is the new code's first real one.
 
 ## Where we are
 
