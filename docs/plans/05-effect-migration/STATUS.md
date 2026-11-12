@@ -48,6 +48,27 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   env's QUIET/PLAYERS → `withOverrides` (src/config.ts); PRESENCES/GEMINI_API_KEY → `h.withConfig`.
   `await t.db.select()…` → `yield* db.select()…` on the app's `Db`.
 
+### Phase 6 done (2026-11-12; audit running)
+
+- Every test file runs on `test/fx.ts` with `it.effect`; `test/old/`, the old harness and every
+  `_reset` are gone (`7bc359f`); what tests describe their config with is `test/env.ts`, the
+  recorder's pieces `test/recorder.ts`. No `vi.useFakeTimers`, global `fetch` stub or console spy
+  is left. Test group 15 (`time-driven.test.ts`): an exact start, the Lobby question at 30 s, a
+  copy let go at 14 min, alert throttling over 3 h, the refill every 6 h, the gateway-down DM at
+  5 min, and (for the forced soak) the 03:00 sweep and the 19:00 call-out once each. Test 6 got
+  the Lobby question, its closing, an ETA on a slip and a resumed hold. 826 tests; every
+  assertion and recording identical through all of it.
+- **Declared for phase 6:** (1) the frozen test Clock for files that had a fake `Date` (see the
+  design note); (2) the test project keeps the Effect diagnostics at warning
+  (`tsconfig.test.json`): what's left is test infrastructure (fetch stubs are async functions,
+  `Effect.provide` per test, JSON in assertion values, the throwaway schema's random name, the
+  database URL from the environment, the leadership test's live polling against a real lock);
+  src is at error level; (3) the harness itself and the recorder use node-postgres for the
+  throwaway schema, the migrations, setup rows and the database snapshot (the app runs on its own
+  Effect pool in every test); (4) reddit.test keeps the old fake Date's 50 ms creep per
+  `waitFor` check (its recordings captured it); (5) Presence's listener arrays stay: presence.test
+  and spontaneous.test still subscribe through them.
+
 ### Phase 6 progress (conversion guide: `phase6-conversion.md`)
 
 - On fx.ts and committed: roasts (`ab944f0`), interactions (`ec227bf`).
@@ -365,7 +386,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
 | 5 | Entry points, lifecycle, removing the old stack | done | 2026-11-12 | jobs, interactions, http, scheduler, live, gateway, leadership/main/shutdown; step 8 removed the transition from src; every QA suite as baseline on `d6a58da`; audit closed (`a4b5399`, `27b53aa`); QA on the audit-fix build `27b53aa` running |
-| 6 | Tests become Effect-native | not started | | |
+| 6 | Tests become Effect-native | done (audit running) | 2026-11-12 | every file on `test/fx.ts` (`334c14a`..`7bc359f`); test/old and the old harness gone; test group 15 (`7790407`); 826 tests, assertions and recordings identical |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
 | 9 | Cutover | not started | | |
