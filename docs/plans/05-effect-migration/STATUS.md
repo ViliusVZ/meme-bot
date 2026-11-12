@@ -1,3 +1,13 @@
+### Now (2026-11-12 ~11:20)
+
+- **Phase 5 done** (audit closed: fixes `a4b5399`, tests `27b53aa`). On the test bot `27b53aa`
+  every QA suite is running again (`<scratchpad>/qa-effect/phase5-27b53aa/`, about an hour) because
+  the audit fixes touched the admin routes' input; the run on `d6a58da` matched the baseline in
+  every suite. **Next: phase 6** (tests become Effect-native; src frozen). If the QA run shows a
+  regression, fix it in src first (still phase 5).
+- **Deployed:** test bot `27b53aa`; production `aa49c52`.
+- **Phase notes posted to the owner in the thread:** phases 4 and 5 (2026-11-12).
+
 # 05 · Status
 
 The one place that says where the migration stands. Every session reads this first and updates
@@ -293,7 +303,7 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 | 2 | Toolchain and spikes | done, audited | 2026-11-11 | all ten spikes pass (spike-report.md); audit findings closed below |
 | 3 | Foundations | done (audit running) | 2026-11-11 | live: qa_all 79/79, qa_timing 13/13 on `8e7c1f2` |
 | 4 | Feature services | done | 2026-11-12 | every module moved; second pass done; audit closed (`b1fa4f1`, `322bb29`); QA on the test bot: qa_rooms, qa_spontaneous, qa_all, qa_leaveby, qa_slowpoke, qa_late_ui, qa_stats as baseline |
-| 5 | Entry points, lifecycle, removing the old stack | in progress | | jobs, interactions, http, scheduler, live, gateway, leadership/main/shutdown |
+| 5 | Entry points, lifecycle, removing the old stack | done | 2026-11-12 | jobs, interactions, http, scheduler, live, gateway, leadership/main/shutdown; step 8 removed the transition from src; every QA suite as baseline on `d6a58da`; audit closed (`a4b5399`, `27b53aa`); QA on the audit-fix build `27b53aa` running |
 | 6 | Tests become Effect-native | not started | | |
 | 7 | Hardening and observability | not started | | |
 | 8 | Test bot: QA, drills, soak | not started | | |
@@ -346,22 +356,22 @@ Fill the baseline column in phase 0. Update "now" at the end of every session.
 
 | Measure | Baseline (phase 0) | Now |
 |---|---|---|
-| Tests passed | 580 before any change; 586 with the Discord-error tests (10 files) | |
+| Tests passed | 580 before any change; 586 with the Discord-error tests (10 files) | 802 (phase 5 audit fixes, `27b53aa`) |
 | Query sites found / executed | 210 / 210 | |
 | Recordings differing | 0 | |
 | Assertion ledger | 741 assertions (728 at the start, 13 from the Discord-error tests) | |
 | Leftovers (G6 total; per-pattern table below) | 1158 outside boundary files, 64 inside (after the phase 0 moves) | |
-| `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | 79 passed, 0 failed (`bdc5fed`, GameNight moved) |
-| `qa_timing.py` | 13 passed, 0 failed; start ping 0.92 s after the start, room 9.8 s early | 13 passed, 0 failed; start ping 0.64 s after the start, room 9.8 s early (`bdc5fed`, GameNight moved) |
-| `qa_rooms.py` | 10 checks, no failures | 10 checks, no failures (`07dd493`, phase 4 after Voice and Attendance) |
-| `qa_stats.py` | 17 passed, 0 failed | 17 passed, 0 failed (`3c7184d`, phase 4 done) |
-| `qa_spontaneous.py` | 14 checks, "all good" | 14 checks, "all good" (`e47a7b9`, phase 4 after Spontaneous and Reddit) |
-| `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | identical to the baseline's output (ids and times masked), `3c7184d` |
-| `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical to the baseline's output (ids and times masked), `bdc5fed` |
-| `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), `bdc5fed` (its printout lists the channel's latest messages, so it differs with whatever ran before it) |
-| `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | |
+| `qa_all.py` | 79 passed, 0 failed (second run); the first run had 78/1, the cleanup check ("no QA messages left": two retired late slips have no buttons, so the cleanup can't find them) — flaky in the old code | 79 passed, 0 failed (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
+| `qa_timing.py` | 13 passed, 0 failed; start ping 0.92 s after the start, room 9.8 s early | 13 passed, 0 failed (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)); start ping 0.58-0.61 s after the start on `e7eef4d`/`52a14ba` |
+| `qa_rooms.py` | 10 checks, no failures | every check passed, exit 0 (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
+| `qa_stats.py` | 17 passed, 0 failed | 17 passed, 0 failed (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
+| `qa_spontaneous.py` | 14 checks, "all good" | "all good" (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
+| `qa_late_ui.py` | fixed sequence (setup, tick, state, offcard) ran clean; output kept for comparison | identical to the baseline's output (ids and times masked), phase 5 end (`d6a58da`, all-Effect, 2026-11-12) |
+| `qa_leaveby.py` | fixed sequence (setup, three time/leave-by votes, clear, state) ran clean; output kept | identical but for message and event ids, phase 5 end (`d6a58da`, all-Effect, 2026-11-12) |
+| `qa_slowpoke.py` | ran clean (exit 0), card and ping printed | ran clean (exit 0), card and ping printed, phase 5 end (`d6a58da`, all-Effect, 2026-11-12) |
+| `qa_maybe_matrix.py` | 897 passed, 0 failed, 46.5 min | 897 passed, 0 failed, 50.7 min (phase 5 end (`d6a58da`, all-Effect, 2026-11-12)) |
 | Tap handling, median / 95th percentile (ms) | old code `aa49c52` on the test bot, 2026-11-12, real taps in the T3 browser (card I'm in, then six taps on the private copy): 49 / 101 (63, 101, 69, 49, 29, 32, 22) | `52a14ba` (phase 5, HTTP + Ticker), same sequence: 21 / 49 (49, 18, 27, 23, 16, 21, 17); none near 1,500 ms. To repeat on the final code in phase 8 |
-| Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | |
+| Memory after 1 h (MB) | 58.7 MiB at 56 min uptime (after every suite) | 97.4 MiB at 58 min uptime, after every suite (phase 5 end (`d6a58da`, all-Effect, 2026-11-12); the Effect runtime starts larger; the soak's rule is growth, phase 8) |
 
 ## Versions in use
 
