@@ -27,7 +27,21 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 - **Tap timings:** old code baseline taken (test bot on `aa49c52`, then `effect` put back:
   `bb61bb2`). Numbers in the Numbers table. Both to be repeated on the final code in phase 8.
 
-### Resume here (paused 2026-11-11 ~22:55: the owner turned the PC off)
+### Now (2026-11-12 ~10:10)
+
+- **Step:** phase 5, step 9. Steps 1-8 done and pushed (`d6a58da`): src has no transition code
+  left (legacy.ts, env.ts, the old pool, every LEGACY-BRIDGE line moved to `test/old/`), the
+  warnings are errors, G6 0 outside the boundary files, 789 tests. Running now: every live QA
+  suite on the test bot (`d6a58da`, `bash scripts/qa_baseline.sh <scratchpad>/qa-effect/phase5-d6a58da`,
+  about an hour with qa_maybe_matrix) and the phase 5 audit (a fresh subagent, read-only, commits
+  fe593e7..d6a58da). **Next:** compare each suite with the baseline (Numbers), close the audit's
+  findings, post the phase 5 note, start phase 6.
+- **Deployed:** test bot `d6a58da`; production `aa49c52`.
+- **Rerun after a context loss:** if the QA run's summary (`<scratchpad>/qa-effect/phase5-d6a58da/summary.txt`)
+  doesn't end with "done", run `qa_baseline.sh` again (test bot only); if the audit's report is
+  lost, start it again with RUN.md §8's brief for fe593e7..HEAD.
+
+### Resume notes from the pause (2026-11-11 ~22:55; superseded by "Now")
 
 - **Step:** phase 5, step 4 (Ticker + start timers) is **done and committed**: code `d57d1fe`,
   tests 8 and 9 `745e3b8`, gates green (770 tests). Nothing is half-written. The only thing left
