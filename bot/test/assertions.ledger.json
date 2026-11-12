@@ -1749,5 +1749,17 @@
   "describe \"the ticker (TestClock)\" > test \"a night about to start gets one timer, however many minutes see it coming\"": [
    "assert.deepStrictEqual(_, [\"2026-11-09\"])"
   ]
+ },
+ "live.test.ts": {
+  "test \"a room is wrapped up exactly 15 minutes after the last person leaves it\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toBe(left + 15 * 60)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"a voice change that fails is reported, and the next one is still handled\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"b\", \"c\"])"
+  ]
  }
 }

@@ -1,0 +1,24 @@
+{
+ "a room is wrapped up exactly 15 minutes after the last person leaves it": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 e73f0c2e8d3b"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "rooms": "1:ba9dd31a7fee",
+   "voice_segments": "1:6c8528a8ae74"
+  }
+ },
+ "a voice change that fails is reported, and the next one is still handled": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/60000/messages 9062adbd08f8"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "voice_segments": "2:f65a86ee11eb"
+  }
+ }
+}

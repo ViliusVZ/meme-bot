@@ -5,6 +5,17 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
 
 ## Where we are
 
+### Logins and browser tabs (2026-11-12, owner back)
+
+- The only login the rest of the plan needs is **Discord in the T3 browser** (default profile),
+  for the tap-timing measurement and the private-copy browser tap test (verification.md §9). gh
+  and `ssh vps` use stored credentials; nothing else signs in.
+- Tab `tab_1_214808b9-efd8-44f7-9870-09905495f612` (discord.com/login, opened 2026-11-12) is the
+  one for it. **Keep it for the rest of the run: never close it, resize it, log out, clear its
+  storage, or navigate it away from Discord** (closing a Discord tab logs him out). Reuse it; never
+  open a second Discord tab. Before a login check, look at it: signed in → run the check; not →
+  remind the owner once and do other work first. Both checks must be done before cutover.
+
 ### Resume here (paused 2026-11-11 ~22:55: the owner turned the PC off)
 
 - **Step:** phase 5, step 4 (Ticker + start timers) is **done and committed**: code `d57d1fe`,
