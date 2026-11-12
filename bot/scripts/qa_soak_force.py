@@ -95,10 +95,18 @@ ok(all("posted" not in (t.get("meme") or {}) or i == 0 for i, t in enumerate([t1
 
 # ---------------------------------------------------------------- a Reddit refill
 print("▶ a Reddit refill", flush=True)
+# the bot reads the refill times once per process (at its first minute), so the times set back go
+# in through a restart; the first minute after it (the Ticker's own, or this one) starts the refill
+reset_at = int(time.time() * 1000)
 sql("UPDATE settings SET value = jsonb_build_object('ok', 0, 'tried', 0) WHERE key = 'reddit_refill'")
-r = tick()
-ok((r.get("refill") or {}).get("refilling") is True, "a minute with the last refill long ago starts one")
-time.sleep(20)
+if a.no_restart:
+    print("  (skipped: a refill can only be forced through a restart; run without --no-restart)", flush=True)
+else:
+    restart()
+    r = tick()
+    time.sleep(20)
+    tried = sql("SELECT (value->>'tried')::bigint AS t FROM settings WHERE key = 'reddit_refill'")[0]["t"]
+    ok((r.get("refill") or {}).get("refilling") is True or tried >= reset_at, f"a minute with the last refill long ago starts one (tried {(tried - reset_at) / 1000:.0f} s after the reset)")
 ok(not (tick().get("refill") or {}).get("refilling"), "the next minute doesn't start another")
 restart()
 ok(not (tick().get("refill") or {}).get("refilling"), "nor does a minute after a restart (the time is in the database)")
