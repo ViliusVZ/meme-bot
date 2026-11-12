@@ -1,15 +1,14 @@
 // Configuration through Config (plan 05, verification.md §7 tests 1, 2 and 5): every missing
 // variable named at once, secrets that can't be printed, and the per-call overrides of the admin
 // routes reaching deep code and background work.
-import { expect, test } from "vitest";
-import { it } from "@effect/vitest";
-import { ConfigProvider, Effect, FiberSet, Logger, Redacted } from "effect";
+import { expect, it } from "@effect/vitest";
+import { ConfigProvider, Duration, Effect, FiberSet, Logger, Redacted } from "effect";
 import { AppConfig, ConfigMissing, Overrides, allowedMentions, players, quiet, readConfig, withOverrides } from "../src/config.js";
-import { Background, drain } from "./old/background.js";
-import { Discord } from "./old/discord.js";
+import { Background } from "../src/background.js";
+import { Discord } from "../src/discord.js";
 import { loadConfig } from "./old/env.js";
-import { legacyEnv, run } from "./old/legacy.js";
-import { harness } from "./harness.js";
+import { LegacyEnv, legacyEnv } from "./old/legacy.js";
+import { harness } from "./fx.js";
 
 const h = harness({ db: false, discord: { firstId: 100 } });
 const from = (env: Record<string, string>) => Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(env)));
@@ -58,11 +57,11 @@ it.effect("a secret never appears in logs or when the config is printed", () => 
   expect(Redacted.value(c.discordToken)).toBe("discord-secret-token"); // still usable where it's needed
 }));
 
-test("overrides reach background work: a quiet call's deferred ping is quiet too", async () => {
-  // what an admin route does: provide the override around the call; the call defers work
-  const seen: boolean[] = [];
-  await Effect.runPromise(
-    Effect.gen(function* () {
+it.effect("overrides reach background work: a quiet call's deferred ping is quiet too", () =>
+  Effect.gen(function* () {
+    // what an admin route does: provide the override around the call; the call defers work
+    const seen: boolean[] = [];
+    yield* Effect.gen(function* () {
       const set = yield* FiberSet.make();
       const call = Effect.gen(function* () {
         yield* FiberSet.run(set, Effect.sleep("20 millis").pipe(Effect.andThen(quiet), Effect.map((q) => void seen.push(q))));
@@ -70,46 +69,52 @@ test("overrides reach background work: a quiet call's deferred ping is quiet too
       yield* call;
       yield* FiberSet.run(set, quiet.pipe(Effect.map((q) => void seen.push(q)))); // outside the call
       yield* FiberSet.awaitEmpty(set);
-    }).pipe(Effect.scoped),
-  );
-  expect(seen.sort()).toEqual([false, true]);
-});
+    }).pipe(Effect.scoped);
+    expect(seen.sort()).toEqual([false, true]);
+  }).pipe(h.provide),
+);
 
-test("overrides reach background work: a quiet call's deferred ping goes out with no mentions", async () => {
-  // what a quiet admin call does: background work it starts posts a ping, after a moment
-  const ping = Effect.gen(function* () {
-    yield* Effect.sleep("20 millis");
-    const discord = yield* Discord;
-    yield* discord.createMessage("gn", { content: "<@a> it's on!", allowed_mentions: yield* allowedMentions(["a"]) });
-  });
-  const defer = Background.use((b) => b.run(ping, "the ping"));
-  await run({ ...h.env, QUIET: true }, defer);
-  await run(h.env, defer); // the same, not quiet
-  await drain(5000);
-  const pings = h.calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages").map((c) => c.body.allowed_mentions);
-  expect(pings).toEqual([{ parse: [] }, { users: ["a"] }]);
-});
+it.effect("overrides reach background work: a quiet call's deferred ping goes out with no mentions", () =>
+  Effect.gen(function* () {
+    // what a quiet admin call does: background work it starts posts a ping, after a moment
+    const ping = Effect.gen(function* () {
+      yield* Effect.sleep("20 millis");
+      const discord = yield* Discord;
+      yield* discord.createMessage("gn", { content: "<@a> it's on!", allowed_mentions: yield* allowedMentions(["a"]) });
+    });
+    const defer = Background.use((b) => b.run(ping, "the ping"));
+    yield* withOverrides({ quiet: true })(defer);
+    yield* defer; // the same, not quiet
+    yield* Background.use((b) => b.drain(Duration.millis(5000)));
+    const pings = h.calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages").map((c) => c.body.allowed_mentions);
+    expect(pings).toEqual([{ parse: [] }, { users: ["a"] }]);
+  }).pipe(h.provide),
+);
 
-test("an inner override keeps the outer one's other fields", async () => {
-  const seen = await run(
-    { ...h.env, PLAYERS: "qa-1,qa-2" },
-    withOverrides({ quiet: true })(Effect.gen(function* () {
-      return [yield* players, yield* quiet];
-    })),
-  );
-  expect(seen).toEqual([["qa-1", "qa-2"], true]);
-});
+it.effect("an inner override keeps the outer one's other fields", () =>
+  Effect.gen(function* () {
+    const seen = yield* withOverrides({ players: ["qa-1", "qa-2"] })(
+      withOverrides({ quiet: true })(Effect.gen(function* () {
+        return [yield* players, yield* quiet];
+      })),
+    );
+    expect(seen).toEqual([["qa-1", "qa-2"], true]);
+  }).pipe(h.provide),
+);
 
-test("stand-in players given to an admin call are the players deep code sees", async () => {
-  // old admin route style: { ...env, PLAYERS: "qa-1,qa-2" } through the bridge
-  const standIns = await run({ ...h.env, PLAYERS: "qa-1,qa-2" }, players);
-  expect(standIns).toEqual(["qa-1", "qa-2"]);
-  expect(await run(h.env, players)).toEqual(["a", "b", "c"]);
-  // and Effect code handing an env to old code passes them on, quiet included
-  const env = await run({ ...h.env, PLAYERS: "qa-1", QUIET: true }, legacyEnv);
-  expect([env.PLAYERS, env.QUIET]).toEqual(["qa-1", true]);
-  const real = await run(h.env, Effect.gen(function* () {
-    return (yield* AppConfig).players;
-  }));
-  expect(real).toEqual(["a", "b", "c"]);
-});
+it.effect("stand-in players given to an admin call are the players deep code sees", () =>
+  Effect.gen(function* () {
+    // an admin call's stand-ins, provided around the call
+    const standIns = yield* withOverrides({ players: ["qa-1", "qa-2"] })(players);
+    expect(standIns).toEqual(["qa-1", "qa-2"]);
+    expect(yield* players).toEqual(["a", "b", "c"]);
+    // and Effect code handing an env to old code passes them on, quiet included (the old bridge's
+    // legacyEnv, until test/old goes)
+    const env = yield* withOverrides({ players: ["qa-1"], quiet: true })(legacyEnv).pipe(Effect.provideService(LegacyEnv, h.env));
+    expect([env.PLAYERS, env.QUIET]).toEqual(["qa-1", true]);
+    const real = yield* Effect.gen(function* () {
+      return (yield* AppConfig).players;
+    });
+    expect(real).toEqual(["a", "b", "c"]);
+  }).pipe(h.provide),
+);
