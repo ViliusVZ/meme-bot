@@ -88,6 +88,34 @@ responses as fixtures in `bot/test/fixtures`.
    about 6-8 thousand tokens in) on each model and note failures. The pipeline's call count must
    fit the free tier with room left for game-name matching.
 
+### Step 0 findings (2026-11-12, 17:30–17:35, from the VPS, a real User-Agent, six requests)
+
+- **JSON is closed to the server.** `www.reddit.com/r/classicwow/top.json` and `hot.json`: 403
+  (an HTML block page); `old.reddit.com/…/top.json`: 302 to a login page.
+- **RSS answers**: `top/.rss?t=day&limit=25` (200, 25 entries) and
+  `comments/<id>/.rss?sort=top&limit=60` (200, the post plus 60 comments, in Reddit's top order,
+  no scores). **Rate limit: one request per window of about a minute** (`x-ratelimit-used: 1`,
+  `remaining: 0.0`, `reset` 36–56 s after each request). So: requests spaced at least 65 s apart,
+  one at a time; an hourly run of 3 subreddits × (top of day + hot) + comments for at most 4
+  candidates is about 10 requests, 11 minutes, well inside it.
+- **So the RSS path applies** (the plan's second case): rank in top-of-day and hot, and how a post
+  moves between hourly runs, stand in for scores; comments come without scores (order only); the
+  card shows no upvote or comment numbers. A free Reddit "script" app (OAuth) would give scores and
+  comment counts: that needs the owner's Reddit account, **asked once in the thread**; build on
+  RSS meanwhile, with the data source behind one service so OAuth can slot in.
+- **Subreddits** (from `subreddits/search.rss?q=wow forever`, then a look at each): `r/wowforever`
+  (Forever's own, active: 25 posts in today's top, crossposts with r/classicwow), `r/classicwow`,
+  `r/wow`. Smaller ones exist (`r/classicwowplus`, `r/WoWForeverDE`, `r/wowforeverOCE`,
+  `r/WowForeverGold`, `r/WowForeverTransmog`, `r/WowForeverRoleplay`): not in the default list.
+  Default `NEWS_SUBREDDITS=wowforever,classicwow,wow`.
+- **Gemini** (`src/gemini.ts`): budget `DAILY = 15` requests a day (of the free tier's 20 per day,
+  5 per minute) shared with game-name matching, the key shared by both bots; models
+  `gemini-3.5-flash`, then `gemini-3.8-flash`. The pipeline must therefore stay at one triage call
+  per hourly run that has new candidates plus one write call per story (≤ 3 posts a day): budget it
+  at ≤ 10 a day and keep ≥ 5 for game names. **The timing of ten write-up-sized requests per model
+  is deferred to after tonight's game night**: it would spend the shared day's quota that game-name
+  matching needs tonight (do it on the next day's quota, before the backtest).
+
 ## Pipeline
 
 Runs from the minute scheduler on the leader, in the background, like the current check. Hourly
