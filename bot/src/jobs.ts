@@ -16,6 +16,7 @@ import { Reddit } from "./reddit.js";
 import { Cleanup } from "./cleanup.js";
 import { MemeShame } from "./memeshame.js";
 import { Spontaneous } from "./spontaneous.js";
+import { News } from "./news.js";
 import { Alerts } from "./alerts.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
@@ -53,6 +54,7 @@ export class Jobs extends Context.Service<
       const cleanup = yield* Cleanup;
       const memeShame = yield* MemeShame;
       const spontaneous = yield* Spontaneous;
+      const news = yield* News;
       const alerts = yield* Alerts;
 
       // ---------------------------------------------------------------- daily post
@@ -153,6 +155,7 @@ export class Jobs extends Context.Service<
         ["late", late.watch], // latecomers: pull from the Lobby, late slips, "made it"
         ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
         ["spontaneous", spontaneous.minute()], // 🎮 unplanned sessions wrap up; stale Lobby questions and notes go
+        ["wow-news", news.check], // ⚔️ WoW: Forever news, every 30 min (in the background); off with no channel
         ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
         ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
         ["meme-shame", memeShame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it

@@ -94,5 +94,11 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "POST /admin/news: a bad token, and with no news channel configured an empty answer and nothing fetched": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
  }
 }

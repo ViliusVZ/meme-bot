@@ -211,3 +211,14 @@ it.effect("the admin schema takes what the QA scripts send, null for none includ
     expect(r.statusCode).toBe(200);
   }).pipe(h.provide),
 );
+
+it.effect("POST /admin/news: a bad token, and with no news channel configured an empty answer and nothing fetched", () =>
+  Effect.gen(function* () {
+    const app = yield* build(up);
+    const bad = yield* app.inject({ method: "POST", url: "/admin/news", headers: { authorization: "Bearer i" }, payload: {} });
+    expect([bad.statusCode, bad.body]).toEqual([401, "nope"]);
+    const off = yield* app.inject({ method: "POST", url: "/admin/news", headers: { authorization: "Bearer a" }, payload: { fallback: true } });
+    expect([off.statusCode, off.json()]).toEqual([200, {}]);
+    expect(h.calls).toEqual([]);
+  }).pipe(h.provide),
+);

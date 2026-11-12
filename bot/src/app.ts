@@ -21,6 +21,7 @@ import { Polls } from "./polls.js";
 import { Voice } from "./voice.js";
 import { Activity, type Kind } from "./activity.js";
 import { Spontaneous } from "./spontaneous.js";
+import { News } from "./news.js";
 import { LateSlips } from "./late.js";
 import { Attendances } from "./attendance.js";
 import { Presence } from "./presence.js";
@@ -144,6 +145,8 @@ const Input = Schema.Struct({
   // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
   memes: Schema.optional(Schema.Array(Schema.Unknown)),
   post_daily: Schema.optional(Schema.Unknown),
+  // ⚔️ /admin/news: judge as if Gemini were unavailable (the title rule, now)
+  fallback: Schema.optional(Schema.Unknown),
   method: Schema.optional(Text),
   path: Schema.optional(Text),
   body: Schema.optional(Schema.Unknown),
@@ -179,6 +182,7 @@ export const Routes = HttpRouter.use((router) =>
     const activity = yield* Activity;
     const spontaneous = yield* Spontaneous;
     const late = yield* LateSlips;
+    const news = yield* News;
     const attendances = yield* Attendances;
     const presence = yield* Presence;
     const ticker = yield* Ticker;
@@ -324,6 +328,10 @@ export const Routes = HttpRouter.use((router) =>
     );
 
     yield* admin("/admin/recap", (input) => Effect.map(input.period === "month" ? jobs.monthlyRecap : jobs.weeklyRecap, answer));
+
+    // ⚔️ one WoW: Forever news check now, without waiting for the 30-minute timer (`fallback`: as if
+    // Gemini were unavailable, so the title rule decides at once); no channel configured: {}
+    yield* admin("/admin/news", (input) => Effect.map(news.run({ fallback: !!input.fallback }), answer));
 
     // seed ids that were posted before the bot had a database
     yield* admin("/admin/mark-posted", (input) =>

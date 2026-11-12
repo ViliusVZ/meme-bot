@@ -1654,6 +1654,11 @@
    "expect.toEqual([])",
    "expect.toMatchObject({ paused_until: null, nudge_id: expect.any(String) })",
    "expect.toEqual([\"yes\", \"yes\"])"
+  ],
+  "fn newsSequences": [
+   "expect.toEqual([[\"post\", null]])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"posted\", false])"
   ]
  },
  "hub.test.ts": {
@@ -1754,6 +1759,11 @@
   ],
   "test \"the admin schema takes what the QA scripts send, null for none included\"": [
    "expect.toBe(200)"
+  ],
+  "test \"POST /admin/news: a bad token, and with no news channel configured an empty answer and nothing fetched\"": [
+   "expect.toEqual([401, \"nope\"])",
+   "expect.toEqual([200, {}])",
+   "expect.toEqual([])"
   ]
  },
  "starts.test.ts": {
@@ -1969,6 +1979,136 @@
    "expect.toBe(0)",
    "expect.toBe(1)",
    "expect.toBe(1)"
+  ]
+ },
+ "news.test.ts": {
+  "test \"the real feed parses: staff posts with their topic and post number\"": [
+   "expect.toBe(50)",
+   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes - November 10, 2026\", post: 5 })",
+   "expect.toBe(true)",
+   "expect.toEqual([])"
+  ],
+  "test \"the first run marks what's there as seen and lets only the newest Forever item through\"": [
+   "expect.toMatchObject({ seen: 3, judged: 1, posted: [\"WoW: Forever Hotfixes - November 10\"] })",
+   "expect.toBeTruthy()",
+   "expect.toEqual({ parse: [] })",
+   "expect.toContain(\"[WoW: Forever Hotfixes - November 10](https://eu.forums.blizzard.com/en/wow/t/slug/2/1)\\\\nHunters stop pulling half the zone.\")",
+   "expect.toBe(\"old\")",
+   "expect.toBe(\"old\")"
+  ],
+  "test \"Gemini picks the Forever news out of everything else, in one question\"": [
+   "expect.toMatchObject({ seen: 3, judged: 3, posted: [\"PvP Faction Balance Updates\"] })",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"skip\")",
+   "expect.toBe(\"skip\")",
+   "expect.toEqual({})",
+   "expect.toHaveLength(0)"
+  ],
+  "test \"Gemini down: items wait, and after 6 hours the title decides\"": [
+   "expect.toEqual({ seen: 2 })",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(2)",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ judged: 2, posted: [\"Explore WoW: Forever with a Gamepad\"] })",
+   "expect.toBeNull()",
+   "expect.toBe(\"skip\")"
+  ],
+  "test \"at most 5 a day, oldest first; the rest go out the next day\"": [
+   "expect.toEqual([\"Forever thing 0\", \"Forever thing 1\", \"Forever thing 2\", \"Forever thing 3\", \"Forever thing 4\"])",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ posted: [\"Forever thing 5\", \"Forever thing 6\"] })"
+  ],
+  "test \"a post Discord refuses is given back and goes out next time\"": [
+   "expect.rejects.toThrow(\"403\")",
+   "expect.toMatchObject({ state: \"post\", message_id: null })",
+   "expect.toMatchObject({ posted: [\"Forever maintenance\"] })"
+  ],
+  "test \"a topic Blizzard keeps adding to (hotfixes) gets one “updated” line a day\"": [
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toBe(\"🔧 **WoW: Forever Hotfixes** got an update → <https://eu.forums.blizzard.com/en/wow/t/slug/50/3>\")",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ posted: [\"updated: WoW: Forever Hotfixes\"] })",
+   "expect.toEqual({})"
+  ],
+  "test \"the minute job: every 30 minutes, not again after a restart, a failure retried in 10, the owner told after a day\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toBe(2)",
+   "expect.toBe(false)",
+   "expect.toEqual({})",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.not.toContain(\"checking WoW: Forever news failed\")",
+   "expect.toBe(false)",
+   "expect.toContain(\"checking WoW: Forever news failed\")"
+  ],
+  "test \"no channel configured, no news\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])"
+  ],
+  "test \"Gemini is told which forum section each post is in (the best hint for which game); no section, no problem\"": [
+   "expect.toContain('\"topic\":60,\"section\":\"WoW: Forever General Discussion\"')",
+   "expect.toContain('\"topic\":160,\"section\":\"General Discussion\"')",
+   "expect.toBe(\"WoW: Forever General Discussion\")",
+   "expect.toMatchObject({ posted: [\"Forever maintenance\"] })",
+   "expect.toContain('\"topic\":70,\"section\":\"unknown\"')"
+  ],
+  "test \"the fast Gemini busy: the other one answers\"": [
+   "expect.toMatchObject({ posted: [\"Forever hotfixes\"] })",
+   "expect.toEqual([\"gemini-3.5-flash\", \"gemini-3.8-flash\"])"
+  ],
+  "test \"no channel configured: no fetch, no Gemini, no post, nothing stored, from the job and from a forced run\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"the first run on a feed with a backlog (the real one): no dump, only the newest Forever item, silent\"": [
+   "expect.toBe(topics.size)",
+   "expect.toEqual([\"Prepare for Forever, Try Midnight’s Talebound, and Discover Sweet Treats in WoW Weekly\"])",
+   "expect.toHaveLength(1)",
+   "expect.toBeTruthy()",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(topics.size - 1)",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({})",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the daily cap counts across runs: 5 posts and “updated” lines in all, every one silent\"": [
+   "expect.toHaveLength(3)",
+   "expect.toEqual([\"Forever d\", \"Forever e\"])",
+   "expect.toEqual({})",
+   "expect.toHaveLength(5)",
+   "expect.toBe(true)"
+  ],
+  "test \"Gemini unavailable (no key at all): nothing is asked, and the title rule decides after 6 hours\"": [
+   "expect.toEqual({ seen: 2 })",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toMatchObject({ judged: 2, posted: [\"WoW: Forever maintenance\"] })",
+   "expect.toEqual([])"
+  ],
+  "test \"POST /admin/news: one check now; `fallback` judges by the title rule at once, without Gemini\"": [
+   "expect.toBe(401)",
+   "expect.toEqual([200, { seen: 1 }])",
+   "expect.toEqual([200, { seen: 2, judged: 2, posted: [\"WoW: Forever Hotfixes\"] }])",
+   "expect.toEqual([])",
+   "expect.toBe(\"skip\")",
+   "expect.toEqual({ seen: 1, judged: 1, posted: [\"Forever patch notes\"] })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"POST /admin/news: the feed down is answered 500 with what went wrong\"": [
+   "expect.toBe(500)",
+   "expect.toContain(\"blue tracker -> 503\")"
   ]
  }
 }

@@ -326,3 +326,24 @@ export const activityGuesses = pgTable("activity_guesses", {
   answered: boolean().notNull().default(false),
   at: unix("at").notNull(),
 });
+
+// ---------------------------------------------------------------- ⚔️ WoW: Forever news (news.ts)
+
+/** One Blizzard forum topic with staff posts: seen once, judged once, posted at most once. */
+export const newsItems = pgTable("news_items", {
+  topic_id: integer().primaryKey(), // the forum topic (several staff posts can share one)
+  title: text().notNull(),
+  link: text().notNull(), // the staff post that brought it to us
+  excerpt: text().notNull().default(""),
+  section: text(), // the forum section it's in ("WoW: Forever General Discussion"), when we could tell
+  published_at: unix("published_at").notNull(),
+  seen_at: unix("seen_at").notNull(),
+  // new (waiting to be judged) | post (judged news, waiting its turn) | skip | old (there before us) | posted
+  state: text().notNull().$type<"new" | "post" | "skip" | "old" | "posted">(),
+  summary: text(), // Gemini's one line, if it gave one
+  last_post: integer().notNull().default(0), // the newest staff post number we've seen in the topic
+  told_post: integer().notNull().default(0), // the newest one the channel has heard about
+  message_id: text(), // ours in the news channel ("posting" while it's being sent)
+  posted_at: unix("posted_at"),
+  updated_day: text(), // the last day we said "updated" about it (once a day at most)
+});
