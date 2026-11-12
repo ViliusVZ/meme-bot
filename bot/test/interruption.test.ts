@@ -6,7 +6,7 @@
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber } from "effect";
-import { fleeting, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "./old/voice.js";
 import type { DbError } from "../src/db/db.js";
 import type { DiscordError } from "./old/discord.js";
@@ -18,7 +18,7 @@ import { LateSlips } from "./old/late.js";
 import { Activity } from "./old/activity.js";
 import { MemeShame } from "./old/memeshame.js";
 import { Cleanup, snowflakeAt } from "./old/cleanup.js";
-import { withPresences } from "./old/legacy.js";
+import { withConfig, withPresences } from "./old/legacy.js";
 import { Jobs } from "./old/jobs.js";
 import * as presence from "./old/presence.js";
 import * as channels from "./old/channels.js";
@@ -525,3 +525,25 @@ for (const [name, s] of Object.entries(sequences)) {
     });
   }
 }
+
+test("a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)", async () => {
+  await t.db.delete(gameAliases);
+  await t.db.delete(activityGuesses);
+  await t.db.insert(games).values({ name: "World of Warcraft", emoji: "🐉", added_at: "2026-11-03" }).onConflictDoNothing();
+  const theirs = h.override;
+  h.override = (c) =>
+    c.path.includes("generativelanguage.googleapis.com") ? json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ game: "World of Warcraft" }) }] } }] }) : theirs?.(c);
+  try {
+    const held = await hold({ table: "activity_guesses", op: "UPDATE", when: "NEW.answered" });
+    const fiber = h.runtime.runFork(Spontaneous.use((s) => s.learn(["World of Warcraft: Forever"], now())).pipe(withConfig({ PRESENCES: true, GEMINI_API_KEY: "k" })));
+    await held.inFlight;
+    const stopped = h.runtime.runPromise(Fiber.interrupt(fiber));
+    held.release();
+    await stopped;
+    await held.done();
+  } finally {
+    h.override = theirs;
+  }
+  expect((await t.db.select().from(activityGuesses)).map((g) => [g.activity, g.answered])).toEqual([["World of Warcraft: Forever", true]]);
+  expect((await t.db.select().from(gameAliases)).map((a) => [a.activity, a.game])).toEqual([["World of Warcraft: Forever", "World of Warcraft"]]);
+});

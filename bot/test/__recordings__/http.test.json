@@ -49,5 +49,44 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "paths match as Fastify's did: HEAD for a GET route, case and a trailing slash count": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "answers carry Fastify's content types, charset included": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "an admin body that isn't JSON is a 400 with the reason, not an empty object": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a body over 1 MB is answered before the token is looked at, as Fastify read bodies first": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the alert test goes to the owner when no user is given": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/40000/messages ba724bda325a"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a public key that can't be read answers 500 with the reason, as before": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
  }
 }

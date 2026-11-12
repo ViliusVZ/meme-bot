@@ -667,6 +667,11 @@ recordings (see "Numbers").
     (`ignoreEffectWarningsInTscExitCode` off); the tests keep warnings until phase 6
     (`tsconfig.test.json`; `npm run check` runs both).
   - `Alerts.settle` stays as a test seam (13 tests wait for a DM).
+- **activity's racing duplicate check resets the segment id sequence after itself** (phase 5
+  audit fixes): its two concurrent tracks race (that's the test); under a loaded full run the
+  losing insert sometimes used up an identity value, which shifted the ids of the two recap tests
+  after it, so their recordings differed now and then (seen three times). The test now puts the
+  sequence back at the highest id it left; on a quiet run nothing changes (the loser takes none).
 - **Presence's listener arrays** are still in src for the tests (presence.test, spontaneous.test);
   phase 6 moves those tests to `changes` and removes them (an earlier note said step 8 did).
 

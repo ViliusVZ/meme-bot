@@ -1635,6 +1635,10 @@
    "expect.toEqual([])",
    "expect.toEqual([])",
    "expect.toEqual([\"week:2026-11-08\"])"
+  ],
+  "test \"a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)\"": [
+   "expect.toEqual([[\"World of Warcraft: Forever\", true]])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\"]])"
   ]
  },
  "hub.test.ts": {
@@ -1707,6 +1711,31 @@
   "test \"a failure of ours is reported to the owner; a request that's too large isn't\"": [
    "expect.toEqual([])",
    "expect.toHaveLength(1)"
+  ],
+  "test \"paths match as Fastify's did: HEAD for a GET route, case and a trailing slash count\"": [
+   "expect.toBe(200)",
+   "expect.toEqual([404, { message: `Route GET:${url} not found`, error: \"Not Found\", statusCode: 404 }])"
+  ],
+  "test \"answers carry Fastify's content types, charset included\"": [
+   "expect.toBe(\"application/json; charset=utf-8\")",
+   "expect.toBe(\"text/plain; charset=utf-8\")"
+  ],
+  "test \"an admin body that isn't JSON is a 400 with the reason, not an empty object\"": [
+   "expect.toBe(400)",
+   "expect.toEqual(expect.any(String))",
+   "expect.not.toBe(\"action?\")"
+  ],
+  "test \"a body over 1 MB is answered before the token is looked at, as Fastify read bodies first\"": [
+   "expect.toEqual([500, { error: \"FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large\" }])"
+  ],
+  "test \"the alert test goes to the owner when no user is given\"": [
+   "expect.toHaveProperty(\"sent\")",
+   "expect.toEqual([\"owner\"])"
+  ],
+  "test \"a public key that can't be read answers 500 with the reason, as before\"": [
+   "expect.toBe(500)",
+   "expect.not.toContain(\"SignatureUnreadable\")",
+   "expect.toMatch(/Error/)"
   ]
  },
  "starts.test.ts": {
@@ -1748,6 +1777,13 @@
   ],
   "describe \"the ticker (TestClock)\" > test \"a night about to start gets one timer, however many minutes see it coming\"": [
    "assert.deepStrictEqual(_, [\"2026-11-09\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"a start already under way when the term ends finishes, and says so; a sleeping one stands down at once\"": [
+   "assert.deepStrictEqual(_, [\"started on time 2026-11-09 R.E.P.O.\"])"
+  ],
+  "describe \"the ticker (TestClock)\" > test \"lining up the starts dying (a bug) is reported, and the minute's jobs still run\"": [
+   "assert.strictEqual(_, 1)",
+   "assert.deepStrictEqual(_, [\"lining up the exact start\"])"
   ]
  },
  "live.test.ts": {
@@ -1821,6 +1857,13 @@
    "assert.strictEqual(_, \"lobby\")",
    "assert.strictEqual(_, 1)",
    "assert.strictEqual(_, undefined)"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"one event that fails is reported, and the next is still handled\"": [
+   "assert.deepStrictEqual(_, [\"a gateway event (GUILD_CREATE)\"])",
+   "assert.strictEqual(_, \"room\")"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"a connection that can't even be made is logged and tried again\"": [
+   "assert.deepStrictEqual(_, [0, 2])"
   ]
  },
  "leadership.test.ts": {
@@ -1835,6 +1878,12 @@
    "expect.toBe(true)",
    "expect.toEqual([`${secondName} clock on`, `${secondName} gateway on`, `${secondName} live on`])",
    "expect.toBe(0)"
+  ],
+  "test \"a term ends in today's order: /health stops saying leader, then the gateway closes, then the clock and live voice stop\"": [
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(\"gateway off, leader false\")",
+   "expect.toEqual([\"clock off, leader false\", \"live off, leader false\"])"
   ]
  },
  "shutdown.test.ts": {
@@ -1851,6 +1900,9 @@
   ],
   "describe \"the app's layer\" > test \"builds complete with test config (no missing or circular dependency)\"": [
    "assert.isFunction(_)"
+  ],
+  "describe \"shutdown run uninterruptibly (TestClock)\" > test \"as main runs it on a stuck clock, a term that won't end still gets only 15 s\"": [
+   "assert.deepStrictEqual(_, [\"15s server stopped\", \"15s shutdown done\"])"
   ]
  }
 }

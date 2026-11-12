@@ -2,7 +2,7 @@
 // never overlaps a slow minute, catches up once at start, and its watchdog reports once at 5
 // minutes. (The fake-timer tests in resilience.test.ts keep their own assertions beside these.)
 import { assert, describe, it } from "@effect/vitest";
-import { Clock, Effect, Fiber, Layer, Ref } from "effect";
+import { Clock, Effect, Exit, Fiber, Layer, Logger, Ref, Scope } from "effect";
 import { TestClock } from "effect/testing";
 import { Ticker } from "./old/scheduler.js";
 import { Jobs } from "./old/jobs.js";
@@ -13,7 +13,7 @@ import type { Night } from "./old/nights.js";
 const START = Date.parse("2026-11-09T17:00:30Z");
 
 /** A ticker over stand-in jobs and nights: `soon` are the nights about to start, `started` counts their timers. */
-const ticker = (soon: Night[] = []) =>
+const ticker = (soon: Night[] = [], start?: (n: Night, stop?: Effect.Effect<void>) => Effect.Effect<boolean>, upcoming?: Effect.Effect<Night[]>) =>
   Effect.gen(function* () {
     const started = yield* Ref.make<string[]>([]);
     const failed = yield* Ref.make<string[]>([]);
@@ -22,8 +22,8 @@ const ticker = (soon: Night[] = []) =>
         Layer.mergeAll(
           Layer.mock(Jobs, {}),
           Layer.mock(GameNight, {
-            upcomingStarts: () => Effect.succeed(soon),
-            startOnTime: (n: Night) => Effect.as(Ref.update(started, (s) => [...s, n.day]), true),
+            upcomingStarts: () => upcoming ?? Effect.succeed(soon),
+            startOnTime: (n: Night, stop?: Effect.Effect<void>) => (start ? start(n, stop) : Effect.as(Ref.update(started, (s) => [...s, n.day]), true)),
           }),
           Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }),
         ),
@@ -148,6 +148,46 @@ describe("the ticker (TestClock)", () => {
         const { fiber } = yield* running(Effect.succeed({}));
         yield* TestClock.adjust("3 minutes"); // four minutes have seen it (the catch-up and three more)
         assert.deepStrictEqual(yield* Ref.get(started), ["2026-11-09"]);
+        yield* Fiber.interrupt(fiber);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+
+  it.effect("a start already under way when the term ends finishes, and says so; a sleeping one stands down at once", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(START);
+      const lines: string[] = [];
+      const logs = Logger.layer([Logger.make((o) => void lines.push(String(o.message)))]);
+      const soon = [
+        { day: "2026-11-09", start_at: Math.floor(START / 1000) + 5, game: "R.E.P.O." } as Night, // under way: its moves and ping take 5 s
+        { day: "2026-11-10", start_at: Math.floor(START / 1000) + 100, game: "Peak" } as Night, // still sleeping
+      ];
+      const { layer } = yield* ticker(soon, (n, stop) =>
+        n.day === "2026-11-09" ? Effect.as(Effect.sleep("5 seconds"), true) : Effect.as(stop ?? Effect.never, false),
+      );
+      yield* Effect.gen(function* () {
+        const t = yield* Ticker;
+        const term = yield* Scope.make();
+        yield* Effect.forkChild(t.run({ minute: Effect.succeed({}) }).pipe(Scope.provide(term)));
+        yield* Effect.yieldNow;
+        yield* TestClock.adjust("1 second");
+        const ending = yield* Effect.forkChild(Scope.close(term, Exit.void));
+        yield* TestClock.adjust("5 seconds"); // the one under way finishes; nothing waits for the sleeping one
+        yield* Fiber.join(ending);
+        assert.deepStrictEqual(lines.filter((l) => l.startsWith("started on time")), ["started on time 2026-11-09 R.E.P.O."]);
+      }).pipe(Effect.provide(Layer.merge(layer, logs)));
+    }),
+  );
+
+  it.effect("lining up the starts dying (a bug) is reported, and the minute's jobs still run", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(START);
+      const { layer, failed } = yield* ticker([], undefined, Effect.die(new Error("a bug")));
+      yield* Effect.gen(function* () {
+        const runs = yield* Ref.make(0);
+        const { fiber } = yield* running(Effect.as(Ref.update(runs, (n) => n + 1), {}));
+        assert.strictEqual(yield* Ref.get(runs), 1);
+        assert.deepStrictEqual(yield* Ref.get(failed), ["lining up the exact start"]);
         yield* Fiber.interrupt(fiber);
       }).pipe(Effect.provide(layer));
     }),

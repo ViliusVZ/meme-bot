@@ -19,7 +19,7 @@ const T0 = Date.parse("2026-11-10T19:00:00Z");
 const flush = Effect.repeat(Effect.yieldNow, { times: 200 });
 const adjust = (d: Parameters<typeof TestClock.adjust>[0]) => Effect.andThen(Effect.andThen(flush, TestClock.adjust(d)), flush);
 
-type Attempt = "ok" | "fail" | "hang";
+type Attempt = "ok" | "fail" | "hang" | "throw";
 
 const setup = (attempts: ReadonlyArray<Attempt>, presences = false) =>
   Effect.gen(function* () {
@@ -37,6 +37,7 @@ const setup = (attempts: ReadonlyArray<Attempt>, presences = false) =>
             const n = (yield* Ref.updateAndGet(opens, (o) => [...o, { at, intents }])).length;
             emit = e;
             const how = attempts[Math.min(n, attempts.length) - 1];
+            if (how === "throw") return yield* Effect.fail(new GatewayUnavailable({ detail: "TypeError: the library threw" }));
             return {
               connect: how === "ok" ? Effect.void : how === "fail" ? Effect.fail(new GatewayUnavailable({ detail: "Error: boom" })) : Effect.never,
               destroy: Ref.update(destroyed, (d) => d + 1),
@@ -159,6 +160,36 @@ describe("the gateway (TestClock)", () => {
         yield* Scope.close(term, Exit.void);
         assert.strictEqual(yield* Ref.get(s.destroyed), 1);
         assert.strictEqual(yield* p.channelOf("a"), undefined);
+      }).pipe(Effect.scoped, Effect.provide(s.layer));
+    }),
+  );
+
+  it.effect("one event that fails is reported, and the next is still handled", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const s = yield* setup(["ok"]);
+      yield* Effect.gen(function* () {
+        const p = yield* Presence;
+        yield* Gateway.use((g) => g.hold(Effect.void));
+        yield* flush;
+        // a presence with no user: reading it is a bug's kind of failure (a defect)
+        s.emit(dispatch(GatewayDispatchEvents.GuildCreate, { id: "g", voice_states: [], channels: [], presences: [{ user: null, activities: [] }] }));
+        s.emit(dispatch(GatewayDispatchEvents.VoiceStateUpdate, { guild_id: "g", user_id: "a", channel_id: "room" }));
+        yield* flush;
+        assert.deepStrictEqual(yield* Ref.get(s.failed), ["a gateway event (GUILD_CREATE)"]);
+        assert.strictEqual(yield* p.channelOf("a"), "room");
+      }).pipe(Effect.scoped, Effect.provide(s.layer));
+    }),
+  );
+
+  it.effect("a connection that can't even be made is logged and tried again", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const s = yield* setup(["throw", "ok"]);
+      yield* Effect.gen(function* () {
+        yield* Gateway.use((g) => g.hold(Effect.void));
+        yield* adjust("3 seconds");
+        assert.deepStrictEqual((yield* Ref.get(s.opens)).map((o) => (o.at - T0) / 1000), [0, 2]);
       }).pipe(Effect.scoped, Effect.provide(s.layer));
     }),
   );

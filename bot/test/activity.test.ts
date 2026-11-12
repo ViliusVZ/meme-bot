@@ -204,6 +204,8 @@ test("heartbeats extend a segment; a long silence (the bot was away) ends it uns
 test("a racing duplicate check doesn't open a second segment", async () => {
   await Promise.all([act.track(env, where({ a: LOBBY }), at(0)), act.track(env, where({ a: LOBBY }), at(0))]);
   expect((await segs()).length).toBe(1);
+  // the losing insert may or may not have used up an id (timing): the next test's ids mustn't depend on it
+  await t.pool.query("SELECT setval(pg_get_serial_sequence('voice_segments', 'id'), (SELECT max(id) FROM voice_segments))");
 });
 
 test("a recap that fails to post is tried again the next minute", async () => {

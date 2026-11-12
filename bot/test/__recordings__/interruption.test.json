@@ -756,5 +756,20 @@
    "recaps": "1:146271b47b81",
    "votes": "1:27fd349c6e9d"
   }
+ },
+ "a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 555deb7a9e3c"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "1:b37c045ea7a5",
+   "games": "8:20142a6ccc67",
+   "memes": "1:7d751880cc55",
+   "recaps": "1:146271b47b81",
+   "settings": "1:4fa1570e14dd",
+   "votes": "1:27fd349c6e9d"
+  }
  }
 }

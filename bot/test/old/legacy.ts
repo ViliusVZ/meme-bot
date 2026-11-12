@@ -61,6 +61,8 @@ const configured = <A, E, R>(env: Pick<Env, "PRESENCES" | "GEMINI_API_KEY">, eff
 
 /** An Effect test's call with game detection on (what `{ ...env, PRESENCES: true }` does for a bridge call). */
 export const withPresences = <A, E, R>(effect: Effect.Effect<A, E, R>) => configured({ PRESENCES: true }, effect);
+/** The same for any of the two: `withConfig({ PRESENCES: true, GEMINI_API_KEY: "k" })`. */
+export const withConfig = (env: Pick<Env, "PRESENCES" | "GEMINI_API_KEY">) => <A, E, R>(effect: Effect.Effect<A, E, R>) => configured(env, effect);
 
 const withEnv = <A, E, R>(env: Env, effect: Effect.Effect<A, E, R>) =>
   configured(env, effect).pipe(Effect.provideService(Overrides, overridesOf(env)), Effect.provideService(LegacyEnv, env));

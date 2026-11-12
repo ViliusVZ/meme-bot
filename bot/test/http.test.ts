@@ -5,6 +5,7 @@ import { beforeAll, expect, test, vi } from "vitest";
 import { build } from "./old/app.js";
 import * as alerts from "./old/alerts.js";
 import { harness } from "./harness.js";
+import { restart } from "./old/legacy.js";
 import type { Env } from "./old/env.js";
 
 const h = harness({ discord: { firstId: 40000 }, clock: "2026-11-06T15:00:00Z" });
@@ -106,4 +107,60 @@ test("a failure of ours is reported to the owner; a request that's too large isn
   log.mockRestore();
   expect(dms()).toHaveLength(1);
   alerts._reset();
+});
+
+// ---------------------------------------------------------------- as Fastify did it (plan 05, phase 5 audit)
+
+test("paths match as Fastify's did: HEAD for a GET route, case and a trailing slash count", async () => {
+  const app = build(env, up);
+  const head = await app.inject({ method: "HEAD", url: "/health" });
+  expect(head.statusCode).toBe(200);
+  for (const url of ["/HEALTH", "/health/"]) {
+    const r = await app.inject({ method: "GET", url });
+    expect([r.statusCode, r.json()]).toEqual([404, { message: `Route GET:${url} not found`, error: "Not Found", statusCode: 404 }]);
+  }
+});
+
+test("answers carry Fastify's content types, charset included", async () => {
+  const app = build(env, up);
+  expect((await app.inject({ method: "GET", url: "/health" })).headers["content-type"]).toBe("application/json; charset=utf-8");
+  expect((await app.inject({ method: "GET", url: "/" })).headers["content-type"]).toBe("text/plain; charset=utf-8");
+});
+
+test("an admin body that isn't JSON is a 400 with the reason, not an empty object", async () => {
+  const r = await build(env, up).inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a", "content-type": "application/json" }, payload: "{not json" });
+  expect(r.statusCode).toBe(400);
+  expect(r.json().error).toEqual(expect.any(String));
+  expect(r.json().error).not.toBe("action?"); // the body's own problem, not an empty body's missing action
+});
+
+test("a body over 1 MB is answered before the token is looked at, as Fastify read bodies first", async () => {
+  const log = quietLog();
+  const r = await build(env, up).inject({ method: "POST", url: "/ingest", headers: { authorization: "Bearer nope" }, payload: { memes: [], pad: "x".repeat(1_100_000) } });
+  log.mockRestore();
+  expect([r.statusCode, r.json()]).toEqual([500, { error: "FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large" }]);
+});
+
+test("the alert test goes to the owner when no user is given", async () => {
+  alerts.setup({ ...env, ALERT_USER_ID: "owner" });
+  restart(); // the owner in the configuration, as production has it
+  const r = await build(env, up).inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a" }, payload: { action: "alert-test" } });
+  await alerts._settle();
+  expect(r.json()).toHaveProperty("sent");
+  expect(h.calls.filter((c) => c.method === "POST" && c.path === "/users/@me/channels").map((c) => c.body?.recipient_id)).toEqual(["owner"]);
+  alerts._reset();
+});
+
+test("a public key that can't be read answers 500 with the reason, as before", async () => {
+  const log = quietLog();
+  const r = await build({ ...env, DISCORD_PUBLIC_KEY: "zz" }, up).inject({
+    method: "POST",
+    url: "/interactions",
+    payload: "{}",
+    headers: { "content-type": "application/json", "x-signature-ed25519": "a".repeat(128), "x-signature-timestamp": "42" },
+  });
+  log.mockRestore();
+  expect(r.statusCode).toBe(500);
+  expect(r.json().error).not.toContain("SignatureUnreadable");
+  expect(r.json().error).toMatch(/Error/);
 });

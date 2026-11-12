@@ -107,3 +107,20 @@ describe("the app's layer", () => {
     }).pipe(Effect.scoped),
   );
 });
+
+describe("shutdown run uninterruptibly (TestClock)", () => {
+  it.effect("as main runs it on a stuck clock, a term that won't end still gets only 15 s", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const { log, note, layer } = yield* parts;
+      yield* Effect.gen(function* () {
+        const leading = yield* Effect.forkDetach(Effect.uninterruptible(Effect.never));
+        const server = yield* Scope.make();
+        yield* Scope.addFinalizer(server, note("server stopped"));
+        const down = yield* Effect.forkChild(Effect.andThen(Effect.uninterruptible(shutdown("clock stuck", { leading, server })), note("shutdown done")));
+        yield* runOut(down, 120);
+        assert.deepStrictEqual(yield* Ref.get(log), ["15s server stopped", "15s shutdown done"]);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+});

@@ -88,3 +88,36 @@ test("exactly one copy leads; a killed lock connection ends its term, and the ot
   await check.end();
   expect(rows[0].n).toBe(0);
 });
+
+test("a term ends in today's order: /health stops saying leader, then the gateway closes, then the clock and live voice stop", { timeout: 30_000 }, async () => {
+  const log: string[] = [];
+  // stand-ins that note, as each part stops, whether /health still says this copy leads
+  const part = (what: string) =>
+    Effect.map(Lifecycle, (l) => Effect.acquireRelease(Effect.void, () => Effect.flatMap(l.leader, (leads) => Effect.sync(() => void log.push(`${what} off, leader ${leads}`)))));
+  const stands = Layer.mergeAll(
+    Layer.effect(Live, Effect.map(part("live"), (p) => Live.of({ watch: Effect.as(p, { resync: Effect.void }) }))),
+    Layer.effect(Ticker, Effect.map(part("clock"), (p) => Ticker.of({ sinceTick: Effect.succeed(null), run: () => Effect.andThen(p, Effect.never) }))),
+    Layer.effect(Gateway, Effect.map(part("gateway"), (p) => Gateway.of({ hold: () => p }))),
+  );
+  const layer = Leadership.layer.pipe(
+    Layer.provideMerge(stands),
+    Layer.provideMerge(Lifecycle.layer),
+    Layer.provide(Layer.mergeAll(Layer.succeed(AppConfig, { ...configFromEnv(testEnv({} as never), { databaseUrl: url() }), appName: "qa-leader-order" }), Reactivity.layer)),
+  );
+  const rt = ManagedRuntime.make(layer);
+  const admin = new pg.Client({ connectionString: url() });
+  await admin.connect();
+  const fiber = rt.runFork(Leadership.use((l) => l.lead()));
+  try {
+    expect(await until(() => rt.runPromise(Lifecycle.use((l) => l.leader)), 5000)).toBe(true);
+    await new Promise((ok) => setTimeout(ok, 300)); // the clock's fiber has started
+    await admin.query("SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND objid = $1 AND granted", [LEADER_LOCK]);
+    expect(await until(async () => log.length === 3, 8000)).toBe(true);
+    expect(log[0]).toBe("gateway off, leader false");
+    expect([...log.slice(1)].sort()).toEqual(["clock off, leader false", "live off, leader false"]);
+  } finally {
+    await rt.runPromise(Fiber.interrupt(fiber));
+    await rt.dispose();
+    await admin.end();
+  }
+});
