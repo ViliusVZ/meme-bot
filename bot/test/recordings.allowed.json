@@ -1,0 +1,34 @@
+{
+ "interruption.test.json": {
+  "a WoW: Forever news post (its claim → the post → its id): interrupted before its claim, nothing is done": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news post (its claim → the post → its id): interrupted during the claim, everything is done, once": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news post (its claim → the post → its id): interrupted during the post, everything is done, once": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news post (its claim → the post → its id): interrupted during the record, everything is done, once": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news “updated” line (its claim → the line): interrupted before its claim, nothing is done": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news “updated” line (its claim → the line): interrupted during the claim, everything is done, once": "plan 06 replaces plan 02's news",
+  "a WoW: Forever news “updated” line (its claim → the line): interrupted during the post, everything is done, once": "plan 06 replaces plan 02's news",
+  "/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)": "plan 06 replaces plan 02's news: the news_items rows plan 02's interruption entries left behind (this file never empties that table) are gone; its calls are unchanged"
+ },
+ "news.test.json": {
+  "the first run marks what's there as seen and lets only the newest Forever item through": "plan 06 replaces plan 02's news",
+  "Gemini picks the Forever news out of everything else, in one question": "plan 06 replaces plan 02's news",
+  "Gemini down: items wait, and after 6 hours the title decides": "plan 06 replaces plan 02's news",
+  "at most 5 a day, oldest first; the rest go out the next day": "plan 06 replaces plan 02's news",
+  "a post Discord refuses is given back and goes out next time": "plan 06 replaces plan 02's news",
+  "a topic Blizzard keeps adding to (hotfixes) gets one “updated” line a day": "plan 06 replaces plan 02's news",
+  "the minute job: every 30 minutes, not again after a restart, a failure retried in 10, the owner told after a day": "plan 06 replaces plan 02's news",
+  "Gemini is told which forum section each post is in (the best hint for which game); no section, no problem": "plan 06 replaces plan 02's news",
+  "the fast Gemini busy: the other one answers": "plan 06 replaces plan 02's news",
+  "the first run on a feed with a backlog (the real one): no dump, only the newest Forever item, silent": "plan 06 replaces plan 02's news",
+  "the daily cap counts across runs: 5 posts and “updated” lines in all, every one silent": "plan 06 replaces plan 02's news",
+  "Gemini unavailable (no key at all): nothing is asked, and the title rule decides after 6 hours": "plan 06 replaces plan 02's news",
+  "POST /admin/news: one check now; `fallback` judges by the title rule at once, without Gemini": "plan 06 replaces plan 02's news",
+  "POST /admin/news: the feed down is answered 500 with what went wrong": "plan 06 replaces plan 02's news",
+  "the minute's jobs include the news check (what the Ticker runs)": "plan 06 replaces plan 02's news",
+  "never one good check yet: the owner hears after a day of trying, not on the first failure": "plan 06 replaces plan 02's news",
+  "the check's time can't be saved: the check doesn't start, and the next minute tries again": "plan 06 replaces plan 02's news",
+  "the “updated” line is silent too, and mentions nobody": "plan 06 replaces plan 02's news",
+  "a day's “updated” line counts toward the next posts' cap of 5": "plan 06 replaces plan 02's news",
+  "one check at a time: while one is running, the next minute doesn't start another": "plan 06 replaces plan 02's news"
+ }
+}

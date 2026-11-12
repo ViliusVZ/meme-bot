@@ -116,6 +116,40 @@ responses as fixtures in `bot/test/fixtures`.
   is deferred to after tonight's game night**: it would spend the shared day's quota that game-name
   matching needs tonight (do it on the next day's quota, before the backtest).
 
+### Build status (2026-11-12, branch `news-v2`; not deployed)
+
+Built on the RSS path, everything below except step 7 (the follow-up line) and the outside-writer
+endpoints. Code: `src/news.ts` (the pipeline and the backtest), `src/newsfeeds.ts` (`RedditNews`,
+the one Reddit source: RSS, one request at a time, 65 s apart; an OAuth source replaces this
+service), `src/newswriter.ts` (`NewsWriter`, Gemini: the triage and the write-up, by schema),
+`src/newscard.ts` (the rules in code: the bar, `decide`, `check`, `clean`, the card). Tables
+`news_stories` and `news_cache` (migration `20261112154528_news_stories`); `news_items` stays,
+unused, so the rollout can read the stale post's id (`SELECT message_id FROM news_items WHERE
+state = 'posted'`); a later migration drops it. How the RSS rules came out:
+
+- **Hot for its subreddit:** within its top of the day's first `bar` places, or climbing at least
+  3 places in hot since the last run (and within twice the bar). The bar is per subreddit, learned
+  from its month (`top/.rss?t=month&limit=100`) on the first run and again once a day: how many
+  of a day's posts usually make the month's top 100, between 2 and 10 (r/wow ≈ 3; a young or small
+  subreddit with its whole month's best in a few days: up to 10). It stands in for "the 80th
+  percentile of its recent daily top ten", which is about the month's top 60.
+- **Pinned:** a title like a megathread, or hot's first two places while missing from the top of
+  the day and over 24 h old. **Removed:** `[removed]` / `[deleted]` as the post's text.
+- **Blizzard's posts:** a blue-tracker topic Blizzard opened (staff post 1) is a candidate up to
+  48 h; staff replies aren't. In a group of the same story, a Reddit thread gets the card and
+  Blizzard's post becomes its "Blizzard's post" link.
+- **Ripe:** 40 comments in the thread's feed (it gives at most 60), or 3 h old.
+- **The day's cap:** once 3 cards are out, what passed that day and didn't get one is dropped
+  ("the day's 3 were taken"), and the triage waits for the next day. Write-ups are only paid for
+  as many as can still go out today.
+- **Gemini:** the news has its own share, `NEWS_SHARE = 10` of `DAILY = 15` (`gemini.ts`), so game
+  names keep 5. The triage never takes the calls the day's remaining write-ups need.
+- **Backtest:** `POST /admin/news {"backtest": {"days": 7, "max_calls": 10}}` starts it in the
+  background; `{"backtest": "sheet"}` answers the last sheet as markdown. It caches every feed,
+  thread, article, triage answer and write-up in `news_cache`, so a rerun the next day spends only
+  what's missing. It reads threads as they are now, skips the ripening wait, and ranks a day's
+  posts by the week's top.
+
 ## Pipeline
 
 Runs from the minute scheduler on the leader, in the background, like the current check. Hourly

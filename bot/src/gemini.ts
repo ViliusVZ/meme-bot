@@ -1,8 +1,8 @@
-// 🧠 Google's Gemini, free tier, for the few judgment calls with no clear rule (is this Discord game
-// name one of our games? is this Blizzard post about WoW: Forever?). Never for anything the trio
-// reads in the bot's voice, and never on a path anyone waits for: the free tier allows 20 requests
-// a day, is often slow (minutes) and sometimes down. Every caller has a plain fallback, so `ask`
-// answers null on any trouble with Gemini (no key, over budget, timeout, refusal).
+// 🧠 Google's Gemini, free tier, for the few calls with no clear rule (is this Discord game name one
+// of our games?) and the WoW news's triage and write-ups (news.ts, plan 06). Never on a path anyone
+// waits for: the free tier allows 20 requests a day, is often slow (minutes) and sometimes down.
+// Every caller copes without an answer, so `ask` answers null on any trouble with Gemini (no key,
+// over budget, timeout, refusal, an answer that doesn't fit the schema).
 import { eq } from "drizzle-orm";
 import { Context, DateTime, Duration, Effect, Layer, Option, Redacted, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
@@ -16,8 +16,17 @@ const MODEL = "gemini-3.8-flash";
 /** The fast one first; when it's busy (the free tier often is), the newer, slower one (news.ts). */
 export const FAST_THEN_NEWER = ["gemini-3.5-flash", "gemini-3.8-flash"] as const;
 export const DAILY = 15; // of the free tier's 20 a day, so a stray retry can't use them all
+/**
+ * The news's share of DAILY (its triage and write-ups, live and backtest alike): at most this many
+ * a day, so game-name matching always keeps DAILY - NEWS_SHARE (5) for itself.
+ */
+export const NEWS_SHARE = 10;
 const TIMEOUT = Duration.minutes(5); // a thinking model can take minutes; nothing waits on this
 const KEY = "gemini_budget";
+const NEWS_KEY = "gemini_budget_news"; // the news's own count, the same shape (it counts in KEY too)
+
+/** Whose budget a call comes out of: everyone's (DAILY), or the news's share of it as well. */
+export type Share = "news";
 
 /** Why there's no answer (logged; the caller only sees null). */
 export class GeminiError extends Schema.TaggedError<GeminiError>()("GeminiError", { reason: Schema.String }) {}
@@ -35,7 +44,9 @@ export class Gemini extends Context.Service<
      * with `decode`, or null when there's no answer to be had right now. `models` are tried in turn
      * while one is busy or failing (one request of the day's budget either way).
      */
-    ask<T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models?: ReadonlyArray<string>): Effect.Effect<T | null, DbError>;
+    ask<T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models?: ReadonlyArray<string>, share?: Share): Effect.Effect<T | null, DbError>;
+    /** How many requests are left today: everyone's, or (with a share) what that share may still use. */
+    left(share?: Share): Effect.Effect<number, DbError>;
   }
 >()("meme-bot/gemini") {
   static readonly layer = Layer.effect(
@@ -46,27 +57,46 @@ export class Gemini extends Context.Service<
       const time = yield* LocalTime;
       const http = yield* HttpClient.HttpClient;
 
-      /** Today's requests so far (Vilnius day), from the database so restarts don't reset it. */
-      const spend = Effect.gen(function* () {
+      /** Today's requests so far under `key` (Vilnius day), from the database so restarts don't reset it. */
+      const usedToday = Effect.fnUntraced(function* (key: string) {
         const day = (yield* time.now).day;
-        const [row] = yield* db.select().from(settings).where(eq(settings.key, KEY));
+        const [row] = yield* db.select().from(settings).where(eq(settings.key, key));
         const b = Option.getOrUndefined(Schema.decodeUnknownOption(Budget)(row?.value));
-        const used = b?.day === day ? b.used : 0;
-        if (used >= DAILY) return false;
+        return { day, used: b?.day === day ? b.used : 0 };
+      });
+      const count = Effect.fnUntraced(function* (key: string, day: string, used: number) {
         const at = DateTime.toDate(yield* DateTime.now);
         yield* db
           .insert(settings)
-          .values({ key: KEY, value: { day, used: used + 1 } })
-          .onConflictDoUpdate({ target: settings.key, set: { value: { day, used: used + 1 }, updated_at: at } });
+          .values({ key, value: { day, used } })
+          .onConflictDoUpdate({ target: settings.key, set: { value: { day, used }, updated_at: at } });
+      });
+
+      const left = Effect.fn("Gemini.left")(function* (share?: Share) {
+        const all = DAILY - (yield* usedToday(KEY)).used;
+        if (!share) return Math.max(0, all);
+        return Math.max(0, Math.min(all, NEWS_SHARE - (yield* usedToday(NEWS_KEY)).used));
+      });
+
+      /** One request of today's budget (and of the share's), if there's one left. */
+      const spend = Effect.fnUntraced(function* (share?: Share) {
+        const { day, used } = yield* usedToday(KEY);
+        if (used >= DAILY) return false;
+        if (share) {
+          const mine = yield* usedToday(NEWS_KEY);
+          if (mine.used >= NEWS_SHARE) return false;
+          yield* count(NEWS_KEY, mine.day, mine.used + 1);
+        }
+        yield* count(KEY, day, used + 1);
         return true;
       });
 
-      const ask = Effect.fn("Gemini.ask")(function* <T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models: ReadonlyArray<string> = [MODEL]) {
+      const ask = Effect.fn("Gemini.ask")(function* <T>(prompt: string, schema: object, decode: Schema.Decoder<T>, models: ReadonlyArray<string> = [MODEL], share?: Share) {
         const key = config.geminiApiKey;
         if (!key) return null;
         // (the budget's database round trip can fail, as it always could: that isn't "no answer")
-        if (!(yield* spend)) {
-          yield* Effect.logInfo("gemini: daily budget used up");
+        if (!(yield* spend(share))) {
+          yield* Effect.logInfo(share ? `gemini: the ${share}'s share of today's budget used up` : "gemini: daily budget used up");
           return null;
         }
         const request = (model: string) => HttpClientRequest.post(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`).pipe(
@@ -100,7 +130,7 @@ export class Gemini extends Context.Service<
         }
         return null;
       });
-      return Gemini.of({ ask });
+      return Gemini.of({ ask, left });
     }),
   );
 }

@@ -815,6 +815,22 @@ recordings (see "Numbers").
 - **G3 query sites 210 → 228 (branch `effect-news`):** plan 02's WoW: Forever news, ported as the
   `News` service (`src/news.ts`), adds 18 query sites; every one is run by `test/news.test.ts` and
   test 6's news entry. `scripts/gates.json` `querySites` follows. Nothing else changed the count.
+- **G3 query sites 228 → 233 (branch `news-v2`, plan 06):** the WoW news's second version replaces
+  plan 02's `src/news.ts`: its 18 query sites go, 23 come (`news_stories`, `news_cache` and the
+  run's settings); every one is run by `test/news.test.ts` and test 6's new news entry.
+  `gemini.ts` keeps its 2 (the news's own budget count shares their lines). Nothing else changed
+  the count.
+- **Plan 06 replaces plan 02's news tests (branch `news-v2`):** their behaviour is gone (Blizzard
+  posts only, the title-only fallback, "updated" lines, 5 a day), so 15 `news.test.ts` tests and
+  test 6's two plan 02 entries (7 tests) are removed. Their recordings are listed in
+  `test/recordings.allowed.json` ("plan 06 replaces plan 02's news"), with five of the eight plan
+  02 tests kept under their names (the same assertions, now on the new pipeline) and one later test 6
+  recording whose `news_items` rows (left behind by the removed entries) are gone, its calls
+  unchanged. Their ledger entries are removed from `test/assertions.ledger.json` by hand (the
+  ledger has no exception list); the baseline's ledger never had them. The test floor goes on
+  rising (888 → 894).
+- **drizzle-kit and partial indexes, plan 06:** `generate` for `news_stories` wrote only the two
+  new tables this time (no proposal to drop the five partial indexes); nothing was deleted.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

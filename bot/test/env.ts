@@ -2,7 +2,7 @@
 // GUILD_ID, PLAYERS, …), and its conversion to the app's AppConfigShape. Since plan 05 phase 6 the
 // app reads AppConfig only; this is test setup.
 import { Cause, ConfigProvider, Effect, Exit, Redacted } from "effect";
-import { readConfig, type AppConfigShape } from "../src/config.js";
+import { NEWS_AUDIENCE, readConfig, type AppConfigShape } from "../src/config.js";
 
 export interface Env {
   /** The throwaway schema's node-postgres database (test setup; the app has its own). */
@@ -30,6 +30,10 @@ export interface Env {
   GEMINI_API_KEY?: string;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   NEWS_CHANNEL_ID?: string;
+  /** ⚔️ The news's subreddits, comma-separated (plan 06). */
+  NEWS_SUBREDDITS?: string;
+  /** ⚔️ At most this many news cards a day. */
+  NEWS_DAILY_POSTS?: string;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -71,6 +75,8 @@ export function envFields(c: AppConfigShape): Omit<Env, "db"> {
     PRESENCES: c.presences,
     GEMINI_API_KEY: c.geminiApiKey === undefined ? undefined : Redacted.value(c.geminiApiKey),
     NEWS_CHANNEL_ID: c.newsChannelId,
+    NEWS_SUBREDDITS: c.newsSubreddits.join(","),
+    NEWS_DAILY_POSTS: String(c.newsDailyPosts),
   };
 }
 
@@ -99,6 +105,11 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     presences: env.PRESENCES ?? false,
     geminiApiKey: env.GEMINI_API_KEY === undefined ? undefined : Redacted.make(env.GEMINI_API_KEY),
     newsChannelId: env.NEWS_CHANNEL_ID,
+    newsSubreddits: (env.NEWS_SUBREDDITS ?? "wowforever,classicwow,wow").split(",").map((s) => s.trim()).filter(Boolean),
+    newsDailyPosts: Number(env.NEWS_DAILY_POSTS ?? "3"),
+    newsAudience: NEWS_AUDIENCE,
+    // the tests never wait out Reddit's minute between requests (one test sets its own)
+    newsRedditGapMs: 0,
     appName: "meme-bot",
     revision: "dev",
   };

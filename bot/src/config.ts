@@ -38,11 +38,27 @@ export interface AppConfigShape {
   readonly geminiApiKey: Redacted.Redacted<string> | undefined;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   readonly newsChannelId: string | undefined;
+  /** ⚔️ The subreddits the news reads (plan 06), each judged against its own usual level. */
+  readonly newsSubreddits: ReadonlyArray<string>;
+  /** ⚔️ At most this many news cards a day. */
+  readonly newsDailyPosts: number;
+  /** ⚔️ Who the write-ups are for, in one line (the writer's prompt). */
+  readonly newsAudience: string;
+  /**
+   * ⚔️ The least time between two requests to Reddit's feeds: it allows about one a minute from the
+   * server (plan 06, Step 0). Not from the environment; the tests set it to 0.
+   */
+  readonly newsRedditGapMs: number;
   readonly appName: string;
   readonly revision: string;
   /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
   readonly otlpUrl?: string | undefined;
 }
+
+/** Who the news is written for, unless NEWS_AUDIENCE says otherwise. */
+export const NEWS_AUDIENCE = "three friends who play WoW: Forever together on EU realms a few evenings a week";
+/** 65 s: Reddit's feeds allow one request a minute from the server, with a margin. */
+export const REDDIT_GAP_MS = 65_000;
 
 const REQUIRED = [
   "DATABASE_URL",
@@ -104,6 +120,13 @@ export const readConfig = Effect.gen(function* () {
     presences: (yield* or("PRESENCES", "")) === "1",
     geminiApiKey: geminiApiKey === undefined ? undefined : Redacted.make(geminiApiKey),
     newsChannelId,
+    newsSubreddits: (yield* or("NEWS_SUBREDDITS", "wowforever,classicwow,wow"))
+      .split(",")
+      .map((s) => s.trim().replace(/^\/?r\//, ""))
+      .filter(Boolean),
+    newsDailyPosts: Number(yield* or("NEWS_DAILY_POSTS", "3")),
+    newsAudience: yield* or("NEWS_AUDIENCE", NEWS_AUDIENCE),
+    newsRedditGapMs: REDDIT_GAP_MS,
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
     otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),

@@ -329,7 +329,10 @@ export const activityGuesses = pgTable("activity_guesses", {
 
 // ---------------------------------------------------------------- ⚔️ WoW: Forever news (news.ts)
 
-/** One Blizzard forum topic with staff posts: seen once, judged once, posted at most once. */
+/**
+ * Plan 02's news (Blizzard's staff posts only). Unused since plan 06; kept for one release so the
+ * rollout can still read the stale post's message id (`state = 'posted'`); a later migration drops it.
+ */
 export const newsItems = pgTable("news_items", {
   topic_id: integer().primaryKey(), // the forum topic (several staff posts can share one)
   title: text().notNull(),
@@ -346,4 +349,53 @@ export const newsItems = pgTable("news_items", {
   message_id: text(), // ours in the news channel ("posting" while it's being sent)
   posted_at: unix("posted_at"),
   updated_day: text(), // the last day we said "updated" about it (once a day at most)
+});
+
+/** Where a story stands (plan 06): see news.ts for the whole path. */
+export type StoryState = "old" | "watch" | "candidate" | "skip" | "queued" | "ready" | "posted" | "dropped";
+
+/**
+ * ⚔️ Plan 06: one thread on a WoW subreddit, or one Blizzard staff topic, as the hourly collect saw it.
+ * Reddit's RSS has no scores: where it stood in its subreddit's top of the day and in hot (and how
+ * that moved between runs) stands in for them. Handled once: triaged once, written once, posted at
+ * most once (the claim is `state` going from ready to posted).
+ */
+export const newsStories = pgTable("news_stories", {
+  id: text().primaryKey(), // "reddit:t3_1xtyfry", "blizzard:639885"
+  source: text().notNull().$type<"reddit" | "blizzard">(),
+  sub: text().notNull(), // the subreddit ("classicwow"), or "blizzard"
+  title: text().notNull(),
+  link: text().notNull(), // the thread (or the forum topic)
+  url: text().notNull().default(""), // where the post points (an article, an image), "" for a text post
+  body: text().notNull().default(""), // the post's own text, as plain text, cut
+  created_at: unix("created_at").notNull(),
+  first_seen: unix("first_seen").notNull(),
+  last_seen: unix("last_seen").notNull(),
+  top_rank: integer(), // its place in the subreddit's top of the day at the last collect (null: not there)
+  best_rank: integer(), // the best place it ever had there
+  hot_rank: integer(), // its place in hot at the last collect
+  prev_hot_rank: integer(), // …and at the collect before (climbing = this minus hot_rank)
+  prev_at: unix("prev_at"), // when that was
+  state: text().notNull().$type<StoryState>(),
+  reason: text(), // why it was skipped or dropped ("a meme", "too old", "a repeat"…)
+  verdict: jsonb(), // the triage's answer for it
+  score: integer(), // the triage's 0-10: how much it matters to a Forever player
+  same_as: text(), // the story it repeats (its id)
+  official: text(), // Blizzard's post about the same thing, for the card
+  comments: integer(), // comments its thread's feed had at the last look (the feed gives at most 60)
+  writeup: jsonb(), // the checked write-up the card is made from
+  write_tries: integer().notNull().default(0),
+  write_first: unix("write_first"), // the first write-up attempt that failed (12 h of those: dropped)
+  message_id: text(), // ours in the news channel ("posting" while it's being sent)
+  posted_at: unix("posted_at"),
+});
+
+/**
+ * ⚔️ The backtest's own store (news.ts): the feeds, threads, triage answers and write-ups it
+ * fetched or paid for, so a rerun spends nothing twice, and the last sheet. Live runs never read it.
+ */
+export const newsCache = pgTable("news_cache", {
+  key: text().primaryKey(),
+  value: jsonb().notNull(),
+  at: unix("at").notNull(),
 });

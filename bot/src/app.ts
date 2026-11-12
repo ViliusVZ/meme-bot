@@ -146,8 +146,8 @@ const Input = Schema.Struct({
   // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
   memes: Schema.optional(Schema.Array(Schema.Unknown)),
   post_daily: Schema.optional(Schema.Unknown),
-  // ⚔️ /admin/news: judge as if Gemini were unavailable (the title rule, now)
-  fallback: Schema.optional(Schema.Unknown),
+  // ⚔️ /admin/news: a backtest over the last days ({ days, max_calls }), or "sheet" for its last sheet
+  backtest: Schema.optional(Schema.Union([Text, Schema.Struct({ days: Schema.optional(Schema.Number), max_calls: Schema.optional(Schema.Number) })])),
   method: Schema.optional(Text),
   path: Schema.optional(Text),
   body: Schema.optional(Schema.Unknown),
@@ -332,9 +332,20 @@ export const Routes = HttpRouter.use((router) =>
 
     yield* admin("/admin/recap", (input) => Effect.map(input.period === "month" ? jobs.monthlyRecap : jobs.weeklyRecap, answer));
 
-    // ⚔️ one WoW: Forever news check now, without waiting for the 30-minute timer (`fallback`: as if
-    // Gemini were unavailable, so the title rule decides at once); no channel configured: {}
-    yield* admin("/admin/news", (input) => Effect.map(news.run({ fallback: !!input.fallback }), answer));
+    // ⚔️ one WoW news run now, without waiting for the hour (it takes minutes: Reddit allows one
+    // request a minute); no channel configured: {}. `backtest: { days, max_calls }` starts the
+    // backtest in the background (posting nothing); `backtest: "sheet"` answers its last sheet, as markdown.
+    yield* admin("/admin/news", (input) =>
+      Effect.gen(function* () {
+        const b = input.backtest;
+        if (b === "sheet") {
+          const sheet = yield* news.sheet;
+          return sheet === null ? json({ sheet: null }) : HttpServerResponse.text(sheet, { contentType: "text/markdown; charset=utf-8" });
+        }
+        if (b !== undefined) return json(yield* news.startBacktest(typeof b === "string" ? {} : { days: b.days, maxCalls: b.max_calls }));
+        return answer(yield* news.run());
+      }),
+    );
 
     // seed ids that were posted before the bot had a database
     yield* admin("/admin/mark-posted", (input) =>

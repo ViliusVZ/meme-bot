@@ -7,7 +7,7 @@ import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber, Layer } from "effect";
-import { activityGuesses, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { activityGuesses, fleeting, newsStories, settings, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -23,7 +23,7 @@ import { Jobs } from "../src/jobs.js";
 import { Presence } from "../src/presence.js";
 import { Interactions } from "../src/interactions.js";
 import { Background } from "../src/background.js";
-import { News, FEED, FORUM } from "../src/news.js";
+import { News, FEED } from "../src/news.js";
 import { AppConfig } from "../src/config.js";
 import { harness, json, routes, type TestDb } from "./fx.js";
 
@@ -891,84 +891,7 @@ it.effect("/meme: interrupted during its claim, the reply's message id is still 
     expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", requested_by: "a", message_id: expect.any(String) });
   }).pipe(h.provide),
 );
-// ⚔️ (after every earlier test, for the same reason: news_items isn't emptied between this file's tests)
-function newsSequences(): Record<string, Sequence> {
-  return {
-  "a WoW: Forever news post (its claim → the post → its id)": {
-  setup: () =>
-    Effect.gen(function* () {
-      const db = yield* Db;
-      yield* db.delete(newsItems);
-      yield* db.insert(newsItems).values({ topic_id: 5, title: "WoW: Forever Hotfixes", link: `${FORUM}/t/slug/5/1`, published_at: now() - 3600, seen_at: now() - 600, state: "post", last_post: 1 });
-      // an empty feed: the item already judged is the only thing to do
-      h.override = (c) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : undefined);
-    }),
-  run: () =>
-    Effect.gen(function* () {
-      // the news channel configured for this call (this file's configuration has none)
-      const config = yield* AppConfig;
-      const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
-      return yield* News.use((n) => n.run()).pipe(Effect.provide(news), Effect.orDie);
-    }),
-  claim: { table: "news_items", op: "UPDATE", when: "NEW.state = 'posted' AND OLD.state = 'post'" },
-  record: { table: "news_items", op: "UPDATE", when: "OLD.message_id = 'posting' AND NEW.message_id <> 'posting'" },
-  post: { method: "POST", path: "/channels/news/messages" },
-  nothing: () =>
-    Effect.gen(function* () {
-      const db = yield* Db;
-      expect((yield* db.select().from(newsItems)).map((r) => [r.state, r.message_id])).toEqual([["post", null]]);
-      expect(calls.filter((c) => c.method === "POST")).toEqual([]);
-    }),
-  everything: () =>
-    Effect.gen(function* () {
-      const db = yield* Db;
-      const [r] = yield* db.select().from(newsItems);
-      expect([r.state, r.message_id === null || r.message_id === "posting"]).toEqual(["posted", false]);
-    }),
-  },
-  };
-}
-for (const [name, s] of Object.entries(newsSequences())) define(name, s);
-
 // ---------------------------------------------------------------- the phase 7 audit's test gaps
-// (after every earlier test, for the same reason as above)
-
-/** The news's "updated" line: its claim, then the line (no record: a missed line isn't retried). */
-function newsUpdateSequences(): Record<string, Sequence> {
-  return {
-    "a WoW: Forever news “updated” line (its claim → the line)": {
-      setup: () =>
-        Effect.gen(function* () {
-          const db = yield* Db;
-          yield* db.delete(newsItems);
-          // posted yesterday, two staff posts added since
-          yield* db.insert(newsItems).values({ topic_id: 6, title: "WoW: Forever Hotfixes", link: `${FORUM}/t/slug/6/1`, published_at: now() - 86400, seen_at: now() - 86400, state: "posted", message_id: "m6", posted_at: now() - 86400, last_post: 3, told_post: 1 });
-          h.override = (c) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : undefined);
-        }),
-      run: () =>
-        Effect.gen(function* () {
-          const config = yield* AppConfig;
-          const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
-          return yield* News.use((n) => n.run()).pipe(Effect.provide(news), Effect.orDie);
-        }),
-      claim: { table: "news_items", op: "UPDATE", when: "NEW.updated_day IS NOT NULL AND OLD.updated_day IS NULL" },
-      post: { method: "POST", path: "/channels/news/messages" },
-      nothing: () =>
-        Effect.gen(function* () {
-          const db = yield* Db;
-          expect((yield* db.select().from(newsItems)).map((r) => [r.told_post, r.updated_day])).toEqual([[1, null]]);
-          expect(calls.filter((c) => c.method === "POST")).toEqual([]);
-        }),
-      everything: () =>
-        Effect.gen(function* () {
-          const db = yield* Db;
-          const [r] = yield* db.select().from(newsItems);
-          expect([r.told_post, r.updated_day !== null]).toEqual([3, true]);
-        }),
-    },
-  };
-}
-for (const [name, s] of Object.entries(newsUpdateSequences())) define(name, s);
 
 it.effect("/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)", () =>
   Effect.gen(function* () {
@@ -1000,3 +923,47 @@ it.effect("/meme: its reply's message id is recorded even when the background wo
     expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", message_id: "meme-msg" });
   }).pipe(h.provide),
 );
+
+// ⚔️ Plan 06's news card (after every earlier test, for the same reason as the others: news_stories
+// and settings aren't emptied between this file's tests)
+function newsStorySequences(): Record<string, Sequence> {
+  return {
+    "a WoW news card (its claim → the post → its id)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.delete(newsStories);
+          yield* db.delete(settings);
+          // not the first run (that one posts nothing), and every feed empty: the ready story is all there is to do
+          yield* db.insert(settings).values({ key: "news_run", value: { ok: now() - 3600, tried: now() - 3600 } });
+          const writeup = { headline: "Dungeon XP cut for boosted runs", what: "Blizzard lowered XP from boosted dungeon runs.", mood: { label: "mostly against", line: "Most are against it.", takes: ["It hits friends levelling together.", "Some say it was overdue."] }, why: "Dungeons together pay less if one of us runs ahead.", old_news: false, confidence: 0.9, official_link: "" };
+          yield* db.insert(newsStories).values({ id: "reddit:t3_5", source: "reddit", sub: "classicwow", title: "XP cut", link: "https://www.reddit.com/r/classicwow/comments/5/xp/", created_at: now() - 4 * 3600, first_seen: now() - 3600, last_seen: now() - 3600, state: "ready", score: 9, writeup });
+          const empty = (c: { path: string }) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : c.path.startsWith("https://www.reddit.com/") ? new Response(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`) : undefined);
+          h.override = empty;
+        }),
+      run: () =>
+        Effect.gen(function* () {
+          // the news channel configured for this call (this file's configuration has none)
+          const config = yield* AppConfig;
+          const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
+          return yield* News.use((n) => n.run()).pipe(Effect.provide(news));
+        }),
+      claim: { table: "news_stories", op: "UPDATE", when: "NEW.state = 'posted' AND OLD.state = 'ready'" },
+      record: { table: "news_stories", op: "UPDATE", when: "OLD.message_id = 'posting' AND NEW.message_id <> 'posting'" },
+      post: { method: "POST", path: "/channels/news/messages" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          expect((yield* db.select().from(newsStories)).map((r) => [r.state, r.message_id])).toEqual([["ready", null]]);
+          expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [r] = yield* db.select().from(newsStories);
+          expect([r.state, r.message_id === null || r.message_id === "posting"]).toEqual(["posted", false]);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(newsStorySequences())) define(name, s);
