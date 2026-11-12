@@ -26,6 +26,28 @@ it last. Keep it short: facts and numbers, newest entry at the top of each list.
   open a second Discord tab. Before a login check, look at it: signed in → run the check; not →
   remind the owner once and do other work first. Both checks must be done before cutover.
 
+### Phase 6 design (2026-11-12; read this before converting a file)
+
+- A new Effect-native harness, `test/fx.ts`, beside the old `test/harness.ts`; files move to it
+  one at a time, each its own gated commit (assertions and recordings identical); when the last
+  file has moved, `test/harness.ts`, `test/old/` and `tsconfig.test.json`'s warnings go.
+- A test: `it.effect(name, () => Effect.gen(function* () { … }).pipe(h.provide))`. `h.provide`
+  builds a fresh app context for the test (appLayerFor, on the live clock: spike S7 rule 1),
+  provides it, a seeded `Random` (the same mulberry32 per test name the old Math.random spy used,
+  so roast shuffles replay), a test logger (lines in `h.logs`, as consoleLogFmt prints them), and
+  at the end waits for background work (10 s, as the old afterEach did).
+- Outbound HTTP: the real `FetchHttpClient` over a fetch *function* the harness owns (the same stub,
+  routes, id counters and recorder as before), passed as `LayerOptions.http`; tests that swapped
+  `globalThis.fetch` set `h.fetch` instead. So the real Discord service code stays under test.
+- The clock: a file's `clock` option gives a frozen test Clock (time set per test, moved only by
+  `h.setTime`; sleeps on the live clock), exactly the old fake `Date` (frozen, real timers), so
+  recordings can't move. Tests that drive time themselves use TestClock. (Declared deviation: the
+  plan says "fake Date → TestClock.setTime"; TestClock moves time through every sleep, which
+  would change time-stamped rows written after a retry or a webhook step.)
+- Calls: `await gn.startNight(env, "a")` → `yield* GameNight.use((g) => g.startNight("a"))`; an
+  env's QUIET/PLAYERS → `withOverrides` (src/config.ts); PRESENCES/GEMINI_API_KEY → `h.withConfig`.
+  `await t.db.select()…` → `yield* db.select()…` on the app's `Db`.
+
 ### Browser checks (2026-11-12, owner signed in)
 
 - **Private-copy browser tap test: passed on `52a14ba`.** In the T3 browser as Vithis on the test
