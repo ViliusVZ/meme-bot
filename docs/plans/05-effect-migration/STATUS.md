@@ -241,7 +241,7 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | Pattern | Outside boundary files | In boundary files | In transition code (LEGACY-BRIDGE lines) |
 |---|---|---|---|
 | `async` | 0 | 1 | 0 |
-| `await` | 3 | 2 | 2 |
+| `await` | 3 | 2 | 0 |
 | `.then(` | 0 | 0 | 0 |
 | `.catch(` | 51 | 1 | 0 |
 | `try {` | 0 | 0 | 0 |
@@ -257,18 +257,18 @@ suite one after another (`scripts/qa_baseline.sh`); logs in the scratchpad `qa-b
 | `: any` | 2 | 0 | 0 |
 | `as any` | 0 | 0 | 0 |
 | `_reset` | 0 | 0 | 0 |
-| `LEGACY-BRIDGE` | 0 | 4 | 0 |
+| `LEGACY-BRIDGE` | 0 | 0 | 0 |
 | `Effect.promise` | 0 | 0 | 0 |
 | `Effect.tryPromise` | 0 | 3 | 0 |
-| `runPromise` | 0 | 0 | 1 |
-| `runFork` | 0 | 0 | 1 |
+| `runPromise` | 0 | 0 | 0 |
+| `runFork` | 0 | 0 | 0 |
 | `Effect.orDie` | 0 | 0 | 0 |
-| `@effect-diagnostics` | 0 | 0 | 0 |
+| `@effect-diagnostics` | 0 | 3 | 0 |
 | `@ts-` | 0 | 0 | 0 |
-| **total** | **62** | **13** | **4** |
+| **total** | **62** | **12** | **0** |
 
 Import cycles: none.
-Per file: gamenight.ts 14, spontaneous.ts 11, main.ts 7, voice.ts 7, interactions.ts 5, activity.ts 4, app.ts 3, gateway.ts 3, reddit.ts 3, verify.ts 3, discord.ts 2, late.ts 2, live.ts 2, alerts.ts 1, attendance.ts 1, gemini.ts 1, jobs.ts 1, leadership.ts 1, presence.ts 1, scheduler.ts 1, shutdown.ts 1, snooze.ts 1.
+Per file: gamenight.ts 14, spontaneous.ts 11, voice.ts 7, main.ts 6, interactions.ts 5, activity.ts 4, app.ts 3, gateway.ts 3, reddit.ts 3, verify.ts 3, discord.ts 2, late.ts 2, live.ts 2, alerts.ts 1, attendance.ts 1, gemini.ts 1, jobs.ts 1, leadership.ts 1, presence.ts 1, scheduler.ts 1, shutdown.ts 1, snooze.ts 1.
 <!-- /leftovers -->
 
 Fill the baseline column in phase 0. Update "now" at the end of every session.
@@ -478,6 +478,12 @@ One line per module: date, commit, the three break-it changes tried (`verificati
   harness writes its file even when empty. Exceptions to the baseline go in
   `test/recordings.allowed.json`, each with a reason, and are listed here.
 
+- **2026-11-12, G6: main.ts on runMain** (phase 5, step 8D): main.ts is a boundary file (§16:
+  the process edge). Inside counts rise: `runFork` 0 → 1 (`Effect.runForkWith` in the two
+  last-resort `process.on` handlers, which must report through Alerts from a callback) and
+  `@effect-diagnostics` 0 → 3 (the two hard-exit `setTimeout`s and the entry point's
+  `Effect.provide`, each with its reason on the line, as verification §3 allows in boundary
+  files). `scripts/leftovers.json` raised to match.
 - **2026-11-12, G6: the gateway's two library calls** (phase 5, step 6): `gateway.ts` is a boundary
   file (architecture §16, @discordjs/ws). Its `manager.connect()` and `manager.destroy()` are now
   wrapped once each in `Effect.tryPromise`, so the inside count of that pattern goes 1 → 3. The
@@ -672,6 +678,15 @@ timeout), with the evidence.
   (the node-postgres pool) moved to `test/old/`; src imports tables from `db/schema.ts`.
   resilience's "a stuck query gives up after 30 s" now reads the timeouts on the app's own pool
   (the same assertion). `scripts/import-d1.ts` opens its own node-postgres pool. G6 outside: 62.
+- **Step 8, sub-step D: main on `NodeRuntime.runMain`; fastify gone, `pg` a dev dependency**
+  (phase 5): runMain interrupts the program on SIGTERM/SIGINT, and main's `onInterrupt` runs
+  `shutdown.ts`'s steps (a listener added first notes which signal, for the log line); a stuck
+  clock resolves a Deferred and takes the same path. The pool and services close with the layer,
+  then a custom teardown exits 0 (1 if startup failed), as the old main did. `@effect/sql-pg`
+  speaks the protocol itself, so `pg` is only for the tests' own pool and `scripts/import-d1.ts`.
+  The harness now closes the previous test's runtime before the next test starts (a first try
+  closed it in the background, and under the full run a closing runtime's work landed in the next
+  test: two activity recordings differed once).
 - **Declared: `Alerts.settle` stays** (phase 5, step 8): "wait for the DMs already queued", used
   by tests that check a DM went out (13 calls). Not transition code once the tests are Effect-
   native either (a DM is sent by the alert worker's own fiber). It lost its LEGACY-BRIDGE mark.

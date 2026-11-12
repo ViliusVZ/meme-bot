@@ -23,9 +23,7 @@
     "discord-api-types": "^0.38.57",
     "drizzle-orm": "1.0.0-rc.5",
     "effect": "4.1.4",
-    "fast-xml-parser": "^5.12.0",
-    "fastify": "^5.12.8",
-    "pg": "^8.23.1"
+    "fast-xml-parser": "^5.12.0"
   },
   "devDependencies": {
     "@effect/language-service": "0.87.5",
@@ -34,6 +32,7 @@
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^5.1.0",
     "drizzle-kit": "1.0.0-rc.5",
+    "pg": "^8.23.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.0",
     "vitest": "^5.1.0"

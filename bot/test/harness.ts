@@ -328,6 +328,13 @@ export function harness(o: Options = {}): Harness {
   });
 
   beforeEach(async () => {
+    // every test starts with fresh services (plan 05, phase 5 step 8: the reset hooks are gone); the
+    // last test's runtime is closed first, so none of its work can land in this test
+    sticky.owner = undefined;
+    const previous = runtime;
+    use(fresh());
+    await previous?.dispose();
+    await Promise.all(closing.splice(0));
     if (h.t) for (const tbl of o.tables ?? []) await h.t.db.delete(tbl);
     if (h.t) await o.seed?.(h.t);
     h.calls.length = 0;
@@ -342,11 +349,6 @@ export function harness(o: Options = {}): Harness {
     }
     current = { calls: [], full: [] };
     racing = null;
-    // every test starts with fresh services (plan 05, phase 5 step 8: the reset hooks are gone)
-    sticky.owner = undefined;
-    const previous = runtime;
-    use(fresh());
-    if (previous) closing.push(previous.dispose());
   });
   afterEach(async () => {
     // the recording is of a finished test: let deferred work (followups, panel edits) land first

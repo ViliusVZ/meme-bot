@@ -29,6 +29,8 @@
   "AbortSignal": 2,
   "console.": 15,
   "AbortController": 2,
-  "Effect.tryPromise": 3
+  "Effect.tryPromise": 3,
+  "runFork": 1,
+  "@effect-diagnostics": 3
  }
 }

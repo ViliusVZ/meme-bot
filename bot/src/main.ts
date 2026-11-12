@@ -2,10 +2,11 @@
 // leader, also holds the Discord gateway and runs the scheduler. During a deploy the new copy
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
 //
-// A boundary file (architecture §16): the process edge. The 35 s hard exit, the signal handlers and
-// the two last-resort handlers live here.
+// A boundary file (architecture §16): the process edge. `runMain`, the 35 s hard exit, which signal
+// came, and the two last-resort handlers live here.
 import { fileURLToPath } from "node:url";
-import { Deferred, Effect, Layer, ManagedRuntime, Scope } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+import { Cause, Deferred, Effect, Exit, Layer, Scope } from "effect";
 import { AppConfig } from "./config.js";
 import { appLayer } from "./runtime.js";
 import { runMigrations } from "./db/db.js";
@@ -16,22 +17,25 @@ import { shutdown } from "./shutdown.js";
 
 const HARD_EXIT = 35_000; // ms: whatever hangs at shutdown, we're gone (Docker would kill us at 40 anyway; a self-restart has no Docker to)
 
-/** SIGTERM or SIGINT, whichever comes first. */
-const signalled = Effect.callback<string>((resume) => {
-  const on = (s: string) => () => resume(Effect.succeed(s));
-  const term = on("SIGTERM");
-  const int = on("SIGINT");
-  process.once("SIGTERM", term);
-  process.once("SIGINT", int);
-  return Effect.sync(() => {
-    process.off("SIGTERM", term);
-    process.off("SIGINT", int);
-  });
-});
+// runMain interrupts the program on SIGTERM and SIGINT; this listener, added first, notes which came
+let signal = "SIGTERM";
+for (const s of ["SIGTERM", "SIGINT"] as const) process.on(s, () => void (signal = s));
 
 const main = Effect.gen(function* () {
   const config = yield* AppConfig;
   const alerts = yield* Alerts;
+
+  // last resort: report it; an uncaught exception also exits (Docker restarts us within seconds,
+  // better than limping on), after a moment for the DM to go out
+  const context = yield* Effect.context<never>();
+  const report = (what: string, e: unknown) => Effect.runForkWith(context)(alerts.failed(what, e));
+  process.on("unhandledRejection", (e) => report("something in the background (unhandled)", e));
+  process.on("uncaughtException", (e) => {
+    report("the bot itself (crashed; Docker restarts it)", e);
+    // @effect-diagnostics-next-line effect/globalTimers:off the process edge: exit even if the runtime is wedged
+    setTimeout(() => process.exit(1), 2000);
+  });
+
   yield* runMigrations(fileURLToPath(new URL("../drizzle", import.meta.url)));
 
   const http = yield* Scope.make();
@@ -48,23 +52,25 @@ const main = Effect.gen(function* () {
     });
   const leading = yield* Effect.forkDetach((yield* Leadership).lead({ onStall }));
 
-  const signal = yield* Effect.raceFirst(signalled, Deferred.await(stuck));
-  yield* Effect.sync(() => setTimeout(() => process.exit(1), HARD_EXIT).unref());
-  yield* shutdown(signal, { leading, server: http });
+  const stop = (why: string) =>
+    Effect.andThen(
+      // @effect-diagnostics-next-line effect/globalTimersInEffect:off the hard cap must fire even if the runtime hangs
+      Effect.sync(() => setTimeout(() => process.exit(1), HARD_EXIT).unref()),
+      shutdown(why, { leading, server: http }),
+    );
+  // run until a signal (runMain interrupts us) or a stuck clock; either way, shut down in order
+  yield* Deferred.await(stuck).pipe(
+    Effect.flatMap(stop),
+    Effect.onInterrupt(() => Effect.suspend(() => stop(signal))),
+  );
 });
 
-// reading the configuration fails startup with every missing variable named
-const runtime = ManagedRuntime.make(appLayer(AppConfig.layer)); // LEGACY-BRIDGE
-
-const alert = (what: string, e: unknown) => runtime.runFork(Alerts.use((a) => a.failed(what, e))); // LEGACY-BRIDGE
-process.on("unhandledRejection", (e) => alert("something in the background (unhandled)", e));
-// last resort: log it and exit, Docker restarts us within seconds (better than limping on); the DM
-// gets a moment to go out first
-process.on("uncaughtException", (e) => {
-  alert("the bot itself (crashed; Docker restarts it)", e);
-  setTimeout(() => process.exit(1), 2000);
+// 5. the pool and the services close last, with the layer; then exit 0, or 1 if startup failed
+// @effect-diagnostics-next-line effect/strictEffectProvide:off the application's entry point
+NodeRuntime.runMain(main.pipe(Effect.provide(appLayer(AppConfig.layer))), {
+  teardown: (exit, onExit) => {
+    const code = Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause) ? 1 : 0;
+    onExit(code);
+    process.exit(code);
+  },
 });
-
-await runtime.runPromise(main); // LEGACY-BRIDGE
-await runtime.dispose(); // 5. the pool and the services, last // LEGACY-BRIDGE
-process.exit(0);
