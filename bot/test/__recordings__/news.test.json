@@ -852,6 +852,12 @@
    "games": "8:44c5a8b0c098"
   }
  },
+ "a running hotfix topic's opening post leaves out the sections a later staff post carries (that post is their story)": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
  "every staff post is a story of its own, with its own time: a running hotfix topic's new post too": {
   "calls": [
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",

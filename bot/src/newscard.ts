@@ -35,22 +35,32 @@ export function linkLabel(url: string): string {
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
+/** The dates ("November 11, 2026") a text's sections start with, as YYYY-MM-DD, in order. */
+export function datesIn(text: string): string[] {
+  return dateMarks(text).map((k) => k.iso);
+}
+
 /**
  * A post that keeps growing by dated sections ("November 11, 2026 …", like Blizzard's running
  * hotfix posts), as it stood on `day` (YYYY-MM-DD): the text before the first date, and every
- * section dated on or before that day. A text without dates is kept whole.
+ * section dated on or before that day (and before `before`, when given). A text without dates is
+ * kept whole.
  */
-export function upTo(text: string, day: string): string {
-  const marks = [...text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2}), (\d{4})\b/g)].map((m) => ({
-    at: m.index,
-    iso: `${m[3]}-${String(MONTHS.indexOf(m[1].toLowerCase()) + 1).padStart(2, "0")}-${m[2].padStart(2, "0")}`,
-  }));
+export function upTo(text: string, day: string, before?: string): string {
+  const marks = dateMarks(text);
   if (!marks.length) return text;
   let out = text.slice(0, marks[0].at);
   marks.forEach((k, i) => {
-    if (k.iso <= day) out += text.slice(k.at, marks[i + 1]?.at ?? text.length);
+    if (k.iso <= day && (before === undefined || k.iso < before)) out += text.slice(k.at, marks[i + 1]?.at ?? text.length);
   });
   return out.replace(/\s+/g, " ").trim();
+}
+
+function dateMarks(text: string) {
+  return [...text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2}), (\d{4})\b/g)].map((m) => ({
+    at: m.index,
+    iso: `${m[3]}-${String(MONTHS.indexOf(m[1].toLowerCase()) + 1).padStart(2, "0")}-${m[2].padStart(2, "0")}`,
+  }));
 }
 
 /** A thread's own link (from the feed): https on reddit.com, nothing that would break the markdown. */

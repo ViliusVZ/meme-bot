@@ -749,6 +749,17 @@ it.effect("a Blizzard post's material: its own post from the topic (the opening 
   }).pipe(h.provide),
 );
 
+it.effect("a running hotfix topic's opening post leaves out the sections a later staff post carries (that post is their story)", () =>
+  Effect.sync(() => {
+    const posts: ForumPost[] = [
+      { n: 1, at: 100, staff: true, text: "Hotfixes November 6, 2026 Voidwalkers have more health. November 5, 2026 Rend and Tear fixed." },
+      { n: 4, at: 900, staff: true, text: "November 6, 2026 Voidwalkers have more health." },
+    ];
+    expect(forumMaterial(posts, 1, 1000, "2026-11-06")?.text).toBe("Hotfixes November 5, 2026 Rend and Tear fixed.");
+    expect(forumMaterial(posts, 4, 1000, "2026-11-07")?.text).toBe("November 6, 2026 Voidwalkers have more health.");
+  }).pipe(h.provide),
+);
+
 it.effect("every staff post is a story of its own, with its own time: a running hotfix topic's new post too", () =>
   Effect.gen(function* () {
     yield* firstRun();

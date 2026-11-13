@@ -35,7 +35,7 @@ import { jsonText } from "./json.js";
 import { RedditNews, plain, type Listed, type Listing, type Thread } from "./newsfeeds.js";
 import { NewsWriter, PROMPT_VERSION, Verdict, Writeup, type Candidate, type Material, type Spend } from "./newswriter.js";
 import type { Asked } from "./gemini.js";
-import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, barFrom, card, cardText, check as checkWriteup, decide, notHot, officialLink, upTo, type Decision, type Judged, type Origin } from "./newscard.js";
+import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, barFrom, card, cardText, check as checkWriteup, datesIn, decide, notHot, officialLink, upTo, type Decision, type Judged, type Origin } from "./newscard.js";
 
 export { SILENT } from "./newscard.js";
 export const FORUM = "https://eu.forums.blizzard.com/en/wow";
@@ -119,8 +119,10 @@ export const blizzardId = (p: Pick<Post, "topic" | "post">) => (p.post === 1 ? `
 export function forumMaterial(posts: ReadonlyArray<ForumPost>, n: number, at: number, day: string): { text: string; comments: string[] } | null {
   const own = posts.find((p) => p.n === n);
   if (!own) return null;
+  // a running topic's opening post: the sections a later staff post carries are that post's story, not this one's
+  const later = posts.filter((p) => p.n > 1 && p.staff).flatMap((p) => datesIn(p.text).slice(0, 1)).sort()[0];
   return {
-    text: (n === 1 ? upTo(own.text, day) : own.text).slice(0, FORUM_TEXT),
+    text: (n === 1 ? upTo(own.text, day, later) : own.text).slice(0, FORUM_TEXT),
     comments: posts.filter((p) => p.n > n && !p.staff && p.at <= at && p.text).map((p) => p.text.slice(0, FORUM_COMMENT)).slice(0, 60),
   };
 }
