@@ -4,7 +4,23 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
-## Resume here (2026-11-13, 14:00: STOPPED by the owner's rule after editor pass 2)
+## Resume here (2026-11-13, afternoon: the outside writer's bot side built)
+
+- **Built on `news-v2`, not deployed:** Gemini is out of the news. The hourly run collects, filters,
+  merges crossposts by title, waits for ripeness and stores each ready story's material
+  (`news_stories.material`). The writer (a scheduled Claude agent, outside the repo) uses
+  `GET /news/queue` (up to 3, best first; none once the day's 3 are out) and `POST /news/article`
+  (`{id, headline, what, mood, why}` or `{id, skip}`; 400 bad shape, 404 unknown, 409 done or capped,
+  502 Discord), both behind `Authorization: Bearer $NEWS_WRITER_KEY` (unset → 404). Test bot:
+  `POST /admin/news {"backtest": {"days": 7}}` builds each day's queue (up to 8), then
+  `GET /news/queue?day=…` and `POST /news/article` with `"day"` post cards marked as backtests.
+- **Pipeline fixes:** Blizzard posts only from Forever's forum category (360); each dated section of a
+  running hotfix post no staff reply carries is its own story (`blizzard:<topic>#<day>`); the
+  backtest's days are Vilnius days (checked by a test); the sheet's stale header line is gone.
+- **Next (coordinator):** put `NEWS_WRITER_KEY` in both servers' `secrets.env`, deploy, run the
+  backtest on the test bot, point the cloud agent at it for the sample sheet.
+
+## Earlier (2026-11-13, 14:00: STOPPED by the owner's rule after editor pass 2)
 
 - **Stopped, not shipped.** Editor pass 2 (sheet `editor2/sheet.md`, prompts v2 + the pipeline fixes):
   **7 findings** (down from 19). The owner's rule: "If Gemini fails the editor twice after real prompt

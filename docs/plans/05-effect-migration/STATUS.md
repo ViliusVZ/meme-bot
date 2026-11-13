@@ -892,6 +892,7 @@ recordings (see "Numbers").
   and a Blizzard story no longer gets its own post again as `blizzard_post` (today's feed excerpt,
   which leaked later sections into a backtest card); a thread's official Blizzard post is read as it
   stood that day. 4 news recordings change in their Gemini request bodies only; 3 new tests.
+- **Plan 06, the outside writer (branch `news-v2`, 2026-11-13):** Gemini is out of the news (a Claude agent writes through `GET /news/queue` / `POST /news/article`); `news.test.ts` was rewritten (39 tests; its Gemini triage/write-up/budget tests deleted) and its recordings re-recorded, as were `interruption.test.ts`'s two news entries (now the article post); the ledger's `news.test.ts` entries were deleted and added again (`--add`). Test floor 983 → 966 (the deleted Gemini tests); G3 query sites 259 → 264 (the writer's routes and the backtest's day queues).
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

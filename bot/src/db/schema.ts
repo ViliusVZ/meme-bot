@@ -369,8 +369,9 @@ export type StoryState = "old" | "watch" | "candidate" | "skip" | "queued" | "re
 /**
  * ⚔️ Plan 06: one thread on a WoW subreddit, or one Blizzard staff topic, as the hourly collect saw it.
  * Reddit's RSS has no scores: where it stood in its subreddit's top of the day and in hot (and how
- * that moved between runs) stands in for them. Handled once: triaged once, written once, posted at
- * most once (the claim is `state` going from ready to posted).
+ * that moved between runs) stands in for them. Handled once: read once it ripened (`ready`, its
+ * material stored), written once by the outside writer, posted at most once (the claim is `state`
+ * going from ready to posted). verdict, score, same_as, write_tries, write_first: Gemini's, unused.
  */
 export const newsStories = pgTable("news_stories", {
   id: text().primaryKey(), // "reddit:t3_1xtyfry", "blizzard:639885"
@@ -396,6 +397,7 @@ export const newsStories = pgTable("news_stories", {
   official: text(), // Blizzard's post about the same thing, for the card
   comments: integer(), // comments its thread's feed had at the last look (the feed gives at most 60)
   writeup: jsonb(), // the checked write-up the card is made from
+  material: jsonb(), // what the outside writer is given (news.ts `Prepared`), read once the story ripened
   write_tries: integer().notNull().default(0),
   write_first: unix("write_first"), // the first write-up attempt that failed (12 h of those: dropped)
   message_id: text(), // ours in the news channel ("posting" while it's being sent)

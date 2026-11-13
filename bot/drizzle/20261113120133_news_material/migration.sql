@@ -1,0 +1,1 @@
+ALTER TABLE "news_stories" ADD COLUMN "material" jsonb;

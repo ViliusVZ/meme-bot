@@ -2119,382 +2119,6 @@
    "expect.toBe(before)"
   ]
  },
- "news.test.ts": {
-  "test \"the real feed parses: staff posts with their topic and post number\"": [
-   "expect.toBe(50)",
-   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes - November 10, 2026\", post: 5 })",
-   "expect.toBe(true)",
-   "expect.toEqual([])"
-  ],
-  "test \"no channel configured, no news\"": [
-   "expect.toEqual({})",
-   "expect.toEqual([])"
-  ],
-  "test \"no channel configured: no fetch, no Gemini, no post, nothing stored, from the job and from a forced run\"": [
-   "expect.toEqual({})",
-   "expect.toEqual({})",
-   "expect.toEqual({})",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
-  "test \"the minute's jobs include the news check (what the Ticker runs)\"": [
-   "expect.toEqual({ checking: true })",
-   "expect.toHaveLength(1)"
-  ],
-  "test \"never one good check yet: the owner hears after a day of trying, not on the first failure\"": [
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(false)",
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(false)",
-   "expect.toBe(true)"
-  ],
-  "test \"the check's time can't be saved: the check doesn't start, and the next minute tries again\"": [
-   "expect.toBe(\"Failure\")",
-   "expect.toBe(false)",
-   "expect.toEqual({ checking: true })",
-   "expect.toHaveLength(1)"
-  ],
-  "test \"one check at a time: while one is running, the next minute doesn't start another\"": [
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(true)",
-   "expect.toEqual({})",
-   "expect.toBe(false)",
-   "expect.toHaveLength(1)"
-  ],
-  "test \"Reddit's real feeds parse: a listing in its order with each post's link and text, a thread with its 60 comments\"": [
-   "expect.toHaveLength(25)",
-   "expect.toMatchObject({ id: \"t3_1xtyfry\", rank: 1, title: \"Possibly the best quest rewards in the history of WoW\", url: \"https://i.redd.it/kijpsg7ys21i1.png\", body: \"\", removed: false })",
-   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes | 11/11/26\", url: \"https://worldofwarcraft.blizzard.com/en-us/news/24315281\" })",
-   "expect.toMatchObject({ url: \"\", body: \"What are the implications of this?\" })",
-   "expect.toBe(true)",
-   "expect.toEqual(Array.from({ length: 25 }, (_, i) => i + 1))",
-   "expect.toBe(\"t3_1xtyfry\")",
-   "expect.toHaveLength(60)",
-   "expect.toEqual([\"Rock no stick when\", \"Fist weapon\", \"Or off hand?\"])",
-   "expect.toEqual([])"
-  ],
-  "test \"2. a post that's hot but 40 hours old is never posted, whatever the model says; a Blizzard post may be 48\"": [
-   "expect.toBe(2)",
-   "expect.not.toContain(\"The 40 hour old hot one\")",
-   "expect.not.toContain(\"three days ago\")",
-   "expect.toContain(\"WoW: Forever Hotfixes - November 10\")",
-   "expect.toBe(\"watch\")",
-   "expect.not.toContain(\"40 hour\")"
-  ],
-  "test \"3. a hot meme, a loot screenshot, an LFG post: not posted\"": [
-   "expect.toEqual([3, 3, undefined])",
-   "expect.toEqual([\"a meme\", \"a loot post\", \"an LFG post\"])",
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
-  "test \"4. the same story in two subreddits and as a Blizzard post: one card, with Blizzard's link and its article read\"": [
-   "expect.toEqual([\"About WoW: Forever Hotfixes | 11/11/26\"])",
-   "expect.toHaveLength(1)",
-   "expect.toBe(`-# r/classicwow · <t:${now() - 5 * 3600}:R> · [thread](https://www.reddit.com/r/classicwow/comments/hot1/slug/) · [Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)`)",
-   "expect.toEqual([\"a repeat\", \"a repeat\"])",
-   "expect.toContain(\"Tailoring bags now hold 18 slots & cost less.\")",
-   "expect.not.toContain(\"var x\")",
-   "expect.toContain(\"WoW: Forever Hotfixes - November 11, 2026\")",
-   "expect.toHaveLength(1)"
-  ],
-  "test \"5. five stories pass in one day: three posted, best first; the rest dropped, not posted tomorrow as old news\"": [
-   "expect.toEqual([\"About Forever story 1\", \"About Forever story 4\", \"About Forever story 2\"])",
-   "expect.toHaveLength(3)",
-   "expect.toEqual([\"dropped\", \"dropped\", \"the day's 3 were taken\"])",
-   "expect.toEqual({})",
-   "expect.toBeUndefined()",
-   "expect.toHaveLength(3)"
-  ],
-  "test \"6. the model says old news, or isn't sure, or leaves a field empty: no post\"": [
-   "expect.toBeUndefined()",
-   "expect.toEqual([])",
-   "expect.toEqual([\"old news\", \"unsure (0.4)\", \"an empty field\"])"
-  ],
-  "test \"7. the model unavailable: nothing posted, the story dropped after 12 h, no alert at 13 h, one at 24 h\"": [
-   "expect.toEqual([\"Hunters' pets now share XP\"])",
-   "expect.toBe(\"queued\")",
-   "expect.toMatchObject({ state: \"dropped\", reason: \"no write-up in 12 h\" })",
-   "expect.toBe(0)",
-   "expect.toBe(1)",
-   "expect.toBe(1)",
-   "expect.toEqual([])"
-  ],
-  "test \"8. a thread that tries to instruct the model: no mention, no foreign link, the usual shape\"": [
-   "expect.toHaveLength(1)",
-   "expect.toEqual([1 << 12, { parse: [] }])",
-   "expect.not.toContain(bad)",
-   "expect.toEqual([\"https://www.reddit.com/r/wowforever/comments/evil/slug/\"])",
-   "expect.toEqual([true, true, true, true, true])",
-   "expect.toBeGreaterThan(prompt.lastIndexOf(\"Material:\\n\"))"
-  ],
-  "test \"9. the fifth place in a small subreddit's day qualifies; the same place in r/wow doesn't\"": [
-   "expect.toBe(\"skip\")",
-   "expect.toBe(\"watch\")",
-   "expect.toBe(\"skip\")",
-   "expect.toEqual([\"reddit:t3_wow4\", \"reddit:t3_wow5\", \"reddit:t3_wow6\"])",
-   "expect.toEqual([5, 10])"
-  ],
-  "test \"10. the minute job: hourly; a restart right after a collect doesn't refetch until the hour is up\"": [
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(false)",
-   "expect.toEqual({})",
-   "expect.toEqual({})",
-   "expect.toBe(1)",
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(2)",
-   "expect.toBe(false)"
-  ],
-  "test \"11. Reddit answers 429 or 403: logged, the rest collected, tried again the next hour, nothing lost, no alert\"": [
-   "expect.toEqual([\"r/classicwow top of the day: reddit/r/classicwow/top/.rss?t=day&limit=25 -> 429\", \"r/wow hot: reddit/r/wow/hot/.rss?limit=25 -> 403\"])",
-   "expect.toContain(\"news: r/classicwow top of the day failed\")",
-   "expect.toBe(\"skip\")",
-   "expect.toEqual({})",
-   "expect.toEqual({ checking: true })",
-   "expect.toBe(\"skip\")",
-   "expect.toBe(\"skip\")",
-   "expect.not.toContain(\"collecting WoW news failed\")"
-  ],
-  "test \"12. the post to Discord fails: tried again next run, not lost, not doubled\"": [
-   "expect.toBeUndefined()",
-   "expect.toMatchObject({ state: \"ready\", message_id: null, posted_at: null })",
-   "expect.toEqual([\"About Forever maintenance tonight\"])",
-   "expect.toMatchObject({ state: \"posted\", message_id: expect.stringMatching(/^\\d+$/) })",
-   "expect.toHaveLength(1)",
-   "expect.toHaveLength(2)"
-  ],
-  "test \"climbing in hot between two runs makes a thread a candidate, though it's not in the top of the day\"": [
-   "expect.toBe(\"watch\")",
-   "expect.toMatchObject({ state: \"skip\", hot_rank: 4, prev_hot_rank: 10, reason: \"scored 2/10\" })",
-   "expect.toBe(\"pinned\")"
-  ],
-  "test \"a story ripens first: 40 comments or 3 hours; a young Blizzard post waits without a request\"": [
-   "expect.toEqual([2, undefined, undefined])",
-   "expect.toMatchObject({ state: \"queued\", comments: 12 })",
-   "expect.toEqual([])",
-   "expect.toHaveLength(1)",
-   "expect.toEqual([\"About Blizzard is looking at dungeon XP\"])",
-   "expect.toEqual([\"About Dungeon XP: a note from the team\"])",
-   "expect.toContain(\"-# Blizzard · \")"
-  ],
-  "test \"the triage never takes the day's last model calls: they're kept for the write-ups\"": [
-   "expect.toEqual([1, undefined])",
-   "expect.toEqual([])",
-   "expect.toContain(\"the triage waits\")",
-   "expect.toBe(\"candidate\")"
-  ],
-  "test \"Reddit's minute: requests one at a time, each the gap after the last\"": [
-   "expect.toHaveLength(3)",
-   "expect.toEqual([true, true])"
-  ],
-  "test \"what's long done with is cleared after two weeks; posted stories stay\"": [
-   "expect.toEqual([\"reddit:t3_kept\"])"
-  ],
-  "test \"the code's rules: links, cleaning, the write-up check, repeats\"": [
-   "expect.toEqual([true, true, true, false, false, false])",
-   "expect.toBe(\"Hi everyone see this at bold\")",
-   "expect.toBe(\"one two…\")",
-   "expect.toMatchObject({ ok: { official_link: \"\" } })",
-   "expect.toMatchObject({ ok: { official_link: \"https://www.wowhead.com/news/x\" } })",
-   "expect.toEqual({ drop: \"an empty field\" })",
-   "expect.toEqual([[\"a\", true, null], [\"b\", false, \"a repeat\"], [\"c\", false, \"a repeat\"], [\"d\", false, \"about retail\"]])"
-  ],
-  "test \"POST /admin/news: one run now (a second while it's going is told so)\"": [
-   "expect.toBe(401)",
-   "expect.toEqual([200, { first: true }])",
-   "expect.toEqual({ running: true })",
-   "expect.toEqual({ seen: 1, candidates: 1, triaged: 1, queued: [\"Forever patch notes\"], written: 1, posted: [\"About Forever patch notes\"] })"
-  ],
-  "test \"POST /admin/news with a backtest: it starts in the background, and its sheet comes back as markdown\"": [
-   "expect.toEqual({ sheet: null })",
-   "expect.toEqual({ backtest: \"started\" })",
-   "expect.toEqual({ backtest: \"running\" })",
-   "expect.toEqual([200, \"text/markdown; charset=utf-8\"])",
-   "expect.toContain(\"### About classicwow day-1 post 1\")",
-   "expect.toEqual([])"
-  ],
-  "test \"the fast Gemini busy: the other one answers\"": [
-   "expect.toMatchObject({ posted: [\"Forever hotfixes\"] })",
-   "expect.toEqual([\"gemini-3.5-flash-lite\", \"gemini-3.6-flash\"])"
-  ],
-  "test \"Gemini's budget is per model: 18 a day each, game names and the news counted together; on game names' model the news leaves them 5\"": [
-   "expect.toBe(PER_MODEL_DAILY)",
-   "expect.toBe(0)",
-   "expect.toBe(PER_MODEL_DAILY)",
-   "expect.toBe(PER_MODEL_DAILY - NAMES_KEEP)",
-   "expect.toBe(NAMES_KEEP)",
-   "expect.toEqual([...Array(PER_MODEL_DAILY).fill(\"gemini-3.6-flash\"), ...Array(PER_MODEL_DAILY).fill(NAMES_MODEL)])",
-   "expect.toBe(0)",
-   "expect.toBe(PER_MODEL_DAILY)"
-  ],
-  "test \"a 503 or a timeout moves on to the next model, each request counted against its own model's day; an answer off the schema isn't asked again\"": [
-   "expect.toEqual([{ ok: true }, [{ model: \"gemini-3.6-flash\", outcome: \"failed\" }, { model: \"gemini-3.7-flash\", outcome: \"failed\" }, { model: \"gemini-3.5-flash\", outcome: \"answered\" }]])",
-   "expect.toEqual([PER_MODEL_DAILY - 1, PER_MODEL_DAILY - 1, PER_MODEL_DAILY - NAMES_KEEP - 1])",
-   "expect.toEqual([null, true, [\"malformed\"]])",
-   "expect.toEqual([\"gemini-3.6-flash\", \"gemini-3.7-flash\", \"gemini-3.5-flash\", \"gemini-3.5-flash-lite\"])"
-  ],
-  "test \"three ready stories are written up in one request; the one the code turns down is skipped, the other two posted\"": [
-   "expect.toEqual([\"About Hunters get a new pet family\", \"About Dungeon XP cut for boosted runs\"])",
-   "expect.toHaveLength(1)",
-   "expect.toHaveLength(3)",
-   "expect.toEqual([ [\"reddit:t3_b1\", \"Hunters get a new pet family\"], [\"reddit:t3_b2\", \"Forever's launch date announced\"], [\"reddit:t3_b3\", \"Dungeon XP cut for boosted runs\"], ])",
-   "expect.toEqual([\"skip\", \"old news\"])"
-  ],
-  "test \"a batch whose answer is malformed: nothing posted; the next run writes each of its stories in a request of its own\"": [
-   "expect.toEqual([undefined, undefined])",
-   "expect.toHaveLength(1)",
-   "expect.toEqual([\"queued\", \"queued\"])",
-   "expect.toEqual([\"About Hunters get a new pet family\", \"About Dungeon XP cut for boosted runs\"])",
-   "expect.toEqual([\"Write a short news piece about\", \"Write a short news piece about\"])"
-  ],
-  "test \"one write-up missing from a batch's answer: the others are posted, that one is written alone next run\"": [
-   "expect.toEqual([\"About Hunters get a new pet family\"])",
-   "expect.toBe(\"queued\")",
-   "expect.toEqual([\"About Dungeon XP cut for boosted runs\"])",
-   "expect.toEqual([\"Write a short news piece about\"])"
-  ],
-  "test \"the backtest: the real pipeline over last week, a sheet of cards and the best of the rest, nothing posted or stored for the live runs; a rerun pays for nothing twice\"": [
-   "expect.toEqual([true, 4, { \"gemini-3.5-flash-lite\": 2, \"gemini-3.6-flash\": 2 }])",
-   "expect.toContain(\"-# Model requests this run: 4 of 10 (gemini-3.5-flash-lite 2, gemini-3.6-flash 2); answered by: gemini-3.5-flash-lite 2, gemini-3.6-flash 2. Write-ups: gemini-3.6-flash → gemini-3.7-flash → gemini-3.5-flash; triage: gemini-3.5-flash-lite → gemini-3.6-flash.\")",
-   "expect.toContain(\"# WoW news backtest · the 2 days before 2026-11-12\")",
-   "expect.toContain(\"## Wednesday 2026-11-11\")",
-   "expect.toContain(\"### About wowforever day-1 post 1\")",
-   "expect.toContain(\"**What players think** ⚖️ Half like it, half don't.\")",
-   "expect.toContain(\"[wowforever day-1 post 2](https://www.reddit.com/r/wowforever/comments/wowforeverd1p2/slug/) — a meme (8/10)\")",
-   "expect.toContain(\"— scored 4/10 (4/10)\")",
-   "expect.not.toContain(\"day-3\")",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toEqual([\"gemini_budget:gemini-3.5-flash-lite\", \"gemini_budget:gemini-3.6-flash\"])",
-   "expect.toBe(r.sheet)",
-   "expect.toContain(\"-# Model requests this run: 0 of 10 (none); answered by: none.\")",
-   "expect.toEqual([true, 0, r.sheet.replace(runLine, \"\")])",
-   "expect.toEqual([])"
-  ],
-  "test \"the backtest within its budget: what it can't pay for today is marked, and the next run carries on\"": [
-   "expect.toEqual([false, 1])",
-   "expect.toContain(\"**not finished**\")",
-   "expect.toContain(\"not written yet (Gemini's budget: run again)\")",
-   "expect.toContain(\"not triaged yet (Gemini's budget: run again)\")",
-   "expect.toEqual([true, 3])",
-   "expect.toContain(\"### About wowforever day-2 post 1\")"
-  ],
-  "test \"the backtest leaves the live runs their part: never a write-up model's last 2 requests of the day; max_calls counts every request, a 503's too\"": [
-   "expect.toEqual([false, 3, { \"gemini-3.5-flash-lite\": 2, \"gemini-3.5-flash\": 1 }])",
-   "expect.toContain(\"### About wowforever day-2 post 1\")",
-   "expect.toContain(\"not written yet (Gemini's budget: run again)\")",
-   "expect.toBe(2)",
-   "expect.toEqual([false, 1, [\"gemini-3.5-flash-lite\"]])"
-  ],
-  "test \"the backtest writes a day's stories in one request; a batch that comes back malformed is written alone on the next run\"": [
-   "expect.toEqual([2, 1])",
-   "expect.toContain(\"its batch came back unreadable (written alone next run)\")",
-   "expect.toEqual(Array(3).fill(\"Write a short news piece about\"))",
-   "expect.toEqual([true, 3])",
-   "expect.toContain(\"### About wowforever day-1 post 3\")"
-  ],
-  "test \"the backtest's cards posted on the test bot: each as the live card, silent, pinging nobody, marked as a backtest; once; nothing in the live tables\"": [
-   "expect.toEqual({ posted: 1, already: 0 })",
-   "expect.toHaveLength(1)",
-   "expect.toEqual([(1 << 15) | (1 << 12), { parse: [] }])",
-   "expect.toBe(`${live}\\n-# backtest · Wednesday 2026-11-11`)",
-   "expect.toEqual({ posted: 1, already: 1 })",
-   "expect.toContain(\"### About wowforever day-2 post 1\")",
-   "expect.toBe(\"-# backtest · Tuesday 2026-11-10\")",
-   "expect.toEqual({ posted: 0, already: 2 })",
-   "expect.toHaveLength(2)",
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
-  "test \"posting the backtest's cards: refused where NEWS_BACKTEST_POST isn't set (production), posting nothing; a refused post is tried again next time\"": [
-   "expect.toEqual([403, { refused: \"posting the backtest's cards is off here (NEWS_BACKTEST_POST is the test bot's)\" }])",
-   "expect.toEqual([])",
-   "expect.toEqual({ posted: 0, already: 0, failed: [expect.stringContaining(\"reddit:t3_wowforeverd1p1\")] })",
-   "expect.toEqual({ posted: 1, already: 0 })"
-  ],
-  "test \"candidates that tie (the same place, the same age) go to the triage in one order every run: by id\"": [
-   "expect.toEqual([\"reddit:t3_aa1\", \"reddit:t3_zz1\"])"
-  ],
-  "test \"the backtest when Gemini doesn't answer: the story isn't lost, the sheet says run again, and the next run writes it\"": [
-   "expect.toBe(false)",
-   "expect.toContain(\"**not finished**\")",
-   "expect.toContain(\"no write-up (Gemini didn't answer: run again)\")",
-   "expect.toBe(true)",
-   "expect.toContain(\"### About wowforever day-1 post 1\")"
-  ],
-  "test \"the backtest when the triage gets no answer: the sheet says run again\"": [
-   "expect.toBe(false)",
-   "expect.toContain(\"not triaged (Gemini didn't answer: run again)\")"
-  ],
-  "test \"1. the first run with full subreddits: nothing posted, everything seen, each subreddit's bar learned\"": [
-   "expect.toMatchObject({ first: true, seen: 25 + 25 + new Set(parseFeed(blue).filter((p) => p.excerpt).map(blizzardId)).size })",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toBe(true)",
-   "expect.toHaveLength(3)",
-   "expect.toEqual({})",
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
-  "test \"a running hotfix post as it stood on a day: the sections dated after that day are left out\"": [
-   "expect.toBe(\"Hotfixes November 5, 2026 Rend and Tear fixed.\")",
-   "expect.toBe(\"Hotfixes November 9, 2026 Hunter pets have less health. November 5, 2026 Rend and Tear fixed.\")",
-   "expect.toBe(\"No dates in here.\")"
-  ],
-  "test \"a Blizzard post's material: its own post from the topic (the opening one as it stood that day), the players' replies by then as its comments\"": [
-   "expect.toEqual({ text: \"Hotfixes November 5, 2026 Rend and Tear fixed.\", comments: [\"Finally.\"] })",
-   "expect.toEqual({ text: \"We're looking into it.\", comments: [\"Posted later.\"] })",
-   "expect.toBeNull()"
-  ],
-  "test \"every staff post is a story of its own, with its own time: a running hotfix topic's new post too\"": [
-   "expect.toEqual([[\"blizzard:700\", now() - 30 * 3600, \"skip\"], [\"blizzard:700/5\", now() - 2 * 3600, \"skip\"]])",
-   "expect.toContain(\"blizzard:700/5\")"
-  ],
-  "test \"a Blizzard post is written from its own post in the topic, with the players' replies as its comments (staff replies aren't comments)\"": [
-   "expect.toMatchObject({ text: \"Dungeon kill experience is up 50%.\", comments: [\"Reply 1.\", \"Reply 2.\", \"Reply 3.\"], article: null })",
-   "expect.toContain(\"Only 3 comments so far.\")"
-  ],
-  "test \"a write-up that changes nothing for us isn't posted; with fewer than 5 comments there's no reaction to tell yet\"": [
-   "expect.toEqual({ drop: \"nothing it changes for us\" })",
-   "expect.toMatchObject({ ok: { mood: { label: \"no clear reaction yet\", line: \"Only 3 comments so far.\", takes: [] } } })",
-   "expect.toMatchObject({ ok: { mood: { label: \"no clear reaction yet\", line: \"No comments yet.\", takes: [] } } })",
-   "expect.toMatchObject({ ok: { mood: { label: \"split\" } } })"
-  ],
-  "test \"a request, an opinion or one player's story is never a card, however high the model scores it\"": [
-   "expect.toMatchObject({ keep: false, reason: \"a request or opinion\" })"
-  ],
-  "test \"a card names its link by its site: a Wowhead article is Wowhead, not Blizzard's post\"": [
-   "expect.toContain(\"[Wowhead](https://www.wowhead.com/forever/news/world-first-1)\")",
-   "expect.toContain(\"[Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)\")"
-  ],
-  "test \"the writer is told: what happened only from the post and its article, a concrete why or none, no region the material doesn't name, what each mood means\"": [
-   "expect.not.toContain(\"Nothing for us, but everyone is talking about it\")",
-   "expect.toContain(\"Never from the comments: a commenter's claim, guess or report is not a fact\")",
-   "expect.toContain(\"- changes_something: false when nothing in the material changes anything for a Forever player\")",
-   "expect.toContain(\"Mention a region (EU, US) or a realm type only when the material does.\")",
-   "expect.toContain('\"split\" (the comments disagree with each other, roughly evenly; two kinds of players existing is not a split)')",
-   "expect.toContain('\"opinion\" (a request to Blizzard')"
-  ],
-  "test \"the backtest reads a thread as it was by the card's time: comments posted after it are left out\"": [
-   "expect.toEqual([\"Said that day.\"])",
-   "expect.toContain(\"Only 1 comment so far.\")"
-  ],
-  "test \"the backtest reads a Blizzard post from its topic as it stood that day: the opening post's later sections and later replies left out\"": [
-   "expect.toMatchObject({ text: \"Hotfixes November 10, 2026 Pets have more health.\", comments: [\"Nice.\"], article: null })"
-  ],
-  "test \"a running hotfix topic's opening post leaves out the sections a later staff post carries (that post is their story)\"": [
-   "expect.toBe(\"Hotfixes November 5, 2026 Rend and Tear fixed.\")",
-   "expect.toBe(\"November 6, 2026 Voidwalkers have more health.\")"
-  ],
-  "test \"the backtest never shows the writer today's excerpt of a running Blizzard post: not as the story's own post, nor as a thread's official post\"": [
-   "expect.toBe(1)",
-   "expect.not.toContain(\"Later section\")",
-   "expect.toMatchObject({ blizzard_post: { text: \"Hotfixes November 10, 2026 Pets have more health.\" } })"
-  ],
-  "test \"a Blizzard story isn't given its own post a second time as its official post\"": [
-   "expect.toMatchObject({ blizzard_post: null })"
-  ]
- },
  "traces.test.ts": {
   "test \"a tap is one trace, saying what was tapped and by whom\"": [
    "expect.toEqual([[\"Interactions.handle\", { tapped: \"/meme\", by: \"a\" }]])"
@@ -2900,6 +2524,313 @@
    "expect.toBeNull()",
    "expect.toBeNull()",
    "expect.toEqual({ pcm: new Int16Array([5, 6]), rate: 12000 })"
+  ]
+ },
+ "news.test.ts": {
+  "test \"the real feed parses: staff posts with their topic and post number\"": [
+   "expect.toBe(50)",
+   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes - November 10, 2026\", post: 5 })",
+   "expect.toBe(true)",
+   "expect.toEqual([])"
+  ],
+  "test \"Reddit's real feeds parse: a listing in its order with each post's link and text, a thread with its 60 comments\"": [
+   "expect.toHaveLength(25)",
+   "expect.toMatchObject({ id: \"t3_1xtyfry\", rank: 1, title: \"Possibly the best quest rewards in the history of WoW\", url: \"https://i.redd.it/kijpsg7ys21i1.png\", body: \"\", removed: false })",
+   "expect.toMatchObject({ title: \"WoW: Forever Hotfixes | 11/11/26\", url: \"https://worldofwarcraft.blizzard.com/en-us/news/24315281\" })",
+   "expect.toMatchObject({ url: \"\", body: \"What are the implications of this?\" })",
+   "expect.toBe(true)",
+   "expect.toEqual(Array.from({ length: 25 }, (_, i) => i + 1))",
+   "expect.toBe(\"t3_1xtyfry\")",
+   "expect.toHaveLength(60)",
+   "expect.toEqual([\"Rock no stick when\", \"Fist weapon\", \"Or off hand?\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"the first run with full subreddits: nothing queued or posted, everything seen, each subreddit's bar learned\"": [
+   "expect.toMatchObject({ first: true, seen: 25 + 25 + new Set(forever.map(blizzardId)).size })",
+   "expect.toEqual([])",
+   "expect.toBe(true)",
+   "expect.toHaveLength(3)",
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"a hot thread ripens and waits with what the writer needs: the queue answers at once, best first, three at most\"": [
+   "expect.toMatchObject({ candidates: 4, ready: [\"Forever story 1\", \"Forever story 2\", \"Forever story 3\", \"Forever story 4\"] })",
+   "expect.toHaveLength(before)",
+   "expect.toEqual([\"three friends who play WoW: Forever together on EU realms a few evenings a week\", \"Thursday, 2026-11-12, 17:35 Vilnius\", [], 3])",
+   "expect.toEqual([\"reddit:t3_s1\", \"reddit:t3_s2\", \"reddit:t3_s3\"])",
+   "expect.toMatchObject({ source: \"reddit\", subreddit: \"r/classicwow\", title: \"Forever story 1\", link: \"https://www.reddit.com/r/classicwow/comments/s1/slug/\", points_to: news, posted_hours_ago: 5, official_post: null, comment_count: 50 })",
+   "expect.toEqual({ url: news, text: \"WoW: Forever Hotfixes Tailoring bags now hold 18 slots & cost less.\" })",
+   "expect.toHaveLength(25)",
+   "expect.toBe(\"Comment 1 about s1.\")",
+   "expect.toEqual([\"What the poster said.\", null])",
+   "expect.toEqual([])"
+  ],
+  "test \"a post that's hot but 40 hours old never waits for the writer; a Blizzard post may be 48\"": [
+   "expect.toEqual([\"WoW: Forever Hotfixes - November 10\"])",
+   "expect.toBe(\"watch\")",
+   "expect.toBe(\"watch\")",
+   "expect.toEqual([\"blizzard:700\"])"
+  ],
+  "test \"a story ripens first: 40 comments or 3 hours; a young Blizzard post waits too\"": [
+   "expect.toEqual([2, undefined])",
+   "expect.toMatchObject({ state: \"candidate\", comments: 12 })",
+   "expect.toEqual([\"Blizzard is looking at dungeon XP\"])",
+   "expect.toEqual([\"Forever dungeon XP: a note from the team\"])"
+  ],
+  "test \"crossposts are one story: the thread waits for the writer, Blizzard's post with the same title becomes its official post\"": [
+   "expect.toEqual([3, 2, [\"WoW: Forever Hotfixes - November 11, 2026\"]])",
+   "expect.toEqual([\"a repeat\", \"a repeat\"])",
+   "expect.toMatchObject({ id: \"reddit:t3_hot1\", official_post: { url: \"https://eu.forums.blizzard.com/en/wow/t/slug/700/1\", title: \"WoW: Forever Hotfixes - November 11, 2026\", text: \"About WoW: Forever Hotfixes - November 11, 2026.\" } })",
+   "expect.toBe(`-# r/classicwow · <t:${now() - 5 * 3600}:R> · [thread](https://www.reddit.com/r/classicwow/comments/hot1/slug/) · [Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)`)",
+   "expect.toBe(1)"
+  ],
+  "test \"the fifth place in a small subreddit's day qualifies; the same place in r/wow doesn't\"": [
+   "expect.not.toBe(\"watch\")",
+   "expect.toBe(\"watch\")",
+   "expect.toEqual([\"reddit:t3_wow4\", \"reddit:t3_wow5\", \"reddit:t3_wow6\"])",
+   "expect.toEqual([5, 10])"
+  ],
+  "test \"climbing in hot between two runs makes a thread a candidate, though it's not in the top of the day\"": [
+   "expect.toBe(\"watch\")",
+   "expect.toMatchObject({ state: \"candidate\", hot_rank: 4, prev_hot_rank: 10 })",
+   "expect.toBe(\"pinned\")"
+  ],
+  "test \"the minute job: hourly; a restart right after a collect doesn't refetch until the hour is up\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toBe(1)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(2)",
+   "expect.toBe(false)"
+  ],
+  "test \"Reddit answers 429 or 403: logged, the rest collected, tried again the next hour, nothing lost, no alert\"": [
+   "expect.toEqual([\"r/classicwow top of the day: reddit/r/classicwow/top/.rss?t=day&limit=25 -> 429\", \"r/wow hot: reddit/r/wow/hot/.rss?limit=25 -> 403\"])",
+   "expect.toContain(\"news: r/classicwow top of the day failed\")",
+   "expect.toBe(\"ready\")",
+   "expect.toEqual({})",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(\"ready\")",
+   "expect.not.toContain(\"collecting WoW news failed\")"
+  ],
+  "test \"a thread that won't load waits for the next run; a removed one is skipped\"": [
+   "expect.toEqual([\"candidate\", \"skip\", \"removed\"])",
+   "expect.toEqual([\"A slow thread\"])"
+  ],
+  "test \"a write-up is posted silently as the card, once; the story is posted and leaves the queue\"": [
+   "expect.toEqual({ posted: true, message_id: expect.stringMatching(/^\\d+$/) })",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([(1 << 15) | (1 << 12), { parse: [] }])",
+   "expect.toBe([ \"### About reddit:t3-a\", \"**What happened** Blizzard lowered XP from boosted dungeon runs.\", \"**What players think** ⚖️ Half like it, half don't.\", \"- Some say it's overdue.\", \"- Others say it hits friends levelling together.\", \"**Why it matters to us** If one of us runs ahead, dungeons together pay less.\", `-# r/wowforever · <t:${now() - 5 * 3600}:R> · [thread](https://www.reddit.com/r/wowforever/comments/a/slug/)`, ].join(\"\\n\"))",
+   "expect.toMatchObject({ state: \"posted\", message_id: expect.stringMatching(/^\\d+$/), posted_at: now(), writeup: { headline: \"About reddit:t3-a\" } })",
+   "expect.toEqual([409, \"reddit:t3_a isn't waiting for a write-up (posted)\"])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([[], [\"About reddit:t3-a\"], 2])",
+   "expect.toEqual([404, \"no story reddit:t3_nope\"])"
+  ],
+  "test \"a skip: the story is skipped with the writer's reason and leaves the queue; nothing is posted\"": [
+   "expect.toEqual({ skipped: true })",
+   "expect.toMatchObject({ state: \"skip\", reason: \"the writer: a meme, nothing happened\" })",
+   "expect.toEqual([\"reddit:t3_b\"])",
+   "expect.toEqual([409, \"reddit:t3_a isn't waiting for a write-up (skip: the writer: a meme, nothing happened)\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"the day's three: a fourth write-up is refused (409) and its story stays queued until it ages out\"": [
+   "expect.toEqual([409, \"today's 3 cards are out; it stays queued until it ages out\"])",
+   "expect.toBe(\"ready\")",
+   "expect.toEqual([0, []])",
+   "expect.toEqual([\"reddit:t3_s3\"])",
+   "expect.toMatchObject({ state: \"dropped\", reason: \"too old\" })",
+   "expect.toHaveLength(3)"
+  ],
+  "test \"a write-up is checked and cleaned: no mention, no link, no markdown; too long or off the shape is refused; under 5 comments there's no reaction to tell\"": [
+   "expect.toEqual([400, \"headline is 81 characters, at most 80\"])",
+   "expect.toEqual([400, \"mood.takes: two or three (1 given)\"])",
+   "expect.toEqual([400, \"why is empty\"])",
+   "expect.toEqual([])",
+   "expect.not.toContain(bad)",
+   "expect.toEqual([\"https://www.reddit.com/r/wowforever/comments/evil/slug/\"])",
+   "expect.toEqual([true, true, true, true, true])",
+   "expect.toContain(\"**What players think** 🤷 Only 3 comments so far.\")",
+   "expect.not.toContain(\"- Some say\")"
+  ],
+  "test \"the post to Discord fails: the writer is told (502), the story stays queued, and sending it again posts it once\"": [
+   "expect.toBe(502)",
+   "expect.toMatchObject({ state: \"ready\", message_id: null, posted_at: null, writeup: null })",
+   "expect.toMatchObject({ posted: true })",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"the code's rules: links, cleaning, the write-up check\"": [
+   "expect.toEqual([true, true, true, false, false, false])",
+   "expect.toBe(\"Hi everyone see this at bold\")",
+   "expect.toBe(\"one two…\")",
+   "expect.toEqual({ ok: w })",
+   "expect.toEqual({ bad: \"mood.takes: two or three (4 given)\" })",
+   "expect.toEqual({ bad: \"what is empty\" })",
+   "expect.toEqual({ ok: { ...w, mood: { label: \"no clear reaction yet\", line: \"Only 3 comments so far.\", takes: [] } } })",
+   "expect.toMatchObject({ ok: { mood: { line: \"No comments yet.\" } } })",
+   "expect.toMatchObject({ ok: { mood: { label: \"no clear reaction yet\" } } })",
+   "expect.toContain(\"[Wowhead](https://www.wowhead.com/forever/news/world-first-1)\")",
+   "expect.toContain(\"[Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)\")"
+  ],
+  "test \"GET /news/queue and POST /news/article: the writer's key (constant-time), JSON both ways, a refusal's status with its reason\"": [
+   "expect.toBe(401)",
+   "expect.toBe(401)",
+   "expect.toEqual([200, [\"reddit:t3_a\"]])",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toEqual([200, { posted: true, message_id: expect.stringMatching(/^\\d+$/) }])",
+   "expect.toEqual([409, { error: \"reddit:t3_a isn't waiting for a write-up (posted)\" }])",
+   "expect.toBe(404)"
+  ],
+  "test \"no writer key configured: both routes are 404, whatever the token\"": [
+   "expect.toBe(404)",
+   "expect.toBe(404)",
+   "expect.toEqual([])"
+  ],
+  "test \"POST /admin/news: one run now (a second while it's going is told so)\"": [
+   "expect.toBe(401)",
+   "expect.toEqual([200, { first: true }])",
+   "expect.toEqual({ running: true })",
+   "expect.toEqual({ seen: 1, candidates: 1, ready: [\"Forever patch notes\"] })"
+  ],
+  "test \"Blizzard's posts: Forever's only, by the forum's category (360); a retail topic (235) is never a story, and its category is read once\"": [
+   "expect.toEqual([\"blizzard:640100\"])",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toEqual([[\"blizzard:640100\", \"Pets are sturdier.\"]])"
+  ],
+  "test \"a Blizzard post is given its own post from the topic, the players' replies as its comments (staff replies aren't), and no official post of itself\"": [
+   "expect.toMatchObject({ id: \"blizzard:800/4\", source: \"blizzard\", subreddit: \"Blizzard's forums\", text: \"Dungeon kill experience is up 50%.\", comments: [\"Reply 1.\", \"Reply 2.\", \"Reply 3.\"], comment_count: 3, article: null, official_post: null })",
+   "expect.toContain(\"Only 3 comments so far.\")",
+   "expect.toContain(\"-# Blizzard · \")"
+  ],
+  "test \"a running hotfix post: each dated section no staff post carries is a story of its own, with only its own section\"": [
+   "expect.toEqual([\"WoW: Forever Hotfixes - November 10, 2026\", \"WoW: Forever Hotfixes - November 12, 2026\", \"WoW: Forever Hotfixes - November 12, 2026\"])",
+   "expect.toEqual([ [\"blizzard:700#2026-11-10\", \"WoW: Forever Hotfixes - November 10, 2026\", Date.parse(\"2026-11-10T21:59:59Z\") / 1000], [\"blizzard:700#2026-11-12\", \"WoW: Forever Hotfixes - November 12, 2026\", edited], [\"blizzard:700\", \"WoW: Forever Hotfixes - November 12, 2026\", opened], [\"blizzard:700/3\", \"WoW: Forever Hotfixes - November 12, 2026\", now() - 28 * 3600], ])",
+   "expect.toEqual([\"November 12, 2026 Quest gold for level 48 and up.\", [\"Gold, finally.\"]])",
+   "expect.toEqual([\"November 10, 2026 Tailoring bags hold 18 slots.\", [\"Bags at last.\"]])"
+  ],
+  "test \"a running post's pieces: its sections, the ones of its own, a section's title, the opening post as it stood\"": [
+   "expect.toBe(\"Hotfixes November 5, 2026 Rend and Tear fixed.\")",
+   "expect.toBe(\"Hotfixes November 9, 2026 Hunter pets have less health. November 5, 2026 Rend and Tear fixed.\")",
+   "expect.toBe(\"No dates in here.\")",
+   "expect.toEqual([\"2026-11-11\", \"2026-11-09\", \"2026-11-05\"])",
+   "expect.toEqual([{ day: \"2026-11-11\", text: \"November 11, 2026 Judgement is now ranged.\" }])",
+   "expect.toEqual([])",
+   "expect.toEqual({ text: \"November 11, 2026 Judgement is now ranged.\", comments: [\"Later.\"] })",
+   "expect.toBeNull()",
+   "expect.toEqual([\"WoW: Forever Hotfixes - November 9, 2026\", \"Hotfixes (November 9, 2026)\"])",
+   "expect.toEqual({ text: \"Hotfixes November 5, 2026 Rend and Tear fixed.\", comments: [\"Finally.\"] })",
+   "expect.toEqual({ text: \"November 9, 2026 Hunter pets have less health.\", comments: [\"Later.\"] })",
+   "expect.toBeNull()"
+  ],
+  "test \"stories waiting and the writer never asking: the owner hears once after a day, not before; asking again resets it\"": [
+   "expect.toBe(0)",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(1)",
+   "expect.toBe(2)"
+  ],
+  "test \"what's long done with is cleared after two weeks; posted stories stay\"": [
+   "expect.toEqual([\"reddit:t3_kept\"])"
+  ],
+  "test \"Reddit's minute: requests one at a time, each the gap after the last\"": [
+   "expect.toHaveLength(3)",
+   "expect.toEqual([true, true])"
+  ],
+  "test \"the backtest: each past day's queue as it stood (up to 8, best first), nothing posted or stored for the live runs; a rerun fetches nothing twice\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([\"Wednesday, 2026-11-11, 23:59 Vilnius\", [], 3])",
+   "expect.toEqual([1, 2, 3, 4, 5].map((i) => `wowforever day-1 post ${i}`))",
+   "expect.toMatchObject({ source: \"reddit\", subreddit: \"r/wowforever\", posted_hours_ago: 11.9, comment_count: 50 })",
+   "expect.toEqual([\"article\", \"comment_count\", \"comments\", \"id\", \"link\", \"official_post\", \"points_to\", \"posted_hours_ago\", \"source\", \"subreddit\", \"text\", \"title\"])",
+   "expect.toContain(\"# WoW news backtest · the 2 days before 2026-11-12\")",
+   "expect.toContain(\"## Wednesday 2026-11-11\\n10 posts that day; 5 over their subreddit's bar; 5 in the queue; 0 cards.\")",
+   "expect.not.toContain(\"Threads are read as they are now\")",
+   "expect.not.toContain(\"day-3\")",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toBe(before)"
+  ],
+  "test \"a backtest day's write-ups: posted as the live card marked as a backtest, three a day, once each; the next day's queue lists them as posted\"": [
+   "expect.toBe(502)",
+   "expect.toEqual({ posted: true, message_id: expect.stringMatching(/^\\d+$/) })",
+   "expect.toEqual([(1 << 15) | (1 << 12), { parse: [] }])",
+   "expect.toBe(`${live}\\n-# backtest · Tuesday 2026-11-10`)",
+   "expect.toEqual([409, `${ids[0]} was already written or skipped for ${day1}`])",
+   "expect.toEqual({ skipped: true })",
+   "expect.toEqual([409, `${day1}'s 3 cards are out`])",
+   "expect.toEqual([])",
+   "expect.toEqual([[headline(ids[3]), headline(ids[2]), headline(ids[0])], 3, 5])",
+   "expect.toEqual([404, `no story reddit:t3_nope in ${day1}'s queue`])",
+   "expect.toContain(`### ${headline(ids[0])}`)",
+   "expect.toContain(\"**Skipped by the writer**\\n- wowforever day-2 post 2 — a screenshot\")",
+   "expect.toEqual([])",
+   "expect.toBe(3)"
+  ],
+  "test \"the backtest's days are Vilnius days: a post at 22:24 UTC is the next day's, one at 21:12 UTC the same day's\"": [
+   "expect.toEqual([\"reddit:t3_early\"])",
+   "expect.toEqual([\"reddit:t3_late\"])"
+  ],
+  "test \"the backtest reads each story as it stood that day: a thread's later comments, a Blizzard post's later sections and replies left out; retail's topics never in\"": [
+   "expect.toEqual([\"blizzard:900\", \"reddit:t3_w1\"])",
+   "expect.not.toContain(\"Later section\")",
+   "expect.not.toContain(\"Said today.\")",
+   "expect.toMatchObject({ text: \"Hotfixes November 11, 2026 Pets have more health.\", comments: [\"Nice.\"] })",
+   "expect.toMatchObject({ comments: [\"Said that day.\"], comment_count: 1 })"
+  ],
+  "test \"the backtest's queues are the test bot's: elsewhere a day's queue and its write-ups are 404, and the admin route answers the sheet as markdown\"": [
+   "expect.toEqual({ sheet: null })",
+   "expect.toEqual({ backtest: \"started\" })",
+   "expect.toEqual({ backtest: \"running\" })",
+   "expect.toEqual([200, \"text/markdown; charset=utf-8\"])",
+   "expect.toContain(\"1. r/classicwow · [classicwow day-1 post 1](https://www.reddit.com/r/classicwow/comments/classicwowd1p1/slug/)\")",
+   "expect.toEqual([404, { error: \"no backtest here (NEWS_BACKTEST_POST is the test bot's)\" }])",
+   "expect.toBe(404)",
+   "expect.toEqual([404, `no backtest queue for 2026-10-01: POST /admin/news {\"backtest\": {\"days\": 7}} first`])",
+   "expect.toEqual([])"
+  ],
+  "test \"no channel configured, no news\"": [
+   "expect.toEqual({})",
+   "expect.toEqual([])"
+  ],
+  "test \"no channel configured: no fetch, no post, nothing stored, from the job and from a forced run; a write-up has nowhere to go\"": [
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([404, \"no news channel configured\"])"
+  ],
+  "test \"the minute's jobs include the news check (what the Ticker runs)\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"never one good check yet: the owner hears after a day of trying, not on the first failure\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(false)",
+   "expect.toBe(true)"
+  ],
+  "test \"the check's time can't be saved: the check doesn't start, and the next minute tries again\"": [
+   "expect.toBe(\"Failure\")",
+   "expect.toBe(false)",
+   "expect.toEqual({ checking: true })",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"one check at a time: while one is running, the next minute doesn't start another\"": [
+   "expect.toEqual({ checking: true })",
+   "expect.toBe(true)",
+   "expect.toEqual({})",
+   "expect.toBe(false)",
+   "expect.toHaveLength(1)"
   ]
  }
 }

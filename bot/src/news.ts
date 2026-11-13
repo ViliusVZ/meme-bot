@@ -1,26 +1,26 @@
-// ⚔️ WoW news, second version (plan 06): what blows up on the WoW subreddits, read and written up.
+// ⚔️ WoW news, second version (plan 06): what blows up on the WoW subreddits and what Blizzard posts
+// for Forever, collected and filtered here, written up by an outside writer (a scheduled Claude
+// agent) through two routes: GET /news/queue and POST /news/article.
 // Every hour, in the background, on the leader:
 //   1. collect: each subreddit's top of the day and hot (Reddit's feeds, one request a minute), and
-//      Blizzard's blue tracker, into news_stories;
+//      Blizzard's blue tracker, Forever's topics only (the forum's category), into news_stories; each
+//      dated section of a running post (a hotfix topic's opening post) that no staff reply carries
+//      is a story of its own;
 //   2. filter, in code: at most 36 h old (Blizzard's posts 48), not pinned or removed or handled,
 //      and hot for its own subreddit: within its top of the day's first `bar` places (the bar is
-//      learned from its month, newsfeeds.ts has no scores to give), or climbing in hot;
-//   3. triage: one model call for all new candidates; code keeps the ones about Forever, not memes,
-//      screenshots, loot, support or LFG, scored 7 or more, not repeats (newscard.ts `decide`);
-//   4. ripen: 40 comments in its thread's feed, or 3 hours old;
-//   5. write: one model call for up to NEWS_WRITE_BATCH (3) stories, each from its post, the linked
-//      Blizzard/Wowhead article, up to 60 comments in top order; code checks and cleans each write-up
-//      on its own (newscard.ts `check`); a batch that comes back unreadable: its stories alone, next run;
-//   6. post: the card, silent, pinging nobody, at most NEWS_DAILY_POSTS (3) a day, best first.
-// The first run posts nothing (everything visible is marked as there before us). No write-up, no
-// post: a story whose write-up fails waits and is tried again each hour, and is dropped after 12 h.
-// The owner hears after 24 h without one good collect, or 24 h of write-ups failing. The model's
-// calls go to the news's own model lists (config), each model within its own daily budget
-// (gemini.ts). The backtest runs the same steps over the last week, posting and storing nothing the
-// live runs read (news_cache), and leaves the live runs LIVE_WRITES + LIVE_TRIAGES requests a day.
-// No channel configured: none of this runs.
+//      learned from its month, newsfeeds.ts has no scores to give), or climbing in hot; crossposts
+//      (the same title) are one story;
+//   3. ripen: 40 comments in its thread's feed, or 3 hours old; then what the writer is given (the
+//      post, the Blizzard/Wowhead article it links, the comments, best first) is read once and kept
+//      on the row (`ready`), so the queue answers at once.
+// The writer takes up to three ready stories (best first) and sends back a write-up or a skip; code
+// checks it (newscard.ts `check`) and posts the card, silent, pinging nobody, at most
+// NEWS_DAILY_POSTS (3) a day, once per story. The first run posts nothing (everything visible is
+// marked as there before us). The owner hears after 24 h without one good collect, or 24 h of
+// stories waiting while the writer never asked. The backtest builds each past day's queue (up to 8)
+// the same way, for the test bot's sample sheet. No channel configured: none of this runs.
 import { XMLParser } from "fast-xml-parser";
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { Cause, Context, DateTime, Duration, Effect, Layer, Option, Ref, Schema } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { newsCache, newsStories, settings, type StoryState } from "./db/schema.js";
@@ -33,22 +33,25 @@ import { LocalTime, calendar } from "./localtime.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 import { RedditNews, plain, type Listed, type Listing, type Thread } from "./newsfeeds.js";
-import { NewsWriter, PROMPT_VERSION, Verdict, Writeup, type Candidate, type Material, type Spend } from "./newswriter.js";
-import type { Asked } from "./gemini.js";
-import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, barFrom, card, cardText, check as checkWriteup, datesIn, decide, notHot, officialLink, upTo, type Decision, type Judged, type Origin } from "./newscard.js";
+import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, Writeup, barFrom, card, cardText, check as checkWriteup, clean, datesIn, notHot, officialLink, sameTitle, sectionsIn, titleFor, upTo, type Origin } from "./newscard.js";
 
 export { SILENT } from "./newscard.js";
 export const FORUM = "https://eu.forums.blizzard.com/en/wow";
 export const FEED = `${FORUM}/groups/blizzard-tracker/posts.rss`;
+/** The forum's category of WoW: Forever's posts (retail's are elsewhere, e.g. 235). */
+export const FOREVER_CATEGORY = 360;
 const UA = "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)";
 export const EVERY = 3600; // a run an hour; a failed one is tried again the next hour
 export const RIPE_COMMENTS = 40; // …or RIPE_AGE old: then there's a mood to report
 export const RIPE_AGE = 3 * 3600;
-export const WRITE_STALE = 12 * 3600; // a story whose write-up keeps failing is dropped after this
-export const STALE = 24 * 3600; // no good collect (or no write-up) for this long → tell the owner
+export const STALE = 24 * 3600; // no good collect (or no word from the writer) for this long → tell the owner
+export const QUEUE_SIZE = 3; // stories the queue hands the writer at once
+export const BACKTEST_QUEUE = 8; // …and a backtest day's queue (the writer picks)
+const RUNNING_DAYS = 14; // a running topic's opening post is read for new sections this long
 const LEVEL_AGE = 24 * 3600; // a subreddit's bar is learned again from its month once a day
-const THREADS_PER_RUN = 4; // threads read (and written up) per run at most: Reddit's minute each
-const TRIAGE_MAX = 25; // candidates per triage call
+const THREADS_PER_RUN = 6; // threads read per run at most: Reddit's minute each
+const COMMENTS_SHOWN = 25;
+const POSTED_SHOWN = 10;
 const DAY_SEC = 86400;
 const FEED_TIMEOUT = Duration.seconds(20);
 const ARTICLE_TIMEOUT = Duration.seconds(15);
@@ -57,13 +60,9 @@ const FORUM_TEXT = 4000; // a Blizzard forum post's own text, at most this long
 const FORUM_COMMENT = 600; // one reply, at most this long
 const RUN = "news_run"; // { ok, tried, since?, alerted? }: the last good run, the last attempt (unix s)
 const LEVELS = "news_levels"; // { [sub]: { bar, at } }: how deep each subreddit's top of the day is hot
-const WRITES = "news_writes"; // { failing?, alerted? }: since when no write-up has worked
-const SHEET = "backtest:sheet";
-/** What a backtest always leaves the live runs: requests for two write-ups and one triage, a day. */
-export const LIVE_WRITES = 2;
-export const LIVE_TRIAGES = 1;
-/** A queued story's reason when its batched write-up came back unreadable: the next one is a request of its own. */
-export const ALONE = "its batch came back unreadable: written alone next";
+const TOPICS = "news_topics"; // { [topic]: { forever, running, link, at } }: Blizzard's topics, read once
+const WRITER = "news_writer"; // { heard?, waiting?, alerted? }: when the writer last asked or wrote
+const SHEET = "backtest:sheet"; // the last backtest: its days' queues
 const parser = new XMLParser({ processEntities: true, htmlEntities: true });
 
 export type Post = { topic: number; post: number; title: string; link: string; excerpt: string; published: number };
@@ -93,27 +92,48 @@ export class NewsFeedError extends Schema.TaggedError<NewsFeedError>()("NewsFeed
   }
 }
 
+/** The writer's request can't be done: the status it answers with, and why. */
+export class NewsRefused extends Schema.TaggedError<NewsRefused>()("NewsRefused", { status: Schema.Number, reason: Schema.String }) {
+  override get message() {
+    return this.reason;
+  }
+}
+
 const RunTimes = Schema.Struct({ ok: Schema.Number, tried: Schema.Number, since: Schema.optional(Schema.Number), alerted: Schema.optional(Schema.Number) });
 const Levels = Schema.Record(Schema.String, Schema.Struct({ bar: Schema.Number, at: Schema.Number }));
-const Writes = Schema.Struct({ failing: Schema.optional(Schema.Number), alerted: Schema.optional(Schema.Number) });
+const Topics = Schema.Record(Schema.String, Schema.Struct({ forever: Schema.Boolean, running: Schema.Boolean, link: Schema.String, at: Schema.Number }));
+const WriterTimes = Schema.Struct({ heard: Schema.optional(Schema.Number), waiting: Schema.optional(Schema.Number), alerted: Schema.optional(Schema.Number) });
 const ListedSchema = Schema.Struct({ id: Schema.String, title: Schema.String, link: Schema.String, url: Schema.String, body: Schema.String, created: Schema.Number, rank: Schema.Number, removed: Schema.Boolean });
 const ThreadSchema = Schema.Struct({ post: Schema.NullOr(ListedSchema), comments: Schema.Array(Schema.String), times: Schema.optional(Schema.Array(Schema.Number)) });
-/** One post of a Blizzard forum topic (Discourse's JSON), as plain text. */
-export type ForumPost = { readonly n: number; readonly at: number; readonly staff: boolean; readonly text: string };
-const ForumPostSchema = Schema.Struct({ n: Schema.Number, at: Schema.Number, staff: Schema.Boolean, text: Schema.String });
+/** One post of a Blizzard forum topic (Discourse's JSON), as plain text; `edited`: when it last changed. */
+export type ForumPost = { readonly n: number; readonly at: number; readonly staff: boolean; readonly text: string; readonly edited?: number };
+const ForumPostSchema = Schema.Struct({ n: Schema.Number, at: Schema.Number, staff: Schema.Boolean, text: Schema.String, edited: Schema.optional(Schema.Number) });
+/** A Blizzard forum topic: its category (null: not given), its title, its posts. */
+export type Topic = { readonly category: number | null; readonly title: string; readonly posts: ReadonlyArray<ForumPost> };
+const TopicSchema = Schema.Struct({ category: Schema.NullOr(Schema.Number), title: Schema.String, posts: Schema.Array(ForumPostSchema) });
 const Discourse = Schema.Struct({
-  post_stream: Schema.Struct({ posts: Schema.Array(Schema.Struct({ post_number: Schema.Number, created_at: Schema.String, cooked: Schema.String, staff: Schema.optional(Schema.NullOr(Schema.Boolean)) })) }),
+  title: Schema.optional(Schema.String),
+  category_id: Schema.optional(Schema.NullOr(Schema.Number)),
+  post_stream: Schema.Struct({
+    posts: Schema.Array(Schema.Struct({ post_number: Schema.Number, created_at: Schema.String, updated_at: Schema.optional(Schema.String), cooked: Schema.String, staff: Schema.optional(Schema.NullOr(Schema.Boolean)) })),
+  }),
 });
 
 /** The post number in a forum link (…/t/<slug>/<topic>/<n>); 1 when it has none. */
 export const postNumber = (link: string) => Number(link.match(/\/t\/[^/]+\/\d+\/(\d+)/)?.[1] ?? 1);
+/** A staff post's link, made the topic's opening post's. */
+const openingLink = (link: string) => link.replace(/(\/t\/[^/]+\/\d+)(?:\/\d+)?$/, "$1/1");
 
 /** A staff post's story id: the topic for the post that opened it, the topic and post for a reply. */
 export const blizzardId = (p: Pick<Post, "topic" | "post">) => (p.post === 1 ? `blizzard:${p.topic}` : `blizzard:${p.topic}/${p.post}`);
+/** A running post's section's story id: the topic and the section's day. */
+export const sectionId = (topic: number | string, day: string) => `blizzard:${topic}#${day}`;
+/** The day of a section story (null: not one). */
+const sectionOf = (id: string) => id.match(/#(\d{4}-\d\d-\d\d)$/)?.[1] ?? null;
 
 /**
  * What a write-up is given from a Blizzard forum topic for its post `n`, at `at`: that post's own
- * text (the opening post as it stood that day: a running hotfix post grows by dated sections), and
+ * text (the opening post as it stood on `day`: a running hotfix post grows by dated sections), and
  * the players' replies after it posted by then, oldest first, as its comments.
  */
 export function forumMaterial(posts: ReadonlyArray<ForumPost>, n: number, at: number, day: string): { text: string; comments: string[] } | null {
@@ -126,12 +146,71 @@ export function forumMaterial(posts: ReadonlyArray<ForumPost>, n: number, at: nu
     comments: posts.filter((p) => p.n > n && !p.staff && p.at <= at && p.text).map((p) => p.text.slice(0, FORUM_COMMENT)).slice(0, 60),
   };
 }
-const PostSchema = Schema.Struct({ topic: Schema.Number, post: Schema.Number, title: Schema.String, link: Schema.String, excerpt: Schema.String, published: Schema.Number });
-const OriginSchema = Schema.Struct({ source: Schema.Literals(["reddit", "blizzard"]), sub: Schema.String, link: Schema.String, created_at: Schema.Number, official: Schema.NullOr(Schema.String) });
-/** A card the backtest would have posted (the admin route can post them on the test bot). */
-const SheetCard = Schema.Struct({ day: Schema.String, id: Schema.String, origin: OriginSchema, writeup: Writeup });
-type SheetCard = typeof SheetCard.Type;
-const SheetSchema = Schema.Struct({ text: Schema.String, at: Schema.Number, done: Schema.Boolean, cards: Schema.optional(Schema.Array(SheetCard)) });
+
+/**
+ * The dated sections of a running topic's opening post that are stories of their own: dated after
+ * the day it opened (`opened`) and by `today`, and carried by no later staff post (that post is the
+ * day's story).
+ */
+export function ownSections(posts: ReadonlyArray<ForumPost>, opened: string, today: string): Array<{ day: string; text: string }> {
+  const op = posts.find((p) => p.n === 1);
+  if (!op) return [];
+  const carried = new Set(posts.filter((p) => p.n > 1 && p.staff).flatMap((p) => datesIn(p.text).slice(0, 1)));
+  return sectionsIn(op.text).filter((s) => s.day > opened && s.day <= today && !carried.has(s.day));
+}
+
+/** A section story's material: its section of the opening post, and the players' replies from `from` (its day's start) to `at` (by its next day's end at most). */
+export function sectionMaterial(posts: ReadonlyArray<ForumPost>, day: string, from: number, at: number): { text: string; comments: string[] } | null {
+  const op = posts.find((p) => p.n === 1);
+  const section = op ? sectionsIn(op.text).find((s) => s.day === day) : undefined;
+  if (!section) return null;
+  return {
+    text: section.text.slice(0, FORUM_TEXT),
+    comments: posts.filter((p) => p.n > 1 && !p.staff && p.at >= from && p.at <= at && p.text).map((p) => p.text.slice(0, FORUM_COMMENT)).slice(0, 60),
+  };
+}
+
+/** What the writer is given about a story, kept on its row once it ripened. */
+export const Prepared = Schema.Struct({
+  text: Schema.String,
+  article: Schema.NullOr(Schema.Struct({ url: Schema.String, text: Schema.String })),
+  official_post: Schema.NullOr(Schema.Struct({ url: Schema.String, title: Schema.String, text: Schema.String })),
+  comments: Schema.Array(Schema.String),
+  comment_count: Schema.Number,
+});
+export type Prepared = typeof Prepared.Type;
+
+/** One story in the queue, as the writer gets it. */
+export const QueuedStory = Schema.Struct({
+  id: Schema.String,
+  source: Schema.Literals(["reddit", "blizzard"]),
+  subreddit: Schema.String,
+  title: Schema.String,
+  link: Schema.String,
+  points_to: Schema.String,
+  posted_hours_ago: Schema.Number,
+  ...Prepared.fields,
+});
+export type QueuedStory = typeof QueuedStory.Type;
+/** The queue's answer. */
+export type Queue = { readonly audience: string; readonly today: string; readonly posted: ReadonlyArray<string>; readonly left_today: number; readonly stories: ReadonlyArray<QueuedStory> };
+
+/** A backtest day's story: what the queue answers, and what its card is made from. */
+const BtStory = Schema.Struct({ ...QueuedStory.fields, sub: Schema.String, created_at: Schema.Number, official: Schema.NullOr(Schema.String) });
+type BtStory = typeof BtStory.Type;
+const BtDay = Schema.Struct({ day: Schema.String, at: Schema.Number, posts: Schema.Number, over: Schema.Number, stories: Schema.Array(BtStory), missing: Schema.Array(Schema.String) });
+type BtDay = typeof BtDay.Type;
+const SheetSchema = Schema.Struct({ at: Schema.Number, today: Schema.String, levels: Schema.Record(Schema.String, Schema.Number), days: Schema.Array(BtDay) });
+const BtPosted = Schema.Struct({ message_id: Schema.String, headline: Schema.optional(Schema.String), writeup: Schema.optional(Writeup), at: Schema.optional(Schema.Number) });
+const BtSkipped = Schema.Struct({ reason: Schema.String, at: Schema.Number });
+
+/** The writer's answer for one story: a write-up, or a skip with its reason; `day`: a backtest day's (the test bot's). */
+export const ArticleInput = Schema.Union([
+  Schema.Struct({ id: Schema.String, day: Schema.optional(Schema.String), skip: Schema.String }),
+  Schema.Struct({ id: Schema.String, day: Schema.optional(Schema.String), ...Writeup.fields }),
+]);
+export type ArticleInput = typeof ArticleInput.Type;
+export type ArticleResult = { readonly posted: true; readonly message_id: string } | { readonly skipped: true };
 
 /** What one run did (absent keys: nothing of that kind). */
 export type RunResult = {
@@ -139,10 +218,8 @@ export type RunResult = {
   first?: true;
   seen?: number;
   candidates?: number;
-  triaged?: number;
-  queued?: string[];
-  written?: number;
-  posted?: string[];
+  repeats?: number;
+  ready?: string[];
   dropped?: number;
   failed?: string[];
 };
@@ -153,19 +230,33 @@ export type RunOptions = {
 export type BacktestOptions = {
   /** How many days back (the days before today), 7 by default. */
   readonly days?: number;
-  /** Model requests this backtest may make (within each model's budget, the live runs' part kept); 10 by default. */
-  readonly maxCalls?: number;
 };
-export type BacktestResult = { readonly sheet: string; readonly done: boolean; readonly calls: number; readonly requests: Readonly<Record<string, number>> };
-/** What posting the backtest's cards did (or why it won't, here). */
-export type BacktestPosted = { readonly posted: number; readonly already: number; readonly failed?: ReadonlyArray<string> } | { readonly refused: string };
+export type BacktestResult = { readonly sheet: string; readonly done: boolean };
 
-const label = (s: Pick<Story, "source" | "sub">) => (s.source === "blizzard" ? "Blizzard" : `r/${s.sub}`);
+const label = (s: Pick<Story, "source" | "sub">) => (s.source === "blizzard" ? "Blizzard's forums" : `r/${s.sub}`);
 const limitOf = (s: Pick<Story, "source">) => (s.source === "blizzard" ? OFFICIAL_AGE : MAX_AGE);
 const externalId = (id: string) => id.replace(/^reddit:/, "");
+/** Best first: a Blizzard staff post as a top story, a thread by its best place in its top of the day; then the older (it ages out first). */
+const rankOf = (s: { source: string; best_rank?: number | null; rank?: number }) => (s.source === "blizzard" ? 1 : (s.rank ?? s.best_rank ?? 99));
+const byRank = <S extends { source: string; best_rank?: number | null; rank?: number; created_at: number; id: string }>(a: S, b: S) =>
+  rankOf(a) - rankOf(b) || a.created_at - b.created_at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/** A story's card's official link: Blizzard's post about it, or the Blizzard/Wowhead page the thread points at. */
+const officialOf = (s: Pick<Story, "source" | "url" | "official">) => s.official ?? (s.source === "reddit" && officialLink(s.url) ? s.url : null);
 
-/** Every link in a text (the write-up's official link must be one of the material's). */
-const linksIn = (text: string) => [...text.matchAll(/https?:\/\/[^\s"'<>()[\]]+/g)].map((m) => m[0].replace(/[.,;:!?]+$/, ""));
+/**
+ * One title's stories (crossposts): the thread kept (the one already handled, else the best), the
+ * other threads its repeats, and Blizzard's post of that title its official one when it's the only
+ * one (a running topic's staff posts share their title, and each is a story of its own). Null: no
+ * thread in it.
+ */
+function crossposts<S extends { id: string; source: "reddit" | "blizzard"; state?: StoryState; best_rank?: number | null; rank?: number; created_at: number }>(group: ReadonlyArray<S>) {
+  const threads = group.filter((s) => s.source === "reddit");
+  if (!threads.length || group.length < 2) return null;
+  const kept = threads.find((s) => s.state !== undefined && s.state !== "candidate") ?? [...threads].sort(byRank)[0];
+  const blizzard = group.filter((s) => s.source === "blizzard");
+  const official = blizzard.length === 1 ? blizzard[0] : null;
+  return { kept, official, repeats: [...threads.filter((s) => s !== kept), ...(official ? [official] : [])] };
+}
 
 export class News extends Context.Service<
   News,
@@ -179,14 +270,16 @@ export class News extends Context.Service<
     run(options?: RunOptions): Effect.Effect<RunResult, DbError>;
     /** A run is going. */
     readonly running: Effect.Effect<boolean>;
-    /** The pipeline over the last days, posting nothing; its sheet (markdown). Resumable: see news_cache. */
+    /** GET /news/queue: the stories waiting for a write-up, best first; `day`: a backtest day's queue (the test bot only). */
+    queue(day?: string): Effect.Effect<Queue, NewsRefused | DbError>;
+    /** POST /news/article: one story's write-up, posted as its card (once, within the day's cap), or its skip. */
+    article(input: ArticleInput): Effect.Effect<ArticleResult, NewsRefused | DbError>;
+    /** Each of the last days' queues as they stood that day, for the writer (posting nothing); its sheet (markdown). */
     backtest(options?: BacktestOptions): Effect.Effect<BacktestResult, DbError>;
     /** The admin route's: a backtest in the background, unless one is going. */
     startBacktest(options?: BacktestOptions): Effect.Effect<{ backtest: "started" | "running" }>;
-    /** The last backtest's sheet (null: none yet). */
+    /** The last backtest's sheet: each day's queue and what the writer made of it (null: none yet). */
     readonly sheet: Effect.Effect<string | null, DbError>;
-    /** The last sheet's cards (of these days, or all), posted to the news channel as backtests: the test bot only. */
-    postBacktest(days?: ReadonlyArray<string>): Effect.Effect<BacktestPosted, DbError>;
   }
 >()("meme-bot/news") {
   static readonly layer = Layer.effect(
@@ -197,7 +290,6 @@ export class News extends Context.Service<
       const http = yield* HttpClient.HttpClient;
       const discord = yield* Discord;
       const reddit = yield* RedditNews;
-      const writer = yield* NewsWriter;
       const alerts = yield* Alerts;
       const background = yield* Background;
       const time = yield* LocalTime;
@@ -235,8 +327,9 @@ export class News extends Context.Service<
       });
 
       /**
-       * The posts of a Blizzard forum topic around post `n` of its link (…/t/<slug>/<topic>/<n>), from
-       * the forum's JSON: who's staff, when each was posted, its text. Null when it won't come.
+       * A Blizzard forum topic around post `n` of its link (…/t/<slug>/<topic>/<n>), from the forum's
+       * JSON: its category, its title, and its posts (who's staff, when each was posted, its text).
+       * Null when it won't come.
        */
       const forumTopic = Effect.fn("News.forumTopic")(function* (link: string) {
         const m = link.match(/^(https:\/\/[^/?#]*forums\.blizzard\.com\/[^?#]*?\/t\/[^/?#]+\/\d+)(?:\/(\d+))?/i);
@@ -246,7 +339,13 @@ export class News extends Context.Service<
           if (res.status !== 200) return null;
           const body = Option.getOrUndefined(Schema.decodeUnknownOption(Discourse)(yield* res.json));
           if (!body) return null;
-          return body.post_stream.posts.map((p): ForumPost => ({ n: p.post_number, at: Math.floor(Date.parse(p.created_at) / 1000), staff: p.staff === true, text: plain(p.cooked) }));
+          const unix = (s: string) => Math.floor(Date.parse(s) / 1000);
+          const topic: Topic = {
+            category: body.category_id ?? null,
+            title: body.title ?? "",
+            posts: body.post_stream.posts.map((p): ForumPost => ({ n: p.post_number, at: unix(p.created_at), staff: p.staff === true, text: plain(p.cooked), ...(p.updated_at ? { edited: unix(p.updated_at) } : {}) })),
+          };
+          return topic;
         }).pipe(Effect.catch((e) => Effect.as(Effect.logInfo(`news: no forum topic from ${link} ${"message" in e ? e.message : String(e)}`), null)));
       });
 
@@ -261,6 +360,33 @@ export class News extends Context.Service<
         const l = time.at(t);
         return time.wallToUnix(l.y, l.m, l.d, 0, 0);
       };
+      /** A Vilnius day's first and last second. */
+      const dayBounds = (day: string) => {
+        const [y, m, d] = day.split("-").map(Number);
+        const next = calendar(y, m, d, 1);
+        return { start: time.wallToUnix(y, m, d, 0, 0), end: time.wallToUnix(next.y, next.m, next.d, 0, 0) - 1 };
+      };
+      const todayLine = (t: number) => {
+        const l = time.at(t);
+        return `${time.weekday(l.day)}, ${l.day}, ${l.hm} Vilnius`;
+      };
+
+      /**
+       * The section stories of a running topic: each dated section of its opening post that no staff
+       * reply carries, made when it appeared (the post's last edit, when that was on the section's
+       * day; else the day's end), by `at`.
+       */
+      const sectionsOf = (topic: number | string, tp: Topic, link: string, at: number) => {
+        const op = tp.posts.find((p) => p.n === 1);
+        if (!op) return [];
+        return ownSections(tp.posts, time.at(op.at).day, time.at(at).day).map((s) => {
+          const { end } = dayBounds(s.day);
+          const made = op.edited !== undefined && time.at(op.edited).day === s.day ? op.edited : end;
+          return { id: sectionId(topic, s.day), title: titleFor(tp.title, s.day), link, body: s.text.slice(0, 600), created_at: Math.min(made, at) };
+        });
+      };
+      /** Forever's topic, by the forum's category; while its JSON won't come, by a mention of Forever. */
+      const foreverOf = (tp: Topic | null, p: Pick<Post, "title" | "excerpt">) => (tp && tp.category !== null ? tp.category === FOREVER_CATEGORY : /\bforever\b/i.test(`${p.title} ${p.excerpt}`));
 
       // ---------------------------------------------------------------- 1. collect
 
@@ -282,6 +408,44 @@ export class News extends Context.Service<
         return levels;
       });
 
+      type Blue = { id: string; title: string; link: string; body: string; created_at: number };
+      /**
+       * Blizzard's stories this hour: each staff post of a Forever topic (each topic's category read
+       * once, from the forum's JSON), and each new section of a running Forever topic's opening post
+       * (its JSON read again each hour for two weeks).
+       */
+      const blizzardStories = Effect.fn("News.blizzard")(function* (posts: ReadonlyArray<Post>, t: number) {
+        const topics = { ...((yield* read(TOPICS, Topics)) ?? {}) };
+        const fetched = new Map<string, Topic | null>();
+        const forever = new Map<number, boolean>();
+        for (const p of posts) {
+          if (forever.has(p.topic)) continue;
+          const known = topics[p.topic];
+          if (known) {
+            forever.set(p.topic, known.forever);
+            continue;
+          }
+          const link = openingLink(p.link);
+          const tp = yield* forumTopic(link);
+          fetched.set(String(p.topic), tp);
+          forever.set(p.topic, foreverOf(tp, p));
+          const op = tp?.posts.find((x) => x.n === 1);
+          if (tp && tp.category !== null) topics[p.topic] = { forever: tp.category === FOREVER_CATEGORY, running: !!op && datesIn(op.text).length > 0, link, at: t };
+        }
+        const out: Blue[] = posts.filter((p) => p.excerpt && forever.get(p.topic)).map((p) => ({ id: blizzardId(p), title: p.title, link: p.link, body: p.excerpt, created_at: p.published }));
+        for (const [topic, info] of Object.entries(topics)) {
+          if (t - info.at > RUNNING_DAYS * DAY_SEC) {
+            delete topics[topic];
+            continue;
+          }
+          if (!info.forever || !info.running) continue;
+          const tp = fetched.has(topic) ? fetched.get(topic)! : yield* forumTopic(info.link);
+          if (tp) out.push(...sectionsOf(topic, tp, info.link, t));
+        }
+        yield* save(TOPICS, topics);
+        return out;
+      });
+
       /** Everything the feeds show, into news_stories (ranks moved along; new ones `old` on the first run). */
       const collect = Effect.fn("News.collect")(function* (t: number, first: boolean, failures: string[]) {
         type Row = typeof newsStories.$inferInsert;
@@ -298,10 +462,8 @@ export class News extends Context.Service<
           listed.push({ sub, day: got.day ?? null, hot: got.hot ?? null });
         }
         if ("failed" in official) failures.push(official.failed);
-        const ids = [
-          ...listed.flatMap((l) => [...(l.day ?? []), ...(l.hot ?? [])].map((p) => `reddit:${p.id}`)),
-          ...("ok" in official ? official.ok.map(blizzardId) : []),
-        ];
+        const blue = "ok" in official ? yield* blizzardStories(official.ok, t) : [];
+        const ids = [...listed.flatMap((l) => [...(l.day ?? []), ...(l.hot ?? [])].map((p) => `reddit:${p.id}`)), ...blue.map((b) => b.id)];
         if (!ids.length) return { seen: 0, removed: new Set<string>() };
         const known = new Map((yield* db.select().from(newsStories).where(inArray(newsStories.id, [...new Set(ids)]))).map((s) => [s.id, s]));
         const removed = new Set<string>();
@@ -326,20 +488,17 @@ export class News extends Context.Service<
             });
           }
         }
-        if ("ok" in official) {
-          // every staff post with something in it is a story of its own: the post that opened a topic,
-          // and each later one (a running hotfix topic gets each day's fixes as a new staff post)
-          for (const p of official.ok) {
-            const id = blizzardId(p);
-            if (rows.has(id) || !p.excerpt) continue;
-            const was = known.get(id);
-            rows.set(id, {
-              id, source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published,
-              first_seen: was?.first_seen ?? t, last_seen: t, top_rank: null, best_rank: null, hot_rank: null, prev_hot_rank: null, prev_at: was ? was.last_seen : null,
-              state: was?.state ?? (first ? "old" : "watch"),
-              reason: was ? was.reason : null,
-            });
-          }
+        // every staff post with something in it is a story of its own (the post that opened a topic,
+        // and each later one), and so is each day a running post grew by without a staff post of its own
+        for (const b of blue) {
+          if (rows.has(b.id)) continue;
+          const was = known.get(b.id);
+          rows.set(b.id, {
+            id: b.id, source: "blizzard", sub: "blizzard", title: b.title, link: b.link, url: "", body: b.body, created_at: was?.created_at ?? b.created_at,
+            first_seen: was?.first_seen ?? t, last_seen: t, top_rank: null, best_rank: null, hot_rank: null, prev_hot_rank: null, prev_at: was ? was.last_seen : null,
+            state: was?.state ?? (first ? "old" : "watch"),
+            reason: was ? was.reason : null,
+          });
         }
         const values = [...rows.values()];
         const excluded = (c: string) => sql.raw(`excluded."${c}"`);
@@ -353,7 +512,7 @@ export class News extends Context.Service<
         return { seen: values.filter((v) => !known.has(v.id)).length, removed };
       });
 
-      // ---------------------------------------------------------------- 2. filter, 3. triage
+      // ---------------------------------------------------------------- 2. filter, 3. ripen
 
       const setState = (ids: ReadonlyArray<string>, state: StoryState, reason: string | null = null) =>
         ids.length ? db.update(newsStories).set({ state, reason }).where(inArray(newsStories.id, [...ids])) : Effect.void;
@@ -365,68 +524,56 @@ export class News extends Context.Service<
         return hot.length;
       });
 
-      const postedSince = (since: number) => db.select().from(newsStories).where(and(eq(newsStories.state, "posted"), gte(newsStories.posted_at, since)));
-
-      const toCandidate = (s: Story, t: number): Candidate => ({
-        id: s.id,
-        sub: label(s),
-        title: s.title,
-        rank: s.source === "blizzard" ? "a Blizzard staff post" : [s.top_rank && `#${s.top_rank} in today's top`, s.hot_rank && `#${s.hot_rank} in hot`].filter(Boolean).join(", ") || "rising",
-        age_hours: Math.round((t - s.created_at) / 360) / 10,
-        text: s.body.slice(0, 400),
-      });
-
-      const triage = Effect.fn("News.triage")(function* (t: number) {
-        const waiting = yield* db.select().from(newsStories).where(eq(newsStories.state, "candidate")).orderBy(asc(newsStories.best_rank), asc(newsStories.created_at), asc(newsStories.id)); // (ties by id: one order, every run)
-        const aged = waiting.filter((s) => t - s.created_at > limitOf(s));
-        yield* setState(aged.map((s) => s.id), "dropped", "too old");
-        const fresh = waiting.filter((s) => t - s.created_at <= limitOf(s)).slice(0, TRIAGE_MAX);
-        if (!fresh.length) return { triaged: 0, dropped: aged.length, queued: [] as string[] };
-        // today's cards are all out: what's found now waits for tomorrow's triage (or ages out)
-        const posted = yield* postedSince(dayStart(t));
-        if (posted.length >= config.newsDailyPosts) return { triaged: 0, dropped: aged.length, queued: [] as string[] };
-        // the day's write-ups come first: the triage never takes, on the write-ups' models, the last
-        // requests the day's remaining posts would need (on its own first model it never meets them)
-        const keep = [{ models: writer.models.write, requests: Math.max(0, config.newsDailyPosts - posted.length) }];
-        if ((yield* writer.left("triage", keep)) <= 0) {
-          yield* Effect.logInfo("news: the triage waits (the day's model calls are kept for write-ups)");
-          return { triaged: 0, dropped: aged.length, queued: [] as string[] };
+      /**
+       * Crossposts are one story: threads with the same title as another candidate, or as a thread
+       * waiting for or given a card this week, are its repeats; Blizzard's post of that title too, and
+       * it becomes the thread's official link (a running topic's staff posts share one title, so
+       * several Blizzard posts of a title stay stories of their own).
+       */
+      const merge = Effect.fn("News.merge")(function* (t: number) {
+        const open = yield* db
+          .select()
+          .from(newsStories)
+          .where(and(inArray(newsStories.state, ["candidate", "ready", "posted"]), gte(newsStories.created_at, t - 7 * DAY_SEC)));
+        const groups = new Map<string, Story[]>();
+        for (const s of open) groups.set(sameTitle(s.title), [...(groups.get(sameTitle(s.title)) ?? []), s]);
+        let repeats = 0;
+        for (const group of groups.values()) {
+          const c = crossposts(group);
+          if (!c) continue;
+          for (const s of c.repeats) {
+            if (s.state !== "candidate") continue;
+            yield* db.update(newsStories).set({ state: "skip", reason: "a repeat", same_as: c.kept.id }).where(and(eq(newsStories.id, s.id), eq(newsStories.state, "candidate")));
+            repeats++;
+          }
+          if (c.official && !c.kept.official && c.kept.state !== "posted") yield* db.update(newsStories).set({ official: c.official.link }).where(eq(newsStories.id, c.kept.id));
         }
-        const week = yield* postedSince(t - 7 * DAY_SEC);
-        const headlines = week.map((s) => ({ id: s.id, headline: Option.getOrElse(Schema.decodeUnknownOption(Writeup)(s.writeup), () => ({ headline: s.title })).headline }));
-        const verdicts = (yield* writer.triage(t, fresh.map((s) => toCandidate(s, t)), headlines, { keep })).answer;
-        if (!verdicts) return { triaged: 0, dropped: aged.length, queued: [] as string[] }; // asked again next run
-        const decisions = decide(fresh.map((s) => ({ id: s.id, source: s.source, title: s.title, link: s.link, rank: s.best_rank ?? s.hot_rank ?? 99 })), verdicts, new Set(week.map((s) => s.id)));
-        for (const d of decisions)
-          yield* db
-            .update(newsStories)
-            .set({ state: d.keep ? "queued" : "skip", reason: d.reason, score: d.score, same_as: d.same_as, official: d.official, verdict: d.verdict })
-            .where(and(eq(newsStories.id, d.id), eq(newsStories.state, "candidate")));
-        return { triaged: decisions.length, dropped: aged.length, queued: decisions.filter((d) => d.keep).map((d) => fresh.find((s) => s.id === d.id)!.title) };
+        return repeats;
       });
 
-      // ---------------------------------------------------------------- 4. ripen, 5. write
-
-      /** What the writer gets about a story (its thread's comments come from the caller). */
-      const materialFor = Effect.fn("News.material")(function* (s: Pick<Story, "source" | "sub" | "title" | "created_at" | "link" | "url" | "body" | "official">, at: number, comments: ReadonlyArray<string>, blizzard: { url: string; title: string; text: string } | null, read: (url: string) => Effect.Effect<string | null, DbError>, forum: ReadonlyArray<ForumPost> | null = null) {
-        // a Blizzard post: its own post from the topic, as it stood then, its replies by then as the comments
-        const own = s.source === "blizzard" && forum ? forumMaterial(forum, postNumber(s.link), at, time.at(at).day) : null;
+      /** What the writer is given about a story at `at` (its thread's comments come from the caller). */
+      const materialFor = Effect.fn("News.material")(function* (s: Pick<Story, "id" | "source" | "link" | "url" | "body">, at: number, comments: ReadonlyArray<string>, official: { url: string; title: string; text: string } | null, readArticle: (url: string) => Effect.Effect<string | null, DbError>, forum: Topic | null) {
+        // a Blizzard post: its own post from the topic, as it stood then (a section story: its section), its replies by then as the comments
+        let own: { text: string; comments: string[] } | null = null;
+        if (s.source === "blizzard" && forum) {
+          const section = sectionOf(s.id);
+          const opened = forum.posts.find((p) => p.n === 1);
+          const day = time.at(at).day;
+          own = section
+            ? sectionMaterial(forum.posts, section, dayBounds(section).start, Math.min(at, dayBounds(section).start + 2 * DAY_SEC))
+            : forumMaterial(forum.posts, postNumber(s.link), at, postNumber(s.link) === 1 && opened ? [day, time.at(opened.at).day].sort()[0] : day);
+        }
         if (own) comments = own.comments;
         const target = s.source === "blizzard" ? (own ? "" : s.link) : s.url;
-        const text = officialLink(target) ? yield* read(target) : null;
-        const material: Material = {
-          subreddit: s.source === "blizzard" ? "Blizzard's forums" : `r/${s.sub}`,
-          title: s.title,
-          posted_hours_ago: Math.max(0, Math.round((at - s.created_at) / 360) / 10),
-          link: s.link,
-          points_to: s.url,
+        const text = officialLink(target) ? yield* readArticle(target) : null;
+        const prepared: Prepared = {
           text: own ? own.text : s.body,
           article: text ? { url: target, text } : null,
-          blizzard_post: s.source === "blizzard" ? null : blizzard, // a Blizzard story's own post is its text already
-          comments,
+          official_post: s.source === "blizzard" ? null : official, // a Blizzard story's own post is its text already
+          comments: comments.slice(0, COMMENTS_SHOWN),
+          comment_count: comments.length,
         };
-        const links = [s.link, s.url, s.official ?? "", ...(text ? [target] : []), ...linksIn(s.body), ...linksIn(own?.text ?? ""), ...linksIn(text ?? ""), ...(blizzard ? [blizzard.url, ...linksIn(blizzard.text)] : [])].filter(Boolean);
-        return { material, links };
+        return prepared;
       });
 
       const blizzardPost = Effect.fn("News.blizzardPost")(function* (link: string | null) {
@@ -435,14 +582,7 @@ export class News extends Context.Service<
         return b ? { url: b.link, title: b.title, text: b.body } : null;
       });
 
-      const writes = Effect.fn("News.writes")(function* (t: number, ok: boolean) {
-        const w = (yield* read(WRITES, Writes)) ?? {};
-        if (ok) {
-          if (w.failing !== undefined || w.alerted !== undefined) yield* save(WRITES, {});
-        } else if (w.failing === undefined) yield* save(WRITES, { ...w, failing: t });
-      });
-
-      /** One story: ripe yet? then what its write-up is made from. A string: why not this run ("waiting", "removed", "ripening"). */
+      /** One story: ripe yet? then what the writer is given. A string: why not this run ("waiting", "removed", "ripening"). */
       const prepare = Effect.fn("News.prepare")(function* (s: Story, t: number) {
         let comments: ReadonlyArray<string> = [];
         if (s.source === "reddit") {
@@ -453,141 +593,41 @@ export class News extends Context.Service<
             return "removed";
           }
           comments = thread.ok.comments;
-          yield* db.update(newsStories).set({ comments: comments.length }).where(eq(newsStories.id, s.id));
+          if (comments.length < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) {
+            yield* db.update(newsStories).set({ comments: comments.length }).where(eq(newsStories.id, s.id));
+            return "ripening";
+          }
         }
         const forum = s.source === "blizzard" ? yield* forumTopic(s.link) : null;
-        if (forum) comments = forumMaterial(forum, postNumber(s.link), t, time.at(t).day)?.comments ?? [];
-        if (comments.length < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) return "ripening";
-        return yield* materialFor(s, t, comments, yield* blizzardPost(s.official), article, forum);
+        const prepared = yield* materialFor(s, t, comments, yield* blizzardPost(s.official), article, forum);
+        if (prepared.comment_count < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) return "ripening";
+        return prepared;
       });
 
-      /** A write-up that didn't come: tried again next run, and dropped after 12 h of these; `alone`: next time in a request of its own. */
-      const failed = (ids: ReadonlyArray<string>, t: number, alone: boolean) =>
-        ids.length
-          ? db
-              .update(newsStories)
-              .set({ write_tries: sql`${newsStories.write_tries} + 1`, write_first: sql`COALESCE(${newsStories.write_first}, ${t})`, ...(alone ? { reason: ALONE } : {}) })
-              .where(inArray(newsStories.id, [...ids]))
-          : Effect.void;
-
-      const write = Effect.fn("News.write")(function* (t: number) {
-        const queued = yield* db
-          .select()
-          .from(newsStories)
-          .where(eq(newsStories.state, "queued"))
-          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at), asc(newsStories.id));
-        // aged out, or 12 hours of failed write-ups: dropped, never posted late
-        const aged = queued.filter((s) => t - s.created_at > limitOf(s));
-        const stale = queued.filter((s) => !aged.includes(s) && s.write_first !== null && t - s.write_first >= WRITE_STALE);
+      /** The candidates that ripened, read for the writer (a few threads a run: Reddit's minute each), best first. */
+      const ripen = Effect.fn("News.ripen")(function* (t: number) {
+        const waiting = (yield* db.select().from(newsStories).where(eq(newsStories.state, "candidate"))).sort(byRank);
+        const aged = waiting.filter((s) => t - s.created_at > limitOf(s));
         yield* setState(aged.map((s) => s.id), "dropped", "too old");
-        yield* setState(stale.map((s) => s.id), "dropped", "no write-up in 12 h");
-        const live = queued.filter((s) => !aged.includes(s) && !stale.includes(s));
-        const posted = (yield* postedSince(dayStart(t))).length;
-        const ready = (yield* db.select({ n: sql<number>`count(*)::int` }).from(newsStories).where(eq(newsStories.state, "ready")))[0].n;
-        // only as many write-ups as today can still post, and a few threads a run (Reddit's minute each);
-        // up to NEWS_WRITE_BATCH ripe stories in one request, a story whose batch came back malformed alone
-        let need = config.newsDailyPosts - posted - ready;
         let threads = THREADS_PER_RUN;
-        let written = 0;
-        let i = 0;
-        while (need > 0 && threads > 0 && i < live.length) {
-          const batch: Array<{ s: Story; material: Material; links: string[] }> = [];
-          while (i < live.length && threads > 0 && batch.length < Math.min(need, config.newsWriteBatch)) {
-            const s = live[i];
-            const alone = s.reason === ALONE;
-            if (alone && batch.length) break;
-            i++;
-            const p = yield* prepare(s, t);
-            if (s.source === "reddit") threads--;
-            if (typeof p === "string") continue;
-            batch.push({ s, ...p });
-            if (alone) break;
-          }
-          if (!batch.length) continue;
-          const r = (yield* writer.write(t, batch.map((b) => ({ id: b.s.id, material: b.material })))).answer;
-          yield* writes(t, !!r && r.written.size > 0);
-          if (!r) {
-            yield* failed(batch.map((b) => b.s.id), t, false);
-            break; // the model isn't answering: the rest wait for the next run too
-          }
-          yield* failed(r.missing, t, batch.length > 1);
-          for (const { s, links, material } of batch) {
-            const raw = r.written.get(s.id);
-            if (!raw) continue;
-            const checked = checkWriteup(raw, links, material.comments.length);
-            if ("drop" in checked) {
-              yield* setState([s.id], "skip", checked.drop);
-              continue;
-            }
-            yield* db.update(newsStories).set({ state: "ready", writeup: checked.ok, reason: null }).where(and(eq(newsStories.id, s.id), eq(newsStories.state, "queued")));
-            written++;
-            need--;
-          }
-          if (!r.written.size) break; // nothing readable came back: the rest wait for the next run
+        const ready: string[] = [];
+        for (const s of waiting) {
+          if (aged.includes(s) || (s.source === "reddit" && threads <= 0)) continue;
+          const p = yield* prepare(s, t);
+          if (s.source === "reddit") threads--;
+          if (typeof p === "string") continue;
+          yield* db.update(newsStories).set({ state: "ready", material: p, comments: p.comment_count }).where(and(eq(newsStories.id, s.id), eq(newsStories.state, "candidate")));
+          ready.push(s.title);
         }
-        return { written, dropped: aged.length + stale.length };
-      });
-
-      // ---------------------------------------------------------------- 6. post
-
-      const post = Effect.fn("News.post")(function* (to: string, t: number) {
-        const ready = yield* db
-          .select()
-          .from(newsStories)
-          .where(eq(newsStories.state, "ready"))
-          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at), asc(newsStories.id));
-        const aged = ready.filter((s) => t - s.created_at > limitOf(s));
-        yield* setState(aged.map((s) => s.id), "dropped", "too old");
-        let left = config.newsDailyPosts - (yield* postedSince(dayStart(t))).length;
-        const done: string[] = [];
-        for (const s of ready) {
-          if (left <= 0) break;
-          if (aged.includes(s)) continue;
-          const w = Option.getOrUndefined(Schema.decodeUnknownOption(Writeup)(s.writeup));
-          if (!w) continue;
-          const origin: Origin = { source: s.source, sub: s.sub, link: s.link, created_at: s.created_at, official: s.official };
-          // claim → post → its id is never cut short (architecture §15); a refused post gives the claim back
-          const sent = yield* Effect.uninterruptible(
-            Effect.gen(function* () {
-              const [claim] = yield* db
-                .update(newsStories)
-                .set({ state: "posted", message_id: "posting", posted_at: t })
-                .where(and(eq(newsStories.id, s.id), eq(newsStories.state, "ready")))
-                .returning();
-              if (!claim) return false;
-              const msg = yield* discord
-                .createMessage(to, card(origin, w))
-                .pipe(Effect.tapError(() => db.update(newsStories).set({ state: "ready", message_id: null, posted_at: null }).where(eq(newsStories.id, s.id))));
-              yield* db.update(newsStories).set({ message_id: msg.id }).where(eq(newsStories.id, s.id));
-              return true;
-            }),
-          ).pipe(
-            // Discord said no: the story waits for the next run (not a single failure worth a DM)
-            Effect.catchTags({
-              DiscordNotFound: (e) => Effect.as(Effect.logInfo(`news: post failed ${s.id} ${e.message}`), null),
-              DiscordRejected: (e) => Effect.as(Effect.logInfo(`news: post failed ${s.id} ${e.message}`), null),
-              DiscordUnavailable: (e) => Effect.as(Effect.logInfo(`news: post failed ${s.id} ${e.message}`), null),
-              DiscordUnexpected: (e) => Effect.as(Effect.logInfo(`news: post failed ${s.id} ${e.message}`), null),
-            }),
-          );
-          if (sent === null) break;
-          if (!sent) continue;
-          done.push(w.headline);
-          left--;
-        }
-        // the day's cards are out: what passed today and didn't get one would be tomorrow's old news
-        let capped = 0;
-        if (left <= 0) {
-          const waiting = yield* db.select({ id: newsStories.id }).from(newsStories).where(inArray(newsStories.state, ["queued", "ready"]));
-          yield* setState(waiting.map((x) => x.id), "dropped", `the day's ${config.newsDailyPosts} were taken`);
-          capped = waiting.length;
-        }
-        return { posted: done, dropped: aged.length + capped };
+        // a story the writer never got to ages out, never posted late
+        const stale = (yield* db.select().from(newsStories).where(eq(newsStories.state, "ready"))).filter((s) => t - s.created_at > limitOf(s));
+        yield* setState(stale.map((s) => s.id), "dropped", "too old");
+        return { ready, dropped: aged.length + stale.length };
       });
 
       // ---------------------------------------------------------------- the run
 
-      /** The owner hears once per outage: after a day without a good collect, or a day of failed write-ups. */
+      /** The owner hears once per outage: after a day without a good collect, or a day of stories waiting while the writer never asked. */
       const watch = Effect.fn("News.watch")(function* (t: number, failures: ReadonlyArray<string>) {
         const s = (yield* read(RUN, RunTimes)) ?? { ok: 0, tried: t };
         if (!failures.length) yield* save(RUN, { ok: t, tried: s.tried });
@@ -598,14 +638,18 @@ export class News extends Context.Service<
             yield* save(RUN, { ...s, alerted: t });
           }
         }
-        const w = (yield* read(WRITES, Writes)) ?? {};
-        if (w.failing !== undefined && t - w.failing >= STALE && w.alerted === undefined) {
-          yield* alerts.failed("writing up WoW news", `no write-up has worked since <t:${w.failing}:R> (Gemini unavailable or out of budget)`);
-          yield* save(WRITES, { ...w, alerted: t });
+        const [{ n }] = yield* db.select({ n: sql<number>`count(*)::int` }).from(newsStories).where(eq(newsStories.state, "ready"));
+        if (!n) return;
+        const w = (yield* read(WRITER, WriterTimes)) ?? {};
+        const since = w.heard ?? w.waiting;
+        if (since === undefined) yield* save(WRITER, { ...w, waiting: t });
+        else if (t - since >= STALE && (w.alerted === undefined || w.alerted < since)) {
+          yield* alerts.failed("writing up WoW news", `stories are waiting, and the writer hasn't asked for them since <t:${since}:R> (GET /news/queue)`);
+          yield* save(WRITER, { ...w, alerted: t });
         }
       });
 
-      const once = Effect.fn("News.once")(function* (to: string, t: number) {
+      const once = Effect.fn("News.once")(function* (t: number) {
         const before = yield* read(RUN, RunTimes);
         const first = !before?.ok;
         const failures: string[] = [];
@@ -618,15 +662,11 @@ export class News extends Context.Service<
         } else {
           const candidates = yield* filter(t, levels, removed);
           if (candidates) out.candidates = candidates;
-          const tr = yield* triage(t);
-          if (tr.triaged) out.triaged = tr.triaged;
-          if (tr.queued.length) out.queued = tr.queued;
-          const wr = yield* write(t);
-          if (wr.written) out.written = wr.written;
-          const po = yield* post(to, t);
-          if (po.posted.length) out.posted = po.posted;
-          const dropped = tr.dropped + wr.dropped + po.dropped;
-          if (dropped) out.dropped = dropped;
+          const repeats = yield* merge(t);
+          if (repeats) out.repeats = repeats;
+          const r = yield* ripen(t);
+          if (r.ready.length) out.ready = r.ready;
+          if (r.dropped) out.dropped = r.dropped;
         }
         // what's done with stays two weeks (repeats are looked up a week back)
         yield* db.delete(newsStories).where(and(lt(newsStories.last_seen, t - 14 * DAY_SEC), inArray(newsStories.state, ["old", "watch", "skip", "dropped"])));
@@ -647,7 +687,7 @@ export class News extends Context.Service<
         return yield* Effect.gen(function* () {
           const t = options.at ?? (yield* nowSec);
           yield* begin(t);
-          return yield* once(channel, t);
+          return yield* once(t);
         }).pipe(Effect.ensuring(Ref.set(running, false)));
       });
 
@@ -658,7 +698,7 @@ export class News extends Context.Service<
         if (t - s.tried < EVERY) return {};
         yield* Ref.set(running, true);
         // Reddit's minute between requests makes a run take ten minutes: never on the minute job's own time
-        const go = once(channel, t).pipe(
+        const go = once(t).pipe(
           Effect.flatMap((r) => (Object.keys(r).length ? Effect.logInfo(`wow news ${jsonText(r)}`) : Effect.void)),
           Effect.catchCause((cause) => (Cause.hasInterruptsOnly(cause) ? Effect.void : Effect.logInfo(`wow news run failed, trying again in an hour: ${String(Cause.squash(cause))}`))),
           Effect.ensuring(Ref.set(running, false)),
@@ -668,16 +708,101 @@ export class News extends Context.Service<
         return { checking: true };
       }).pipe(Effect.withSpan("News.check"));
 
+      // ---------------------------------------------------------------- the writer's routes
+
+      /** The writer asked or wrote: it's alive (the owner's alert waits on this). */
+      const heard = (t: number) => save(WRITER, { heard: t });
+
+      const toQueued = (s: Pick<Story, "id" | "source" | "sub" | "title" | "link" | "url" | "created_at">, p: Prepared, t: number): QueuedStory => ({
+        id: s.id,
+        source: s.source,
+        subreddit: label(s),
+        title: s.title,
+        link: s.link,
+        points_to: s.url,
+        posted_hours_ago: Math.max(0, Math.round((t - s.created_at) / 360) / 10),
+        ...p,
+      });
+      const decoded = <A>(schema: Schema.Decoder<A>, value: unknown) => Option.getOrUndefined(Schema.decodeUnknownOption(schema)(value));
+      const postedSince = (since: number) => db.select().from(newsStories).where(and(eq(newsStories.state, "posted"), gte(newsStories.posted_at, since)));
+      const refuse = (status: number, reason: string) => Effect.fail(new NewsRefused({ status, reason }));
+      /** Discord said no: the claim is given back already; the writer may send it again. */
+      const discordRefused = {
+        DiscordNotFound: (e: { message: string }) => refuse(502, `Discord refused the post: ${e.message}; send it again later`),
+        DiscordRejected: (e: { message: string }) => refuse(502, `Discord refused the post: ${e.message}; send it again later`),
+        DiscordUnavailable: (e: { message: string }) => refuse(502, `Discord refused the post: ${e.message}; send it again later`),
+        DiscordUnexpected: (e: { message: string }) => refuse(502, `Discord refused the post: ${e.message}; send it again later`),
+      };
+
+      const liveQueue = Effect.fn("News.queue")(function* () {
+        const t = yield* nowSec;
+        yield* heard(t);
+        const left = Math.max(0, config.newsDailyPosts - (yield* postedSince(dayStart(t))).length);
+        const ready = left ? (yield* db.select().from(newsStories).where(eq(newsStories.state, "ready"))).filter((s) => t - s.created_at <= limitOf(s)).sort(byRank) : [];
+        const stories = ready.flatMap((s) => {
+          const p = decoded(Prepared, s.material);
+          return p ? [toQueued(s, p, t)] : [];
+        });
+        const posted = yield* db.select().from(newsStories).where(eq(newsStories.state, "posted")).orderBy(desc(newsStories.posted_at), asc(newsStories.id)).limit(POSTED_SHOWN);
+        return {
+          audience: config.newsAudience,
+          today: todayLine(t),
+          posted: posted.map((s) => decoded(Writeup, s.writeup)?.headline ?? s.title),
+          left_today: left,
+          stories: stories.slice(0, QUEUE_SIZE),
+        } satisfies Queue;
+      });
+
+      const liveArticle = Effect.fn("News.write")(function* (input: ArticleInput) {
+        const t = yield* nowSec;
+        yield* heard(t);
+        const [s] = yield* db.select().from(newsStories).where(eq(newsStories.id, input.id));
+        if (!s) return yield* refuse(404, `no story ${input.id}`);
+        if (s.state !== "ready") return yield* refuse(s.state === "candidate" || s.state === "watch" || s.state === "old" ? 404 : 409, `${input.id} isn't waiting for a write-up (${s.state}${s.reason ? `: ${s.reason}` : ""})`);
+        if ("skip" in input) {
+          const [done] = yield* db
+            .update(newsStories)
+            .set({ state: "skip", reason: `the writer: ${clean(input.skip, 200) || "skipped"}` })
+            .where(and(eq(newsStories.id, s.id), eq(newsStories.state, "ready")))
+            .returning();
+          if (!done) return yield* refuse(409, `${input.id} was just written or skipped`);
+          return { skipped: true } as const;
+        }
+        const checked = checkWriteup(input, decoded(Prepared, s.material)?.comment_count ?? 0);
+        if ("bad" in checked) return yield* refuse(400, checked.bad);
+        if (!channel) return yield* refuse(404, "no news channel configured");
+        if ((yield* postedSince(dayStart(t))).length >= config.newsDailyPosts) return yield* refuse(409, `today's ${config.newsDailyPosts} cards are out; it stays queued until it ages out`);
+        const origin: Origin = { source: s.source, sub: s.sub, link: s.link, created_at: s.created_at, official: officialOf(s) };
+        // claim → post → its id is never cut short (architecture §15); a refused post gives the claim back
+        const id = yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const [claim] = yield* db
+              .update(newsStories)
+              .set({ state: "posted", message_id: "posting", posted_at: t, writeup: checked.ok })
+              .where(and(eq(newsStories.id, s.id), eq(newsStories.state, "ready")))
+              .returning();
+            if (!claim) return null;
+            const msg = yield* discord
+              .createMessage(channel, card(origin, checked.ok))
+              .pipe(Effect.tapError(() => db.update(newsStories).set({ state: "ready", message_id: null, posted_at: null, writeup: null }).where(eq(newsStories.id, s.id))));
+            yield* db.update(newsStories).set({ message_id: msg.id }).where(eq(newsStories.id, s.id));
+            return msg.id;
+          }),
+        ).pipe(Effect.catchTags(discordRefused));
+        if (id === null) return yield* refuse(409, `${input.id} was just written or skipped`);
+        return { posted: true, message_id: id } as const;
+      });
+
       // ---------------------------------------------------------------- the backtest
 
       const cacheGet = <A>(key: string, schema: Schema.Decoder<A>) =>
-        Effect.map(db.select().from(newsCache).where(eq(newsCache.key, key)), ([row]) => (row ? Option.getOrUndefined(Schema.decodeUnknownOption(schema)(row.value)) : undefined));
+        Effect.map(db.select().from(newsCache).where(eq(newsCache.key, key)), ([row]) => (row ? decoded(schema, row.value) : undefined));
       const cachePut = (key: string, value: unknown) =>
         Effect.gen(function* () {
           const at = yield* nowSec;
           yield* db.insert(newsCache).values({ key, value, at }).onConflictDoUpdate({ target: newsCache.key, set: { value, at } });
         });
-      /** A cached value, or `make`'s (stored when it's there): what a rerun of the backtest doesn't pay twice for. */
+      /** A cached value, or `make`'s (stored when it's there): what a rerun of the backtest doesn't fetch twice. */
       const cached = <A, E>(key: string, schema: Schema.Decoder<A>, make: Effect.Effect<A | null, E>) =>
         Effect.gen(function* () {
           const hit = yield* cacheGet(key, schema);
@@ -688,40 +813,89 @@ export class News extends Context.Service<
         });
       const feedOrNull = <A, E extends { readonly message: string }>(what: string, effect: Effect.Effect<A, E>) =>
         Effect.map(attempt(what, effect), (r) => ("ok" in r ? r.ok : null));
+      const forumCached = (link: string) => cached(`bt:forum:v3:${link}`, TopicSchema, forumTopic(link));
+
+      /** The writer's marks on a backtest's days: the cards posted (`bt:posted:<day>:<id>`) and the skips. */
+      const backtestMarks = Effect.gen(function* () {
+        const rows = yield* db.select().from(newsCache).where(sql`${newsCache.key} LIKE 'bt:posted:%' OR ${newsCache.key} LIKE 'bt:skipped:%'`);
+        return rows.flatMap((r) => {
+          const m = r.key.match(/^bt:(posted|skipped):(\d{4}-\d\d-\d\d):(.+)$/);
+          if (!m) return [];
+          const posted = m[1] === "posted" ? decoded(BtPosted, r.value) : undefined;
+          const skipped = m[1] === "skipped" ? decoded(BtSkipped, r.value) : undefined;
+          return [{ day: m[2], id: m[3], at: r.at, posted, skipped }];
+        });
+      });
+
+      const backtestDay = Effect.fn("News.backtestDay")(function* (day: string) {
+        if (!config.newsBacktestPost) return yield* refuse(404, "no backtest here (NEWS_BACKTEST_POST is the test bot's)");
+        const s = yield* cacheGet(SHEET, SheetSchema);
+        const d = s?.days.find((x) => x.day === day);
+        if (!d) return yield* refuse(404, `no backtest queue for ${day}: POST /admin/news {"backtest": {"days": 7}} first`);
+        return d;
+      });
+
+      const backtestQueue = Effect.fn("News.backtestQueue")(function* (day: string) {
+        const d = yield* backtestDay(day);
+        const marks = yield* backtestMarks;
+        const mine = marks.filter((m) => m.day === day);
+        const left = Math.max(0, config.newsDailyPosts - mine.filter((m) => m.posted).length);
+        const posted = marks
+          .filter((m) => m.day < day && m.posted?.headline)
+          .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.at - b.at || Number(a.posted!.message_id) - Number(b.posted!.message_id)))
+          .map((m) => m.posted!.headline!)
+          .slice(-POSTED_SHOWN)
+          .reverse();
+        const stories = left ? d.stories.filter((x) => !mine.some((m) => m.id === x.id)).slice(0, BACKTEST_QUEUE) : [];
+        return {
+          audience: config.newsAudience,
+          today: todayLine(d.at),
+          posted,
+          left_today: left,
+          stories: stories.map(({ sub: _sub, created_at: _created, official: _official, ...q }) => q),
+        } satisfies Queue;
+      });
+
+      /** A backtest day's write-up: its card in the news channel marked as a backtest, at most three a day, once per story; never the live tables. */
+      const backtestArticle = Effect.fn("News.backtestArticle")(function* (day: string, input: ArticleInput) {
+        const d = yield* backtestDay(day);
+        const story = d.stories.find((x) => x.id === input.id);
+        if (!story) return yield* refuse(404, `no story ${input.id} in ${day}'s queue`);
+        const marks = (yield* backtestMarks).filter((m) => m.day === day);
+        if (marks.some((m) => m.id === input.id)) return yield* refuse(409, `${input.id} was already written or skipped for ${day}`);
+        if ("skip" in input) {
+          const t = yield* nowSec;
+          const [done] = yield* db.insert(newsCache).values({ key: `bt:skipped:${day}:${input.id}`, value: { reason: clean(input.skip, 200) || "skipped", at: t }, at: t }).onConflictDoNothing().returning();
+          if (!done) return yield* refuse(409, `${input.id} was already written or skipped for ${day}`);
+          return { skipped: true } as const;
+        }
+        const checked = checkWriteup(input, story.comment_count);
+        if ("bad" in checked) return yield* refuse(400, checked.bad);
+        if (!channel) return yield* refuse(404, "no news channel configured");
+        if (marks.filter((m) => m.posted).length >= config.newsDailyPosts) return yield* refuse(409, `${day}'s ${config.newsDailyPosts} cards are out`);
+        const key = `bt:posted:${day}:${input.id}`;
+        const origin: Origin = { source: story.source, sub: story.sub, link: story.link, created_at: story.created_at, official: story.official };
+        // claim → post → its id, never cut short; a refused post gives the claim back
+        const id = yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const at = yield* nowSec;
+            const [claim] = yield* db.insert(newsCache).values({ key, value: { message_id: "posting", headline: checked.ok.headline, writeup: checked.ok }, at }).onConflictDoNothing().returning();
+            if (!claim) return null;
+            const msg = yield* discord
+              .createMessage(channel, card(origin, checked.ok, `backtest · ${time.weekday(day)} ${day}`))
+              .pipe(Effect.tapError(() => db.delete(newsCache).where(eq(newsCache.key, key))));
+            yield* db.update(newsCache).set({ value: { message_id: msg.id, headline: checked.ok.headline, writeup: checked.ok } }).where(eq(newsCache.key, key));
+            return msg.id;
+          }),
+        ).pipe(Effect.catchTags(discordRefused));
+        if (id === null) return yield* refuse(409, `${input.id} was already written or skipped for ${day}`);
+        return { posted: true, message_id: id } as const;
+      });
 
       const backtest = Effect.fn("News.backtest")(function* (options: BacktestOptions = {}) {
         const t = yield* nowSec;
         const days = Math.max(1, Math.min(7, Math.round(options.days ?? 7)));
-        const maxCalls = Math.max(0, Math.round(options.maxCalls ?? 10));
         const today = time.at(t);
-        // whatever the backtest spends, the live runs keep two write-ups' requests and a triage's
-        const keep = [
-          { models: writer.models.write, requests: LIVE_WRITES },
-          { models: writer.models.triage, requests: LIVE_TRIAGES },
-          { models: [...new Set([...writer.models.write, ...writer.models.triage])], requests: LIVE_WRITES + LIVE_TRIAGES },
-        ];
-        let calls = 0; // requests this run, against max_calls
-        let pending = false;
-        const requests = new Map<string, number>(); // per model, this run
-        const answered = new Map<string, number>();
-        /** A model call within the run's max_calls and the live runs' keep (null: not made). */
-        const spend = <T>(ask: (s: Spend) => Effect.Effect<Asked<T>, DbError>) =>
-          Effect.gen(function* () {
-            if (calls >= maxCalls) {
-              pending = true;
-              return null;
-            }
-            const r = yield* ask({ keep, limit: maxCalls - calls });
-            calls += r.attempts.length;
-            for (const a of r.attempts) {
-              requests.set(a.model, (requests.get(a.model) ?? 0) + 1);
-              if (a.outcome === "answered") answered.set(a.model, (answered.get(a.model) ?? 0) + 1);
-            }
-            if (r.answer === null && r.refused) pending = true;
-            return r;
-          });
-        /** Out of model calls for now (max_calls, or the budget), rather than Gemini failing. */
-        const outOfCalls = (r: Asked<unknown> | null) => r === null || (r.answer === null && r.refused);
         const levels: Record<string, number> = {};
         const week: Array<Listed & { sub: string }> = [];
         for (const sub of subs) {
@@ -730,157 +904,106 @@ export class News extends Context.Service<
           const w = yield* cached(`bt:week:${sub}:${today.day}`, Schema.Array(ListedSchema), feedOrNull(`r/${sub} week`, reddit.listing(sub, "week")));
           for (const p of w ?? []) week.push({ ...p, sub });
         }
-        const blue = (yield* cached(`bt:blue:${today.day}`, Schema.Array(PostSchema), feedOrNull("blue tracker", fetchFeed))) ?? [];
-        const sections: string[] = [];
-        const posted: Array<{ id: string; headline: string }> = [];
-        const wouldPost: Array<SheetCard> = [];
+        const blue = (yield* cached(`bt:blue:${today.day}`, Schema.Array(Schema.Struct({ topic: Schema.Number, post: Schema.Number, title: Schema.String, link: Schema.String, excerpt: Schema.String, published: Schema.Number })), feedOrNull("blue tracker", fetchFeed))) ?? [];
+        // Forever's topics only (the forum's category), each read once: its running post's sections too
+        const topics = new Map<number, { link: string; tp: Topic | null; forever: boolean }>();
+        for (const p of blue) {
+          if (topics.has(p.topic)) continue;
+          const link = openingLink(p.link);
+          const tp = yield* forumCached(link);
+          topics.set(p.topic, { link, tp, forever: foreverOf(tp, p) });
+        }
+        const out: BtDay[] = [];
+        let done = true;
         for (let i = days; i >= 1; i--) {
           const d = calendar(today.y, today.m, today.d, -i);
-          const start = time.wallToUnix(d.y, d.m, d.d, 0, 0);
-          const next = calendar(d.y, d.m, d.d, 1);
-          const at = Math.min(t, time.wallToUnix(next.y, next.m, next.d, 0, 0) - 1);
-          // the day's posts, ranked within their subreddit's day as the week's top has them
-          const ofDay = new Map<string, Listed & { sub: string }>();
-          const rankInDay = new Map<string, number>();
-          for (const sub of subs) {
-            const mine = week.filter((p) => p.sub === sub && p.created >= start && p.created <= at);
-            mine.forEach((p, j) => {
-              ofDay.set(`reddit:${p.id}`, p);
-              rankInDay.set(`reddit:${p.id}`, j + 1);
-            });
+          const { start, end } = dayBounds(d.iso);
+          const at = Math.min(t, end);
+          // the day's posts (Vilnius's day), ranked within their subreddit's day as the week's top has them
+          type Row = { id: string; source: "reddit" | "blizzard"; sub: string; title: string; link: string; url: string; body: string; created_at: number; rank: number; removed: boolean };
+          const rows: Row[] = [];
+          for (const sub of subs)
+            week
+              .filter((p) => p.sub === sub && p.created >= start && p.created <= at)
+              .forEach((p, j) => rows.push({ id: `reddit:${p.id}`, source: "reddit", sub, title: p.title, link: p.link, url: p.url, body: p.body, created_at: p.created, rank: j + 1, removed: p.removed }));
+          for (const p of blue)
+            if (p.excerpt && p.published >= start && p.published <= at && topics.get(p.topic)?.forever)
+              rows.push({ id: blizzardId(p), source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published, rank: 0, removed: false });
+          for (const [topic, x] of topics)
+            if (x.forever && x.tp)
+              for (const s of sectionsOf(topic, x.tp, x.link, at))
+                if (s.created_at >= start && !rows.some((r) => r.id === s.id)) rows.push({ ...s, source: "blizzard", sub: "blizzard", url: "", rank: 0, removed: false });
+          const over = rows.filter((r) => notHot({ ...r, top_rank: r.source === "reddit" ? r.rank : null, hot_rank: null, prev_hot_rank: null }, levels[r.sub] ?? DEFAULT_BAR, at, r.removed) === null);
+          // crossposts are one story: a thread before Blizzard's own post, which becomes its official link
+          const groups = new Map<string, Row[]>();
+          for (const r of over) groups.set(sameTitle(r.title), [...(groups.get(sameTitle(r.title)) ?? []), r]);
+          const repeat = new Set<Row>();
+          const officials = new Map<Row, string>();
+          for (const g of groups.values()) {
+            const c = crossposts(g);
+            if (!c) continue;
+            for (const r of c.repeats) repeat.add(r);
+            if (c.official) officials.set(c.kept, c.official.link);
           }
-          type Row = { id: string; source: "reddit" | "blizzard"; sub: string; title: string; link: string; url: string; body: string; created_at: number; rank: number };
-          const rows: Row[] = [...ofDay].map(([id, p]) => ({ id, source: "reddit", sub: p.sub, title: p.title, link: p.link, url: p.url, body: p.body, created_at: p.created, rank: rankInDay.get(id)! }));
-          for (const p of blue) if (p.excerpt && p.published >= start && p.published <= at) rows.push({ id: blizzardId(p), source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published, rank: 0 });
-          const reasons = new Map<string, string>();
-          const scores = new Map<string, number>();
-          const candidates: Row[] = [];
-          for (const r of rows) {
-            const why = notHot({ ...r, top_rank: r.source === "reddit" ? r.rank : null, hot_rank: null, prev_hot_rank: null }, levels[r.sub] ?? DEFAULT_BAR, at, ofDay.get(r.id)?.removed);
-            if (why) reasons.set(r.id, why === "under the bar" ? `under the bar (#${r.rank} of the day; r/${r.sub}'s bar is ${levels[r.sub] ?? DEFAULT_BAR})` : why);
-            else candidates.push(r);
-          }
-          candidates.sort((a, b) => a.rank - b.rank);
-          const judged = candidates.slice(0, TRIAGE_MAX);
-          const asked: Candidate[] = judged.map((r) => ({ id: r.id, sub: r.source === "blizzard" ? "Blizzard" : `r/${r.sub}`, title: r.title, rank: r.source === "blizzard" ? "a Blizzard staff post" : `#${r.rank} in that day's top`, age_hours: Math.round((at - r.created_at) / 360) / 10, text: r.body.slice(0, 400) }));
-          const triageKey = `bt:triage:${PROMPT_VERSION}:${d.iso}:${judged.map((r) => r.id).sort().join(",")}`;
-          let triaged: Asked<ReadonlyArray<Verdict>> | null = null;
-          const verdicts = judged.length
-            ? yield* cached(triageKey, Schema.Array(Verdict), Effect.gen(function* () {
-                triaged = yield* spend((s) => writer.triage(at, asked, posted, s));
-                return triaged?.answer ?? null;
-              }))
-            : [];
-          let decisions: Decision[] = [];
-          if (verdicts) decisions = decide(judged.map((r): Judged => ({ id: r.id, source: r.source, title: r.title, link: r.link, rank: r.rank })), verdicts, new Set(posted.map((p) => p.id)));
-          else {
-            // Gemini busy or silent: the day isn't judged, so the sheet isn't finished (a rerun asks again)
-            pending = true;
-            for (const r of judged) reasons.set(r.id, outOfCalls(triaged) ? "not triaged yet (Gemini's budget: run again)" : "not triaged (Gemini didn't answer: run again)");
-          }
-          for (const r of candidates.slice(TRIAGE_MAX)) reasons.set(r.id, "under the bar (past the triage's 25)");
-          for (const x of decisions) {
-            if (x.score !== null) scores.set(x.id, x.score);
-            if (!x.keep) reasons.set(x.id, x.reason ?? "skipped");
-          }
-          const kept = decisions.filter((x) => x.keep).sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || rows.find((r) => r.id === a.id)!.rank - rows.find((r) => r.id === b.id)!.rank);
-          const cap = config.newsDailyPosts;
-          const cards: string[] = [];
-          // in rounds, best first: as many as the day still has room for, up to NEWS_WRITE_BATCH
-          // write-ups in one request (cached ones cost nothing), a story whose batch was unreadable alone
-          let k = 0;
-          while (k < kept.length && cards.length < cap) {
-            type Entry = { r: Row; official: string | null; key: string; w: Writeup | undefined; links: string[]; material: Material; why?: string };
-            const round: Entry[] = [];
-            let toWrite = 0;
-            while (k < kept.length && round.length < cap - cards.length && toWrite < config.newsWriteBatch) {
-              const x = kept[k];
-              const r = rows.find((y) => y.id === x.id)!;
-              const key = `bt:write:${PROMPT_VERSION}:${r.id}`;
-              const w = yield* cacheGet(key, Writeup);
-              const alone = !w && (yield* cacheGet(`bt:alone:${r.id}`, Schema.Boolean)) === true;
-              if (alone && toWrite) break;
-              k++;
-              // the thread (Reddit's minute, once: a cached write-up's thread is cached too), with only
-              // the comments posted by the card's time
-              const thread: Thread | null = r.source === "blizzard" ? { post: null, comments: [] } : yield* cached(`bt:thread:v2:${r.id}`, ThreadSchema, feedOrNull(`the thread ${r.id}`, reddit.thread(r.sub, externalId(r.id))));
-              if (!thread) {
-                reasons.set(r.id, "its thread didn't load");
-                continue;
-              }
-              const b = x.official && r.source === "reddit" ? (blue.find((p) => p.link === x.official) ?? null) : null;
-              // Blizzard's post as it stood that day (the feed's excerpt is today's: a running post grows)
-              const bForum = b ? yield* cached(`bt:forum:${b.link}`, Schema.Array(ForumPostSchema), forumTopic(b.link)) : null;
-              const bThen = b && bForum ? forumMaterial(bForum, postNumber(b.link), at, d.iso)?.text : undefined;
-              const byThen = thread.times ? thread.comments.filter((_, j) => (thread.times?.[j] ?? 0) <= at) : thread.comments;
-              const forum = r.source === "blizzard" ? yield* cached(`bt:forum:${r.link}`, Schema.Array(ForumPostSchema), forumTopic(r.link)) : null;
-              const { material, links } = yield* materialFor({ ...r, official: x.official }, at, byThen, b ? { url: b.link, title: b.title, text: bThen ?? b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)), forum);
-              round.push({ r, official: x.official, key, w, links, material });
-              if (!w) toWrite++;
-              if (alone) break;
+          const picked = over
+            .filter((r) => !repeat.has(r))
+            .sort(byRank)
+            .slice(0, BACKTEST_QUEUE)
+            .map((r) => ({ r, official: officials.get(r) ?? (r.source === "reddit" && officialLink(r.url) ? r.url : null) }));
+          const stories: BtStory[] = [];
+          const missing: string[] = [];
+          for (const { r, official } of picked) {
+            // the thread (Reddit's minute, once), with only the comments posted by that day's end
+            const thread: Thread | null = r.source === "blizzard" ? { post: null, comments: [] } : yield* cached(`bt:thread:v2:${r.id}`, ThreadSchema, feedOrNull(`the thread ${r.id}`, reddit.thread(r.sub, externalId(r.id))));
+            if (!thread) {
+              missing.push(r.id);
+              continue;
             }
-            const writing = round.filter((e) => !e.w);
-            if (writing.length) {
-              const res = yield* spend((s) => writer.write(at, writing.map((e) => ({ id: e.r.id, material: e.material })), s));
-              const got = res?.answer ?? null;
-              for (const e of writing) {
-                e.w = got?.written.get(e.r.id);
-                if (e.w) yield* cachePut(e.key, e.w);
-                else if (got && writing.length > 1) {
-                  yield* cachePut(`bt:alone:${e.r.id}`, true);
-                  e.why = "its batch came back unreadable (written alone next run)";
-                } else if (outOfCalls(res)) e.why = "not written yet (Gemini's budget: run again)";
-                else if (got) e.why = "an unreadable write-up";
-                else {
-                  // every model busy or silent: nothing is cached, so a rerun writes it; the sheet isn't finished
-                  pending = true;
-                  e.why = "no write-up (Gemini didn't answer: run again)";
-                }
-              }
-            }
-            for (const e of round) {
-              if (!e.w) {
-                reasons.set(e.r.id, e.why ?? "no write-up");
-                continue;
-              }
-              const c = checkWriteup(e.w, e.links, e.material.comments.length);
-              if ("drop" in c) {
-                reasons.set(e.r.id, c.drop);
-                continue;
-              }
-              const origin: Origin = { source: e.r.source, sub: e.r.sub, link: e.r.link, created_at: e.r.created_at, official: e.official };
-              cards.push(cardText(origin, c.ok));
-              wouldPost.push({ day: d.iso, id: e.r.id, origin, writeup: c.ok });
-              posted.push({ id: e.r.id, headline: c.ok.headline });
-            }
+            const byThen = thread.times ? thread.comments.filter((_, j) => (thread.times?.[j] ?? 0) <= at) : thread.comments;
+            // Blizzard's post as it stood that day (the feed's excerpt is today's: a running post grows)
+            const b = official && r.source === "reddit" ? (blue.find((p) => p.link === official) ?? null) : null;
+            const bForum = b ? yield* forumCached(b.link) : null;
+            const bThen = b && bForum ? forumMaterial(bForum.posts, postNumber(b.link), at, d.iso)?.text : undefined;
+            const forum = r.source === "blizzard" ? yield* forumCached(r.link) : null;
+            const p = yield* materialFor(r, at, byThen, b ? { url: b.link, title: b.title, text: bThen ?? b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)), forum);
+            stories.push({ ...toQueued(r, p, at), sub: r.sub, created_at: r.created_at, official });
           }
-          for (const x of kept.slice(k)) reasons.set(x.id, `the day's ${cap} were taken`);
-          const rest = rows
-            .filter((r) => reasons.has(r.id))
-            .sort((a, b) => (scores.get(b.id) ?? -1) - (scores.get(a.id) ?? -1) || (a.source === "blizzard" ? 99 : a.rank) - (b.source === "blizzard" ? 99 : b.rank))
-            .slice(0, 5)
-            .map((r, j) => `${j + 1}. ${r.source === "blizzard" ? "Blizzard" : `r/${r.sub} #${r.rank}`} · [${r.title.replace(/[[\]]/g, "")}](${r.link}) — ${reasons.get(r.id)}${scores.has(r.id) ? ` (${scores.get(r.id)}/10)` : ""}`);
-          sections.push(
-            [
-              `## ${time.weekday(d.iso)} ${d.iso}`,
-              `${rows.length} posts that day; ${candidates.length} over their subreddit's bar; ${cards.length} card${cards.length === 1 ? "" : "s"}.`,
-              ...(cards.length ? cards.flatMap((c) => ["", c, "", "---"]) : ["", "_No card that day._"]),
-              "",
-              "**The best of the rest**",
-              ...(rest.length ? rest : ["(none)"]),
-            ].join("\n"),
-          );
+          if (missing.length) done = false;
+          out.push({ day: d.iso, at, posts: rows.length, over: over.length, stories, missing });
         }
-        const perModel = (m: ReadonlyMap<string, number>) => [...m].map(([model, n]) => `${model} ${n}`).join(", ") || "none";
+        yield* cachePut(SHEET, { at: t, today: today.day, levels, days: out });
+        return { sheet: (yield* sheetText) ?? "", done };
+      });
+
+      /** The sheet: each backtest day's queue, the cards the writer posted, what it skipped and what it left. */
+      const sheetText = Effect.gen(function* () {
+        const s = yield* cacheGet(SHEET, SheetSchema);
+        if (!s) return null;
+        const marks = yield* backtestMarks;
+        const sections = s.days.map((d) => {
+          const mine = marks.filter((m) => m.day === d.day);
+          const cards = mine
+            .filter((m) => m.posted?.writeup)
+            .sort((a, b) => a.at - b.at)
+            .flatMap((m) => {
+              const x = d.stories.find((y) => y.id === m.id);
+              return x ? [cardText({ source: x.source, sub: x.sub, link: x.link, created_at: x.created_at, official: x.official }, m.posted!.writeup!)] : [];
+            });
+          const skipped = mine.filter((m) => m.skipped).map((m) => `- ${d.stories.find((x) => x.id === m.id)?.title ?? m.id} — ${m.skipped!.reason}`);
+          const left = d.stories.filter((x) => !mine.some((m) => m.id === x.id)).map((x, j) => `${j + 1}. ${x.subreddit} · [${x.title.replace(/[[\]]/g, "")}](${x.link})`);
+          return [
+            `## ${time.weekday(d.day)} ${d.day}`,
+            `${d.posts} posts that day; ${d.over} over their subreddit's bar; ${d.stories.length} in the queue; ${cards.length} card${cards.length === 1 ? "" : "s"}.${d.missing.length ? ` Threads that didn't load: ${d.missing.join(", ")}.` : ""}`,
+            ...(cards.length ? cards.flatMap((c) => ["", c, "", "---"]) : ["", "_No card that day._"]),
+            ...(skipped.length ? ["", "**Skipped by the writer**", ...skipped] : []),
+            ...(left.length ? ["", "**Not written**", ...left] : []),
+          ].join("\n");
+        });
         const head = [
-          `# WoW news backtest · the ${days} days before ${today.day}`,
-          `-# ${subs.map((s) => `r/${s} (bar: top ${levels[s]})`).join(", ")} · ${pending ? "**not finished**: out of model calls; run it again (tomorrow's budget) and it carries on from what's cached" : "complete"}`,
-          `-# Model requests this run: ${calls} of ${maxCalls} (${perModel(requests)}); answered by: ${perModel(answered)}. Write-ups: ${writer.models.write.join(" → ")}; triage: ${writer.models.triage.join(" → ")}.`,
-          `-# Threads are read as they are now, not as they were that day; no waiting for comments; posts ranked within their day by the week's top.`,
+          `# WoW news backtest · the ${s.days.length} days before ${s.today}`,
+          `-# ${subs.map((x) => `r/${x} (bar: top ${s.levels[x] ?? DEFAULT_BAR})`).join(", ")} · each day's queue (up to ${BACKTEST_QUEUE}) as it stood at the day's end (Vilnius): GET /news/queue?day=…`,
         ].join("\n");
-        const sheet = [head, ...sections].join("\n\n");
-        yield* cachePut(SHEET, { text: sheet, at: t, done: !pending, cards: wouldPost });
-        return { sheet, done: !pending, calls, requests: Object.fromEntries(requests) };
+        return [head, ...sections].join("\n\n");
       });
 
       const startBacktest = (options: BacktestOptions = {}) =>
@@ -890,49 +1013,10 @@ export class News extends Context.Service<
           return { backtest: "started" as const };
         });
 
-      const sheet = Effect.map(cacheGet(SHEET, SheetSchema), (s) => s?.text ?? null);
+      const queue = (day?: string) => (day === undefined ? liveQueue() : backtestQueue(day));
+      const write = (input: ArticleInput) => (input.day === undefined ? liveArticle(input) : backtestArticle(input.day, input));
 
-      /**
-       * The last sheet's would-be cards in the news channel, as the live runs post them, each marked
-       * as a backtest: the test bot only (NEWS_BACKTEST_POST). Never touches news_stories or the
-       * day's cap; each card is claimed in news_cache first, so a second call doesn't post it again.
-       */
-      const postBacktest = Effect.fn("News.postBacktest")(function* (days?: ReadonlyArray<string>) {
-        if (!config.newsBacktestPost) return { refused: "posting the backtest's cards is off here (NEWS_BACKTEST_POST is the test bot's)" } as const;
-        if (!channel) return { refused: "no news channel configured" } as const;
-        const s = yield* cacheGet(SHEET, SheetSchema);
-        const out = { posted: 0, already: 0, failed: [] as string[] };
-        for (const c of s?.cards ?? []) {
-          if (days?.length && !days.includes(c.day)) continue;
-          const key = `bt:posted:${s!.at}:${c.id}`;
-          // claim → post → its id, never cut short; a refused post gives the claim back
-          const sent = yield* Effect.uninterruptible(
-            Effect.gen(function* () {
-              const at = yield* nowSec;
-              const [claim] = yield* db.insert(newsCache).values({ key, value: { message_id: "posting" }, at }).onConflictDoNothing().returning();
-              if (!claim) return false;
-              const msg = yield* discord
-                .createMessage(channel, card(c.origin, c.writeup, `backtest · ${time.weekday(c.day)} ${c.day}`))
-                .pipe(Effect.tapError(() => db.delete(newsCache).where(eq(newsCache.key, key))));
-              yield* db.update(newsCache).set({ value: { message_id: msg.id } }).where(eq(newsCache.key, key));
-              return true;
-            }),
-          ).pipe(
-            Effect.catchTags({
-              DiscordNotFound: (e) => Effect.succeed(e.message),
-              DiscordRejected: (e) => Effect.succeed(e.message),
-              DiscordUnavailable: (e) => Effect.succeed(e.message),
-              DiscordUnexpected: (e) => Effect.succeed(e.message),
-            }),
-          );
-          if (sent === true) out.posted++;
-          else if (sent === false) out.already++;
-          else out.failed.push(`${c.id}: ${sent}`);
-        }
-        return out.failed.length ? out : { posted: out.posted, already: out.already };
-      });
-
-      return News.of({ check, run, running: Ref.get(running), backtest, startBacktest, sheet, postBacktest });
+      return News.of({ check, run, running: Ref.get(running), queue, article: write, backtest, startBacktest, sheet: sheetText });
     }),
   );
 }

@@ -1342,22 +1342,12 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_stories": "1:e7facbbf50a0",
-   "settings": "1:6abe9b4efee6"
+   "news_stories": "1:09a9c4fcb641",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a WoW news card (its claim → the post → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
   ],
   "db": {
@@ -1367,22 +1357,12 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a WoW news card (its claim → the post → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
   ],
   "db": {
@@ -1392,22 +1372,12 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_stories": "1:1c9ce3695ad0",
-   "settings": "2:050b5e4eb43f"
+   "news_stories": "1:4c166a6da712",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a WoW news card (its claim → the post → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
   ],
   "db": {
@@ -1417,8 +1387,8 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted before its claim, nothing is done": {
@@ -1430,9 +1400,9 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_cache": "1:34cace05c415",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_cache": "1:ab656d2a2430",
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the claim, everything is done, once": {
@@ -1446,9 +1416,9 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_cache": "2:3ae533429ce6",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_cache": "2:4b0862098962",
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the post, everything is done, once": {
@@ -1462,9 +1432,9 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_cache": "2:97878226fb1d",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_cache": "2:6810e7aa5391",
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the record, everything is done, once": {
@@ -1478,9 +1448,9 @@
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_cache": "2:3ae533429ce6",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
+   "news_cache": "2:4b0862098962",
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9"
   }
  },
  "🐦 the lone early bird: interrupted during its claim, the line is still queued (once per night, never claimed and lost)": {
@@ -1493,9 +1463,9 @@
    "game_nights": "1:d5e86a79408c",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_cache": "2:3ae533429ce6",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f",
+   "news_cache": "2:4b0862098962",
+   "news_stories": "1:943c67fe5c9d",
+   "settings": "1:f506ef1886a9",
    "voice_segments": "1:85218fcef9f8"
   }
  }

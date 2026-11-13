@@ -964,6 +964,9 @@ function earlySequences(): Record<string, Sequence> {
 }
 for (const [name, s] of Object.entries(earlySequences())) define(name, s);
 
+/** ⚔️ The outside writer's write-up (plan 06). */
+const writeup = { headline: "Dungeon XP cut for boosted runs", what: "Blizzard lowered XP from boosted dungeon runs.", mood: { label: "mostly against" as const, line: "Most are against it.", takes: ["It hits friends levelling together.", "Some say it was overdue."] }, why: "Dungeons together pay less if one of us runs ahead." };
+
 // ⚔️ Plan 06's news card (after every earlier test, for the same reason as the others: news_stories
 // and settings aren't emptied between this file's tests)
 function newsStorySequences(): Record<string, Sequence> {
@@ -974,19 +977,16 @@ function newsStorySequences(): Record<string, Sequence> {
           const db = yield* Db;
           yield* db.delete(newsStories);
           yield* db.delete(settings);
-          // not the first run (that one posts nothing), and every feed empty: the ready story is all there is to do
-          yield* db.insert(settings).values({ key: "news_run", value: { ok: now() - 3600, tried: now() - 3600 } });
-          const writeup = { headline: "Dungeon XP cut for boosted runs", what: "Blizzard lowered XP from boosted dungeon runs.", mood: { label: "mostly against", line: "Most are against it.", takes: ["It hits friends levelling together.", "Some say it was overdue."] }, why: "Dungeons together pay less if one of us runs ahead.", old_news: false, confidence: 0.9, official_link: "" };
-          yield* db.insert(newsStories).values({ id: "reddit:t3_5", source: "reddit", sub: "classicwow", title: "XP cut", link: "https://www.reddit.com/r/classicwow/comments/5/xp/", created_at: now() - 4 * 3600, first_seen: now() - 3600, last_seen: now() - 3600, state: "ready", score: 9, writeup });
-          const empty = (c: { path: string }) => (c.path === FEED ? new Response(`<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`) : c.path.startsWith("https://www.reddit.com/") ? new Response(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`) : undefined);
-          h.override = empty;
+          // a story waiting for the writer, with its material read
+          const material = { text: "", article: null, official_post: null, comments: [], comment_count: 12 };
+          yield* db.insert(newsStories).values({ id: "reddit:t3_5", source: "reddit", sub: "classicwow", title: "XP cut", link: "https://www.reddit.com/r/classicwow/comments/5/xp/", created_at: now() - 4 * 3600, first_seen: now() - 3600, last_seen: now() - 3600, state: "ready", material });
         }),
       run: () =>
         Effect.gen(function* () {
-          // the news channel configured for this call (this file's configuration has none)
+          // the news channel configured for this call (this file's configuration has none); the writer's write-up arrives
           const config = yield* AppConfig;
           const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news" })));
-          return yield* News.use((n) => n.run()).pipe(Effect.provide(news));
+          return yield* News.use((n) => n.article({ id: "reddit:t3_5", ...writeup })).pipe(Effect.catchTag("NewsRefused", Effect.succeed), Effect.provide(news));
         }),
       claim: { table: "news_stories", op: "UPDATE", when: "NEW.state = 'posted' AND OLD.state = 'ready'" },
       record: { table: "news_stories", op: "UPDATE", when: "OLD.message_id = 'posting' AND NEW.message_id <> 'posting'" },
@@ -1008,7 +1008,7 @@ function newsStorySequences(): Record<string, Sequence> {
 }
 for (const [name, s] of Object.entries(newsStorySequences())) define(name, s);
 
-// ⚔️ Plan 06's backtest cards, posted on the test bot (POST /admin/news {"backtest": "post"})
+// ⚔️ Plan 06's backtest cards, posted on the test bot (POST /news/article with a backtest day)
 function backtestPostSequences(): Record<string, Sequence> {
   return {
     "a backtest card posted on the test bot (its claim → the post → its id)": {
@@ -1016,15 +1016,16 @@ function backtestPostSequences(): Record<string, Sequence> {
         Effect.gen(function* () {
           const db = yield* Db;
           yield* db.delete(newsCache);
-          const writeup = { headline: "Dungeon XP cut for boosted runs", what: "Blizzard lowered XP from boosted dungeon runs.", mood: { label: "mostly against", line: "Most are against it.", takes: ["It hits friends levelling together.", "Some say it was overdue."] }, why: "Dungeons together pay less if one of us runs ahead.", old_news: false, confidence: 0.9, official_link: "" };
-          const origin = { source: "reddit", sub: "classicwow", link: "https://www.reddit.com/r/classicwow/comments/7/xp/", created_at: now() - 30 * 3600, official: null };
-          yield* db.insert(newsCache).values({ key: "backtest:sheet", value: { text: "# sheet", at: now(), done: true, cards: [{ day: "2026-11-09", id: "reddit:t3_7", origin, writeup }] }, at: now() });
+          // a backtest day's queue, as the backtest leaves it
+          const story = { id: "reddit:t3_7", source: "reddit", subreddit: "r/classicwow", title: "XP cut", link: "https://www.reddit.com/r/classicwow/comments/7/xp/", points_to: "", posted_hours_ago: 5, text: "", article: null, official_post: null, comments: [], comment_count: 12, sub: "classicwow", created_at: now() - 30 * 3600, official: null };
+          const day = { day: "2026-11-09", at: now() - 3600, posts: 1, over: 1, stories: [story], missing: [] };
+          yield* db.insert(newsCache).values({ key: "backtest:sheet", value: { at: now(), today: "2026-11-10", levels: {}, days: [day] }, at: now() });
         }),
       run: () =>
         Effect.gen(function* () {
           const config = yield* AppConfig;
           const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news", newsBacktestPost: true })));
-          return yield* News.use((n) => n.postBacktest()).pipe(Effect.provide(news));
+          return yield* News.use((n) => n.article({ id: "reddit:t3_7", day: "2026-11-09", ...writeup })).pipe(Effect.catchTag("NewsRefused", Effect.succeed), Effect.provide(news));
         }),
       claim: { table: "news_cache", op: "INSERT", when: "NEW.key LIKE 'bt:posted:%'" },
       record: { table: "news_cache", op: "UPDATE", when: "NEW.key LIKE 'bt:posted:%'" },

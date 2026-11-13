@@ -1,0 +1,48 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "82b20fe0-334e-468f-9450-10d73f6ab9a2",
+  "prevIds": [
+    "00f6be67-b070-46bc-be7f-dfe4bd2e20de",
+    "f0fcdcf8-8a13-4fc0-825e-89f635faeb89"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "news_stories",
+        "material"
+      ],
+      "writes": [
+        "s|col|public.news_stories.material",
+        "n|col|public.news_stories.material",
+        "e|col|public.news_stories.material"
+      ],
+      "reads": [
+        "n|tbl|public.news_stories",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "news_stories",
+        "name": "material",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

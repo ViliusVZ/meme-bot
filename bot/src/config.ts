@@ -42,15 +42,11 @@ export interface AppConfigShape {
   readonly newsSubreddits: ReadonlyArray<string>;
   /** ⚔️ At most this many news cards a day. */
   readonly newsDailyPosts: number;
-  /** ⚔️ Who the write-ups are for, in one line (the writer's prompt). */
+  /** ⚔️ Who the write-ups are for, in one line (handed to the outside writer with the queue). */
   readonly newsAudience: string;
-  /** ⚔️ The models the news's write-ups ask, in turn (gemini.ts: each has its own daily budget). */
-  readonly newsWriteModels: ReadonlyArray<string>;
-  /** ⚔️ The models the news's triage asks, in turn. */
-  readonly newsTriageModels: ReadonlyArray<string>;
-  /** ⚔️ At most this many stories written up in one request. */
-  readonly newsWriteBatch: number;
-  /** ⚔️ The backtest's cards may be posted to the news channel (the test bot only: dev.env). */
+  /** ⚔️ The outside writer's key for GET /news/queue and POST /news/article; unset means both are 404. */
+  readonly newsWriterKey: Redacted.Redacted<string> | undefined;
+  /** ⚔️ The backtest's queues may be written and posted to the news channel (the test bot only: dev.env). */
   readonly newsBacktestPost: boolean;
   /**
    * ⚔️ The least time between two requests to Reddit's feeds: it allows about one a minute from the
@@ -70,11 +66,6 @@ export interface AppConfigShape {
 
 /** Who the news is written for, unless NEWS_AUDIENCE says otherwise. */
 export const NEWS_AUDIENCE = "three friends who play WoW: Forever together on EU realms a few evenings a week";
-/** The news's model lists, unless NEWS_WRITE_MODELS / NEWS_TRIAGE_MODELS say otherwise (plan 06). */
-export const NEWS_WRITE_MODELS = "gemini-3.6-flash,gemini-3.7-flash,gemini-3.5-flash";
-export const NEWS_TRIAGE_MODELS = "gemini-3.5-flash-lite,gemini-3.6-flash";
-/** A comma-separated list, trimmed, without empty entries. */
-export const listOf = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 /** 65 s: Reddit's feeds allow one request a minute from the server, with a margin. */
 export const REDDIT_GAP_MS = 65_000;
 
@@ -112,6 +103,7 @@ export const readConfig = Effect.gen(function* () {
   const alertUserId = Option.getOrUndefined(yield* optional("ALERT_USER_ID"));
   const geminiApiKey = Option.getOrUndefined(yield* optional("GEMINI_API_KEY"));
   const newsChannelId = Option.getOrUndefined(yield* optional("NEWS_CHANNEL_ID"));
+  const newsWriterKey = Option.getOrUndefined(yield* optional("NEWS_WRITER_KEY"));
   const config: AppConfigShape = {
     databaseUrl: Redacted.make(get("DATABASE_URL")),
     port: Number(yield* or("PORT", "3000")),
@@ -144,9 +136,7 @@ export const readConfig = Effect.gen(function* () {
       .filter(Boolean),
     newsDailyPosts: Number(yield* or("NEWS_DAILY_POSTS", "3")),
     newsAudience: yield* or("NEWS_AUDIENCE", NEWS_AUDIENCE),
-    newsWriteModels: listOf(yield* or("NEWS_WRITE_MODELS", NEWS_WRITE_MODELS)),
-    newsTriageModels: listOf(yield* or("NEWS_TRIAGE_MODELS", NEWS_TRIAGE_MODELS)),
-    newsWriteBatch: Math.max(1, Number(yield* or("NEWS_WRITE_BATCH", "3")) || 1),
+    newsWriterKey: newsWriterKey === undefined ? undefined : Redacted.make(newsWriterKey),
     newsBacktestPost: (yield* or("NEWS_BACKTEST_POST", "")) === "1",
     newsRedditGapMs: REDDIT_GAP_MS,
     botVoice: (yield* or("BOT_VOICE", "off")) === "on",

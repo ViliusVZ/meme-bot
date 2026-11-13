@@ -22,7 +22,7 @@ import { Polls } from "./polls.js";
 import { Voice } from "./voice.js";
 import { Activity, type Kind } from "./activity.js";
 import { Spontaneous } from "./spontaneous.js";
-import { News } from "./news.js";
+import { ArticleInput, News, type NewsRefused } from "./news.js";
 import { LateSlips } from "./late.js";
 import { Attendances } from "./attendance.js";
 import { Presence } from "./presence.js";
@@ -146,10 +146,8 @@ const Input = Schema.Struct({
   // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
   memes: Schema.optional(Schema.Array(Schema.Unknown)),
   post_daily: Schema.optional(Schema.Unknown),
-  // ⚔️ /admin/news: a backtest over the last days ({ days, max_calls }), "sheet" for its last sheet,
-  // or "post" to post its cards (those of `days`, ISO dates, or all) on the test bot
-  backtest: Schema.optional(Schema.Union([Text, Schema.Struct({ days: Schema.optional(Schema.Number), max_calls: Schema.optional(Schema.Number) })])),
-  days: Schema.optional(Schema.Array(Text)),
+  // ⚔️ /admin/news: a backtest's queues over the last days ({ days }), or "sheet" for its sheet
+  backtest: Schema.optional(Schema.Union([Text, Schema.Struct({ days: Schema.optional(Schema.Number) })])),
   method: Schema.optional(Text),
   path: Schema.optional(Text),
   body: Schema.optional(Schema.Unknown),
@@ -335,10 +333,9 @@ export const Routes = HttpRouter.use((router) =>
     yield* admin("/admin/recap", (input) => Effect.map(input.period === "month" ? jobs.monthlyRecap : jobs.weeklyRecap, answer));
 
     // ⚔️ one WoW news run now, without waiting for the hour (it takes minutes: Reddit allows one
-    // request a minute); no channel configured: {}. `backtest: { days, max_calls }` starts the
-    // backtest in the background (posting nothing); `backtest: "sheet"` answers its last sheet, as markdown;
-    // `backtest: "post"` (with `days`, or all) posts the sheet's cards to the news channel, marked as
-    // backtests: the test bot only (NEWS_BACKTEST_POST), refused with a 403 anywhere else.
+    // request a minute); no channel configured: {}. `backtest: { days }` builds each of the last days'
+    // queues in the background (posting nothing), for GET /news/queue?day=… on the test bot;
+    // `backtest: "sheet"` answers its sheet (each day's queue and what the writer made of it), as markdown.
     yield* admin("/admin/news", (input) =>
       Effect.gen(function* () {
         const b = input.backtest;
@@ -346,12 +343,33 @@ export const Routes = HttpRouter.use((router) =>
           const sheet = yield* news.sheet;
           return sheet === null ? json({ sheet: null }) : HttpServerResponse.text(sheet, { contentType: "text/markdown; charset=utf-8" });
         }
-        if (b === "post") {
-          const r = yield* news.postBacktest(input.days);
-          return json(r, "refused" in r ? 403 : 200);
-        }
-        if (b !== undefined) return json(yield* news.startBacktest(typeof b === "string" ? {} : { days: b.days, maxCalls: b.max_calls }));
+        if (b !== undefined) return json(yield* news.startBacktest(typeof b === "string" ? {} : { days: b.days }));
         return answer(yield* news.run());
+      }),
+    );
+
+    // ⚔️ the news's outside writer (a scheduled Claude agent, plan 06): the stories waiting for a
+    // write-up, and one write-up (or skip) at a time, behind its own key. No key configured: neither
+    // route is there. A refusal answers its status with { error }.
+    const writerKey = config.newsWriterKey;
+    const refused = (e: NewsRefused) => Effect.succeed(json({ error: e.reason }, e.status));
+    yield* route("GET", "/news/queue", (req) =>
+      Effect.gen(function* () {
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        const day = new URL(req.url, "http://local").searchParams.get("day") ?? undefined;
+        if (day !== undefined && !/^\d{4}-\d\d-\d\d$/.test(day)) return json({ error: "day: YYYY-MM-DD" }, 400);
+        return yield* news.queue(day).pipe(Effect.map((q) => json(q)), Effect.catchTag("NewsRefused", refused));
+      }),
+    );
+    yield* route("POST", "/news/article", (req) =>
+      Effect.gen(function* () {
+        const body = yield* bodyText(req);
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(ArticleInput))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) })));
+        if (input.day !== undefined && !/^\d{4}-\d\d-\d\d$/.test(input.day)) return json({ error: "day: YYYY-MM-DD" }, 400);
+        return yield* news.article(input).pipe(Effect.map((r) => json(r)), Effect.catchTag("NewsRefused", refused));
       }),
     );
 
