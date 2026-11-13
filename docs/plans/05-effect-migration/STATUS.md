@@ -831,11 +831,16 @@ recordings (see "Numbers").
   others) and writes up to 3 stories in one request, so 18 `news.test.ts` recordings change in
   their Gemini calls (models, prompts), `settings` and the backtest's `news_cache` only; every
   other call and table is identical (checked test by test). They were allowed in
-  `test/recordings.allowed.json` for that one commit, removed in the next. Four tests' assertions
+  `test/recordings.allowed.json` for that one commit (`01f2be7`), removed in the next. Four tests' assertions
   changed with it (the busy model's fallback, the two backtests' counts and budget keys, the old
   news-share test replaced by the per-model ones): their ledger entries were deleted by hand and
   added again (`--add`). Game names' recordings (`spontaneous`, test 6) are unchanged: they still
-  ask `gemini-3.8-flash` alone and keep the `gemini_budget` row as it was.
+  ask `gemini-3.8-flash` alone and keep the `gemini_budget` row as it was. The removal's gate run
+  then caught news test 9 listing two tied candidates in the other order: the news's queues now
+  break ties by id (they were in the database's row order), which reorders test 4's triage prompt
+  (allowed for that commit, removed in the next). Seen once in the same runs, not reproduced:
+  `reddit.test.json` "a restart doesn't fetch again" differing (untouched code, under the load of
+  another worktree's gates).
 - **Plan 06 replaces plan 02's news tests (branch `news-v2`):** their behaviour is gone (Blizzard
   posts only, the title-only fallback, "updated" lines, 5 a day), so 15 `news.test.ts` tests and
   test 6's two plan 02 entries (7 tests) are removed. Their recordings are listed in

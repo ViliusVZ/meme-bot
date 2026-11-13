@@ -331,7 +331,7 @@ export class News extends Context.Service<
       });
 
       const triage = Effect.fn("News.triage")(function* (t: number) {
-        const waiting = yield* db.select().from(newsStories).where(eq(newsStories.state, "candidate")).orderBy(asc(newsStories.best_rank), asc(newsStories.created_at));
+        const waiting = yield* db.select().from(newsStories).where(eq(newsStories.state, "candidate")).orderBy(asc(newsStories.best_rank), asc(newsStories.created_at), asc(newsStories.id)); // (ties by id: one order, every run)
         const aged = waiting.filter((s) => t - s.created_at > limitOf(s));
         yield* setState(aged.map((s) => s.id), "dropped", "too old");
         const fresh = waiting.filter((s) => t - s.created_at <= limitOf(s)).slice(0, TRIAGE_MAX);
@@ -424,7 +424,7 @@ export class News extends Context.Service<
           .select()
           .from(newsStories)
           .where(eq(newsStories.state, "queued"))
-          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at));
+          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at), asc(newsStories.id));
         // aged out, or 12 hours of failed write-ups: dropped, never posted late
         const aged = queued.filter((s) => t - s.created_at > limitOf(s));
         const stale = queued.filter((s) => !aged.includes(s) && s.write_first !== null && t - s.write_first >= WRITE_STALE);
@@ -484,7 +484,7 @@ export class News extends Context.Service<
           .select()
           .from(newsStories)
           .where(eq(newsStories.state, "ready"))
-          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at));
+          .orderBy(sql`${newsStories.score} DESC NULLS LAST`, sql`${newsStories.best_rank} ASC NULLS LAST`, asc(newsStories.created_at), asc(newsStories.id));
         const aged = ready.filter((s) => t - s.created_at > limitOf(s));
         yield* setState(aged.map((s) => s.id), "dropped", "too old");
         let left = config.newsDailyPosts - (yield* postedSince(dayStart(t))).length;

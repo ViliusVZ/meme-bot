@@ -115,7 +115,7 @@
    "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent 56a4eb47aaac",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent f17a2e84357b",
    "GET https://www.reddit.com/r/classicwow/comments/hot1/.rss?sort=top&limit=60 -",
    "GET https://worldofwarcraft.blizzard.com/en-us/news/24315281 -",
    "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 424d05ee2a5c",
@@ -455,6 +455,38 @@
    "games": "8:44c5a8b0c098",
    "news_stories": "1:3e2837f25602",
    "settings": "4:7ce0dddbdedf"
+  }
+ },
+ "candidates that tie (the same place, the same age) go to the triage in one order every run: by id": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent 85ee65686a2b",
+   "GET https://www.reddit.com/r/wow/comments/aa1/.rss?sort=top&limit=60 -",
+   "GET https://www.reddit.com/r/wowforever/comments/zz1/.rss?sort=top&limit=60 -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent fb2acfebb5fc",
+   "POST https://discord.com/api/v10/channels/news/messages 4e1c6fe05993",
+   "POST https://discord.com/api/v10/channels/news/messages d6c03529a343"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_stories": "2:a156bbb9b555",
+   "settings": "4:797cd106df75"
   }
  },
  "climbing in hot between two runs makes a thread a candidate, though it's not in the top of the day": {

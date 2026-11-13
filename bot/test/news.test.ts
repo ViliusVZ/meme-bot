@@ -482,6 +482,18 @@ it.effect("12. the post to Discord fails: tried again next run, not lost, not do
 
 // ---------------------------------------------------------------- the rest of the rules
 
+it.effect("candidates that tie (the same place, the same age) go to the triage in one order every run: by id", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    // the first subreddit's post is stored first, though its id sorts last
+    listing("wowforever", "day", [{ id: "zz1", title: "Forever's tied story", ago: 5 }]);
+    listing("wow", "day", [{ id: "aa1", title: "Retail's tied story", ago: 5 }]);
+    yield* run();
+    const prompt = promptOf(triages()[0]);
+    expect((JSON.parse(prompt.slice(prompt.lastIndexOf("Candidates:\n") + 12)) as { id: string }[]).map((c) => c.id)).toEqual(["reddit:t3_aa1", "reddit:t3_zz1"]);
+  }).pipe(h.provide),
+);
+
 it.effect("climbing in hot between two runs makes a thread a candidate, though it's not in the top of the day", () =>
   Effect.gen(function* () {
     yield* firstRun();

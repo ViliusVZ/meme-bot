@@ -2377,6 +2377,9 @@
    "expect.toEqual([])",
    "expect.toEqual({ posted: 0, already: 0, failed: [expect.stringContaining(\"reddit:t3_wowforeverd1p1\")] })",
    "expect.toEqual({ posted: 1, already: 0 })"
+  ],
+  "test \"candidates that tie (the same place, the same age) go to the triage in one order every run: by id\"": [
+   "expect.toEqual([\"reddit:t3_aa1\", \"reddit:t3_zz1\"])"
   ]
  },
  "traces.test.ts": {
