@@ -2572,12 +2572,6 @@
    "expect.toBe(\"watch\")",
    "expect.toEqual([\"blizzard:700\"])"
   ],
-  "test \"a story ripens first: 40 comments or 3 hours; a young Blizzard post waits too\"": [
-   "expect.toEqual([2, undefined])",
-   "expect.toMatchObject({ state: \"candidate\", comments: 12 })",
-   "expect.toEqual([\"Blizzard is looking at dungeon XP\"])",
-   "expect.toEqual([\"Forever dungeon XP: a note from the team\"])"
-  ],
   "test \"crossposts are one story: the thread waits for the writer, Blizzard's post with the same title becomes its official post\"": [
    "expect.toEqual([3, 2, [\"WoW: Forever Hotfixes - November 11, 2026\"]])",
    "expect.toEqual([\"a repeat\", \"a repeat\"])",
@@ -2831,6 +2825,11 @@
    "expect.toEqual({})",
    "expect.toBe(false)",
    "expect.toHaveLength(1)"
+  ],
+  "test \"a thread ripens first: 40 comments or 2 hours; a Blizzard post goes to the writer at once\"": [
+   "expect.toEqual([2, [\"Forever dungeon XP: a note from the team\"]])",
+   "expect.toMatchObject({ state: \"candidate\", comments: 12 })",
+   "expect.toEqual([\"Blizzard is looking at dungeon XP\"])"
   ]
  }
 }

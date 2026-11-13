@@ -43,7 +43,7 @@ export const FOREVER_CATEGORY = 360;
 const UA = "DiscordBot (https://github.com/ViliusVZ/meme-bot, 3.0)";
 export const EVERY = 3600; // a run an hour; a failed one is tried again the next hour
 export const RIPE_COMMENTS = 40; // …or RIPE_AGE old: then there's a mood to report
-export const RIPE_AGE = 3 * 3600;
+export const RIPE_AGE = 2 * 3600; // (a quiet channel: the writer comes every two hours anyway)
 export const STALE = 24 * 3600; // no good collect (or no word from the writer) for this long → tell the owner
 export const QUEUE_SIZE = 3; // stories the queue hands the writer at once
 export const BACKTEST_QUEUE = 8; // …and a backtest day's queue (the writer picks)
@@ -600,7 +600,8 @@ export class News extends Context.Service<
         }
         const forum = s.source === "blizzard" ? yield* forumTopic(s.link) : null;
         const prepared = yield* materialFor(s, t, comments, yield* blizzardPost(s.official), article, forum);
-        if (prepared.comment_count < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) return "ripening";
+        // Blizzard's own posts (hotfixes, announcements) go to the writer at once
+        if (s.source === "reddit" && prepared.comment_count < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) return "ripening";
         return prepared;
       });
 

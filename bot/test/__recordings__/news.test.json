@@ -176,7 +176,7 @@
    "settings": "4:02f10f3b29eb"
   }
  },
- "a story ripens first: 40 comments or 3 hours; a young Blizzard post waits too": {
+ "a thread ripens first: 40 comments or 2 hours; a Blizzard post goes to the writer at once": {
   "calls": [
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
    "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
@@ -207,24 +207,12 @@
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
-   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
-   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1 -",
-   "GET https://www.reddit.com/r/wowforever/comments/young/.rss?sort=top&limit=60 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
-   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
-   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
-   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1 -"
+   "GET https://www.reddit.com/r/wowforever/comments/young/.rss?sort=top&limit=60 -"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "news_stories": "2:c91a33c19655",
-   "settings": "4:3b30ef45d3b5"
+   "news_stories": "2:2ad00b205a5f",
+   "settings": "4:41fbb08ecb7d"
   }
  },
  "crossposts are one story: the thread waits for the writer, Blizzard's post with the same title becomes its official post": {
@@ -326,7 +314,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "news_stories": "10:b4cbbd99b756",
+   "news_stories": "10:fe088e831fc0",
    "settings": "3:b926839d0802"
   }
  },

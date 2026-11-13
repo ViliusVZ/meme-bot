@@ -256,7 +256,7 @@ it.effect("a post that's hot but 40 hours old never waits for the writer; a Bliz
   }).pipe(h.provide),
 );
 
-it.effect("a story ripens first: 40 comments or 3 hours; a young Blizzard post waits too", () =>
+it.effect("a thread ripens first: 40 comments or 2 hours; a Blizzard post goes to the writer at once", () =>
   Effect.gen(function* () {
     yield* firstRun();
     const p = { id: "young", title: "Blizzard is looking at dungeon XP", ago: 1 };
@@ -264,12 +264,10 @@ it.effect("a story ripens first: 40 comments or 3 hours; a young Blizzard post w
     feeds[threadUrl("wowforever", "t3_young")] = thread("wowforever", p, 12);
     blue = rss([[800, 1, "Forever dungeon XP: a note from the team", 1]]);
     const r = yield* run();
-    expect([r.candidates, r.ready]).toEqual([2, undefined]);
+    expect([r.candidates, r.ready]).toEqual([2, ["Forever dungeon XP: a note from the team"]]);
     expect(yield* story("reddit:t3_young")).toMatchObject({ state: "candidate", comments: 12 });
     feeds[threadUrl("wowforever", "t3_young")] = thread("wowforever", p, 45);
     expect((yield* run(now() + 1800)).ready).toEqual(["Blizzard is looking at dungeon XP"]);
-    // the Blizzard post, three hours on, with no comments to read
-    expect((yield* run(now() + 3 * 3600)).ready).toEqual(["Forever dungeon XP: a note from the team"]);
   }).pipe(h.provide),
 );
 
@@ -313,11 +311,11 @@ it.effect("climbing in hot between two runs makes a thread a candidate, though i
   Effect.gen(function* () {
     yield* firstRun();
     const filler = Array.from({ length: 9 }, (_, i) => ({ id: `f${i}`, title: `filler ${i}`, ago: 30 }));
-    listing("classicwow", "hot", [...filler, { id: "up", title: "The Deadmines door bug", ago: 1 }]);
-    feeds[threadUrl("classicwow", "t3_up")] = thread("classicwow", { id: "up", title: "The Deadmines door bug", ago: 1 }, 3);
+    listing("classicwow", "hot", [...filler, { id: "up", title: "The Deadmines door bug", ago: 0.2 }]);
+    feeds[threadUrl("classicwow", "t3_up")] = thread("classicwow", { id: "up", title: "The Deadmines door bug", ago: 0.2 }, 3);
     yield* run();
     expect((yield* story("reddit:t3_up")).state).toBe("watch");
-    listing("classicwow", "hot", [...filler.slice(0, 3), { id: "up", title: "The Deadmines door bug", ago: 1 }, ...filler.slice(3)]);
+    listing("classicwow", "hot", [...filler.slice(0, 3), { id: "up", title: "The Deadmines door bug", ago: 0.2 }, ...filler.slice(3)]);
     yield* run(now() + EVERY);
     expect(yield* story("reddit:t3_up")).toMatchObject({ state: "candidate", hot_rank: 4, prev_hot_rank: 10 });
     expect(notHot({ sub: "x", source: "reddit", title: "Weekly Questions Megathread", created_at: now(), top_rank: 1, hot_rank: 1, prev_hot_rank: null }, 5, now())).toBe("pinned");
