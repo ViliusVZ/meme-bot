@@ -775,7 +775,7 @@ it.effect("Gemini's daily budget is kept in the database and stops asking once i
     const ask = (prompt: string, schema: object) => e(gemini.Gemini.use((g) => g.ask(prompt, schema, Schema.Unknown)));
     const asked = geminiSays("World of Warcraft");
     const schema = { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } } };
-    yield* db.insert(settings).values({ key: "gemini_budget", value: { day: (yield* LocalTime.use((t) => t.now)).day, used: gemini.DAILY - 1 } });
+    yield* db.insert(settings).values({ key: "gemini_budget", value: { day: (yield* LocalTime.use((t) => t.now)).day, used: gemini.PER_MODEL_DAILY - 1 } });
     expect(yield* ask("q", schema)).toEqual({ game: "World of Warcraft" });
     expect(yield* ask("q", schema)).toBeNull();
     expect(asked).toHaveLength(1);

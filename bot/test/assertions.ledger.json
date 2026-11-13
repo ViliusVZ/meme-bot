@@ -1680,6 +1680,11 @@
    "expect.toEqual([[\"ready\", null]])",
    "expect.toEqual([])",
    "expect.toEqual([\"posted\", false])"
+  ],
+  "fn backtestPostSequences": [
+   "expect.toEqual([\"backtest:sheet\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([false])"
   ]
  },
  "hub.test.ts": {
@@ -2081,10 +2086,6 @@
    "expect.toEqual({})",
    "expect.toEqual([])"
   ],
-  "test \"the fast Gemini busy: the other one answers\"": [
-   "expect.toMatchObject({ posted: [\"Forever hotfixes\"] })",
-   "expect.toEqual([\"gemini-3.5-flash\", \"gemini-3.8-flash\"])"
-  ],
   "test \"no channel configured: no fetch, no Gemini, no post, nothing stored, from the job and from a forced run\"": [
    "expect.toEqual({})",
    "expect.toEqual({})",
@@ -2248,12 +2249,6 @@
    "expect.toContain(\"the triage waits\")",
    "expect.toBe(\"candidate\")"
   ],
-  "test \"Gemini's budget: the news gets at most 10 a day, so game-name matching always keeps 5\"": [
-   "expect.toHaveLength(NEWS_SHARE)",
-   "expect.toEqual([0, DAILY - NEWS_SHARE])",
-   "expect.toHaveLength(DAILY - NEWS_SHARE)",
-   "expect.toHaveLength(DAILY)"
-  ],
   "test \"Reddit's minute: requests one at a time, each the gap after the last\"": [
    "expect.toHaveLength(3)",
    "expect.toEqual([true, true])"
@@ -2270,30 +2265,6 @@
    "expect.toEqual({ drop: \"an empty field\" })",
    "expect.toEqual([[\"a\", true, null], [\"b\", false, \"a repeat\"], [\"c\", false, \"a repeat\"], [\"d\", false, \"about retail\"]])"
   ],
-  "test \"the backtest: the real pipeline over last week, a sheet of cards and the best of the rest, nothing posted or stored for the live runs; a rerun pays for nothing twice\"": [
-   "expect.toEqual([true, 4])",
-   "expect.toContain(\"# WoW news backtest · the 2 days before 2026-11-12\")",
-   "expect.toContain(\"## Wednesday 2026-11-11\")",
-   "expect.toContain(\"### About wowforever day-1 post 1\")",
-   "expect.toContain(\"**What players think** ⚖️ Half like it, half don't.\")",
-   "expect.toContain(\"[wowforever day-1 post 2](https://www.reddit.com/r/wowforever/comments/wowforeverd1p2/slug/) — a meme (8/10)\")",
-   "expect.toContain(\"— scored 4/10 (4/10)\")",
-   "expect.not.toContain(\"day-3\")",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toEqual([\"gemini_budget\", \"gemini_budget_news\"])",
-   "expect.toBe(r.sheet)",
-   "expect.toEqual([true, 0, r.sheet.replace(/model calls this run: \\d+/, \"\")])",
-   "expect.toEqual([])"
-  ],
-  "test \"the backtest within its budget: what it can't pay for today is marked, and the next run carries on\"": [
-   "expect.toEqual([false, 1])",
-   "expect.toContain(\"**not finished**\")",
-   "expect.toContain(\"not written yet (Gemini's budget: run again)\")",
-   "expect.toContain(\"not triaged yet (Gemini's budget: run again)\")",
-   "expect.toEqual([true, 5])",
-   "expect.toContain(\"### About wowforever day-2 post 1\")"
-  ],
   "test \"POST /admin/news: one run now (a second while it's going is told so)\"": [
    "expect.toBe(401)",
    "expect.toEqual([200, { first: true }])",
@@ -2307,6 +2278,105 @@
    "expect.toEqual([200, \"text/markdown; charset=utf-8\"])",
    "expect.toContain(\"### About classicwow day-1 post 1\")",
    "expect.toEqual([])"
+  ],
+  "test \"the fast Gemini busy: the other one answers\"": [
+   "expect.toMatchObject({ posted: [\"Forever hotfixes\"] })",
+   "expect.toEqual([\"gemini-3.5-flash-lite\", \"gemini-3.6-flash\"])"
+  ],
+  "test \"Gemini's budget is per model: 18 a day each, game names and the news counted together; on game names' model the news leaves them 5\"": [
+   "expect.toBe(PER_MODEL_DAILY)",
+   "expect.toBe(0)",
+   "expect.toBe(PER_MODEL_DAILY)",
+   "expect.toBe(PER_MODEL_DAILY - NAMES_KEEP)",
+   "expect.toBe(NAMES_KEEP)",
+   "expect.toEqual([...Array(PER_MODEL_DAILY).fill(\"gemini-3.6-flash\"), ...Array(PER_MODEL_DAILY).fill(NAMES_MODEL)])",
+   "expect.toBe(0)",
+   "expect.toBe(PER_MODEL_DAILY)"
+  ],
+  "test \"a 503 or a timeout moves on to the next model, each request counted against its own model's day; an answer off the schema isn't asked again\"": [
+   "expect.toEqual([{ ok: true }, [{ model: \"gemini-3.6-flash\", outcome: \"failed\" }, { model: \"gemini-3.7-flash\", outcome: \"failed\" }, { model: \"gemini-3.5-flash\", outcome: \"answered\" }]])",
+   "expect.toEqual([PER_MODEL_DAILY - 1, PER_MODEL_DAILY - 1, PER_MODEL_DAILY - NAMES_KEEP - 1])",
+   "expect.toEqual([null, true, [\"malformed\"]])",
+   "expect.toEqual([\"gemini-3.6-flash\", \"gemini-3.7-flash\", \"gemini-3.5-flash\", \"gemini-3.5-flash-lite\"])"
+  ],
+  "test \"three ready stories are written up in one request; the one the code turns down is skipped, the other two posted\"": [
+   "expect.toEqual([\"About Hunters get a new pet family\", \"About Dungeon XP cut for boosted runs\"])",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(3)",
+   "expect.toEqual([ [\"reddit:t3_b1\", \"Hunters get a new pet family\"], [\"reddit:t3_b2\", \"Forever's launch date announced\"], [\"reddit:t3_b3\", \"Dungeon XP cut for boosted runs\"], ])",
+   "expect.toEqual([\"skip\", \"old news\"])"
+  ],
+  "test \"a batch whose answer is malformed: nothing posted; the next run writes each of its stories in a request of its own\"": [
+   "expect.toEqual([undefined, undefined])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"queued\", \"queued\"])",
+   "expect.toEqual([\"About Hunters get a new pet family\", \"About Dungeon XP cut for boosted runs\"])",
+   "expect.toEqual([\"Write a short news piece about\", \"Write a short news piece about\"])"
+  ],
+  "test \"one write-up missing from a batch's answer: the others are posted, that one is written alone next run\"": [
+   "expect.toEqual([\"About Hunters get a new pet family\"])",
+   "expect.toBe(\"queued\")",
+   "expect.toEqual([\"About Dungeon XP cut for boosted runs\"])",
+   "expect.toEqual([\"Write a short news piece about\"])"
+  ],
+  "test \"the backtest: the real pipeline over last week, a sheet of cards and the best of the rest, nothing posted or stored for the live runs; a rerun pays for nothing twice\"": [
+   "expect.toEqual([true, 4, { \"gemini-3.5-flash-lite\": 2, \"gemini-3.6-flash\": 2 }])",
+   "expect.toContain(\"-# Model requests this run: 4 of 10 (gemini-3.5-flash-lite 2, gemini-3.6-flash 2); answered by: gemini-3.5-flash-lite 2, gemini-3.6-flash 2. Write-ups: gemini-3.6-flash → gemini-3.7-flash → gemini-3.5-flash; triage: gemini-3.5-flash-lite → gemini-3.6-flash.\")",
+   "expect.toContain(\"# WoW news backtest · the 2 days before 2026-11-12\")",
+   "expect.toContain(\"## Wednesday 2026-11-11\")",
+   "expect.toContain(\"### About wowforever day-1 post 1\")",
+   "expect.toContain(\"**What players think** ⚖️ Half like it, half don't.\")",
+   "expect.toContain(\"[wowforever day-1 post 2](https://www.reddit.com/r/wowforever/comments/wowforeverd1p2/slug/) — a meme (8/10)\")",
+   "expect.toContain(\"— scored 4/10 (4/10)\")",
+   "expect.not.toContain(\"day-3\")",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"gemini_budget:gemini-3.5-flash-lite\", \"gemini_budget:gemini-3.6-flash\"])",
+   "expect.toBe(r.sheet)",
+   "expect.toContain(\"-# Model requests this run: 0 of 10 (none); answered by: none.\")",
+   "expect.toEqual([true, 0, r.sheet.replace(runLine, \"\")])",
+   "expect.toEqual([])"
+  ],
+  "test \"the backtest within its budget: what it can't pay for today is marked, and the next run carries on\"": [
+   "expect.toEqual([false, 1])",
+   "expect.toContain(\"**not finished**\")",
+   "expect.toContain(\"not written yet (Gemini's budget: run again)\")",
+   "expect.toContain(\"not triaged yet (Gemini's budget: run again)\")",
+   "expect.toEqual([true, 3])",
+   "expect.toContain(\"### About wowforever day-2 post 1\")"
+  ],
+  "test \"the backtest leaves the live runs their part: never a write-up model's last 2 requests of the day; max_calls counts every request, a 503's too\"": [
+   "expect.toEqual([false, 3, { \"gemini-3.5-flash-lite\": 2, \"gemini-3.5-flash\": 1 }])",
+   "expect.toContain(\"### About wowforever day-2 post 1\")",
+   "expect.toContain(\"not written yet (Gemini's budget: run again)\")",
+   "expect.toBe(2)",
+   "expect.toEqual([false, 1, [\"gemini-3.5-flash-lite\"]])"
+  ],
+  "test \"the backtest writes a day's stories in one request; a batch that comes back malformed is written alone on the next run\"": [
+   "expect.toEqual([2, 1])",
+   "expect.toContain(\"its batch came back unreadable (written alone next run)\")",
+   "expect.toEqual(Array(3).fill(\"Write a short news piece about\"))",
+   "expect.toEqual([true, 3])",
+   "expect.toContain(\"### About wowforever day-1 post 3\")"
+  ],
+  "test \"the backtest's cards posted on the test bot: each as the live card, silent, pinging nobody, marked as a backtest; once; nothing in the live tables\"": [
+   "expect.toEqual({ posted: 1, already: 0 })",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([(1 << 15) | (1 << 12), { parse: [] }])",
+   "expect.toBe(`${live}\\n-# backtest · Wednesday 2026-11-11`)",
+   "expect.toEqual({ posted: 1, already: 1 })",
+   "expect.toContain(\"### About wowforever day-2 post 1\")",
+   "expect.toBe(\"-# backtest · Tuesday 2026-11-10\")",
+   "expect.toEqual({ posted: 0, already: 2 })",
+   "expect.toHaveLength(2)",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"posting the backtest's cards: refused where NEWS_BACKTEST_POST isn't set (production), posting nothing; a refused post is tried again next time\"": [
+   "expect.toEqual([403, { refused: \"posting the backtest's cards is off here (NEWS_BACKTEST_POST is the test bot's)\" }])",
+   "expect.toEqual([])",
+   "expect.toEqual({ posted: 0, already: 0, failed: [expect.stringContaining(\"reddit:t3_wowforeverd1p1\")] })",
+   "expect.toEqual({ posted: 1, already: 0 })"
   ]
  },
  "traces.test.ts": {

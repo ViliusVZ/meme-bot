@@ -2,7 +2,7 @@
 // GUILD_ID, PLAYERS, …), and its conversion to the app's AppConfigShape. Since plan 05 phase 6 the
 // app reads AppConfig only; this is test setup.
 import { Cause, ConfigProvider, Effect, Exit, Redacted } from "effect";
-import { NEWS_AUDIENCE, readConfig, type AppConfigShape } from "../src/config.js";
+import { NEWS_AUDIENCE, NEWS_TRIAGE_MODELS, NEWS_WRITE_MODELS, listOf, readConfig, type AppConfigShape } from "../src/config.js";
 
 export interface Env {
   /** The throwaway schema's node-postgres database (test setup; the app has its own). */
@@ -34,6 +34,12 @@ export interface Env {
   NEWS_SUBREDDITS?: string;
   /** ⚔️ At most this many news cards a day. */
   NEWS_DAILY_POSTS?: string;
+  /** ⚔️ The news's model lists, comma-separated, and how many write-ups go in one request. */
+  NEWS_WRITE_MODELS?: string;
+  NEWS_TRIAGE_MODELS?: string;
+  NEWS_WRITE_BATCH?: string;
+  /** ⚔️ The backtest's cards may be posted ("1": the test bot only). */
+  NEWS_BACKTEST_POST?: string;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -77,6 +83,10 @@ export function envFields(c: AppConfigShape): Omit<Env, "db"> {
     NEWS_CHANNEL_ID: c.newsChannelId,
     NEWS_SUBREDDITS: c.newsSubreddits.join(","),
     NEWS_DAILY_POSTS: String(c.newsDailyPosts),
+    NEWS_WRITE_MODELS: c.newsWriteModels.join(","),
+    NEWS_TRIAGE_MODELS: c.newsTriageModels.join(","),
+    NEWS_WRITE_BATCH: String(c.newsWriteBatch),
+    NEWS_BACKTEST_POST: c.newsBacktestPost ? "1" : "",
   };
 }
 
@@ -108,6 +118,10 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     newsSubreddits: (env.NEWS_SUBREDDITS ?? "wowforever,classicwow,wow").split(",").map((s) => s.trim()).filter(Boolean),
     newsDailyPosts: Number(env.NEWS_DAILY_POSTS ?? "3"),
     newsAudience: NEWS_AUDIENCE,
+    newsWriteModels: listOf(env.NEWS_WRITE_MODELS ?? NEWS_WRITE_MODELS),
+    newsTriageModels: listOf(env.NEWS_TRIAGE_MODELS ?? NEWS_TRIAGE_MODELS),
+    newsWriteBatch: Number(env.NEWS_WRITE_BATCH ?? "3"),
+    newsBacktestPost: env.NEWS_BACKTEST_POST === "1",
     // the tests never wait out Reddit's minute between requests (one test sets its own)
     newsRedditGapMs: 0,
     appName: "meme-bot",

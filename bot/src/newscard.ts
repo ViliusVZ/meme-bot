@@ -191,11 +191,11 @@ export function cardText(o: Origin, w: Writeup): string {
   ].join("\n");
 }
 
-/** The news card: components v2, silent, pinging nobody. */
-export function card(o: Origin, w: Writeup) {
+/** The news card: components v2, silent, pinging nobody; `note`: a small line under it (the backtest's mark). */
+export function card(o: Origin, w: Writeup, note?: string) {
   return {
     flags: IS_COMPONENTS_V2 | SILENT,
     allowed_mentions: { parse: [] as string[] },
-    components: [{ type: 17, accent_color: 0x148eff, components: [{ type: 10, content: cardText(o, w) }] }],
+    components: [{ type: 17, accent_color: 0x148eff, components: [{ type: 10, content: note ? `${cardText(o, w)}\n-# ${note}` : cardText(o, w) }] }],
   };
 }

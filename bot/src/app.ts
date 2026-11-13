@@ -146,8 +146,10 @@ const Input = Schema.Struct({
   // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
   memes: Schema.optional(Schema.Array(Schema.Unknown)),
   post_daily: Schema.optional(Schema.Unknown),
-  // ⚔️ /admin/news: a backtest over the last days ({ days, max_calls }), or "sheet" for its last sheet
+  // ⚔️ /admin/news: a backtest over the last days ({ days, max_calls }), "sheet" for its last sheet,
+  // or "post" to post its cards (those of `days`, ISO dates, or all) on the test bot
   backtest: Schema.optional(Schema.Union([Text, Schema.Struct({ days: Schema.optional(Schema.Number), max_calls: Schema.optional(Schema.Number) })])),
+  days: Schema.optional(Schema.Array(Text)),
   method: Schema.optional(Text),
   path: Schema.optional(Text),
   body: Schema.optional(Schema.Unknown),
@@ -334,13 +336,19 @@ export const Routes = HttpRouter.use((router) =>
 
     // ⚔️ one WoW news run now, without waiting for the hour (it takes minutes: Reddit allows one
     // request a minute); no channel configured: {}. `backtest: { days, max_calls }` starts the
-    // backtest in the background (posting nothing); `backtest: "sheet"` answers its last sheet, as markdown.
+    // backtest in the background (posting nothing); `backtest: "sheet"` answers its last sheet, as markdown;
+    // `backtest: "post"` (with `days`, or all) posts the sheet's cards to the news channel, marked as
+    // backtests: the test bot only (NEWS_BACKTEST_POST), refused with a 403 anywhere else.
     yield* admin("/admin/news", (input) =>
       Effect.gen(function* () {
         const b = input.backtest;
         if (b === "sheet") {
           const sheet = yield* news.sheet;
           return sheet === null ? json({ sheet: null }) : HttpServerResponse.text(sheet, { contentType: "text/markdown; charset=utf-8" });
+        }
+        if (b === "post") {
+          const r = yield* news.postBacktest(input.days);
+          return json(r, "refused" in r ? 403 : 200);
         }
         if (b !== undefined) return json(yield* news.startBacktest(typeof b === "string" ? {} : { days: b.days, maxCalls: b.max_calls }));
         return answer(yield* news.run());

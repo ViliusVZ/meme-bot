@@ -6,12 +6,13 @@ import { readFileSync } from "node:fs";
 import { expect, it } from "@effect/vitest";
 import { beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { Context, Effect, Exit, Fiber, Layer, Schema, Scope } from "effect";
+import { Clock, Context, Duration, Effect, Exit, Fiber, Layer, Schema, Scope } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { News, FEED, EVERY, WRITE_STALE, parseFeed } from "../src/news.js";
 import { RedditNews, listingUrl, parseListing, parseThread, threadUrl, type Listing } from "../src/newsfeeds.js";
-import { barFrom, check, clean, decide, notHot, officialLink } from "../src/newscard.js";
-import { NEWS_SHARE, DAILY, Gemini } from "../src/gemini.js";
+import { barFrom, cardText, check, clean, decide, notHot, officialLink } from "../src/newscard.js";
+import { NewsWriter, type Writeup } from "../src/newswriter.js";
+import { NAMES_KEEP, NAMES_MODEL, PER_MODEL_DAILY, budgetKey, Gemini } from "../src/gemini.js";
 import { AppConfig } from "../src/config.js";
 import { Jobs } from "../src/jobs.js";
 import { AppStatus, ROUTER_CONFIG, routesOn } from "../src/app.js";
@@ -89,6 +90,14 @@ const outside = (c: Call) => {
   if (c.path.includes("generativelanguage")) {
     if (geminiDown) return json({ error: { message: "overloaded" } }, 503);
     const text = promptOf(c);
+    if (text.startsWith("Write short")) {
+      // several stories in one request: each one's write-up, by its id (one that isn't an object spoils the answer)
+      const stories = JSON.parse(text.slice(text.lastIndexOf("Threads:\n") + 9)) as (Material & { id: string })[];
+      const each = stories.map((m) => writeWith(m));
+      const spoilt = each.find((w) => typeof w !== "object" || w === null);
+      const batch = spoilt !== undefined ? spoilt : { items: stories.map((m, i) => ({ id: m.id, ...(each[i] as object) })) };
+      return json({ candidates: [{ content: { parts: [{ text: typeof batch === "string" ? batch : JSON.stringify(batch) }] } }] });
+    }
     const answer = text.startsWith("You pick")
       ? {
           items: (JSON.parse(text.slice(text.lastIndexOf("Candidates:\n") + 12)) as { id: string; title: string }[]).map((x) => ({
@@ -139,7 +148,18 @@ const posted = () => calls.filter((c) => c.method === "POST" && c.path === "/cha
 const cardOf = (c: Call) => String(c.body.components[0].components[0].content);
 const geminiCalls = () => calls.filter((c) => c.path.includes("generativelanguage"));
 const triages = () => geminiCalls().filter((c) => promptOf(c).startsWith("You pick"));
-const writes = () => geminiCalls().filter((c) => promptOf(c).startsWith("Write a short"));
+/** The write-up requests. */
+const writeRequests = () => geminiCalls().filter((c) => promptOf(c).startsWith("Write"));
+/** The write-ups asked for: a request for several stories counts once for each. */
+const writes = () =>
+  writeRequests().flatMap((c) => {
+    const p = promptOf(c);
+    return p.startsWith("Write short") ? (JSON.parse(p.slice(p.lastIndexOf("Threads:\n") + 9)) as unknown[]).map(() => c) : [c];
+  });
+const modelOf = (c: Call) => c.path.match(/models\/([^:]+)/)![1];
+/** Today's requests on these models so far (Google's day: the same date as Vilnius's at the tests' times). */
+const seedUsed = (used: Record<string, number>, day = "2026-11-12") =>
+  Effect.flatMap(Db, (db) => db.insert(settings).values(Object.entries(used).map(([m, n]) => ({ key: budgetKey(m), value: { day, used: n } }))));
 const redditCalls = () => calls.filter((c) => c.path.startsWith("https://www.reddit.com/"));
 const story = (id: string) =>
   Effect.gen(function* () {
@@ -502,8 +522,9 @@ it.effect("the triage never takes the day's last model calls: they're kept for t
   Effect.gen(function* () {
     yield* firstRun();
     listing("wowforever", "day", [{ id: "x", title: "A thing", ago: 5 }]);
-    const db = yield* Db;
-    yield* db.insert(settings).values({ key: "gemini_budget_news", value: { day: "2026-11-12", used: NEWS_SHARE - 3 } });
+    // the triage's first model is spent; its second is a write-up model, and the write-up models
+    // have only the day's three posts' requests left (2 on gemini-3.6-flash, 1 on gemini-3.5-flash)
+    yield* seedUsed({ "gemini-3.5-flash-lite": PER_MODEL_DAILY, "gemini-3.6-flash": PER_MODEL_DAILY - 2, "gemini-3.7-flash": PER_MODEL_DAILY, "gemini-3.5-flash": PER_MODEL_DAILY - NAMES_KEEP - 1 });
     const r = yield* run();
     expect([r.candidates, r.triaged]).toEqual([1, undefined]);
     expect(geminiCalls()).toEqual([]);
@@ -525,24 +546,124 @@ it.effect("the fast Gemini busy: the other one answers", () =>
     listing("wowforever", "day", [{ id: "fx", title: "WoW: Forever Hotfixes - November 12", ago: 5 }]);
     writeWith = (m) => ({ ...goodWriteup(m), headline: "Forever hotfixes" });
     expect(yield* run()).toMatchObject({ posted: ["Forever hotfixes"] });
-    expect(used).toEqual(["gemini-3.5-flash", "gemini-3.8-flash"]);
+    expect(used).toEqual(["gemini-3.5-flash-lite", "gemini-3.6-flash"]);
   }).pipe(h.provide),
 );
 
-it.effect("Gemini's budget: the news gets at most 10 a day, so game-name matching always keeps 5", () =>
+const OK_SCHEMA = { type: "OBJECT", properties: { ok: { type: "BOOLEAN" } }, required: ["ok"] };
+const Ok = Schema.Struct({ ok: Schema.Boolean });
+const okAnswer = (c: Call) => (c.path.includes("generativelanguage") ? json({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }) : undefined);
+
+it.effect("Gemini's budget is per model: 18 a day each, game names and the news counted together; on game names' model the news leaves them 5", () =>
   Effect.gen(function* () {
     const gemini = yield* Gemini;
-    const A = { type: "OBJECT", properties: { ok: { type: "BOOLEAN" } }, required: ["ok"] };
-    h.override = (c) => (c.path.includes("generativelanguage") ? json({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }) : undefined);
-    const Ok = Schema.Struct({ ok: Schema.Boolean });
-    const answered: boolean[] = [];
-    for (let i = 0; i < NEWS_SHARE + 2; i++) answered.push((yield* gemini.ask("news", A, Ok, undefined, "news")) !== null);
-    expect(answered.filter(Boolean)).toHaveLength(NEWS_SHARE);
-    expect([yield* gemini.left("news"), yield* gemini.left()]).toEqual([0, DAILY - NEWS_SHARE]);
-    const names: boolean[] = [];
-    for (let i = 0; i < 7; i++) names.push((yield* gemini.ask("a game name", A, Ok)) !== null);
-    expect(names.filter(Boolean)).toHaveLength(DAILY - NEWS_SHARE);
-    expect(geminiCalls()).toHaveLength(DAILY);
+    h.override = okAnswer;
+    const asks = <E>(n: number, ask: Effect.Effect<unknown, E>) => Effect.map(Effect.forEach(Array.from({ length: n }), () => ask), (a) => a.filter((x) => x !== null).length);
+    // a model of the news's own: all 18, then no more
+    expect(yield* asks(PER_MODEL_DAILY + 2, gemini.ask("news", OK_SCHEMA, Ok, { models: ["gemini-3.6-flash"], use: "news" }))).toBe(PER_MODEL_DAILY);
+    expect(yield* gemini.left(["gemini-3.6-flash"], "news")).toBe(0);
+    // …which costs game names nothing; on their model the news stops 5 short
+    expect(yield* gemini.left([NAMES_MODEL])).toBe(PER_MODEL_DAILY);
+    expect(yield* asks(PER_MODEL_DAILY, gemini.ask("news", OK_SCHEMA, Ok, { models: [NAMES_MODEL], use: "news" }))).toBe(PER_MODEL_DAILY - NAMES_KEEP);
+    expect(yield* asks(NAMES_KEEP + 2, gemini.ask("a game name", OK_SCHEMA, Ok))).toBe(NAMES_KEEP);
+    expect(geminiCalls().map(modelOf)).toEqual([...Array(PER_MODEL_DAILY).fill("gemini-3.6-flash"), ...Array(PER_MODEL_DAILY).fill(NAMES_MODEL)]);
+    // counted by Google's day (midnight Pacific): at 07:30 UTC on the 13th it's still the 12th there, at 08:30 it's the 13th
+    yield* setTime("2026-11-13T07:30:00Z");
+    expect(yield* gemini.left(["gemini-3.6-flash"], "news")).toBe(0);
+    yield* setTime("2026-11-13T08:30:00Z");
+    expect(yield* gemini.left(["gemini-3.6-flash"], "news")).toBe(PER_MODEL_DAILY);
+  }).pipe(h.provide),
+);
+
+it.effect("a 503 or a timeout moves on to the next model, each request counted against its own model's day; an answer off the schema isn't asked again", () =>
+  Effect.gen(function* () {
+    const gemini = yield* Gemini;
+    const asked: string[] = [];
+    h.override = (c) => {
+      if (!c.path.includes("generativelanguage")) return undefined;
+      asked.push(modelOf(c));
+      if (modelOf(c) === "gemini-3.6-flash") return json({ error: { message: "high demand" } }, 503);
+      if (modelOf(c) === "gemini-3.7-flash") return new Promise<Response>(() => {}) as unknown as Response; // never answers
+      if (modelOf(c) === "gemini-3.5-flash-lite") return json({ candidates: [{ content: { parts: [{ text: '{"nope":1}' }] } }] });
+      return okAnswer(c);
+    };
+    // (the five minutes a model gets, as 50 ms)
+    const clock = yield* Clock.clockWith(Effect.succeed);
+    const quick = <A, E, R>(e: Effect.Effect<A, E, R>) => Effect.provideService(e, Clock.Clock, { ...clock, sleep: () => Effect.provideService(Effect.sleep(Duration.millis(50)), Clock.Clock, clock) });
+    const r = yield* quick(gemini.request("news", OK_SCHEMA, Ok, { models: ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash"], use: "news" }));
+    expect([r.answer, r.attempts]).toEqual([{ ok: true }, [{ model: "gemini-3.6-flash", outcome: "failed" }, { model: "gemini-3.7-flash", outcome: "failed" }, { model: "gemini-3.5-flash", outcome: "answered" }]]);
+    const left = yield* Effect.forEach(["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash"], (m) => gemini.left([m], "news"));
+    expect(left).toEqual([PER_MODEL_DAILY - 1, PER_MODEL_DAILY - 1, PER_MODEL_DAILY - NAMES_KEEP - 1]);
+    // an answer that doesn't fit: the question is the trouble, not the model, so no other is asked
+    const off = yield* gemini.request("news", OK_SCHEMA, Ok, { models: ["gemini-3.5-flash-lite", "gemini-3.5-flash"], use: "news" });
+    expect([off.answer, off.malformed, off.attempts.map((a) => a.outcome)]).toEqual([null, true, ["malformed"]]);
+    expect(asked).toEqual(["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]);
+  }).pipe(h.provide),
+);
+
+it.effect("three ready stories are written up in one request; the one the code turns down is skipped, the other two posted", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    listing("wowforever", "day", [
+      { id: "b1", title: "Hunters get a new pet family", ago: 5 },
+      { id: "b2", title: "Forever's launch date announced", ago: 5 },
+      { id: "b3", title: "Dungeon XP cut for boosted runs", ago: 5 },
+    ]);
+    writeWith = (m) => (m.title.startsWith("Forever's launch") ? { ...goodWriteup(m), old_news: true } : goodWriteup(m));
+    const r = yield* run();
+    expect(r.posted).toEqual(["About Hunters get a new pet family", "About Dungeon XP cut for boosted runs"]);
+    expect(writeRequests()).toHaveLength(1);
+    expect(writes()).toHaveLength(3);
+    // each story has its own material in it, under its own id
+    const prompt = promptOf(writeRequests()[0]);
+    expect((JSON.parse(prompt.slice(prompt.lastIndexOf("Threads:\n") + 9)) as { id: string; title: string }[]).map((x) => [x.id, x.title])).toEqual([
+      ["reddit:t3_b1", "Hunters get a new pet family"],
+      ["reddit:t3_b2", "Forever's launch date announced"],
+      ["reddit:t3_b3", "Dungeon XP cut for boosted runs"],
+    ]);
+    expect([(yield* story("reddit:t3_b2")).state, (yield* story("reddit:t3_b2")).reason]).toEqual(["skip", "old news"]);
+  }).pipe(h.provide),
+);
+
+it.effect("a batch whose answer is malformed: nothing posted; the next run writes each of its stories in a request of its own", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    listing("wowforever", "day", [
+      { id: "m1", title: "Hunters get a new pet family", ago: 5 },
+      { id: "m2", title: "Dungeon XP cut for boosted runs", ago: 5 },
+    ]);
+    const t0 = now();
+    let spoil = true;
+    h.override = (c) => (c.path.includes("generativelanguage") && spoil && promptOf(c).startsWith("Write short") ? json({ candidates: [{ content: { parts: [{ text: '{"items":"not a list"}' }] } }] }) : undefined);
+    const first = yield* run(t0);
+    expect([first.written, first.posted]).toEqual([undefined, undefined]);
+    expect(writeRequests()).toHaveLength(1); // malformed: no other model is asked the same batch
+    expect([(yield* story("reddit:t3_m1")).state, (yield* story("reddit:t3_m2")).state]).toEqual(["queued", "queued"]);
+    spoil = false;
+    calls.length = 0;
+    const next = yield* run(t0 + EVERY);
+    expect(next.posted).toEqual(["About Hunters get a new pet family", "About Dungeon XP cut for boosted runs"]);
+    expect(writeRequests().map((c) => promptOf(c).slice(0, 30))).toEqual(["Write a short news piece about", "Write a short news piece about"]);
+  }).pipe(h.provide),
+);
+
+it.effect("one write-up missing from a batch's answer: the others are posted, that one is written alone next run", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    listing("wowforever", "day", [
+      { id: "p1", title: "Hunters get a new pet family", ago: 5 },
+      { id: "p2", title: "Dungeon XP cut for boosted runs", ago: 5 },
+    ]);
+    const t0 = now();
+    // the model gives the second story only half a write-up
+    writeWith = (m) => (m.title.startsWith("Dungeon") ? { headline: "half a piece" } : goodWriteup(m));
+    const first = yield* run(t0);
+    expect(first.posted).toEqual(["About Hunters get a new pet family"]);
+    expect((yield* story("reddit:t3_p2")).state).toBe("queued");
+    writeWith = (m) => goodWriteup(m);
+    calls.length = 0;
+    expect((yield* run(t0 + EVERY)).posted).toEqual(["About Dungeon XP cut for boosted runs"]);
+    expect(writeRequests().map((c) => promptOf(c).slice(0, 30))).toEqual(["Write a short news piece about"]);
   }).pipe(h.provide),
 );
 
@@ -607,7 +728,8 @@ it.effect("the backtest: the real pipeline over last week, a sheet of cards and 
     week("wowforever", 7);
     triageWith = (c) => (c.title.endsWith("post 1") ? { matters: 9 } : c.title.endsWith("post 2") ? { matters: 8, kind: "meme" } : { matters: 4 });
     const r = yield* news.backtest({ days: 2, maxCalls: 10 });
-    expect([r.done, r.calls]).toEqual([true, 4]); // two triage calls, two write-ups
+    expect([r.done, r.calls, r.requests]).toEqual([true, 4, { "gemini-3.5-flash-lite": 2, "gemini-3.6-flash": 2 }]); // two triage calls, two write-ups
+    expect(r.sheet).toContain("-# Model requests this run: 4 of 10 (gemini-3.5-flash-lite 2, gemini-3.6-flash 2); answered by: gemini-3.5-flash-lite 2, gemini-3.6-flash 2. Write-ups: gemini-3.6-flash → gemini-3.7-flash → gemini-3.5-flash; triage: gemini-3.5-flash-lite → gemini-3.6-flash.");
     expect(r.sheet).toContain("# WoW news backtest · the 2 days before 2026-11-12");
     expect(r.sheet).toContain("## Wednesday 2026-11-11");
     expect(r.sheet).toContain("### About wowforever day-1 post 1");
@@ -618,12 +740,14 @@ it.effect("the backtest: the real pipeline over last week, a sheet of cards and 
     expect(posted()).toEqual([]);
     expect(yield* stories).toEqual([]);
     const db = yield* Db;
-    expect((yield* db.select().from(settings)).map((s) => s.key).sort()).toEqual(["gemini_budget", "gemini_budget_news"]);
+    expect((yield* db.select().from(settings)).map((s) => s.key).sort()).toEqual(["gemini_budget:gemini-3.5-flash-lite", "gemini_budget:gemini-3.6-flash"]);
     expect(yield* news.sheet).toBe(r.sheet);
     // a rerun: everything from the cache, nothing fetched or asked again
     calls.length = 0;
     const again = yield* news.backtest({ days: 2, maxCalls: 10 });
-    expect([again.done, again.calls, again.sheet.replace(/model calls this run: \d+/, "")]).toEqual([true, 0, r.sheet.replace(/model calls this run: \d+/, "")]);
+    const runLine = /\n-# Model requests this run: [^\n]*/;
+    expect(again.sheet).toContain("-# Model requests this run: 0 of 10 (none); answered by: none.");
+    expect([again.done, again.calls, again.sheet.replace(runLine, "")]).toEqual([true, 0, r.sheet.replace(runLine, "")]);
     expect(calls).toEqual([]);
   }).pipe(h.provide),
 );
@@ -639,8 +763,49 @@ it.effect("the backtest within its budget: what it can't pay for today is marked
     expect(r.sheet).toContain("not written yet (Gemini's budget: run again)");
     expect(r.sheet).toContain("not triaged yet (Gemini's budget: run again)");
     const next = yield* news.backtest({ days: 2, maxCalls: 10 });
-    expect([next.done, next.calls]).toEqual([true, 5]); // the first day's triage was cached
+    expect([next.done, next.calls]).toEqual([true, 3]); // the first day's triage was cached; each day's two write-ups in one request
     expect(next.sheet).toContain("### About wowforever day-2 post 1");
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest leaves the live runs their part: never a write-up model's last 2 requests of the day; max_calls counts every request, a 503's too", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    week("wowforever", 2);
+    triageWith = () => ({ matters: 9 });
+    // the write-up models: only gemini-3.5-flash has room left for the news, 3 requests
+    yield* seedUsed({ "gemini-3.6-flash": PER_MODEL_DAILY, "gemini-3.7-flash": PER_MODEL_DAILY, "gemini-3.5-flash": PER_MODEL_DAILY - NAMES_KEEP - 3 });
+    const r = yield* news.backtest({ days: 2, maxCalls: 10 });
+    // two triages, and one write-up request (both of the first day's stories): the next would leave the live runs 1
+    expect([r.done, r.calls, r.requests]).toEqual([false, 3, { "gemini-3.5-flash-lite": 2, "gemini-3.5-flash": 1 }]);
+    expect(r.sheet).toContain("### About wowforever day-2 post 1");
+    expect(r.sheet).toContain("not written yet (Gemini's budget: run again)");
+    expect(yield* NewsWriter.use((w) => w.left("write"))).toBe(2);
+    // a busy first model: its 503 is a request of the run's max_calls, so with 1 the second isn't asked
+    calls.length = 0;
+    yield* Effect.flatMap(Db, (db) => Effect.andThen(db.delete(newsCache), db.delete(settings)));
+    h.override = (c) => (c.path.includes("generativelanguage") && modelOf(c) === "gemini-3.5-flash-lite" ? json({ error: { message: "high demand" } }, 503) : undefined);
+    const busy = yield* news.backtest({ days: 1, maxCalls: 1 });
+    expect([busy.done, busy.calls, geminiCalls().map(modelOf)]).toEqual([false, 1, ["gemini-3.5-flash-lite"]]);
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest writes a day's stories in one request; a batch that comes back malformed is written alone on the next run", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    week("wowforever", 3);
+    triageWith = () => ({ matters: 9 });
+    let spoil = true;
+    h.override = (c) => (c.path.includes("generativelanguage") && spoil && promptOf(c).startsWith("Write short") ? json({ candidates: [{ content: { parts: [{ text: "[]" }] } }] }) : undefined);
+    const r = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect([r.calls, writeRequests().length]).toEqual([2, 1]);
+    expect(r.sheet).toContain("its batch came back unreadable (written alone next run)");
+    spoil = false;
+    calls.length = 0;
+    const next = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(writeRequests().map((c) => promptOf(c).slice(0, 30))).toEqual(Array(3).fill("Write a short news piece about"));
+    expect([next.done, next.calls]).toEqual([true, 3]);
+    expect(next.sheet).toContain("### About wowforever day-1 post 3");
   }).pipe(h.provide),
 );
 
@@ -786,5 +951,57 @@ it.effect("POST /admin/news with a backtest: it starts in the background, and it
     expect([sheet.statusCode, sheet.type]).toEqual([200, "text/markdown; charset=utf-8"]);
     expect(sheet.body).toContain("### About classicwow day-1 post 1");
     expect(posted()).toEqual([]);
+  }).pipe(h.provide),
+);
+
+/** A News whose configuration allows posting the backtest's cards (the test bot's dev.env). */
+const backtestPoster = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  const scope = yield* Scope.make();
+  const layer = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsBacktestPost: true })));
+  return Context.get(yield* Layer.buildWithScope(layer, scope), News);
+});
+
+it.effect("the backtest's cards posted on the test bot: each as the live card, silent, pinging nobody, marked as a backtest; once; nothing in the live tables", () =>
+  Effect.gen(function* () {
+    const news = yield* backtestPoster;
+    week("wowforever", 1);
+    triageWith = () => ({ matters: 9 });
+    yield* news.backtest({ days: 2, maxCalls: 10 });
+    expect(yield* news.postBacktest(["2026-11-11"])).toEqual({ posted: 1, already: 0 });
+    expect(posted()).toHaveLength(1);
+    const [msg] = posted();
+    expect([msg.body.flags, msg.body.allowed_mentions]).toEqual([(1 << 15) | (1 << 12), { parse: [] }]);
+    const text = cardOf(msg);
+    const live = cardText({ source: "reddit", sub: "wowforever", link: "https://www.reddit.com/r/wowforever/comments/wowforeverd1p1/slug/", created_at: now() - (24 + 5.5) * 3600, official: null }, (check(goodWriteup({ title: "wowforever day-1 post 1" } as Material) as Writeup, []) as { ok: Writeup }).ok);
+    expect(text).toBe(`${live}\n-# backtest · Wednesday 2026-11-11`);
+    // the rest of the sheet; the day already out isn't posted twice
+    expect(yield* news.postBacktest()).toEqual({ posted: 1, already: 1 });
+    expect(cardOf(posted()[1])).toContain("### About wowforever day-2 post 1");
+    expect(cardOf(posted()[1]).split("\n").at(-1)).toBe("-# backtest · Tuesday 2026-11-10");
+    expect(yield* news.postBacktest()).toEqual({ posted: 0, already: 2 });
+    expect(posted()).toHaveLength(2);
+    // the live runs' tables and the day's cap: untouched
+    expect(yield* stories).toEqual([]);
+    const db = yield* Db;
+    expect((yield* db.select().from(settings)).map((s) => s.key).filter((k) => k.startsWith("news"))).toEqual([]);
+  }).pipe(h.provide),
+);
+
+it.effect("posting the backtest's cards: refused where NEWS_BACKTEST_POST isn't set (production), posting nothing; a refused post is tried again next time", () =>
+  Effect.gen(function* () {
+    const admin = yield* app;
+    week("wowforever", 1);
+    triageWith = () => ({ matters: 9 });
+    yield* News.use((n) => n.backtest({ days: 1, maxCalls: 10 }));
+    const refused = yield* admin({ backtest: "post", days: ["2026-11-11"] });
+    expect([refused.statusCode, JSON.parse(refused.body)]).toEqual([403, { refused: "posting the backtest's cards is off here (NEWS_BACKTEST_POST is the test bot's)" }]);
+    expect(posted()).toEqual([]);
+    // on the test bot, Discord says no: the card's claim is given back, and the next call posts it
+    const news = yield* backtestPoster;
+    discordFails = true;
+    expect(yield* news.postBacktest()).toEqual({ posted: 0, already: 0, failed: [expect.stringContaining("reddit:t3_wowforeverd1p1")] });
+    discordFails = false;
+    expect(yield* news.postBacktest()).toEqual({ posted: 1, already: 0 });
   }).pipe(h.provide),
 );

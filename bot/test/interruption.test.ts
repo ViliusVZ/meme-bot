@@ -7,7 +7,7 @@ import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber, Layer } from "effect";
-import { activityGuesses, fleeting, newsStories, settings, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { activityGuesses, fleeting, newsCache, newsStories, settings, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -967,3 +967,41 @@ function newsStorySequences(): Record<string, Sequence> {
   };
 }
 for (const [name, s] of Object.entries(newsStorySequences())) define(name, s);
+
+// ⚔️ Plan 06's backtest cards, posted on the test bot (POST /admin/news {"backtest": "post"})
+function backtestPostSequences(): Record<string, Sequence> {
+  return {
+    "a backtest card posted on the test bot (its claim → the post → its id)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.delete(newsCache);
+          const writeup = { headline: "Dungeon XP cut for boosted runs", what: "Blizzard lowered XP from boosted dungeon runs.", mood: { label: "mostly against", line: "Most are against it.", takes: ["It hits friends levelling together.", "Some say it was overdue."] }, why: "Dungeons together pay less if one of us runs ahead.", old_news: false, confidence: 0.9, official_link: "" };
+          const origin = { source: "reddit", sub: "classicwow", link: "https://www.reddit.com/r/classicwow/comments/7/xp/", created_at: now() - 30 * 3600, official: null };
+          yield* db.insert(newsCache).values({ key: "backtest:sheet", value: { text: "# sheet", at: now(), done: true, cards: [{ day: "2026-11-09", id: "reddit:t3_7", origin, writeup }] }, at: now() });
+        }),
+      run: () =>
+        Effect.gen(function* () {
+          const config = yield* AppConfig;
+          const news = Layer.fresh(News.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsChannelId: "news", newsBacktestPost: true })));
+          return yield* News.use((n) => n.postBacktest()).pipe(Effect.provide(news));
+        }),
+      claim: { table: "news_cache", op: "INSERT", when: "NEW.key LIKE 'bt:posted:%'" },
+      record: { table: "news_cache", op: "UPDATE", when: "NEW.key LIKE 'bt:posted:%'" },
+      post: { method: "POST", path: "/channels/news/messages" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          expect((yield* db.select().from(newsCache)).map((r) => r.key)).toEqual(["backtest:sheet"]);
+          expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const claims = (yield* db.select().from(newsCache)).filter((r) => r.key.startsWith("bt:posted:"));
+          expect(claims.map((r) => (r.value as { message_id: string }).message_id === "posting")).toEqual([false]);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(backtestPostSequences())) define(name, s);

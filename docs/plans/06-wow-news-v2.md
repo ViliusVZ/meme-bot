@@ -4,28 +4,53 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
-## Resume here (paused 2026-11-12 ~19:00 at the owner's request; stay stopped until told)
+## Resume here (2026-11-13: Gemini per model, batched write-ups, backtest posting; not deployed)
 
-- **Done:** Step 0 (findings below). The build on branch `news-v2` (`0144368`, all gates green,
-  894 tests, every rule break-it red): `src/newsfeeds.ts` (RSS source, one request per ≥65 s),
-  `src/newswriter.ts` (Gemini triage + write-up), `src/newscard.ts` (rules, card), `src/news.ts`
-  (hourly pipeline + backtest), tables `news_stories`, `news_cache` (`news_items` kept, unused,
-  for the rollout). Plan 02's replaced tests: 28 recordings allowed in
-  `bot/test/recordings.allowed.json` and their ledger entries deleted by hand (declared in plan 05
-  STATUS "Declared exceptions"); remove that allowance in a follow-up commit once a gate run holds.
-  Not built: the follow-up line (step 7), the outside-writer endpoints (as instructed).
-- **Deployed:** the test bot runs `news-v2` (`0144368`) since 18:31; its first run saw 136 stories
-  and posted nothing (as designed). Production is still on `main` = `79c0a2d` (plan 02's news).
-- **Mid-flight:** nothing running. The backtest has not run yet (it spends the Gemini key the
-  production bot shares; held for tonight's game night).
-- **Exact next step:** time ten write-up-sized Gemini requests per model (Step 0.3) on a fresh
-  day's quota; then on the test bot `POST /admin/news {"backtest": {"days": 7, "max_calls": 10}}`
-  and read it with `POST /admin/news {"backtest": "sheet"}` (it resumes from its cache; a full
-  sheet needs ~28 calls, about 3 days of the news share); a fresh read-only editor subagent reads
-  the sheet against the real threads; fix and rerun until no findings; post the sheet's cards in
-  the test server's channel; then merge `news-v2` to `main` when nobody is in voice, and delete
-  plan 02's stale post (`SELECT message_id FROM news_items WHERE state='posted'` in production;
-  message in ⚔️・wow-news `1570427645949386802`).
+- **Done:** Step 0 (findings below). The build on branch `news-v2` (`0144368`): `src/newsfeeds.ts`
+  (RSS source, one request per ≥65 s), `src/newswriter.ts` (Gemini triage + write-ups),
+  `src/newscard.ts` (rules, card), `src/news.ts` (hourly pipeline + backtest), tables
+  `news_stories`, `news_cache` (`news_items` kept, unused, for the rollout). Not built: the
+  follow-up line (step 7), the outside-writer endpoints (as instructed).
+- **2026-11-13** (gates green, 906 tests, every new rule's break-it red):
+  - `d4a834a`: the minute's-jobs news test was flaky (its background run's calls interleave with
+    the later jobs'): now a declared race. `2af1543`: plan 02's 28 recording allowances removed.
+  - **Gemini's budget per model** (`src/gemini.ts`): the free tier is ~20 requests a day per
+    model per project, so every request that goes out (a 503 or a timeout too) counts against its
+    own model's day, at most `PER_MODEL_DAILY = 18`, game names and the news counted together, by
+    Google's day (midnight Pacific). Game names ask `gemini-3.8-flash` alone, as before (their
+    recordings are the baseline's); on `gemini-3.8-flash` and `gemini-3.5-flash` the news stops at
+    13 (`NAMES_KEEP = 5` kept for game names). A 503 or a timeout moves to the next model; an
+    answer off the schema stops (the question is the trouble, not the model).
+  - **The news's model lists** (config): `NEWS_WRITE_MODELS` = `gemini-3.6-flash,gemini-3.7-flash,
+    gemini-3.5-flash`, `NEWS_TRIAGE_MODELS` = `gemini-3.5-flash-lite,gemini-3.6-flash`. The triage
+    never takes, on the write-up models, the requests the day's remaining posts would need.
+  - **Batched write-ups:** up to `NEWS_WRITE_BATCH` (3) ripe stories in one request, each with its
+    full material under its id; each write-up checked on its own (old news, confidence, empty
+    fields, lengths, links), only the bad ones dropped. A malformed batch (or a write-up missing
+    from it): those stories are written alone next run (`news_stories.reason` = `ALONE` while
+    queued). One story alone uses the one-story prompt. The backtest batches the same way.
+  - **The backtest** uses the same lists, counts `max_calls` in requests, and always leaves the
+    live runs 2 write-up requests and 1 triage request a day (`LIVE_WRITES`, `LIVE_TRIAGES`). Its
+    sheet's header names the models, the requests per model this run and which answered.
+  - **Posting the sheet's cards** on the test bot: `POST /admin/news {"backtest": "post", "days":
+    ["2026-11-11", …]}` (days optional): each card exactly as the live card, silent, no mentions,
+    with `-# backtest · <weekday> <day>` under it; claimed once per sheet in `news_cache`, never
+    touching `news_stories` or the day's cap. Refused (403) unless `NEWS_BACKTEST_POST=1`, which
+    only `deploy/dev.env` sets.
+- **Deployed:** the test bot runs `news-v2` (`0144368`) since 2026-11-12 18:31; the work above is
+  not deployed. Production is still on `main` = `79c0a2d` (plan 02's news). Both bots share the
+  key: production's plan 02 code still counts its own old budget (`gemini_budget`, 15 a day,
+  `gemini-3.8-flash` for game names; its news on `gemini-3.5-flash` → `gemini-3.8-flash`), so until
+  the merge the two bots' counts don't see each other.
+- **Mid-flight:** nothing running.
+- **Exact next step:** deploy `news-v2` to the test bot (`gh workflow run bot.yml --ref news-v2 -f
+  target=dev`); then `POST /admin/news {"backtest": {"days": 7, "max_calls": 10}}` and read it with
+  `POST /admin/news {"backtest": "sheet"}` (it resumes from its cache; a full week is ~7 triages +
+  ~7 batched write-ups, so one or two days of requests); post its cards with `{"backtest": "post"}`;
+  a fresh read-only editor subagent reads the sheet against the real threads; fix and rerun until
+  no findings; then merge `news-v2` to `main` when nobody is in voice, and delete plan 02's stale
+  post (`SELECT message_id FROM news_items WHERE state='posted'` in production; message in
+  ⚔️・wow-news `1570427645949386802`).
 - **Known:** the meme refill (`reddit.ts`) doesn't share the news's Reddit pacing (both hit Reddit
   RSS from the VPS IP): a collision is a logged failure, retried next hour.
 - **Owner question open:** a free Reddit "script" app (OAuth) for scores and comment counts.
@@ -141,6 +166,13 @@ responses as fixtures in `bot/test/fixtures`.
   at ≤ 10 a day and keep ≥ 5 for game names. **The timing of ten write-up-sized requests per model
   is deferred to after tonight's game night**: it would spend the shared day's quota that game-name
   matching needs tonight (do it on the next day's quota, before the backtest).
+- **Gemini, 2026-11-13 (from the VPS):** the free tier's limit is per model, per project, per day
+  (about 20 each), not one budget for the key: the news's live hourly runs on the test bot had
+  spent its whole share by 06:43 UTC. What answered: `gemini-3.5-flash-lite` (7 s),
+  `gemini-3.6-flash` (24 s), `gemini-3.7-flash` (slow; timed out at 120 s once);
+  `gemini-3.5-flash`, `gemini-3.8-flash` and `gemini-3.1-flash-lite` answered 503 (high demand);
+  `gemini-2.5-flash` is gone (404). So: a budget per model and the news's own model lists (see
+  "Resume here").
 
 ### Build status (2026-11-12, branch `news-v2`; not deployed)
 
@@ -168,13 +200,18 @@ state = 'posted'`); a later migration drops it. How the RSS rules came out:
 - **The day's cap:** once 3 cards are out, what passed that day and didn't get one is dropped
   ("the day's 3 were taken"), and the triage waits for the next day. Write-ups are only paid for
   as many as can still go out today.
-- **Gemini:** the news has its own share, `NEWS_SHARE = 10` of `DAILY = 15` (`gemini.ts`), so game
-  names keep 5. The triage never takes the calls the day's remaining write-ups need.
+- **Gemini** (since 2026-11-13): a budget per model, 18 a day each (`gemini.ts`
+  `PER_MODEL_DAILY`); the news on its own lists (`NEWS_TRIAGE_MODELS`, `NEWS_WRITE_MODELS`), 13 at
+  most on game names' models so they keep 5; write-ups batched, up to `NEWS_WRITE_BATCH` (3) a
+  request. The triage never takes, on the write-up models, the requests the day's remaining
+  write-ups need.
 - **Backtest:** `POST /admin/news {"backtest": {"days": 7, "max_calls": 10}}` starts it in the
   background; `{"backtest": "sheet"}` answers the last sheet as markdown. It caches every feed,
   thread, article, triage answer and write-up in `news_cache`, so a rerun the next day spends only
   what's missing. It reads threads as they are now, skips the ripening wait, and ranks a day's
-  posts by the week's top.
+  posts by the week's top. `max_calls` counts requests; it always leaves the live runs 2 write-up
+  requests and 1 triage request a day. `{"backtest": "post", "days": [...]}` posts the sheet's
+  cards to the test server (`NEWS_BACKTEST_POST=1`, dev.env only).
 
 ## Pipeline
 

@@ -820,6 +820,22 @@ recordings (see "Numbers").
   run's settings); every one is run by `test/news.test.ts` and test 6's new news entry.
   `gemini.ts` keeps its 2 (the news's own budget count shares their lines). Nothing else changed
   the count.
+- **G3 query sites 233 → 236 (branch `news-v2`, plan 06, 2026-11-13):** posting the backtest's
+  cards on the test bot (`News.postBacktest`) claims each card in `news_cache`, gives the claim
+  back when Discord refuses, and records the message id: 3 sites, run by `test/news.test.ts` and
+  test 6's backtest-card entry. `gemini.ts`'s per-model budget keeps 2 (one read for the models
+  asked, one upsert per request). Nothing else changed the count.
+- **Plan 06, Gemini per model and batched write-ups (branch `news-v2`, 2026-11-13):** the news
+  asks its own model lists (`NEWS_TRIAGE_MODELS`, `NEWS_WRITE_MODELS`), counts a budget row per
+  model (`settings`: `gemini_budget` stays game names' model's, `gemini_budget:<model>` the
+  others) and writes up to 3 stories in one request, so 18 `news.test.ts` recordings change in
+  their Gemini calls (models, prompts), `settings` and the backtest's `news_cache` only; every
+  other call and table is identical (checked test by test). They were allowed in
+  `test/recordings.allowed.json` for that one commit, removed in the next. Four tests' assertions
+  changed with it (the busy model's fallback, the two backtests' counts and budget keys, the old
+  news-share test replaced by the per-model ones): their ledger entries were deleted by hand and
+  added again (`--add`). Game names' recordings (`spontaneous`, test 6) are unchanged: they still
+  ask `gemini-3.8-flash` alone and keep the `gemini_budget` row as it was.
 - **Plan 06 replaces plan 02's news tests (branch `news-v2`):** their behaviour is gone (Blizzard
   posts only, the title-only fallback, "updated" lines, 5 a day), so 15 `news.test.ts` tests and
   test 6's two plan 02 entries (7 tests) are removed. Their recordings are listed in

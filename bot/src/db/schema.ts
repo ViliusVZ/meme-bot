@@ -377,7 +377,7 @@ export const newsStories = pgTable("news_stories", {
   prev_hot_rank: integer(), // …and at the collect before (climbing = this minus hot_rank)
   prev_at: unix("prev_at"), // when that was
   state: text().notNull().$type<StoryState>(),
-  reason: text(), // why it was skipped or dropped ("a meme", "too old", "a repeat"…)
+  reason: text(), // why it was skipped or dropped ("a meme", "too old", "a repeat"…); queued: news.ts ALONE (written alone next)
   verdict: jsonb(), // the triage's answer for it
   score: integer(), // the triage's 0-10: how much it matters to a Forever player
   same_as: text(), // the story it repeats (its id)
