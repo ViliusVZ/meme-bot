@@ -455,15 +455,15 @@ it.effect("“World of Warcraft: Forever” is World of Warcraft (a migration); 
     yield* step(at("18:20:00"), { a: "lobby", b: "lobby" });
     yield* step(at("18:20:30"));
     expect([(yield* prompt).state, (yield* prompt).game, !!(yield* roomId)]).toEqual(["moved", WOW, true]);
-    // Gemini didn't answer about "CurseForge": asked again an hour later, not before, not a day later
+    // Gemini didn't answer about "CurseForge": asked again once an hour has passed, not before, not a day later
     const asked: string[] = [];
     h.override = (c) => (c.path.includes("generativelanguage.googleapis.com") ? (asked.push(c.path), json({ error: "busy" }, 503)) : undefined);
     const learn = (t: number) => Spontaneous.use((s) => s.learn(["CurseForge"], t)).pipe(h.withConfig({ geminiApiKey: "k" }));
     const t0 = at("18:21:00");
     expect(yield* learn(t0)).toEqual([]);
-    expect(yield* learn(t0 + 3599)).toEqual([]);
-    expect(asked).toHaveLength(1);
     expect(yield* learn(t0 + 3600)).toEqual([]);
+    expect(asked).toHaveLength(1);
+    expect(yield* learn(t0 + 3601)).toEqual([]);
     expect(asked).toHaveLength(2);
     expect(yield* learn(t0 + 3700)).toEqual([]);
     expect(asked).toHaveLength(2); // one claim per name: once an hour at most

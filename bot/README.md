@@ -52,7 +52,9 @@ The leader's term:
   10 s early, and the moves, live event and ping happen on the second.
 - **Live voice** (`gateway.ts` → `presence.ts` → `live.ts`): every join, leave and move is recorded
   for stats right away (one queue, handled in order), with a heartbeat each minute while anyone is
-  in voice. A Lobby join during a game night is pulled into the room at once. An emptied room's
+  in voice. A Lobby join during a game night is pulled into the room at once. Within three hours
+  before a locked-in night, all three of us here for 30 s start it early, quietly; two get the
+  night's card instead of "Playing something?" (plan 07). An emptied room's
   15-minute wrap-up fires exactly on time. Without the gateway, voice lookups fall back to REST.
 
 Logs are one logfmt line each on stdout (journald keeps them): `ssh vps app-logs meme-bot 1h`.

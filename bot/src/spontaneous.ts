@@ -20,7 +20,7 @@
 //     night's card: "Open the room" or "Just hanging out". Two shown in the night's game are moved
 //     straight in.
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
-import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, lte, not, like, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Match, Schema } from "effect";
 import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, nightCards, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
@@ -48,7 +48,7 @@ export const END_GRACE = 15 * 60; // fewer than two for this long → the sessio
 export const NOTE_TTL = 2 * 60; // the "pulled you in" note removes itself after this
 const UNDO_QUIET = 60; // a ↩ undo keeps the Lobby quiet even while people trickle back in
 const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
-const RETRY_GUESS = 3600; // Gemini couldn't answer: ask about that name again an hour later
+const RETRY_GUESS = 3600; // Gemini couldn't answer: ask about that name again once more than an hour has passed
 const mention = (u: string) => `<@${u}>`;
 const real = not(like(rooms.channel_id, "pending:%"));
 
@@ -234,11 +234,11 @@ export class Spontaneous extends Context.Service<
         for (const a of yield* db.select().from(gameAliases).where(inArray(gameAliases.activity, [...names]))) known.add(a.activity.toLowerCase());
         const learned: { activity: string; game: string | null }[] = [];
         for (const name of names.filter((n) => !known.has(n.toLowerCase()))) {
-          // claim the name, so a second presence update doesn't ask twice; a failed ask may retry tomorrow
+          // claim the name, so a second presence update doesn't ask twice; a failed ask may retry after an hour
           const [claim] = yield* db
             .insert(activityGuesses)
             .values({ activity: name, at: t })
-            .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lte(activityGuesses.at, t - RETRY_GUESS)) })
+            .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lt(activityGuesses.at, t - RETRY_GUESS)) })
             .returning({ a: activityGuesses.activity });
           if (!claim) continue;
           const r = yield* gemini.ask(
@@ -250,7 +250,7 @@ or a browser, or you aren't sure), answer null.`,
             { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } }, required: ["game"] },
             Guess,
           );
-          if (!r) continue; // no answer to be had today: claimed, so tomorrow it's tried again
+          if (!r) continue; // no answer to be had right now: claimed, so it's tried again after an hour
           const game = list.find((g) => g.toLowerCase() === r.game?.toLowerCase()) ?? null;
           // the answer and its alias together (answered with no alias would never be asked again)
           yield* Effect.uninterruptible(
