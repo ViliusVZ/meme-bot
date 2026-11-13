@@ -1,8 +1,0 @@
-{
- "spontaneous.test.json": {
-  "an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update": "back to the baseline's recording: the retry is now after more than an hour (not at exactly one), so this test runs unchanged again; it differs only from the previous commit"
- },
- "early.test.json": {
-  "“World of Warcraft: Forever” is World of Warcraft (a migration); an unanswered ask is tried again after an hour": "the retry moved from exactly an hour to just past it (so plan 01's test runs unchanged): this test now asks again at +3601 s, so the guess's stored time differs from the previous commit"
- }
-}
