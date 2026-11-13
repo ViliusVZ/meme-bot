@@ -33,6 +33,7 @@ import { LocalTime, calendar } from "./localtime.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 import { RedditNews, plain, type Listed, type Listing, type Thread } from "./newsfeeds.js";
+import { isDowntimeNotice } from "./downtime.js";
 import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, Writeup, barFrom, card, cardText, check as checkWriteup, clean, datesIn, notHot, officialLink, sameTitle, sectionsIn, titleFor, upTo, type Origin } from "./newscard.js";
 
 export { SILENT } from "./newscard.js";
@@ -489,15 +490,17 @@ export class News extends Context.Service<
           }
         }
         // every staff post with something in it is a story of its own (the post that opened a topic,
-        // and each later one), and so is each day a running post grew by without a staff post of its own
+        // and each later one), and so is each day a running post grew by without a staff post of its own;
+        // a maintenance or restart notice isn't news: downtime.ts reads it (never the writer's)
         for (const b of blue) {
           if (rows.has(b.id)) continue;
           const was = known.get(b.id);
+          const downtime = isDowntimeNotice(b.title);
           rows.set(b.id, {
             id: b.id, source: "blizzard", sub: "blizzard", title: b.title, link: b.link, url: "", body: b.body, created_at: was?.created_at ?? b.created_at,
             first_seen: was?.first_seen ?? t, last_seen: t, top_rank: null, best_rank: null, hot_rank: null, prev_hot_rank: null, prev_at: was ? was.last_seen : null,
-            state: was?.state ?? (first ? "old" : "watch"),
-            reason: was ? was.reason : null,
+            state: was?.state ?? (downtime ? "skip" : first ? "old" : "watch"),
+            reason: was ? was.reason : downtime ? "downtime notice" : null,
           });
         }
         const values = [...rows.values()];
@@ -928,7 +931,7 @@ export class News extends Context.Service<
               .filter((p) => p.sub === sub && p.created >= start && p.created <= at)
               .forEach((p, j) => rows.push({ id: `reddit:${p.id}`, source: "reddit", sub, title: p.title, link: p.link, url: p.url, body: p.body, created_at: p.created, rank: j + 1, removed: p.removed }));
           for (const p of blue)
-            if (p.excerpt && p.published >= start && p.published <= at && topics.get(p.topic)?.forever)
+            if (p.excerpt && p.published >= start && p.published <= at && topics.get(p.topic)?.forever && !isDowntimeNotice(p.title))
               rows.push({ id: blizzardId(p), source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published, rank: 0, removed: false });
           for (const [topic, x] of topics)
             if (x.forever && x.tp)

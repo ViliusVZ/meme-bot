@@ -4,7 +4,23 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
-## Resume here (2026-11-13, afternoon: the outside writer's bot side built)
+## Resume here (2026-11-13, evening: downtime alerts built)
+
+- **Built on `news-v2`, not deployed:** `src/downtime.ts`, a minute job (background): Blizzard's launcher
+  notice every minute, the EU Forever forum's listing every 2 min (3 server-down threads within 15 min;
+  backs off to 30 min), the realm status page every 2 min, and Blizzard's maintenance/restart staff
+  posts (news.ts now marks them `skip`/`downtime notice`, never the writer's). One card per downtime
+  (`downtimes` table, claimed by key), edited as it changes (down now, extended, back, notice taken
+  down); a reminder an hour before when the card went out 75+ min ahead. Per the owner the new card
+  and the reminder are NOT silent and mention the three of us (edits notify nobody); one spoken line
+  through BotVoice when any of us is in voice. Not in the news cap.
+- **Test bot replay:** `POST /admin/news {"downtime": {"notice": "…"}}` / `{"notice": ""}` / `{"topics":
+  [{id, title, minutes_ago | created_at, posts_count, slug, text?}]}` / `{"realms": [{name, online}]}`,
+  `{"live": true}` to stop; each call polls at once and answers what it did. 404 without `NEWS_BACKTEST_POST=1`.
+- **Next (coordinator):** deploy `news-v2` to the test bot, replay a notice with a start in the next
+  two hours, look at the card, the edit when it's gone, and the reminder.
+
+## Earlier (2026-11-13, afternoon: the outside writer's bot side built)
 
 - **Built on `news-v2`, not deployed:** Gemini is out of the news. The hourly run collects, filters,
   merges crossposts by title, waits for ripeness and stores each ready story's material

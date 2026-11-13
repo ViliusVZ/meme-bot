@@ -1,0 +1,22 @@
+CREATE TABLE "downtimes" (
+	"key" text PRIMARY KEY,
+	"source" text NOT NULL,
+	"state" text NOT NULL,
+	"closed_by" text,
+	"notice" text,
+	"link" text,
+	"thread" text,
+	"reports" integer,
+	"quote" text,
+	"realms" text,
+	"realms_down" boolean DEFAULT false NOT NULL,
+	"start_at" bigint,
+	"end_at" bigint,
+	"back_at" bigint,
+	"created_at" bigint NOT NULL,
+	"last_seen" bigint NOT NULL,
+	"message_id" text,
+	"posted_at" bigint,
+	"rendered" text,
+	"reminder_id" text
+);

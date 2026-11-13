@@ -440,3 +440,34 @@ export const loneBirds = pgTable(
   },
   (t) => [primaryKey({ columns: [t.day, t.user_id] })],
 );
+
+// ---------------------------------------------------------------- 🛠️ WoW Forever downtime (downtime.ts)
+
+/**
+ * One downtime of WoW: Forever EU (an incident), and its card in the news channel, edited as it
+ * changes. `key` is the claim: the first source that saw it and its start ("launcher:1794596400",
+ * "forum:639912"), so no two copies of the bot, and no restart, post it twice. The card is posted
+ * once (`message_id` "posting" while it's sent), its reminder once (`reminder_id` likewise).
+ */
+export const downtimes = pgTable("downtimes", {
+  key: text().primaryKey(),
+  source: text().notNull().$type<"launcher" | "blizzard" | "forum" | "realms">(), // the most trusted source that saw it
+  state: text().notNull().$type<"open" | "back" | "cancelled">(),
+  closed_by: text().$type<"notice" | "realms" | "time" | "quiet">(), // what said it was over
+  notice: text(), // Blizzard's own words (the launcher's notice, or its forum post's title and text)
+  link: text(), // Blizzard's forum post, when that's the source
+  thread: text(), // the busiest players' thread on the EU Forever forum
+  reports: integer(), // how many players' threads in the burst
+  quote: text(), // the in-game notice as players quote it
+  realms: text(), // the realms the status page showed offline (comma-separated), last time any were
+  realms_down: boolean().notNull().default(false), // …and whether it still does
+  start_at: unix("start_at"),
+  end_at: unix("end_at"),
+  back_at: unix("back_at"),
+  created_at: unix("created_at").notNull(),
+  last_seen: unix("last_seen").notNull(),
+  message_id: text(), // the card ("posting" while it's sent)
+  posted_at: unix("posted_at"),
+  rendered: text(), // the card's text as last posted or edited (an edit only when it changes)
+  reminder_id: text(), // the reminder an hour before ("posting" while it's sent)
+});

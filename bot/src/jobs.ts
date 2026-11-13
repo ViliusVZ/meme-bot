@@ -17,6 +17,7 @@ import { Cleanup } from "./cleanup.js";
 import { MemeShame } from "./memeshame.js";
 import { Spontaneous } from "./spontaneous.js";
 import { News } from "./news.js";
+import { Downtime } from "./downtime.js";
 import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { count, jobsFailed, jobsRun, jobTime, time } from "./metrics.js";
@@ -69,6 +70,7 @@ export class Jobs extends Context.Service<
       const memeShame = yield* MemeShame;
       const spontaneous = yield* Spontaneous;
       const news = yield* News;
+      const downtime = yield* Downtime;
       const botVoice = yield* BotVoice;
       const alerts = yield* Alerts;
 
@@ -171,6 +173,7 @@ export class Jobs extends Context.Service<
         ["rooms", voice.maintainRooms], // empty game rooms → 🗄️ Recent games → deleted
         ["spontaneous", spontaneous.minute()], // 🎮 unplanned sessions wrap up; stale Lobby questions and notes go
         ["wow-news", news.check], // ⚔️ WoW news from Reddit and Blizzard, hourly (in the background); off with no channel
+        ["downtime", downtime.check], // 🛠️ WoW Forever going down: Blizzard's notice, players, realm status, each minute (in the background)
         ["recaps", activity.recaps], // 📊 last week / month / year in #game-night, once each
         ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
         ["meme-shame", memeShame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it

@@ -2830,6 +2830,117 @@
    "expect.toEqual([2, [\"Forever dungeon XP: a note from the team\"]])",
    "expect.toMatchObject({ state: \"candidate\", comments: 12 })",
    "expect.toEqual([\"Blizzard is looking at dungeon XP\"])"
+  ],
+  "test \"a Blizzard post about maintenance or realm restarts is a downtime notice (downtime.ts reads it), never the writer's\"": [
+   "expect.toEqual([ [\"blizzard:640100\", \"ready\", null], [\"blizzard:640200\", \"skip\", \"downtime notice\"], ])",
+   "expect.toEqual([\"blizzard:640100\"])"
+  ]
+ },
+ "downtime.test.ts": {
+  "test \"tonight's launcher notice, en-gb and en-us, reads as 19:00–20:00 UTC; other shapes too\"": [
+   "expect.toEqual({ start: S, end: E })",
+   "expect.toEqual({ start: S, end: E })",
+   "expect.toEqual({ start: sec(\"2026-07-02T04:00:00Z\"), end: sec(\"2026-07-02T23:00:00Z\") })",
+   "expect.toEqual({ start: sec(\"2027-01-02T06:00:00Z\"), end: sec(\"2027-01-02T08:00:00Z\") })",
+   "expect.toEqual({ start: sec(\"2026-11-13T22:00:00Z\"), end: sec(\"2026-11-14T00:00:00Z\") })",
+   "expect.toBeNull()",
+   "expect.toBeNull()"
+  ],
+  "test \"the players' burst: tonight's five threads fire by 19:05, not before; one grumble, two threads or threads spread over hours never do\"": [
+   "expect.toBeNull()",
+   "expect.toEqual({ count: 3, first: sec(\"2026-11-13T18:59:00Z\"), busiest: 102 })",
+   "expect.toBe(4)",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBe(3)"
+  ],
+  "test \"the in-game notice players quote; Blizzard's titles that are downtime notices\"": [
+   "expect.toBe(\"we've discovered an urgent server crash that we need to fix with restarts. All realms will come down in 30 minutes and be back quickly.\")",
+   "expect.toBeNull()",
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(false)"
+  ],
+  "test \"the launcher's notice: one card that pings the three of us, edited as it changes (running, extended, back), never posted twice, a restart included\"": [
+   "expect.toHaveLength(1)",
+   "expect.toBe(IS_COMPONENTS_V2)",
+   "expect.toEqual({ parse: [], users: [\"a\", \"b\", \"c\"] })",
+   "expect.toBe([ \"### 🛠️ WoW Forever: servers down for maintenance\", `**When** <t:${S}:F> (<t:${S}:R>) until about <t:${E}:t>, roughly 1 hour`, `**Blizzard says** \"${EN_GB}\"`, \"-# Blizzard's launcher notice · [server status](https://worldofwarcraft.blizzard.com/en-gb/game/status/eu)\", \"<@a> <@b> <@c>\", ].join(\"\\n\"))",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(0)",
+   "expect.toHaveLength(1)",
+   "expect.toBe(IS_COMPONENTS_V2)",
+   "expect.toEqual({ parse: [] })",
+   "expect.toContain(`**Down now**, since <t:${S}:t>, back about <t:${E}:R>`)",
+   "expect.toContain(`back about <t:${E + 1800}:R>`)",
+   "expect.toContain(`\"${EXTENDED}\"`)",
+   "expect.toEqual([\"### ✅ WoW Forever: servers are back\", `**Down** <t:${S}:t>–<t:${S + 4000}:t>`])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ key: `notice:${S}`, state: \"back\", closed_by: \"notice\", end: E + 1800 })",
+   "expect.toHaveLength(3)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the reminder: an hour before a start the card announced well ahead, once (a restart included), pinging the three of us; none for a card posted late\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ content: `⏰ WoW Forever goes down <t:${S}:R> (<t:${S}:t>) for about 1 hour. <@a> <@b> <@c>`, allowed_mentions: { parse: [], users: [\"a\", \"b\", \"c\"] }, message_reference: { message_id: \"500\", fail_if_not_exists: false }, })"
+  ],
+  "test \"no reminder for a card that went out under 75 minutes before the start\"": [
+   "expect.toHaveLength(1)"
+  ],
+  "test \"players report it first: one card from their burst (busiest thread, the in-game notice they quote), pinging once; Blizzard's notice then edits it, never a second card\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual({ parse: [], users: [\"a\", \"b\", \"c\"] })",
+   "expect.toBe([ \"### ⚠️ WoW Forever: players report the servers going down\", `From player reports, not from Blizzard: 3 threads on the EU forum since <t:${sec(\"2026-11-13T18:59:00Z\")}:t>.`, `**Players quote the in-game notice** \"we've discovered an urgent server crash that we need to fix with restarts. All realms will come down in 30 minutes and be back quickly\"`, `-# [players' thread](${FORUM}/t/maintenance-on-a-friday-night/102) · [server status](https://worldofwarcraft.blizzard.com/en-gb/game/status/eu)`, \"<@a> <@b> <@c>\", ].join(\"\\n\"))",
+   "expect.toEqual([`${FORUM}/t/102.json`])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"### 🛠️ WoW Forever: servers down for maintenance\")",
+   "expect.toContain(\"[players' thread]\")",
+   "expect.toEqual([[\"forum:102\", \"launcher\"]])"
+  ],
+  "test \"the realm status page: a realm offline makes a card; all back online ends it\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"### ⚠️ WoW Forever: realms offline\", `**Offline** PvP, since <t:${sec(\"2026-11-13T21:00:00Z\")}:t>`])",
+   "expect.toBe(\"### ✅ WoW Forever: realms are back online\")",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"Blizzard's forum post about maintenance (kept from the news) makes the card; the launcher's notice for the same window is the same card\"": [
+   "expect.toHaveLength(1)",
+   "expect.toContain(`-# [Blizzard's forum post](${link})`)",
+   "expect.toContain(`**When** <t:${S}:F>`)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"-# Blizzard's launcher notice\")"
+  ],
+  "test \"a notice we can't read times from still makes the card, without a When line\"": [
+   "expect.toEqual([\"### 🛠️ WoW Forever: servers down for maintenance\", `**Blizzard says** \"${notice}\"`])"
+  ],
+  "test \"said aloud where we are when the card goes out, only with someone in voice and the 🔇 toggle on\"": [
+   "expect.toBeUndefined()",
+   "expect.toEqual([`notice:${next}`])",
+   "expect.toBe(true)",
+   "expect.toHaveLength(1)",
+   "expect.toBeUndefined()"
+  ],
+  "test \"the spoken lines: plain, no emoji or markdown\"": [
+   "expect.toBe(\"Heads up: WoW servers go down for maintenance in about 30 minutes.\")",
+   "expect.toBe(\"Heads up: WoW servers go down for maintenance in about 1 hour.\")",
+   "expect.toBe(\"Heads up: WoW servers are down for maintenance right now.\")",
+   "expect.toBe(\"Heads up: Blizzard announced WoW server maintenance. Details in the news channel.\")",
+   "expect.toBe(\"Heads up: players say the WoW servers are going down.\")",
+   "expect.not.toMatch(/[*_#<>`\\p{Extended_Pictographic}]/u)"
+  ],
+  "test \"the replay (test bot only): the notice, then gone; elsewhere it isn't there\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([`notice:${S}`])",
+   "expect.toBe(false)",
+   "expect.toBe(\"\")",
+   "expect.toBe(\"### ✅ WoW Forever: servers are back\")",
+   "expect.toBeUndefined()"
+  ],
+  "test \"a maintenance planned for next week doesn't swallow tonight's trouble: the players' burst gets its own card\"": [
+   "expect.toEqual([\"### 🛠️ WoW Forever: servers down for maintenance\", \"### ⚠️ WoW Forever: players report the servers going down\"])"
   ]
  }
 }

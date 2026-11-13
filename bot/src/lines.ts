@@ -135,4 +135,16 @@ export function spans(line: string): Span[] {
   return out;
 }
 
+/**
+ * 5. WoW Forever downtime (downtime.ts): one line when its card or its reminder goes out and any of
+ * us is in voice. {when} is "30 minutes", "1 hour", "2 hours".
+ */
+export const DOWNTIME = {
+  soon: "Heads up: WoW servers go down for maintenance in about {when}.",
+  now: "Heads up: WoW servers are down for maintenance right now.",
+  later: "Heads up: Blizzard announced WoW server maintenance. Details in the news channel.",
+  players: "Heads up: players say the WoW servers are going down.",
+  realms: "Heads up: Blizzard's status page shows WoW realms offline.",
+} as const;
+
 export const _pools = { START, LATE, LATE_PERSONAL, LOBBY, EARLY, EARLY_PERSONAL };

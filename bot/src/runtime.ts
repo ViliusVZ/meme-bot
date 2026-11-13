@@ -25,6 +25,7 @@ import { Voice } from "./voice.js";
 import { Attendances } from "./attendance.js";
 import { Reddit } from "./reddit.js";
 import { News } from "./news.js";
+import { Downtime } from "./downtime.js";
 import { RedditNews } from "./newsfeeds.js";
 import { Spontaneous } from "./spontaneous.js";
 import { GameNight } from "./gamenight.js";
@@ -52,7 +53,7 @@ export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClie
   | LocalTime | Games | Nights | Memes | Roasts | Panels | Gemini
   | RedditNews
   | Tts | Clips | VoiceLink | VoiceConnector | BotVoice
-  | Snoozes | Voice | Attendances | Reddit | News | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub | Cleanup | MemeShame | Jobs | Interactions | Ticker | Live | Gateway | GatewayClient | Leadership;
+  | Snoozes | Voice | Attendances | Reddit | News | Downtime | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub | Cleanup | MemeShame | Jobs | Interactions | Ticker | Live | Gateway | GatewayClient | Leadership;
 
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
@@ -99,7 +100,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Jobs.layer)),
     Layer.provideMerge(Layer.mergeAll(LateSlips.layer)),
     Layer.provideMerge(Layer.mergeAll(GameNight.layer, Activity.layer)),
-    Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer)),
+    Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer, Downtime.layer)),
     Layer.provideMerge(Layer.mergeAll(Snoozes.layer, MemeShame.layer, Cleanup.layer, BotVoice.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
     Layer.provideMerge(RedditNews.layer),
     Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer, Clips.layer)),

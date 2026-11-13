@@ -204,7 +204,8 @@ it.effect("the first run with full subreddits: nothing queued or posted, everyth
     const forever = parseFeed(blue).filter((p) => p.excerpt && /\bforever\b/i.test(`${p.title} ${p.excerpt}`));
     expect(r).toMatchObject({ first: true, seen: 25 + 25 + new Set(forever.map(blizzardId)).size });
     expect(posted()).toEqual([]);
-    expect((yield* stories).every((s) => s.state === "old")).toBe(true);
+    // (a staff post about realm restarts is a downtime notice: downtime.ts's, never the writer's)
+    expect((yield* stories).filter((s) => s.reason !== "downtime notice").every((s) => s.state === "old")).toBe(true);
     // each subreddit's month, for its bar (empty here: the default)
     expect(redditCalls().filter((c) => c.path.includes("t=month"))).toHaveLength(3);
     // the next run, the same feeds: nothing to do with any of it, and the writer finds nothing
@@ -587,6 +588,21 @@ it.effect("POST /admin/news: one run now (a second while it's going is told so)"
 );
 
 // ---------------------------------------------------------------- Blizzard's posts
+
+it.effect("a Blizzard post about maintenance or realm restarts is a downtime notice (downtime.ts reads it), never the writer's", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    blue = rss([[640200, 1, "Scheduled Maintenance - 17 November", 2], [640100, 1, "Class Tuning Incoming – 10 November", 4]]);
+    forum(640200, 1, { category: 360, title: "Scheduled Maintenance - 17 November", posts: [{ n: 1, at: now() - 2 * 3600, text: "Realms will be down.", staff: true }] });
+    forum(640100, 1, { category: 360, title: "Class Tuning Incoming – 10 November", posts: [{ n: 1, at: now() - 4 * 3600, text: "Pets are sturdier.", staff: true }] });
+    yield* run();
+    expect((yield* stories).map((s) => [s.id, s.state, s.reason]).sort()).toEqual([
+      ["blizzard:640100", "ready", null],
+      ["blizzard:640200", "skip", "downtime notice"],
+    ]);
+    expect((yield* queue()).stories.map((s) => s.id)).toEqual(["blizzard:640100"]);
+  }).pipe(h.provide),
+);
 
 it.effect("Blizzard's posts: Forever's only, by the forum's category (360); a retail topic (235) is never a story, and its category is read once", () =>
   Effect.gen(function* () {

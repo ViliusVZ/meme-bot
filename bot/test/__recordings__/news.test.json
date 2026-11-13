@@ -111,7 +111,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "news_stories": "82:76002e833e84",
+   "news_stories": "82:f1e76494b675",
    "settings": "4:0ca7d680c29a"
   }
  },
@@ -646,6 +646,35 @@
    "settings": "4:22360f632d20"
   }
  },
+ "a Blizzard post about maintenance or realm restarts is a downtime notice (downtime.ts reads it), never the writer's": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/640200/1.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/640100/1.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/640100/1.json -"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_stories": "2:676ac82a25aa",
+   "settings": "4:2ffcfdc7c90e"
+  }
+ },
  "Blizzard's posts: Forever's only, by the forum's category (360); a retail topic (235) is never a story, and its category is read once": {
   "calls": [
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
@@ -975,9 +1004,11 @@
  },
  "the minute's jobs include the news check (what the Ticker runs)": {
   "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "GET https://discord.com/api/v10/channels/gn/messages?limit=<id> -",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "GET https://discord.com/api/v10/users/@me -",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/<id>/l/latest.json -",
    "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
    "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=<id> -",
    "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
@@ -989,7 +1020,8 @@
    "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=<id> -",
-   "POST https://discord.com/api/v10/channels/gn/messages ee24d0d9d136"
+   "POST https://discord.com/api/v10/channels/gn/messages ee24d0d9d136",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61"
   ],
   "db": {
    "game_nights": "1:df4b397fd2d7",

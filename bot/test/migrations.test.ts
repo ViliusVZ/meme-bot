@@ -81,6 +81,7 @@ it.effect("an old-style migrations table (Drizzle 0.45) is upgraded in place, no
       early_birds: 1794552575000, wow_forever_alias: 1794552577000, // (plan 07: their folders' times too)
       bot_voice: 1794555976000, // (plan 03: its folder's time)
       news_material: 1794571293000, // (plan 06, the outside writer: its folder's time)
+      downtimes: 1794597711000, // (WoW Forever downtime alerts: its folder's time)
     };
     yield* p(() => pool.query(`CREATE SCHEMA ${schema}_drizzle; CREATE TABLE ${table} (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)`));
     for (const m of readdirSync(dir).sort()) {

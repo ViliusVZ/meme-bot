@@ -23,6 +23,7 @@ import { Voice } from "./voice.js";
 import { Activity, type Kind } from "./activity.js";
 import { Spontaneous } from "./spontaneous.js";
 import { ArticleInput, News, type NewsRefused } from "./news.js";
+import { Downtime, ReplayInput } from "./downtime.js";
 import { LateSlips } from "./late.js";
 import { Attendances } from "./attendance.js";
 import { Presence } from "./presence.js";
@@ -148,6 +149,8 @@ const Input = Schema.Struct({
   post_daily: Schema.optional(Schema.Unknown),
   // ⚔️ /admin/news: a backtest's queues over the last days ({ days }), or "sheet" for its sheet
   backtest: Schema.optional(Schema.Union([Text, Schema.Struct({ days: Schema.optional(Schema.Number) })])),
+  // 🛠️ /admin/news on the test bot: stand-ins for the downtime sources ({ notice, topics, realms }, { live: true } to stop)
+  downtime: Schema.optional(ReplayInput),
   method: Schema.optional(Text),
   path: Schema.optional(Text),
   body: Schema.optional(Schema.Unknown),
@@ -184,6 +187,7 @@ export const Routes = HttpRouter.use((router) =>
     const spontaneous = yield* Spontaneous;
     const late = yield* LateSlips;
     const news = yield* News;
+    const downtime = yield* Downtime;
     const attendances = yield* Attendances;
     const presence = yield* Presence;
     const ticker = yield* Ticker;
@@ -336,8 +340,15 @@ export const Routes = HttpRouter.use((router) =>
     // request a minute); no channel configured: {}. `backtest: { days }` builds each of the last days'
     // queues in the background (posting nothing), for GET /news/queue?day=… on the test bot;
     // `backtest: "sheet"` answers its sheet (each day's queue and what the writer made of it), as markdown.
+    // 🛠️ `downtime: { notice, topics, realms }` (the test bot only, else 404): what the downtime poll
+    // sees instead of Blizzard's launcher, the forum's listing and the realm status page (each one
+    // given replaces that source until `{ live: true }`), then one poll now; it answers what that did.
     yield* admin("/admin/news", (input) =>
       Effect.gen(function* () {
+        if (input.downtime !== undefined) {
+          const r = yield* downtime.replay(input.downtime);
+          return r === null ? json({ error: "no downtime replay here (NEWS_BACKTEST_POST is the test bot's)" }, 404) : json(r);
+        }
         const b = input.backtest;
         if (b === "sheet") {
           const sheet = yield* news.sheet;
