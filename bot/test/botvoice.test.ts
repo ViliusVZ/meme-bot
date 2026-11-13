@@ -95,7 +95,7 @@ const FakeTts = Layer.succeed(
         ? Effect.fail(new TtsUnavailable({ engine: "edge", detail: ["refused", "timed out", "closed early", "no audio"][fake.synths.push("✗") % 4] }))
         : Effect.sync(() => {
             fake.synths.push(text);
-            return enc.encode(`${voice === LT_VOICE ? "lt" : "en"}:${text}`);
+            return { audio: enc.encode(`${voice === LT_VOICE ? "lt" : "en"}:${text}`), engine: "edge" as const };
           }),
   }),
 );

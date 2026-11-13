@@ -3,8 +3,8 @@
 // The library signals over our own gateway (voicelink.ts). Its events are wrapped one at a time
 // (Effect.callback), so nothing here is a promise; tests replace the whole connector with a fake.
 //
-// Clips are WebM Opus (tts.ts, jingles.ts): played as they are through the library's demuxer, no
-// encoder and no ffmpeg anywhere.
+// Clips are WebM Opus (Edge, the jingles) or Ogg Opus (Gemini, opusogg.ts): played as they are
+// through the library's demuxers, no ffmpeg anywhere.
 import { Readable } from "node:stream";
 import {
   AudioPlayerStatus,
@@ -20,6 +20,7 @@ import {
 import { Context, Effect, Layer, Schema } from "effect";
 import { AppConfig } from "./config.js";
 import { VoiceLink } from "./voicelink.js";
+import { isOgg } from "./opusogg.js";
 
 /** A join, a connection or a playback that went wrong. */
 export class VoiceFailed extends Schema.TaggedError<VoiceFailed>()("VoiceFailed", { detail: Schema.String }) {
@@ -67,7 +68,7 @@ export class VoiceConnector extends Context.Service<VoiceConnector, { join(chann
               });
               const play = (clip: Uint8Array) =>
                 Effect.callback<void, VoiceFailed>((resume) => {
-                  const resource = createAudioResource(Readable.from([Buffer.from(clip)]), { inputType: StreamType.WebmOpus });
+                  const resource = createAudioResource(Readable.from([Buffer.from(clip)]), { inputType: isOgg(clip) ? StreamType.OggOpus : StreamType.WebmOpus });
                   const onState = (_: AudioPlayerState, s: AudioPlayerState) => {
                     if (s.status === AudioPlayerStatus.Idle) resume(Effect.void);
                   };

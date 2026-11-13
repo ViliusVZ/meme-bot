@@ -35,10 +35,10 @@ export class Clips extends Context.Service<
         get: Effect.fn("Clips.get")(function* (span: Span) {
           const hit = yield* cached(span);
           if (hit) return hit;
-          const audio = yield* tts.synth(span.text, span.voice);
+          const { audio, engine } = yield* tts.synth(span.text, span.voice);
           yield* db
             .insert(voiceClips)
-            .values({ key: clipKey(span), voice: span.voice, text: span.text, audio: Buffer.from(audio), engine: "edge", created_at: yield* nowSec })
+            .values({ key: clipKey(span), voice: span.voice, text: span.text, audio: Buffer.from(audio), engine, created_at: yield* nowSec })
             .onConflictDoNothing();
           return audio;
         }),

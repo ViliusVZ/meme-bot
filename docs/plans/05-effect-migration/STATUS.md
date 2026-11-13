@@ -820,14 +820,11 @@ recordings (see "Numbers").
   message id, its failure; whether a gathering's row is a card; "Just hanging out" on it; who's been
   here how long; the card's night, its new start, and the open cards). Every one is run by
   `test/early.test.ts` and test 6's early-start entry. `scripts/gates.json` `querySites` follows.
-- **`recordings.allowed.json` (branch `bot-voice`, the merge of plan 07, one commit only):** five of
-  plan 03's own new recordings change on purpose (its claim table renamed `early_birds` →
-  `lone_birds`; test 11's fake engine fails a different way each time); the next commit removes
-  the list.
-- **G3 query sites 238 → 249 (branch `bot-voice`, plan 03, on top of plan 07):** the bot's voice adds 11 query sites:
+- **G3 query sites 238 → 251 (branch `bot-voice`, plan 03, on top of plan 07):** the bot's voice adds 13 query sites:
   `src/botvoice.ts` (the 🔇 toggle in `settings`, the lone early bird's night, room, voice-segment
-  and `early_birds` queries, the clips made ahead) and `src/clips.ts` (the `voice_clips` cache).
-  Every one is run by `test/botvoice.test.ts` and test 6's early-bird entry. Nothing else changed.
+  and `lone_birds` queries, the clips made ahead), `src/clips.ts` (the `voice_clips` cache) and
+  `src/tts.ts` (Gemini's speech budget in `settings`). Every one is run by `test/botvoice.test.ts`,
+  `test/tts.test.ts` and test 6's lone-early-bird entry. Nothing else changed.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

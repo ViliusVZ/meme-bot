@@ -1,0 +1,96 @@
+{
+ "the token matches the Python package's, for the same moments": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the Edge read-aloud endpoint (a fake one) > asks for WebM Opus in the given voice, the text escaped, with the browser's headers and this window's token; the audio comes back whole": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the Edge read-aloud endpoint (a fake one) > closed before the end, no audio, refused, or no answer at all: each is TtsUnavailable": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "Gemini's speech, the spare engine > Edge answers: Edge's WebM, and Gemini isn't asked": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "Gemini's speech, the spare engine > Edge down: the line comes from Gemini (Charon), as Ogg Opus in 20 ms mono packets": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent f567bfc7ef70"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:12161adbe9b8"
+  }
+ },
+ "Gemini's speech, the spare engine > Gemini's WAV is read for its rate; what can't be encoded, a refusal, no key or no budget left: TtsUnavailable, both reasons given": {
+  "calls": [
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent b2584406c8a8",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent b2584406c8a8",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent b2584406c8a8",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent b2584406c8a8",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent b2584406c8a8"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "settings": "1:f957b79285c0"
+  }
+ },
+ "PCM to Ogg Opus: whole pages, the first one a stream's start and the last one its end; raw PCM and WAV both read": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "an answer's frames: text frames by their path; audio frames with their audio; the empty last one without": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > are as written: 3 for a start, 11 for latecomers, 3 for the Lobby, 24 for early birds": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > never put a placeholder inside a Lithuanian span; {mins} always reads '{mins} minutes'; nothing that can't be read aloud": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > fill in the person, the game and the minutes: 1 minute, 12 minutes": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > split into what each voice says, in order; a span with nothing to say is dropped": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > text read aloud is cleaned: no emoji, markdown, small print or mentions": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > '1 minute' is singular": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ }
+}

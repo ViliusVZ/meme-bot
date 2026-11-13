@@ -10,7 +10,7 @@ play and 📊 stats. A long-running Node service on the VPS (`srv2140520.hstgr.c
 | Runtime | Node 24 LTS, TypeScript, Effect 4 (`NodeRuntime.runMain`) |
 | HTTP | `effect/http` `HttpRouter` on `NodeHttpServer`: `/interactions` (Discord, signature-checked), `/ingest` (meme fetcher), `/admin/*` (scripts), `/health` |
 | Database | Postgres 18 via `@effect/sql-pg` and Drizzle's Effect driver. Schema in `src/db/schema.ts`, migrations in `drizzle/`, applied on startup under an advisory lock |
-| Live voice | Discord gateway via `@discordjs/ws` (`GUILDS`, `GUILD_VOICE_STATES`, and `GUILD_PRESENCES` when `PRESENCES=1`) |
+| Live voice | Discord gateway via `@discordjs/ws` (`GUILDS`, `GUILD_VOICE_STATES`, and `GUILD_PRESENCES` when `PRESENCES=1`); the bot's own voice via `@discordjs/voice` (DAVE) over that gateway |
 | Deploys | GitHub Actions: test → image on GHCR → blue/green on the VPS (test bot first, then production) |
 
 ## How the code is built
@@ -56,6 +56,15 @@ The leader's term:
   before a locked-in night, all three of us here for 30 s start it early, quietly; two get the
   night's card instead of "Playing something?" (plan 07). An emptied room's
   15-minute wrap-up fires exactly on time. Without the gateway, voice lookups fall back to REST.
+- **The bot's voice** (`botvoice.ts`, plan 03): it joins a channel, says one thing, and leaves (a
+  jingle and the game when a night starts, a word for a latecomer, the Lobby question aloud, a beep
+  for one of us waiting alone before a night). One visit at a time from a queue worked inside the
+  term; 3 s after the connection is ready, 3 s after the last sound, 30 s at most, out at once if
+  the channel empties and on every term's end. `@discordjs/voice` over our own gateway
+  (`voicelink.ts`, `voiceconn.ts`); speech from Microsoft's voices through the Edge read-aloud
+  endpoint (`tts.ts`, English and Lithuanian spans marked in `lines.ts`; Gemini's speech as the
+  spare, 20 lines a day), cached for good in `voice_clips`. 🔇 on the HQ panel switches it (`settings`); until someone taps it, `BOT_VOICE=on`
+  (the test bot) or off (production).
 
 Logs are one logfmt line each on stdout (journald keeps them): `ssh vps app-logs meme-bot 1h`.
 

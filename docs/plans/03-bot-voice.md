@@ -5,10 +5,32 @@ Read `README.md` in this folder first.
 > **Since plan 05 (2026-11): the bot is Effect-native.** Build this as Effect services, as the
 > house rules in `README.md` and `bot/README.md` describe (nothing of it is built yet).
 
-## Resume here (2026-11-13)
+## Resume here (2026-11-13, branch `bot-voice`)
 
-- Step 0 done the owner-away way (below): samples rendered, a default chosen, checked by
-  speech-to-text. The build follows plan 07's deploy (it touches the same start path).
+- **Built** (branch `bot-voice`, merged with `main` after plan 07; not deployed): all four moments,
+  every rule and all 11 edge cases below, each with a test that fails without its code
+  (`test/botvoice.test.ts`, `test/tts.test.ts`, entries in `gateway.test.ts`, `leadership.test.ts`,
+  `live-clock.test.ts` and test 6). Gates green.
+- **How it's built:** `botvoice.ts` (the `BotVoice` service: the queue, one visit at a time inside the
+  leader's term, the timing rule, the moments, the lone early bird, the 🔇 toggle), `voiceconn.ts`
+  (`@discordjs/voice` 0.19.2 with DAVE; tests use a fake), `voicelink.ts` (the library's adapter over
+  our own `@discordjs/ws` gateway, and the ghost leave on every fresh snapshot), `tts.ts` (Edge
+  read-aloud client, `edgetoken.ts` its token; Gemini as the spare), `opusogg.ts` (Gemini's PCM →
+  Ogg Opus, libopus as WebAssembly), `clips.ts` (the `voice_clips` cache), `lines.ts` (the spoken
+  lines, exactly as tone-read), `jingles.ts` (the two jingles, base64 WebM Opus, made by
+  `scripts/encode_jingles.py`). Tables `voice_clips`, `lone_birds`; the toggle is `settings.bot_voice`.
+- **Format, checked 2026-11-13:** Edge serves only `webm-24khz-16bit-mono-opus` among its Opus
+  formats (its Ogg ones close the socket with 1007): 20 ms mono frames, played as they are through the
+  library's WebM demuxer (an offline run of the real player paced every clip at its own length).
+  The jingles are WebM Opus too, 48 kHz mono 20 ms, at −23 dB gated RMS (Edge's speech measures about
+  −20; tones sound louder). Gemini's audio is Ogg Opus, 20 ms mono.
+- **On and off:** `BOT_VOICE=on` in `deploy/dev.env` (the test bot speaks), `BOT_VOICE=off` in
+  `deploy/prod.env`; once anyone taps 🔇 on the HQ panel, `settings.bot_voice` decides. The HQ panel
+  shows the toggle only after it's refreshed (the admin `hub` action) on each bot.
+- **Next (the parent, on the test bot):** deploy `bot-voice` to the test bot, refresh its HQ panel,
+  then prove from the logs (`voice:` lines) a real UDP join, a clip playing and the gaps: ready → 3 s →
+  sound, last sound → 3 s → leave, 30 s at most. Then the owner's listening test. Production gets it
+  with the toggle off.
 - **Production gets the code with the 🔇 toggle off** (nobody has listened yet); the test bot runs it
   with the toggle on. The owner joins the test server, listens, and turns it on himself.
 

@@ -2650,6 +2650,38 @@
   ],
   "describe \"the spoken lines\" > test \"'1 minute' is singular\"": [
    "expect.toEqual([\"1 minute\", \"2 minutes\", \"45 minutes\"])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Edge answers: Edge's WebM, and Gemini isn't asked\"": [
+   "expect.toEqual([\"edge\", false])",
+   "expect.toEqual([])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Edge down: the line comes from Gemini (Charon), as Ogg Opus in 20 ms mono packets\"": [
+   "expect.toBe(\"gemini\")",
+   "expect.toBe(true)",
+   "expect.toEqual({ contents: [{ parts: [{ text: \"Labas, Koral.\" }] }], generationConfig: { responseModalities: [\"AUDIO\"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: \"Charon\" } } } } })",
+   "expect.toEqual([1, 24000])",
+   "expect.toHaveLength(50)",
+   "expect.toEqual([20, 0, 0])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Gemini's WAV is read for its rate; what can't be encoded, a refusal, no key or no budget left: TtsUnavailable, both reasons given\"": [
+   "expect.toBe(16000)",
+   "expect.toContain(\"audio it can't encode (audio/wav)\")",
+   "expect.toEqual([\"edge, gemini\", expect.stringContaining(\"429\")])",
+   "expect.toContain(\"no audio in the answer\")",
+   "expect.toBe(\"edge\")",
+   "expect.toEqual({ day: \"2026-11-13\", used: 4 })",
+   "expect.toContain(`today's ${GEMINI_DAILY} lines are used up`)",
+   "expect.toEqual([])",
+   "expect.toBe(\"gemini\")"
+  ],
+  "test \"PCM to Ogg Opus: whole pages, the first one a stream's start and the last one its end; raw PCM and WAV both read\"": [
+   "expect.toBe(\"OggS\")",
+   "expect.toEqual([2, 0, 0, 0, 4])",
+   "expect.toBe(BigInt(312 + 150 * 960))",
+   "expect.toEqual({ pcm: new Int16Array([1]), rate: 24000 })",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toEqual({ pcm: new Int16Array([5, 6]), rate: 12000 })"
   ]
  }
 }

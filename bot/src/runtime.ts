@@ -60,7 +60,7 @@ export interface LayerOptions {
   /** Joining voice (@discordjs/voice), unless a test gives a fake. */
   readonly voice?: Layer.Layer<VoiceConnector, never, VoiceLink | AppConfig>;
   /** Speech synthesis (the Edge endpoint), unless a test gives a fake. */
-  readonly tts?: Layer.Layer<Tts, never, AppConfig>;
+  readonly tts?: Layer.Layer<Tts, never, AppConfig | Db | HttpClient.HttpClient>;
 }
 
 /**
@@ -100,9 +100,9 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer)),
     Layer.provideMerge(Layer.mergeAll(Snoozes.layer, MemeShame.layer, Cleanup.layer, BotVoice.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
     Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer, Clips.layer)),
-    Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
+    Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer, options.tts ?? Tts.layer)),
     Layer.provideMerge(Alerts.layer),
-    Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer, options.tts ?? Tts.layer, options.voice ?? VoiceConnector.layer)),
+    Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer, options.voice ?? VoiceConnector.layer)),
     Layer.provideMerge(VoiceLink.layer),
     Layer.provideMerge(OtlpLive),
     Layer.provideMerge(

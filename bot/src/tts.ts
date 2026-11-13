@@ -11,10 +11,22 @@
 //
 // English lines go to `en-US-BrianMultilingualNeural`, Lithuanian ones to `lt-LT-LeonasNeural`
 // (lines.ts marks which is which).
+//
+// The second engine, when Edge doesn't answer: Gemini's own speech (`gemini-3.8-flash-tts`, voice
+// Charon, one voice for both languages) on the GEMINI_API_KEY, at most 20 lines a day (its own
+// budget in `settings`). It gives back plain PCM, encoded here to Ogg Opus (opusogg.ts).
 import { randomUUID } from "node:crypto";
-import { Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
+import { eq } from "drizzle-orm";
+import { Clock, Context, DateTime, Duration, Effect, Layer, Option, Redacted, Result, Schema } from "effect";
+import { Base64 } from "effect/encoding";
+import { HttpClient, HttpClientRequest } from "effect/http";
 import { Socket } from "effect/socket";
 import { CHROMIUM_FULL_VERSION, SEC_MS_GEC_VERSION, TRUSTED_CLIENT_TOKEN, secMsGec } from "./edgetoken.js";
+import { AppConfig } from "./config.js";
+import { Db } from "./db/db.js";
+import { settings } from "./db/schema.js";
+import { encodeOggOpus, pcmOf } from "./opusogg.js";
+import { jsonText } from "./json.js";
 
 export const EN_VOICE = "en-US-BrianMultilingualNeural";
 export const LT_VOICE = "lt-LT-LeonasNeural";
@@ -23,6 +35,24 @@ const WSS = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud
 const MAJOR = CHROMIUM_FULL_VERSION.split(".")[0];
 const SYNTH_TIMEOUT = Duration.seconds(15); // a line takes 1-4 s; the caller's own deadline is usually shorter
 const OPEN_TIMEOUT = Duration.seconds(5);
+export const GEMINI_TTS = "gemini-3.8-flash-tts";
+export const GEMINI_VOICE = "Charon";
+export const GEMINI_DAILY = 20; // lines a day through Gemini, at most (Edge is the engine; this is the spare)
+const GEMINI_TIMEOUT = Duration.seconds(15); // a line took 2-3 s in Step 0
+const BUDGET = "gemini_tts_budget";
+const Budget = Schema.Struct({ day: Schema.String, used: Schema.Number });
+const Spoken = Schema.Struct({
+  candidates: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        content: Schema.optional(Schema.Struct({ parts: Schema.optional(Schema.Array(Schema.Struct({ inlineData: Schema.optional(Schema.Struct({ mimeType: Schema.String, data: Schema.String })) }))) })),
+      }),
+    ),
+  ),
+});
+
+/** A span's audio, and which engine made it. */
+export type Speech = { readonly audio: Uint8Array; readonly engine: "edge" | "gemini" };
 
 /** The speech engine didn't give us audio (unreachable, refused, changed its protocol, timed out). */
 export class TtsUnavailable extends Schema.TaggedError<TtsUnavailable>()("TtsUnavailable", { engine: Schema.String, detail: Schema.String }) {
@@ -96,14 +126,17 @@ const concat = (parts: ReadonlyArray<Uint8Array>) => {
 export class Tts extends Context.Service<
   Tts,
   {
-    /** One span of a line in one voice, as WebM Opus. */
-    synth(text: string, voice: string): Effect.Effect<Uint8Array, TtsUnavailable>;
+    /** One span of a line in one voice: WebM Opus from Edge, or (Edge failing) Ogg Opus from Gemini. */
+    synth(text: string, voice: string): Effect.Effect<Speech, TtsUnavailable>;
   }
 >()("meme-bot/tts") {
   static readonly layer = Layer.effect(
     Tts,
     Effect.gen(function* () {
       const ctor = yield* Socket.WebSocketConstructor;
+      const config = yield* AppConfig;
+      const db = yield* Db;
+      const http = yield* HttpClient.HttpClient;
       const unavailable = (detail: string) => new TtsUnavailable({ engine: "edge", detail });
 
       const edge = Effect.fnUntraced(function* (text: string, voice: string) {
@@ -127,13 +160,71 @@ export class Tts extends Context.Service<
         }
       });
 
+      const viaEdge = (text: string, voice: string) =>
+        Effect.scoped(edge(text, voice)).pipe(
+          Effect.provideService(Socket.WebSocketConstructor, ctor),
+          // closed early, refused (a changed protocol closes with 1007), unreachable: all the same to us
+          Effect.catchTag("SocketError", (e) => Effect.fail(unavailable(e.message))),
+          Effect.timeoutOrElse({ duration: SYNTH_TIMEOUT, orElse: () => Effect.fail(unavailable("timed out")) }),
+          Effect.map((audio): Speech => ({ audio, engine: "edge" })),
+        );
+
+      const geminiFailed = (detail: string) => new TtsUnavailable({ engine: "gemini", detail });
+
+      /** One of today's Gemini lines (UTC day), from the database so restarts don't reset it; false when they're used up. */
+      const spend = Effect.gen(function* () {
+        const now = yield* DateTime.now;
+        const day = DateTime.formatIso(now).slice(0, 10);
+        const [row] = yield* db.select().from(settings).where(eq(settings.key, BUDGET));
+        const b = Option.getOrUndefined(Schema.decodeUnknownOption(Budget)(row?.value));
+        const used = b?.day === day ? b.used : 0;
+        if (used >= GEMINI_DAILY) return false;
+        const value = { day, used: used + 1 };
+        yield* db.insert(settings).values({ key: BUDGET, value }).onConflictDoUpdate({ target: settings.key, set: { value, updated_at: DateTime.toDate(now) } });
+        return true;
+      }).pipe(Effect.mapError((e) => geminiFailed(`its budget: ${e.message}`)));
+
+      const viaGemini = Effect.fnUntraced(function* (text: string) {
+        const key = config.geminiApiKey;
+        if (!key) return yield* geminiFailed("no GEMINI_API_KEY");
+        if (!(yield* spend)) return yield* geminiFailed(`today's ${GEMINI_DAILY} lines are used up`);
+        const request = HttpClientRequest.post(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS}:generateContent`).pipe(
+          HttpClientRequest.setHeaders({ "Content-Type": "application/json", "x-goog-api-key": Redacted.value(key) }),
+          HttpClientRequest.bodyText(
+            jsonText({
+              contents: [{ parts: [{ text }] }],
+              generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } } },
+            }),
+            "application/json",
+          ),
+        );
+        const res = yield* http.execute(request);
+        if (res.status < 200 || res.status >= 300) return yield* geminiFailed(`${res.status} ${(yield* res.text).slice(0, 200)}`);
+        const data = (yield* Schema.decodeUnknownEffect(Spoken)(yield* res.json)).candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
+        if (!data) return yield* geminiFailed("no audio in the answer");
+        const bytes = Base64.decode(data.data);
+        if (Result.isFailure(bytes)) return yield* geminiFailed("its audio isn't base64");
+        const pcm = pcmOf(bytes.success, data.mimeType);
+        if (!pcm) return yield* geminiFailed(`audio it can't encode (${data.mimeType})`);
+        return { audio: yield* encodeOggOpus(pcm.pcm, pcm.rate), engine: "gemini" } satisfies Speech;
+      });
+
       return Tts.of({
         synth: (text, voice) =>
-          Effect.scoped(edge(text, voice)).pipe(
-            Effect.provideService(Socket.WebSocketConstructor, ctor),
-            // closed early, refused (a changed protocol closes with 1007), unreachable: all the same to us
-            Effect.catchTag("SocketError", (e) => Effect.fail(unavailable(e.message))),
-            Effect.timeoutOrElse({ duration: SYNTH_TIMEOUT, orElse: () => Effect.fail(unavailable("timed out")) }),
+          viaEdge(text, voice).pipe(
+            // Edge said no: the spare engine, if there's a key (both failures reach the caller as one)
+            Effect.catch((edgeFailed) =>
+              config.geminiApiKey
+                ? viaGemini(text).pipe(
+                    Effect.catchTags({
+                      HttpClientError: (e) => Effect.fail(geminiFailed(e.message)),
+                      SchemaError: (e) => Effect.fail(geminiFailed(`its answer: ${e.message}`)),
+                    }),
+                    Effect.timeoutOrElse({ duration: GEMINI_TIMEOUT, orElse: () => Effect.fail(geminiFailed("timed out")) }),
+                    Effect.mapError((e) => new TtsUnavailable({ engine: "edge, gemini", detail: `${edgeFailed.detail}; ${e.detail}` })),
+                  )
+                : Effect.fail(edgeFailed),
+            ),
             Effect.withSpan("Tts.synth", { attributes: { voice } }),
           ),
       });

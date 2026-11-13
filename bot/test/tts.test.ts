@@ -1,13 +1,23 @@
-// 🗣️ The speech engine and the spoken lines (plan 03): the Edge endpoint's token against values the
+// 🗣️ The speech engines and the spoken lines (plan 03): the Edge endpoint's token against values the
 // `edge-tts` Python package printed, the request it gets, the answer it gives (on a fake WebSocket),
-// every way it can fail as one typed error; and every spoken line checked as text: its Lithuanian
-// spans, its placeholders, "1 minute" against "12 minutes", and nothing that can't be read aloud.
+// every way it can fail as one typed error; Gemini's speech as the spare (its PCM encoded to Ogg
+// Opus, its own daily budget); and every spoken line checked as text: its Lithuanian spans, its
+// placeholders, "1 minute" against "12 minutes", and nothing that can't be read aloud.
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Layer } from "effect";
+import { eq } from "drizzle-orm";
+import { Effect, Fiber, Layer, Redacted } from "effect";
 import { Socket } from "effect/socket";
 import * as TestClock from "effect/testing/TestClock";
+import prism from "prism-media";
 import { secMsGec } from "../src/edgetoken.js";
-import { EN_VOICE, LT_VOICE, Tts, edgeRequest, escapeXml, parseFrame } from "../src/tts.js";
+import { EN_VOICE, GEMINI_DAILY, LT_VOICE, Tts, edgeRequest, escapeXml, parseFrame } from "../src/tts.js";
+import { encodeOggOpus, isOgg, pcmOf } from "../src/opusogg.js";
+import { AppConfig } from "../src/config.js";
+import { Db } from "../src/db/db.js";
+import { settings } from "../src/db/schema.js";
+import { harness, json } from "./fx.js";
+
+const h = harness({ tables: [settings], discord: { firstId: 80000 }, clock: "test" });
 import { EARLY, EARLY_PERSONAL, LATE, LATE_PERSONAL, LOBBY, SPOKEN_NAMES, START, clean, fill, minutesText, spans } from "../src/lines.js";
 
 // ---------------------------------------------------------------- the endpoint's token
@@ -76,8 +86,9 @@ class FakeSocket {
   }
 }
 
-const tts = (script: Script) =>
-  Tts.layer.pipe(
+/** The engine on a fake Edge (and, with a key, Gemini through the test's HTTP stub). */
+const tts = (script: Script, geminiKey?: string) =>
+  Layer.fresh(Tts.layer).pipe(
     Layer.provide(
       Layer.succeed(Socket.WebSocketConstructor, (url: string, options?: Socket.WebSocketConstructorOptions) => {
         seen.urls.push(url);
@@ -85,8 +96,13 @@ const tts = (script: Script) =>
         return new FakeSocket(script) as unknown as Socket.WebSocketLike;
       }),
     ),
+    Layer.provide(Layer.effect(AppConfig, Effect.gen(function* () {
+      const c = yield* AppConfig;
+      return { ...c, geminiApiKey: geminiKey === undefined ? undefined : Redacted.make(geminiKey) };
+    }))),
   );
-const synth = (script: Script, line = "Tom & Jerry <3", voice = LT_VOICE) => Tts.use((t) => t.synth(line, voice)).pipe(Effect.provide(tts(script)));
+const speak = (script: Script, line = "Tom & Jerry <3", voice = LT_VOICE, geminiKey?: string) => Tts.use((t) => t.synth(line, voice)).pipe(Effect.provide(tts(script, geminiKey)));
+const synth = (script: Script, line = "Tom & Jerry <3", voice = LT_VOICE) => Effect.map(speak(script, line, voice), (s) => s.audio);
 
 describe("the Edge read-aloud endpoint (a fake one)", () => {
   it.effect("asks for WebM Opus in the given voice, the text escaped, with the browser's headers and this window's token; the audio comes back whole", () =>
@@ -106,7 +122,7 @@ describe("the Edge read-aloud endpoint (a fake one)", () => {
       expect(seen.sent[1]).toContain("<voice name='lt-LT-LeonasNeural'>");
       expect(seen.sent[1]).toContain("Tom &amp; Jerry &lt;3");
       expect(seen.sent[1]).toContain("X-Timestamp:Fri, 13 Nov 2026 07:00:00 GMTZ"); // the Z is Edge's own quirk
-    }),
+    }).pipe(h.provide),
   );
 
   it.effect("closed before the end, no audio, refused, or no answer at all: each is TtsUnavailable", () =>
@@ -122,8 +138,115 @@ describe("the Edge read-aloud endpoint (a fake one)", () => {
       yield* TestClock.adjust("16 seconds");
       const e = yield* Fiber.await(hung);
       expect(e._tag === "Success" && e.value.detail).toBe("timed out");
-    }),
+    }).pipe(h.provide),
   );
+});
+
+// ---------------------------------------------------------------- Gemini, the spare engine
+
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent";
+/** A second of a 440 Hz tone, as Gemini's raw PCM at 24 kHz. */
+const tone = (rate = 24000, seconds = 1) => Int16Array.from({ length: rate * seconds }, (_, i) => Math.round(8000 * Math.sin((2 * Math.PI * 440 * i) / rate)));
+const b64 = (pcm: Int16Array) => Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString("base64");
+const wav = (pcm: Int16Array, rate: number, channels = 1) => {
+  const head = Buffer.alloc(44);
+  head.write("RIFF", 0);
+  head.writeUInt32LE(36 + pcm.byteLength, 4);
+  head.write("WAVEfmt ", 8);
+  head.writeUInt32LE(16, 16);
+  head.writeUInt16LE(1, 20);
+  head.writeUInt16LE(channels, 22);
+  head.writeUInt32LE(rate, 24);
+  head.writeUInt32LE(rate * 2 * channels, 28);
+  head.writeUInt16LE(2 * channels, 32);
+  head.writeUInt16LE(16, 34);
+  head.write("data", 36);
+  head.writeUInt32LE(pcm.byteLength, 40);
+  return new Uint8Array(Buffer.concat([head, Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength)]));
+};
+const answer = (data: string, mimeType = "audio/L16;codec=pcm;rate=24000") => json({ candidates: [{ content: { parts: [{ inlineData: { mimeType, data } }] } }] });
+/** The Opus packets in an Ogg file, and its OpusHead. */
+const demux = (ogg: Uint8Array) =>
+  Effect.callback<{ head: Buffer; packets: Buffer[] }>((resume) => {
+    const d = new prism.opus.OggDemuxer();
+    const packets: Buffer[] = [];
+    let head: Buffer = Buffer.alloc(0);
+    d.on("head", (x: Buffer) => void (head = x));
+    d.on("data", (p: Buffer) => void packets.push(p));
+    d.on("end", () => resume(Effect.succeed({ head, packets })));
+    d.end(Buffer.from(ogg));
+  });
+
+describe("Gemini's speech, the spare engine", () => {
+  it.effect("Edge answers: Edge's WebM, and Gemini isn't asked", () =>
+    Effect.gen(function* () {
+      const s = yield* speak("answer", "Hi", EN_VOICE, "gemini-key");
+      expect([s.engine, isOgg(s.audio)]).toEqual(["edge", false]);
+      expect(h.calls.filter((c) => c.path === GEMINI)).toEqual([]);
+    }).pipe(h.provide),
+  );
+
+  it.effect("Edge down: the line comes from Gemini (Charon), as Ogg Opus in 20 ms mono packets", () =>
+    Effect.gen(function* () {
+      h.override = (c) => (c.path === GEMINI ? answer(b64(tone())) : undefined);
+      const s = yield* speak("close", "Labas, Koral.", LT_VOICE, "gemini-key");
+      expect(s.engine).toBe("gemini");
+      expect(isOgg(s.audio)).toBe(true);
+      const [call] = h.calls.filter((c) => c.path === GEMINI);
+      expect(call.body).toEqual({ contents: [{ parts: [{ text: "Labas, Koral." }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } } } });
+      const { head, packets } = yield* demux(s.audio);
+      expect([head.readUInt8(9), head.readUInt32LE(12)]).toEqual([1, 24000]); // mono, made from 24 kHz
+      expect(packets).toHaveLength(50); // a second, 20 ms each
+      for (const p of packets) expect([p[0] >> 3 < 12 ? [10, 20, 40, 60][(p[0] >> 3) % 4] : p[0] >> 3 < 16 ? [10, 20][(p[0] >> 3) % 2] : [2.5, 5, 10, 20][(p[0] >> 3) % 4], p[0] & 4, p[0] & 3]).toEqual([20, 0, 0]);
+    }).pipe(h.provide),
+  );
+
+  it.effect("Gemini's WAV is read for its rate; what can't be encoded, a refusal, no key or no budget left: TtsUnavailable, both reasons given", () =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      yield* TestClock.setTime(Date.parse("2026-11-13T07:00:00Z"));
+      h.override = (c) => (c.path === GEMINI ? answer(Buffer.from(wav(tone(16000), 16000)).toString("base64"), "audio/wav") : undefined);
+      const s = yield* speak("close", "Hi", EN_VOICE, "gemini-key");
+      expect((yield* demux(s.audio)).head.readUInt32LE(12)).toBe(16000);
+      h.override = (c) => (c.path === GEMINI ? answer(Buffer.from(wav(tone(22050), 22050)).toString("base64"), "audio/wav") : undefined);
+      expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE, "gemini-key"))).detail).toContain("audio it can't encode (audio/wav)");
+      h.override = (c) => (c.path === GEMINI ? json({ error: "quota" }, 429) : undefined);
+      const refused = yield* Effect.flip(speak("refuse", "Hi", EN_VOICE, "gemini-key"));
+      expect([refused.engine, refused.detail]).toEqual(["edge, gemini", expect.stringContaining("429")]);
+      h.override = (c) => (c.path === GEMINI ? json({ candidates: [] }) : undefined);
+      expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE, "gemini-key"))).detail).toContain("no audio in the answer");
+      expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE))).engine).toBe("edge"); // no key: Edge's failure as it was
+      // the day's budget: GEMINI_DAILY lines, then no more until tomorrow
+      const [row] = yield* db.select().from(settings).where(eq(settings.key, "gemini_tts_budget"));
+      expect(row.value).toEqual({ day: "2026-11-13", used: 4 }); // every ask counted, refusals too
+      yield* db.update(settings).set({ value: { day: "2026-11-13", used: GEMINI_DAILY } }).where(eq(settings.key, "gemini_tts_budget"));
+      h.override = (c) => (c.path === GEMINI ? answer(b64(tone())) : undefined);
+      const before = h.calls.length;
+      expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE, "gemini-key"))).detail).toContain(`today's ${GEMINI_DAILY} lines are used up`);
+      expect(h.calls.slice(before)).toEqual([]);
+      yield* TestClock.setTime(Date.parse("2026-11-14T00:00:01Z"));
+      expect((yield* speak("close", "Hi", EN_VOICE, "gemini-key")).engine).toBe("gemini");
+    }).pipe(h.provide),
+  );
+});
+
+it("PCM to Ogg Opus: whole pages, the first one a stream's start and the last one its end; raw PCM and WAV both read", () => {
+  const ogg = Effect.runSync(encodeOggOpus(tone(48000, 3), 48000));
+  const pages: { flags: number; granule: bigint }[] = [];
+  for (let at = 0; at < ogg.length; ) {
+    expect(String.fromCharCode(...ogg.subarray(at, at + 4))).toBe("OggS");
+    const segments = ogg[at + 26];
+    const body = ogg.subarray(at + 27, at + 27 + segments).reduce((n, x) => n + x, 0);
+    const v = new DataView(ogg.buffer, ogg.byteOffset + at);
+    pages.push({ flags: ogg[at + 5], granule: v.getBigInt64(6, true) });
+    at += 27 + segments + body;
+  }
+  expect(pages.map((p) => p.flags)).toEqual([2, 0, 0, 0, 4]); // head, tags, three seconds, the last one ending the stream
+  expect(pages.at(-1)!.granule).toBe(BigInt(312 + 150 * 960));
+  expect(pcmOf(new Uint8Array([1, 0, 2]), "audio/L16;codec=pcm;rate=24000")).toEqual({ pcm: new Int16Array([1]), rate: 24000 });
+  expect(pcmOf(new Uint8Array([1, 0]), "audio/L16;codec=pcm;rate=44100")).toBeNull();
+  expect(pcmOf(wav(new Int16Array([5, 6]), 24000, 2), "audio/wav")).toBeNull(); // stereo
+  expect(pcmOf(wav(new Int16Array([5, 6]), 12000), "audio/wav")).toEqual({ pcm: new Int16Array([5, 6]), rate: 12000 });
 });
 
 it("an answer's frames: text frames by their path; audio frames with their audio; the empty last one without", () => {
