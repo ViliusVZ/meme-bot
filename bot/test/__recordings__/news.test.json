@@ -937,6 +937,46 @@
    "settings": "2:fb80a2d3f7cf"
   }
  },
+ "the backtest when Gemini doesn't answer: the story isn't lost, the sheet says run again, and the next run writes it": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=week&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent e9f6c42c79e3",
+   "GET https://www.reddit.com/r/wowforever/comments/wowforeverd1p1/.rss?sort=top&limit=60 -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 6908f2a66807",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent 6908f2a66807",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent 6908f2a66807",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 6908f2a66807"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_cache": "11:899e3d2c354e",
+   "settings": "4:5878b59a195b"
+  }
+ },
+ "the backtest when the triage gets no answer: the sheet says run again": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=week&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent e9f6c42c79e3",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent e9f6c42c79e3"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_cache": "8:426427c9d874",
+   "settings": "2:f2f97fcd1c13"
+  }
+ },
  "no channel configured, no news": {
   "calls": [],
   "db": {

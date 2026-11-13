@@ -821,6 +821,36 @@ it.effect("the backtest writes a day's stories in one request; a batch that come
   }).pipe(h.provide),
 );
 
+it.effect("the backtest when Gemini doesn't answer: the story isn't lost, the sheet says run again, and the next run writes it", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    week("wowforever", 1);
+    triageWith = () => ({ matters: 9 });
+    // every write-up model busy
+    let busy = true;
+    h.override = (c) => (c.path.includes("generativelanguage") && busy && promptOf(c).startsWith("Write") ? json({ error: { message: "high demand" } }, 503) : undefined);
+    const r = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(r.done).toBe(false);
+    expect(r.sheet).toContain("**not finished**");
+    expect(r.sheet).toContain("no write-up (Gemini didn't answer: run again)");
+    busy = false;
+    const next = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(next.done).toBe(true);
+    expect(next.sheet).toContain("### About wowforever day-1 post 1");
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest when the triage gets no answer: the sheet says run again", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    week("wowforever", 1);
+    h.override = (c) => (c.path.includes("generativelanguage") ? json({ error: { message: "high demand" } }, 503) : undefined);
+    const r = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(r.done).toBe(false);
+    expect(r.sheet).toContain("not triaged (Gemini didn't answer: run again)");
+  }).pipe(h.provide),
+);
+
 // ---------------------------------------------------------------- the job, the admin route
 
 it.effect("no channel configured, no news", () =>

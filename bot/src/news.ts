@@ -722,7 +722,11 @@ export class News extends Context.Service<
             : [];
           let decisions: Decision[] = [];
           if (verdicts) decisions = decide(judged.map((r): Judged => ({ id: r.id, source: r.source, title: r.title, link: r.link, rank: r.rank })), verdicts, new Set(posted.map((p) => p.id)));
-          else for (const r of judged) reasons.set(r.id, outOfCalls(triaged) ? "not triaged yet (Gemini's budget: run again)" : "not triaged (Gemini didn't answer)");
+          else {
+            // Gemini busy or silent: the day isn't judged, so the sheet isn't finished (a rerun asks again)
+            pending = true;
+            for (const r of judged) reasons.set(r.id, outOfCalls(triaged) ? "not triaged yet (Gemini's budget: run again)" : "not triaged (Gemini didn't answer: run again)");
+          }
           for (const r of candidates.slice(TRIAGE_MAX)) reasons.set(r.id, "under the bar (past the triage's 25)");
           for (const x of decisions) {
             if (x.score !== null) scores.set(x.id, x.score);
@@ -768,7 +772,13 @@ export class News extends Context.Service<
                 else if (got && writing.length > 1) {
                   yield* cachePut(`bt:alone:${e.r.id}`, true);
                   e.why = "its batch came back unreadable (written alone next run)";
-                } else e.why = outOfCalls(res) ? "not written yet (Gemini's budget: run again)" : got ? "an unreadable write-up" : "no write-up (Gemini didn't answer)";
+                } else if (outOfCalls(res)) e.why = "not written yet (Gemini's budget: run again)";
+                else if (got) e.why = "an unreadable write-up";
+                else {
+                  // every model busy or silent: nothing is cached, so a rerun writes it; the sheet isn't finished
+                  pending = true;
+                  e.why = "no write-up (Gemini didn't answer: run again)";
+                }
               }
             }
             for (const e of round) {

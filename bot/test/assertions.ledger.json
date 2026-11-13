@@ -2424,6 +2424,17 @@
   ],
   "test \"candidates that tie (the same place, the same age) go to the triage in one order every run: by id\"": [
    "expect.toEqual([\"reddit:t3_aa1\", \"reddit:t3_zz1\"])"
+  ],
+  "test \"the backtest when Gemini doesn't answer: the story isn't lost, the sheet says run again, and the next run writes it\"": [
+   "expect.toBe(false)",
+   "expect.toContain(\"**not finished**\")",
+   "expect.toContain(\"no write-up (Gemini didn't answer: run again)\")",
+   "expect.toBe(true)",
+   "expect.toContain(\"### About wowforever day-1 post 1\")"
+  ],
+  "test \"the backtest when the triage gets no answer: the sheet says run again\"": [
+   "expect.toBe(false)",
+   "expect.toContain(\"not triaged (Gemini didn't answer: run again)\")"
   ]
  },
  "traces.test.ts": {
