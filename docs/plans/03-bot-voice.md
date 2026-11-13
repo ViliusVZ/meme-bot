@@ -118,7 +118,7 @@ already spoken keeps playing, and only new lines need the engine.
 
 ### Step 0 findings (2026-11-13, the owner away)
 
-Samples: `C:\Users\viliu\AppData\Local\Temp\claude\C--p\bc4f4185-141d-4bbc-8d25-1a5596954346\scratchpad\voice\`
+Samples: `C:\p\meme-bot-voice-samples\` (see its README.txt)
 (`samples/` the voices, `jingles/` the three jingles, `stt_small.txt` the speech-to-text check).
 
 - **Rendered** the six sentences (two Lithuanian, two English, two mixed; the three names and the
