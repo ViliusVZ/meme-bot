@@ -815,6 +815,12 @@ recordings (see "Numbers").
 - **G3 query sites 210 → 228 (branch `effect-news`):** plan 02's WoW: Forever news, ported as the
   `News` service (`src/news.ts`), adds 18 query sites; every one is run by `test/news.test.ts` and
   test 6's news entry. `scripts/gates.json` `querySites` follows. Nothing else changed the count.
+- **`news.test.json` › "never one good check yet…" re-recorded (branch `bot-voice`):** its
+  `settings` row's `updated_at` is set from the fake clock (2026-11-12 12:01 UTC), and the
+  recorder masks any `updated_at` within 10 minutes of the real time as the database's `now()`.
+  The recording was made at that very moment on 2026-11-12, so it held the mask; from then on every
+  run writes the real value and G4 was red on `main` too (checked on an export of `d736643`). The
+  recording now holds the value every run produces; the test and the code are unchanged.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`
