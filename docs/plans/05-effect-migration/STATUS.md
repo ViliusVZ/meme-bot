@@ -872,7 +872,9 @@ recordings (see "Numbers").
   `test/tts.test.ts` and test 6's lone-early-bird entry. Nothing else changed.
 - **G3 query sites 246 + 13 = 259 (merging `main` with plan 03 into `news-v2`, 2026-11-13):** the
   branches' sites add up again (plan 03's 238 → 251 is in files plan 06 doesn't touch), and the test
-  floor too (925 + 43 = 968). Test 6's lone-early-bird test now runs after the news entries.
+  floor too (925 + 43 = 968). Test 6's lone-early-bird test now runs after the news entries, so its recording's `db` sees
+  their rows (`news_stories`, `news_cache`, the run's `settings`) and no longer plan 02's `news_items`;
+  its calls are identical. Re-recorded in the merge's follow-up commit.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`
