@@ -35,7 +35,7 @@ import { jsonText } from "./json.js";
 import { RedditNews, plain, type Listed, type Listing, type Thread } from "./newsfeeds.js";
 import { NewsWriter, PROMPT_VERSION, Verdict, Writeup, type Candidate, type Material, type Spend } from "./newswriter.js";
 import type { Asked } from "./gemini.js";
-import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, barFrom, card, cardText, check as checkWriteup, decide, notHot, officialLink, type Decision, type Judged, type Origin } from "./newscard.js";
+import { DEFAULT_BAR, MAX_AGE, OFFICIAL_AGE, barFrom, card, cardText, check as checkWriteup, decide, notHot, officialLink, upTo, type Decision, type Judged, type Origin } from "./newscard.js";
 
 export { SILENT } from "./newscard.js";
 export const FORUM = "https://eu.forums.blizzard.com/en/wow";
@@ -53,6 +53,8 @@ const DAY_SEC = 86400;
 const FEED_TIMEOUT = Duration.seconds(20);
 const ARTICLE_TIMEOUT = Duration.seconds(15);
 const ARTICLE_MAX = 6000;
+const FORUM_TEXT = 4000; // a Blizzard forum post's own text, at most this long
+const FORUM_COMMENT = 600; // one reply, at most this long
 const RUN = "news_run"; // { ok, tried, since?, alerted? }: the last good run, the last attempt (unix s)
 const LEVELS = "news_levels"; // { [sub]: { bar, at } }: how deep each subreddit's top of the day is hot
 const WRITES = "news_writes"; // { failing?, alerted? }: since when no write-up has worked
@@ -95,7 +97,33 @@ const RunTimes = Schema.Struct({ ok: Schema.Number, tried: Schema.Number, since:
 const Levels = Schema.Record(Schema.String, Schema.Struct({ bar: Schema.Number, at: Schema.Number }));
 const Writes = Schema.Struct({ failing: Schema.optional(Schema.Number), alerted: Schema.optional(Schema.Number) });
 const ListedSchema = Schema.Struct({ id: Schema.String, title: Schema.String, link: Schema.String, url: Schema.String, body: Schema.String, created: Schema.Number, rank: Schema.Number, removed: Schema.Boolean });
-const ThreadSchema = Schema.Struct({ post: Schema.NullOr(ListedSchema), comments: Schema.Array(Schema.String) });
+const ThreadSchema = Schema.Struct({ post: Schema.NullOr(ListedSchema), comments: Schema.Array(Schema.String), times: Schema.optional(Schema.Array(Schema.Number)) });
+/** One post of a Blizzard forum topic (Discourse's JSON), as plain text. */
+export type ForumPost = { readonly n: number; readonly at: number; readonly staff: boolean; readonly text: string };
+const ForumPostSchema = Schema.Struct({ n: Schema.Number, at: Schema.Number, staff: Schema.Boolean, text: Schema.String });
+const Discourse = Schema.Struct({
+  post_stream: Schema.Struct({ posts: Schema.Array(Schema.Struct({ post_number: Schema.Number, created_at: Schema.String, cooked: Schema.String, staff: Schema.optional(Schema.NullOr(Schema.Boolean)) })) }),
+});
+
+/** The post number in a forum link (…/t/<slug>/<topic>/<n>); 1 when it has none. */
+export const postNumber = (link: string) => Number(link.match(/\/t\/[^/]+\/\d+\/(\d+)/)?.[1] ?? 1);
+
+/** A staff post's story id: the topic for the post that opened it, the topic and post for a reply. */
+export const blizzardId = (p: Pick<Post, "topic" | "post">) => (p.post === 1 ? `blizzard:${p.topic}` : `blizzard:${p.topic}/${p.post}`);
+
+/**
+ * What a write-up is given from a Blizzard forum topic for its post `n`, at `at`: that post's own
+ * text (the opening post as it stood that day: a running hotfix post grows by dated sections), and
+ * the players' replies after it posted by then, oldest first, as its comments.
+ */
+export function forumMaterial(posts: ReadonlyArray<ForumPost>, n: number, at: number, day: string): { text: string; comments: string[] } | null {
+  const own = posts.find((p) => p.n === n);
+  if (!own) return null;
+  return {
+    text: (n === 1 ? upTo(own.text, day) : own.text).slice(0, FORUM_TEXT),
+    comments: posts.filter((p) => p.n > n && !p.staff && p.at <= at && p.text).map((p) => p.text.slice(0, FORUM_COMMENT)).slice(0, 60),
+  };
+}
 const PostSchema = Schema.Struct({ topic: Schema.Number, post: Schema.Number, title: Schema.String, link: Schema.String, excerpt: Schema.String, published: Schema.Number });
 const OriginSchema = Schema.Struct({ source: Schema.Literals(["reddit", "blizzard"]), sub: Schema.String, link: Schema.String, created_at: Schema.Number, official: Schema.NullOr(Schema.String) });
 /** A card the backtest would have posted (the admin route can post them on the test bot). */
@@ -204,6 +232,22 @@ export class News extends Context.Service<
         }).pipe(Effect.catch((e) => Effect.as(Effect.logInfo(`news: no article from ${url} ${"message" in e ? e.message : String(e)}`), null)));
       });
 
+      /**
+       * The posts of a Blizzard forum topic around post `n` of its link (…/t/<slug>/<topic>/<n>), from
+       * the forum's JSON: who's staff, when each was posted, its text. Null when it won't come.
+       */
+      const forumTopic = Effect.fn("News.forumTopic")(function* (link: string) {
+        const m = link.match(/^(https:\/\/[^/?#]*forums\.blizzard\.com\/[^?#]*?\/t\/[^/?#]+\/\d+)(?:\/(\d+))?/i);
+        if (!m) return null;
+        return yield* Effect.gen(function* () {
+          const res = yield* get(`${m[1]}${m[2] ? `/${m[2]}` : ""}.json`, ARTICLE_TIMEOUT);
+          if (res.status !== 200) return null;
+          const body = Option.getOrUndefined(Schema.decodeUnknownOption(Discourse)(yield* res.json));
+          if (!body) return null;
+          return body.post_stream.posts.map((p): ForumPost => ({ n: p.post_number, at: Math.floor(Date.parse(p.created_at) / 1000), staff: p.staff === true, text: plain(p.cooked) }));
+        }).pipe(Effect.catch((e) => Effect.as(Effect.logInfo(`news: no forum topic from ${link} ${"message" in e ? e.message : String(e)}`), null)));
+      });
+
       /** A feed's answer, or the reason it didn't come (logged; the run goes on without it). */
       const attempt = <A, E extends { readonly message: string }>(what: string, effect: Effect.Effect<A, E>) =>
         effect.pipe(
@@ -254,7 +298,7 @@ export class News extends Context.Service<
         if ("failed" in official) failures.push(official.failed);
         const ids = [
           ...listed.flatMap((l) => [...(l.day ?? []), ...(l.hot ?? [])].map((p) => `reddit:${p.id}`)),
-          ...("ok" in official ? official.ok.map((p) => `blizzard:${p.topic}`) : []),
+          ...("ok" in official ? official.ok.map(blizzardId) : []),
         ];
         if (!ids.length) return { seen: 0, removed: new Set<string>() };
         const known = new Map((yield* db.select().from(newsStories).where(inArray(newsStories.id, [...new Set(ids)]))).map((s) => [s.id, s]));
@@ -281,17 +325,17 @@ export class News extends Context.Service<
           }
         }
         if ("ok" in official) {
-          // a topic is Blizzard's when its first staff post opened it (post 1); later ones are replies
-          const topics = new Map<number, Post>();
-          for (const p of official.ok) if (!topics.has(p.topic) || topics.get(p.topic)!.post > p.post) topics.set(p.topic, p);
-          for (const p of topics.values()) {
-            const id = `blizzard:${p.topic}`;
+          // every staff post with something in it is a story of its own: the post that opened a topic,
+          // and each later one (a running hotfix topic gets each day's fixes as a new staff post)
+          for (const p of official.ok) {
+            const id = blizzardId(p);
+            if (rows.has(id) || !p.excerpt) continue;
             const was = known.get(id);
             rows.set(id, {
               id, source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published,
               first_seen: was?.first_seen ?? t, last_seen: t, top_rank: null, best_rank: null, hot_rank: null, prev_hot_rank: null, prev_at: was ? was.last_seen : null,
-              state: was?.state ?? (first ? "old" : p.post === 1 ? "watch" : "skip"),
-              reason: was ? was.reason : first ? null : p.post === 1 ? null : "a staff reply",
+              state: was?.state ?? (first ? "old" : "watch"),
+              reason: was ? was.reason : null,
             });
           }
         }
@@ -362,8 +406,11 @@ export class News extends Context.Service<
       // ---------------------------------------------------------------- 4. ripen, 5. write
 
       /** What the writer gets about a story (its thread's comments come from the caller). */
-      const materialFor = Effect.fn("News.material")(function* (s: Pick<Story, "source" | "sub" | "title" | "created_at" | "link" | "url" | "body" | "official">, at: number, comments: ReadonlyArray<string>, blizzard: { url: string; title: string; text: string } | null, read: (url: string) => Effect.Effect<string | null, DbError>) {
-        const target = s.source === "blizzard" ? s.link : s.url;
+      const materialFor = Effect.fn("News.material")(function* (s: Pick<Story, "source" | "sub" | "title" | "created_at" | "link" | "url" | "body" | "official">, at: number, comments: ReadonlyArray<string>, blizzard: { url: string; title: string; text: string } | null, read: (url: string) => Effect.Effect<string | null, DbError>, forum: ReadonlyArray<ForumPost> | null = null) {
+        // a Blizzard post: its own post from the topic, as it stood then, its replies by then as the comments
+        const own = s.source === "blizzard" && forum ? forumMaterial(forum, postNumber(s.link), at, time.at(at).day) : null;
+        if (own) comments = own.comments;
+        const target = s.source === "blizzard" ? (own ? "" : s.link) : s.url;
         const text = officialLink(target) ? yield* read(target) : null;
         const material: Material = {
           subreddit: s.source === "blizzard" ? "Blizzard's forums" : `r/${s.sub}`,
@@ -371,12 +418,12 @@ export class News extends Context.Service<
           posted_hours_ago: Math.max(0, Math.round((at - s.created_at) / 360) / 10),
           link: s.link,
           points_to: s.url,
-          text: s.body,
+          text: own ? own.text : s.body,
           article: text ? { url: target, text } : null,
           blizzard_post: blizzard,
           comments,
         };
-        const links = [s.link, s.url, s.official ?? "", ...(text ? [target] : []), ...linksIn(s.body), ...linksIn(text ?? ""), ...(blizzard ? [blizzard.url, ...linksIn(blizzard.text)] : [])].filter(Boolean);
+        const links = [s.link, s.url, s.official ?? "", ...(text ? [target] : []), ...linksIn(s.body), ...linksIn(own?.text ?? ""), ...linksIn(text ?? ""), ...(blizzard ? [blizzard.url, ...linksIn(blizzard.text)] : [])].filter(Boolean);
         return { material, links };
       });
 
@@ -406,8 +453,10 @@ export class News extends Context.Service<
           comments = thread.ok.comments;
           yield* db.update(newsStories).set({ comments: comments.length }).where(eq(newsStories.id, s.id));
         }
+        const forum = s.source === "blizzard" ? yield* forumTopic(s.link) : null;
+        if (forum) comments = forumMaterial(forum, postNumber(s.link), t, time.at(t).day)?.comments ?? [];
         if (comments.length < RIPE_COMMENTS && t - s.created_at < RIPE_AGE) return "ripening";
-        return yield* materialFor(s, t, comments, yield* blizzardPost(s.official), article);
+        return yield* materialFor(s, t, comments, yield* blizzardPost(s.official), article, forum);
       });
 
       /** A write-up that didn't come: tried again next run, and dropped after 12 h of these; `alone`: next time in a request of its own. */
@@ -460,10 +509,10 @@ export class News extends Context.Service<
             break; // the model isn't answering: the rest wait for the next run too
           }
           yield* failed(r.missing, t, batch.length > 1);
-          for (const { s, links } of batch) {
+          for (const { s, links, material } of batch) {
             const raw = r.written.get(s.id);
             if (!raw) continue;
-            const checked = checkWriteup(raw, links);
+            const checked = checkWriteup(raw, links, material.comments.length);
             if ("drop" in checked) {
               yield* setState([s.id], "skip", checked.drop);
               continue;
@@ -700,7 +749,7 @@ export class News extends Context.Service<
           }
           type Row = { id: string; source: "reddit" | "blizzard"; sub: string; title: string; link: string; url: string; body: string; created_at: number; rank: number };
           const rows: Row[] = [...ofDay].map(([id, p]) => ({ id, source: "reddit", sub: p.sub, title: p.title, link: p.link, url: p.url, body: p.body, created_at: p.created, rank: rankInDay.get(id)! }));
-          for (const p of blue) if (p.post === 1 && p.published >= start && p.published <= at) rows.push({ id: `blizzard:${p.topic}`, source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published, rank: 0 });
+          for (const p of blue) if (p.excerpt && p.published >= start && p.published <= at) rows.push({ id: blizzardId(p), source: "blizzard", sub: "blizzard", title: p.title, link: p.link, url: "", body: p.excerpt, created_at: p.published, rank: 0 });
           const reasons = new Map<string, string>();
           const scores = new Map<string, number>();
           const candidates: Row[] = [];
@@ -750,14 +799,17 @@ export class News extends Context.Service<
               const alone = !w && (yield* cacheGet(`bt:alone:${r.id}`, Schema.Boolean)) === true;
               if (alone && toWrite) break;
               k++;
-              // the thread only for a write-up still to be paid for (Reddit's minute each)
-              const thread: Thread | null = w || r.source === "blizzard" ? { post: null, comments: [] } : yield* cached(`bt:thread:${r.id}`, ThreadSchema, feedOrNull(`the thread ${r.id}`, reddit.thread(r.sub, externalId(r.id))));
+              // the thread (Reddit's minute, once: a cached write-up's thread is cached too), with only
+              // the comments posted by the card's time
+              const thread: Thread | null = r.source === "blizzard" ? { post: null, comments: [] } : yield* cached(`bt:thread:v2:${r.id}`, ThreadSchema, feedOrNull(`the thread ${r.id}`, reddit.thread(r.sub, externalId(r.id))));
               if (!thread) {
                 reasons.set(r.id, "its thread didn't load");
                 continue;
               }
               const b = x.official ? (blue.find((p) => p.link === x.official) ?? null) : null;
-              const { material, links } = yield* materialFor({ ...r, official: x.official }, at, thread.comments, b ? { url: b.link, title: b.title, text: b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)));
+              const byThen = thread.times ? thread.comments.filter((_, j) => (thread.times?.[j] ?? 0) <= at) : thread.comments;
+              const forum = r.source === "blizzard" ? yield* cached(`bt:forum:${r.link}`, Schema.Array(ForumPostSchema), forumTopic(r.link)) : null;
+              const { material, links } = yield* materialFor({ ...r, official: x.official }, at, byThen, b ? { url: b.link, title: b.title, text: b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)), forum);
               round.push({ r, official: x.official, key, w, links, material });
               if (!w) toWrite++;
               if (alone) break;
@@ -786,7 +838,7 @@ export class News extends Context.Service<
                 reasons.set(e.r.id, e.why ?? "no write-up");
                 continue;
               }
-              const c = checkWriteup(e.w, e.links);
+              const c = checkWriteup(e.w, e.links, e.material.comments.length);
               if ("drop" in c) {
                 reasons.set(e.r.id, c.drop);
                 continue;

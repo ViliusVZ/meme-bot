@@ -8,10 +8,10 @@ import { beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Clock, Context, Duration, Effect, Exit, Fiber, Layer, Schema, Scope } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
-import { News, FEED, EVERY, WRITE_STALE, parseFeed } from "../src/news.js";
+import { News, FEED, EVERY, WRITE_STALE, parseFeed, blizzardId, forumMaterial, type ForumPost } from "../src/news.js";
 import { RedditNews, listingUrl, parseListing, parseThread, threadUrl, type Listing } from "../src/newsfeeds.js";
-import { barFrom, cardText, check, clean, decide, notHot, officialLink } from "../src/newscard.js";
-import { NewsWriter, type Writeup } from "../src/newswriter.js";
+import { barFrom, cardText, check, clean, decide, notHot, officialLink, upTo } from "../src/newscard.js";
+import { NewsWriter, triagePrompt, writePrompt, type Writeup } from "../src/newswriter.js";
 import { NAMES_KEEP, NAMES_MODEL, PER_MODEL_DAILY, budgetKey, Gemini } from "../src/gemini.js";
 import { AppConfig } from "../src/config.js";
 import { Jobs } from "../src/jobs.js";
@@ -233,7 +233,7 @@ it.effect("1. the first run with full subreddits: nothing posted, everything see
     blue = fixture("blue-tracker.rss");
     triageWith = () => ({ matters: 10 }); // the model would let anything through
     const r = yield* run();
-    expect(r).toMatchObject({ first: true, seen: 25 + 25 + new Set(parseFeed(blue).map((p) => p.topic)).size });
+    expect(r).toMatchObject({ first: true, seen: 25 + 25 + new Set(parseFeed(blue).filter((p) => p.excerpt).map(blizzardId)).size }); // every staff post with something in it
     expect(posted()).toEqual([]);
     expect(geminiCalls()).toEqual([]);
     expect((yield* stories).every((s) => s.state === "old")).toBe(true);
@@ -724,6 +724,99 @@ it.effect("the code's rules: links, cleaning, the write-up check, repeats", () =
   }).pipe(h.provide),
 );
 
+// ---------------------------------------------------------------- the editor's first review (2026-11-13)
+
+it.effect("a running hotfix post as it stood on a day: the sections dated after that day are left out", () =>
+  Effect.sync(() => {
+    const post = "Hotfixes November 11, 2026 Judgement is now ranged. November 9, 2026 Hunter pets have less health. November 5, 2026 Rend and Tear fixed.";
+    expect(upTo(post, "2026-11-06")).toBe("Hotfixes November 5, 2026 Rend and Tear fixed.");
+    expect(upTo(post, "2026-11-10")).toBe("Hotfixes November 9, 2026 Hunter pets have less health. November 5, 2026 Rend and Tear fixed.");
+    expect(upTo("No dates in here.", "2026-11-06")).toBe("No dates in here.");
+  }).pipe(h.provide),
+);
+
+it.effect("a Blizzard post's material: its own post from the topic (the opening one as it stood that day), the players' replies by then as its comments", () =>
+  Effect.sync(() => {
+    const posts: ForumPost[] = [
+      { n: 1, at: 100, staff: true, text: "Hotfixes November 11, 2026 Judgement is ranged. November 5, 2026 Rend and Tear fixed." },
+      { n: 2, at: 200, staff: false, text: "Finally." },
+      { n: 3, at: 300, staff: true, text: "We're looking into it." },
+      { n: 4, at: 900, staff: false, text: "Posted later." },
+    ];
+    expect(forumMaterial(posts, 1, 500, "2026-11-06")).toEqual({ text: "Hotfixes November 5, 2026 Rend and Tear fixed.", comments: ["Finally."] });
+    expect(forumMaterial(posts, 3, 1000, "2026-11-12")).toEqual({ text: "We're looking into it.", comments: ["Posted later."] });
+    expect(forumMaterial(posts, 9, 1000, "2026-11-12")).toBeNull();
+  }).pipe(h.provide),
+);
+
+it.effect("every staff post is a story of its own, with its own time: a running hotfix topic's new post too", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    blue = rss([[700, 1, "WoW: Forever Hotfixes", 30], [700, 5, "WoW: Forever Hotfixes", 2]]);
+    triageWith = () => ({ matters: 3 });
+    yield* run();
+    const ours = (yield* stories).filter((x) => x.source === "blizzard").map((x) => [x.id, x.created_at, x.state]);
+    expect(ours.sort()).toEqual([["blizzard:700", now() - 30 * 3600, "skip"], ["blizzard:700/5", now() - 2 * 3600, "skip"]]);
+    expect(promptOf(triages()[0])).toContain("blizzard:700/5");
+  }).pipe(h.provide),
+);
+
+it.effect("a Blizzard post is written from its own post in the topic, with the players' replies as its comments (staff replies aren't comments)", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    blue = rss([[800, 4, "Dungeon XP Increased", 4]]);
+    triageWith = () => ({ matters: 9 });
+    const replies = Array.from({ length: 3 }, (_, i) => ({ post_number: 6 + i, created_at: iso(now() - 3 * 3600), cooked: `<p>Reply ${i + 1}.</p>`, staff: false }));
+    articles["https://eu.forums.blizzard.com/en/wow/t/slug/800/4.json"] = JSON.stringify({
+      post_stream: { posts: [{ post_number: 4, created_at: iso(now() - 4 * 3600), cooked: "<p>Dungeon kill experience is up 50%.</p>", staff: true }, { post_number: 5, created_at: iso(now() - 3 * 3600), cooked: "<p>More soon.</p>", staff: true }, ...replies] },
+    });
+    let seen: Material | null = null;
+    writeWith = (m) => ((seen = m), goodWriteup(m));
+    yield* run();
+    expect(seen).toMatchObject({ text: "Dungeon kill experience is up 50%.", comments: ["Reply 1.", "Reply 2.", "Reply 3."], article: null });
+    // three replies: too few to tell a mood, whatever the model made of them
+    expect(cardOf(posted()[0])).toContain("Only 3 comments so far.");
+  }).pipe(h.provide),
+);
+
+it.effect("a write-up that changes nothing for us isn't posted; with fewer than 5 comments there's no reaction to tell yet", () =>
+  Effect.sync(() => {
+    const w = goodWriteup({ title: "x" } as Material) as Writeup;
+    expect(check({ ...w, changes_something: false }, [])).toEqual({ drop: "nothing it changes for us" });
+    expect(check(w, [], 3)).toMatchObject({ ok: { mood: { label: "no clear reaction yet", line: "Only 3 comments so far.", takes: [] } } });
+    expect(check(w, [], 0)).toMatchObject({ ok: { mood: { label: "no clear reaction yet", line: "No comments yet.", takes: [] } } });
+    expect(check(w, [], 5)).toMatchObject({ ok: { mood: { label: "split" } } });
+  }).pipe(h.provide),
+);
+
+it.effect("a request, an opinion or one player's story is never a card, however high the model scores it", () =>
+  Effect.sync(() => {
+    const [d] = decide([{ id: "a", source: "reddit", title: "Please bring back sheathing", link: "l", rank: 1 }], [{ id: "a", game: "forever", touches_forever: true, kind: "opinion", matters: 9, same_as: "" }], new Set());
+    expect(d).toMatchObject({ keep: false, reason: "a request or opinion" });
+  }).pipe(h.provide),
+);
+
+it.effect("a card names its link by its site: a Wowhead article is Wowhead, not Blizzard's post", () =>
+  Effect.sync(() => {
+    const w = (check(goodWriteup({ title: "x" } as Material) as Writeup, []) as { ok: Writeup }).ok;
+    const last = (official: string) => cardText({ source: "reddit", sub: "classicwow", link: "https://www.reddit.com/r/classicwow/comments/a/slug/", created_at: 1, official }, w).split("\n").at(-1);
+    expect(last("https://www.wowhead.com/forever/news/world-first-1")).toContain("[Wowhead](https://www.wowhead.com/forever/news/world-first-1)");
+    expect(last("https://eu.forums.blizzard.com/en/wow/t/slug/700/1")).toContain("[Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)");
+  }).pipe(h.provide),
+);
+
+it.effect("the writer is told: what happened only from the post and its article, a concrete why or none, no region the material doesn't name, what each mood means", () =>
+  Effect.sync(() => {
+    const p = writePrompt("today", "us", { subreddit: "r/x", title: "t", posted_hours_ago: 1, link: "l", points_to: "", text: "", article: null, blizzard_post: null, comments: [] });
+    expect(p).not.toContain("Nothing for us, but everyone is talking about it");
+    expect(p).toContain("Never from the comments: a commenter's claim, guess or report is not a fact");
+    expect(p).toContain("- changes_something: false when nothing in the material changes anything for a Forever player");
+    expect(p).toContain("Mention a region (EU, US) or a realm type only when the material does.");
+    expect(p).toContain('"split" (the comments disagree with each other, roughly evenly; two kinds of players existing is not a split)');
+    expect(triagePrompt("today", "us", [], [])).toContain('"opinion" (a request to Blizzard');
+  }).pipe(h.provide),
+);
+
 // ---------------------------------------------------------------- the backtest
 
 /** A week of a subreddit's top, `perDay` posts on each of the 7 days before today (noon Vilnius, best first). */
@@ -848,6 +941,41 @@ it.effect("the backtest when the triage gets no answer: the sheet says run again
     const r = yield* news.backtest({ days: 1, maxCalls: 10 });
     expect(r.done).toBe(false);
     expect(r.sheet).toContain("not triaged (Gemini didn't answer: run again)");
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest reads a thread as it was by the card's time: comments posted after it are left out", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    week("wowforever", 1);
+    triageWith = () => ({ matters: 9 });
+    // day 1's post, ~29.5 h ago: one comment an hour after it, one from just now
+    const p = { id: "wowforeverd1p1", title: "wowforever day-1 post 1", ago: 24 + 5.5 };
+    const comment = (id: string, text: string, ago: number) => `<entry><content type="html">${esc(`<!-- SC_OFF --><div class="md"><p>${text}</p> </div><!-- SC_ON -->`)}</content><id>t1_${id}</id><published>${iso(now() - ago)}</published><title>c</title></entry>`;
+    feeds[threadUrl("wowforever", "wowforeverd1p1")] = atom("wowforever", [p]).replace(/<\/feed>$/, `${comment("e", "Said that day.", (24 + 4.5) * 3600)}${comment("l", "Said today.", 60)}</feed>`);
+    let seen: string[] = [];
+    writeWith = (m) => ((seen = m.comments), goodWriteup(m));
+    const r = yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(seen).toEqual(["Said that day."]);
+    expect(r.sheet).toContain("Only 1 comment so far."); // one by then: no reaction to tell yet
+
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest reads a Blizzard post from its topic as it stood that day: the opening post's later sections and later replies left out", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    const day1 = now() - (24 + 5.5) * 3600;
+    blue = rss([[900, 1, "WoW: Forever Hotfixes", 24 + 5.5]]);
+    triageWith = () => ({ matters: 9 });
+    const later = (n: number, at: number, text: string) => ({ post_number: n, created_at: iso(at), cooked: `<p>${text}</p>`, staff: false });
+    articles["https://eu.forums.blizzard.com/en/wow/t/slug/900/1.json"] = JSON.stringify({
+      post_stream: { posts: [{ post_number: 1, created_at: iso(day1), cooked: "<p>Hotfixes</p><p>November 14, 2026 Judgement is ranged.</p><p>November 10, 2026 Pets have more health.</p>", staff: true }, later(2, day1 + 600, "Nice."), later(3, now() - 60, "Said today.")] },
+    });
+    let seen: Material | null = null;
+    writeWith = (m) => ((seen = m), goodWriteup(m));
+    yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(seen).toMatchObject({ text: "Hotfixes November 10, 2026 Pets have more health.", comments: ["Nice."], article: null });
   }).pipe(h.provide),
 );
 

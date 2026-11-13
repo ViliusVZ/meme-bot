@@ -875,6 +875,19 @@ recordings (see "Numbers").
   floor too (925 + 43 = 968). Test 6's lone-early-bird test now runs after the news entries, so its recording's `db` sees
   their rows (`news_stories`, `news_cache`, the run's `settings`) and no longer plan 02's `news_items`;
   its calls are identical. Re-recorded in the merge's follow-up commit.
+- **Plan 06, the editor's first review (branch `news-v2`, 2026-11-13, prompts v2):** every staff
+  post is a story of its own (a running hotfix topic's daily post too), a Blizzard story is written
+  from its own post in the topic's JSON (the opening post as it stood that day, the players' replies
+  by then as comments), the backtest reads threads as they were by the card's time, fewer than 5
+  comments force "no clear reaction yet", "nothing it changes for us" and requests/opinions don't
+  post, Wowhead links say Wowhead, and the prompts are rewritten (`PROMPT_VERSION` v2). 28 existing
+  `news.test.ts` recordings change, checked call by call: Gemini request bodies (the new prompts),
+  the forum topic's JSON read inserted before a Blizzard story's write-up (shifting the calls after
+  it), the cards of Blizzard posts whose topic didn't load (no comments: "No comments yet."), the
+  extra staff-post rows in `news_stories`, and the backtest's `news_cache` keys. Re-recorded as
+  meant (no allowance: the old ones aren't at the baseline). Test 1's assertion changed (one story
+  per staff post, not per topic): its ledger entry was deleted by hand and added again (`--add`),
+  with 10 new tests' entries.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

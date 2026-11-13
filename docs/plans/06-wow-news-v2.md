@@ -4,7 +4,24 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
-## Resume here (2026-11-13: Gemini per model, batched write-ups, backtest posting; not deployed)
+## Resume here (2026-11-13, afternoon: the editor's first review fixed; prompts v2)
+
+- **Editor pass 1 (sheet of 2026-11-13 morning, prompts v1): 19 findings** (2 keep, 4 fix, 5 cut of
+  12 cards; the week's top story, Sunday's dungeon XP +50%, lost to Gemini not answering). Verdict
+  saved in the session scratchpad `editor1/verdict.md`. Fixed on `news-v2` (prompts v2): each staff
+  post its own story; Blizzard stories from their own post in the forum JSON (opening post cut to
+  its day's sections, replies by then as comments); backtest comments by the card's time; < 5
+  comments → no clear reaction; requests/opinions/anecdotes never cards (`opinion` kind); a write-up
+  that changes nothing isn't posted (no filler why); what-happened from the post/article only; no
+  invented region; mood labels defined; Wowhead links labelled Wowhead; the backtest marks Gemini
+  silence "run again" (`8790a11`). Pattern 9 (fill by score) already held: the warlock anecdote took
+  the 8/10 layers story's slot, now cut as an opinion. Pattern 10's "repeat of an unposted story"
+  came from the failed write-up (a rerun writes it); crossposts were already merged by title.
+- **Next:** gates, deploy `news-v2` to the test bot, rerun the backtest (v2 prompts: cached triage and
+  write-ups are paid for again), post its cards, screenshot, editor pass 2. If Gemini fails pass 2,
+  stop the news line and report the failing examples (owner's rule).
+
+## Earlier: Gemini per model, batched write-ups, backtest posting (2026-11-13 morning)
 
 - **Done:** Step 0 (findings below). The build on branch `news-v2` (`0144368`): `src/newsfeeds.ts`
   (RSS source, one request per ≥65 s), `src/newswriter.ts` (Gemini triage + write-ups),
@@ -258,8 +275,10 @@ is enough.
    - `mood`: a label from a fixed list (mostly for, mostly against, split, joking about it, no
      clear reaction yet), one sentence on the split and the main reason, and two or three takes
      in its own words (never usernames, never verbatim quotes);
-   - `why` (at most 250: what it changes for the audience; "nothing for us, but everyone is
-     talking about it" is an allowed answer);
+   - `why` (at most 250: the concrete thing it changes for the audience; the editor's first
+     review (2026-11-13) struck the old allowed answer "nothing for us, but everyone is talking
+     about it": a story that changes nothing for us says so, `changes_something: false`, and isn't
+     posted);
    - `old_news` (true when the thread is about something that already happened or was already
      known), `confidence` (0-1), and the official link if the thread points at one.
    Code drops the story when `old_news` is true, confidence is under 0.6, or a field is empty.

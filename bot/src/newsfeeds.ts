@@ -32,8 +32,8 @@ export type Listed = {
   readonly removed: boolean;
 };
 
-/** A thread's feed: the post, and its comments in Reddit's top order (no scores). */
-export type Thread = { readonly post: Listed | null; readonly comments: ReadonlyArray<string> };
+/** A thread's feed: the post, and its comments in Reddit's top order (no scores); `times`: when each was posted (unix s). */
+export type Thread = { readonly post: Listed | null; readonly comments: ReadonlyArray<string>; readonly times?: ReadonlyArray<number> };
 
 export type Listing = "day" | "hot" | "week" | "month";
 const PATHS: Record<Listing, string> = {
@@ -107,11 +107,11 @@ export function parseListing(xml: string): Listed[] {
 export function parseThread(xml: string): Thread {
   const all = entries(xml);
   const first = all.find((e) => String(e.id ?? "").startsWith("t3_"));
-  const comments = all
+  const kept = all
     .filter((e) => String(e.id ?? "").startsWith("t1_"))
-    .map((e) => plain(text(e.content)).slice(0, COMMENT))
-    .filter((c) => c && !/^\[(removed|deleted)\]$/.test(c));
-  return { post: first ? post(first, 1) : null, comments };
+    .map((e) => ({ text: plain(text(e.content)).slice(0, COMMENT), at: Math.floor(Date.parse(String(e.published ?? e.updated ?? "")) / 1000) }))
+    .filter((c) => c.text && !/^\[(removed|deleted)\]$/.test(c.text));
+  return { post: first ? post(first, 1) : null, comments: kept.map((c) => c.text), times: kept.map((c) => (Number.isFinite(c.at) ? c.at : 0)) };
 }
 
 /** Reddit answered a feed with something other than 200 (429: the minute's request is used; 403: refused). */

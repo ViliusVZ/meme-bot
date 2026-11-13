@@ -15,7 +15,8 @@ export const DEFAULT_BAR = 5; // a subreddit whose month we couldn't read
 export const CLIMB = 3; // places gained in hot between two runs that make a thread "climbing"
 export const KEEP_SCORE = 7; // the triage's 0-10 a story needs
 export const MIN_CONFIDENCE = 0.6;
-const JUNK: Record<string, string> = { meme: "a meme", screenshot: "a screenshot", loot: "a loot post", support: "a support post", lfg: "an LFG post" };
+export const QUIET = 5; // fewer comments than this (by the card's time): no reaction to tell yet
+const JUNK: Record<string, string> = { meme: "a meme", screenshot: "a screenshot", loot: "a loot post", support: "a support post", lfg: "an LFG post", opinion: "a request or opinion" };
 const PINNED = /\b(mega ?thread|weekly .*thread|daily .*thread|discussion thread|q&a thread|questions thread)\b/i;
 
 /** Hosts a card may link to besides the thread (Blizzard's and Wowhead's, any subdomain). */
@@ -25,6 +26,31 @@ const OFFICIAL_HOSTS = /(^|\.)(blizzard\.com|wowhead\.com)$/i;
 export function officialLink(url: string): boolean {
   const m = url.match(/^https:\/\/([^/?#:]+)(?:[/?#]|$)/i);
   return !!m && OFFICIAL_HOSTS.test(m[1]) && !/[\s()<>[\]]/.test(url);
+}
+
+/** What a card calls an official link: by its domain (a Wowhead article is not Blizzard's post). */
+export function linkLabel(url: string): string {
+  return /^https:\/\/([^/]+\.)?wowhead\.com\//i.test(url) ? "Wowhead" : "Blizzard's post";
+}
+
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+/**
+ * A post that keeps growing by dated sections ("November 11, 2026 …", like Blizzard's running
+ * hotfix posts), as it stood on `day` (YYYY-MM-DD): the text before the first date, and every
+ * section dated on or before that day. A text without dates is kept whole.
+ */
+export function upTo(text: string, day: string): string {
+  const marks = [...text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2}), (\d{4})\b/g)].map((m) => ({
+    at: m.index,
+    iso: `${m[3]}-${String(MONTHS.indexOf(m[1].toLowerCase()) + 1).padStart(2, "0")}-${m[2].padStart(2, "0")}`,
+  }));
+  if (!marks.length) return text;
+  let out = text.slice(0, marks[0].at);
+  marks.forEach((k, i) => {
+    if (k.iso <= day) out += text.slice(k.at, marks[i + 1]?.at ?? text.length);
+  });
+  return out.replace(/\s+/g, " ").trim();
 }
 
 /** A thread's own link (from the feed): https on reddit.com, nothing that would break the markdown. */
@@ -152,23 +178,28 @@ export function clean(text: string, max: number): string {
 export type Checked = { readonly ok: Writeup } | { readonly drop: string };
 
 /**
- * Code's say over the write-up: dropped when the model calls it old news, isn't sure (under 0.6),
- * or left a field empty; every text cut and cleaned; the official link kept only when it's
- * Blizzard's or Wowhead's and was in the material the model was given (never one it made up).
+ * Code's say over the write-up: dropped when the model calls it old news, says it changes nothing
+ * for us, isn't sure (under 0.6), or left a field empty; every text cut and cleaned; the official
+ * link kept only when it's Blizzard's or Wowhead's and was in the material the model was given
+ * (never one it made up). With fewer than QUIET `comments` there's no reaction to tell: the mood
+ * says so, whatever the model made of the few there were.
  */
-export function check(w: Writeup, links: ReadonlyArray<string>): Checked {
+export function check(w: Writeup, links: ReadonlyArray<string>, comments?: number): Checked {
   if (w.old_news) return { drop: "old news" };
+  if (w.changes_something === false) return { drop: "nothing it changes for us" };
   if (!(w.confidence >= MIN_CONFIDENCE)) return { drop: `unsure (${Math.round(w.confidence * 100) / 100})` };
   const headline = clean(w.headline, 80);
   const what = clean(w.what, 350);
   const why = clean(w.why, 250);
-  const line = clean(w.mood.line, 200);
-  const takes = w.mood.takes.map((t) => clean(t, 160)).filter(Boolean).slice(0, 3);
-  const quiet = w.mood.label === "no clear reaction yet";
+  const few = comments !== undefined && comments < QUIET;
+  const mood = few ? { label: "no clear reaction yet" as const, line: comments ? `Only ${comments} comment${comments === 1 ? "" : "s"} so far.` : "No comments yet.", takes: [] } : w.mood;
+  const line = clean(mood.line, 200);
+  const takes = mood.takes.map((t) => clean(t, 160)).filter(Boolean).slice(0, 3);
+  const quiet = mood.label === "no clear reaction yet";
   if (!headline || !what || !why || !line || (!quiet && takes.length < 2)) return { drop: "an empty field" };
   const link = w.official_link.trim();
   const official = link && officialLink(link) && links.some((l) => l === link) ? link : "";
-  return { ok: { ...w, headline, what, why, mood: { label: w.mood.label, line, takes }, official_link: official } };
+  return { ok: { ...w, headline, what, why, mood: { label: mood.label, line, takes }, official_link: official } };
 }
 
 const MOOD_EMOJI: Record<string, string> = { "mostly for": "👍", "mostly against": "😡", split: "⚖️", "joking about it": "😂", "no clear reaction yet": "🤷" };
@@ -180,7 +211,7 @@ export type Origin = { readonly source: "reddit" | "blizzard"; readonly sub: str
 export function cardText(o: Origin, w: Writeup): string {
   const official = [o.official, w.official_link].find((l): l is string => !!l && officialLink(l) && l !== o.link) ?? null;
   const where = o.source === "blizzard" ? "Blizzard" : `r/${o.sub}`;
-  const links = [threadLink(o.link) ? `[${o.source === "blizzard" ? "Blizzard's post" : "thread"}](${o.link})` : null, official ? `[Blizzard's post](${official})` : null].filter(Boolean);
+  const links = [threadLink(o.link) ? `[${o.source === "blizzard" ? "Blizzard's post" : "thread"}](${o.link})` : null, official ? `[${linkLabel(official)}](${official})` : null].filter(Boolean);
   return [
     `### ${w.headline}`,
     `**What happened** ${w.what}`,

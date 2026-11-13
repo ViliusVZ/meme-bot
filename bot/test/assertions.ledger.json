@@ -2174,16 +2174,6 @@
    "expect.toEqual([\"Rock no stick when\", \"Fist weapon\", \"Or off hand?\"])",
    "expect.toEqual([])"
   ],
-  "test \"1. the first run with full subreddits: nothing posted, everything seen, each subreddit's bar learned\"": [
-   "expect.toMatchObject({ first: true, seen: 25 + 25 + new Set(parseFeed(blue).map((p) => p.topic)).size })",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toBe(true)",
-   "expect.toHaveLength(3)",
-   "expect.toEqual({})",
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
   "test \"2. a post that's hot but 40 hours old is never posted, whatever the model says; a Blizzard post may be 48\"": [
    "expect.toBe(2)",
    "expect.not.toContain(\"The 40 hour old hot one\")",
@@ -2435,6 +2425,62 @@
   "test \"the backtest when the triage gets no answer: the sheet says run again\"": [
    "expect.toBe(false)",
    "expect.toContain(\"not triaged (Gemini didn't answer: run again)\")"
+  ],
+  "test \"1. the first run with full subreddits: nothing posted, everything seen, each subreddit's bar learned\"": [
+   "expect.toMatchObject({ first: true, seen: 25 + 25 + new Set(parseFeed(blue).filter((p) => p.excerpt).map(blizzardId)).size })",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toBe(true)",
+   "expect.toHaveLength(3)",
+   "expect.toEqual({})",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"a running hotfix post as it stood on a day: the sections dated after that day are left out\"": [
+   "expect.toBe(\"Hotfixes November 5, 2026 Rend and Tear fixed.\")",
+   "expect.toBe(\"Hotfixes November 9, 2026 Hunter pets have less health. November 5, 2026 Rend and Tear fixed.\")",
+   "expect.toBe(\"No dates in here.\")"
+  ],
+  "test \"a Blizzard post's material: its own post from the topic (the opening one as it stood that day), the players' replies by then as its comments\"": [
+   "expect.toEqual({ text: \"Hotfixes November 5, 2026 Rend and Tear fixed.\", comments: [\"Finally.\"] })",
+   "expect.toEqual({ text: \"We're looking into it.\", comments: [\"Posted later.\"] })",
+   "expect.toBeNull()"
+  ],
+  "test \"every staff post is a story of its own, with its own time: a running hotfix topic's new post too\"": [
+   "expect.toEqual([[\"blizzard:700\", now() - 30 * 3600, \"skip\"], [\"blizzard:700/5\", now() - 2 * 3600, \"skip\"]])",
+   "expect.toContain(\"blizzard:700/5\")"
+  ],
+  "test \"a Blizzard post is written from its own post in the topic, with the players' replies as its comments (staff replies aren't comments)\"": [
+   "expect.toMatchObject({ text: \"Dungeon kill experience is up 50%.\", comments: [\"Reply 1.\", \"Reply 2.\", \"Reply 3.\"], article: null })",
+   "expect.toContain(\"Only 3 comments so far.\")"
+  ],
+  "test \"a write-up that changes nothing for us isn't posted; with fewer than 5 comments there's no reaction to tell yet\"": [
+   "expect.toEqual({ drop: \"nothing it changes for us\" })",
+   "expect.toMatchObject({ ok: { mood: { label: \"no clear reaction yet\", line: \"Only 3 comments so far.\", takes: [] } } })",
+   "expect.toMatchObject({ ok: { mood: { label: \"no clear reaction yet\", line: \"No comments yet.\", takes: [] } } })",
+   "expect.toMatchObject({ ok: { mood: { label: \"split\" } } })"
+  ],
+  "test \"a request, an opinion or one player's story is never a card, however high the model scores it\"": [
+   "expect.toMatchObject({ keep: false, reason: \"a request or opinion\" })"
+  ],
+  "test \"a card names its link by its site: a Wowhead article is Wowhead, not Blizzard's post\"": [
+   "expect.toContain(\"[Wowhead](https://www.wowhead.com/forever/news/world-first-1)\")",
+   "expect.toContain(\"[Blizzard's post](https://eu.forums.blizzard.com/en/wow/t/slug/700/1)\")"
+  ],
+  "test \"the writer is told: what happened only from the post and its article, a concrete why or none, no region the material doesn't name, what each mood means\"": [
+   "expect.not.toContain(\"Nothing for us, but everyone is talking about it\")",
+   "expect.toContain(\"Never from the comments: a commenter's claim, guess or report is not a fact\")",
+   "expect.toContain(\"- changes_something: false when nothing in the material changes anything for a Forever player\")",
+   "expect.toContain(\"Mention a region (EU, US) or a realm type only when the material does.\")",
+   "expect.toContain('\"split\" (the comments disagree with each other, roughly evenly; two kinds of players existing is not a split)')",
+   "expect.toContain('\"opinion\" (a request to Blizzard')"
+  ],
+  "test \"the backtest reads a thread as it was by the card's time: comments posted after it are left out\"": [
+   "expect.toEqual([\"Said that day.\"])",
+   "expect.toContain(\"Only 1 comment so far.\")"
+  ],
+  "test \"the backtest reads a Blizzard post from its topic as it stood that day: the opening post's later sections and later replies left out\"": [
+   "expect.toMatchObject({ text: \"Hotfixes November 10, 2026 Pets have more health.\", comments: [\"Nice.\"], article: null })"
   ]
  },
  "traces.test.ts": {
