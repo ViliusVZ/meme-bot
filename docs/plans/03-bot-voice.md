@@ -31,6 +31,16 @@ Read `README.md` in this folder first.
   then prove from the logs (`voice:` lines) a real UDP join, a clip playing and the gaps: ready → 3 s →
   sound, last sound → 3 s → leave, 30 s at most. Then the owner's listening test. Production gets it
   with the toggle off.
+- **2026-11-13, shipped:** the test bot runs it (`3acb5f6`, toggle on) since 10:22. Proven there from
+  the logs: a QA night's start with Vithis in the Lobby (browser) moved him into the room and the bot
+  joined (UDP ready 0.8 s after joining), spoke (done 9.6 s after joining: 3 s gap + ~5.8 s of
+  jingle and line) and left 3.0 s after its last sound (12.6 s in all). Its lone-early-bird timer,
+  set while he sat in the Lobby, correctly didn't fire once the night had started. The lone early
+  bird itself is unproven live: the browser dropped out of voice 32 s after rejoining. Production
+  got it at 10:43 (`51294ed`, toggle off: no clips made, no voice lines); both HQ panels refreshed in
+  place (production's shows "Bot voice: off"). Nobody has listened yet: the owner's test is next.
+  While the toggle is on and the cache fills, the minute job runs ~6–9 s (4 Edge clips a minute,
+  last in the minute's order, nothing waits on it).
 - **Production gets the code with the 🔇 toggle off** (nobody has listened yet); the test bot runs it
   with the toggle on. The owner joins the test server, listens, and turns it on himself.
 
