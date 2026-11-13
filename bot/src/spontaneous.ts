@@ -14,10 +14,15 @@
 //     games is put to Gemini once, in the background ("World of Warcraft: Forever" → World of
 //     Warcraft); when Gemini can't say, one tap teaches it instead. And two of us playing a game before anyone's in voice gets its room ready
 //     under the Lobby, silently (it archives itself after an hour if nobody comes).
+//   • ⚔️ A locked-in night starting within three hours owns the Lobby instead (plan 07, "early
+//     birds"): never "Playing something?". All three of us here (the Lobby or the night's room) for
+//     30 s starts the night early (gamenight.ts runs it; `early` says when). Two here get the
+//     night's card: "Open the room" or "Just hanging out". Two shown in the night's game are moved
+//     straight in.
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
-import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, lte, not, like, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Match, Schema } from "effect";
-import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, nightCards, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, IS_COMPONENTS_V2 } from "./discord.js";
@@ -32,7 +37,9 @@ import { jsonText } from "./json.js";
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
-const PLANNED_SOON = 15 * 60; // a planned night starting within this owns the Lobby
+export const WINDOW = 3 * 3600; // a locked-in night starting within this owns the Lobby (its own rules, right up to the start)
+export const EARLY_AFTER = 30; // all three of us here this long → the night starts now
+const CARD_LAST = 60; // the night's card isn't posted this close to the start
 const NIGHT_LIVE = 6 * 3600; // a started night's room is the night's for this long (while it's open)
 const NIGHT_ON = 3 * 3600; // a night this recently started is on, room or no room (late.ts watches this long)
 export const LINE_AFTER = 2 * 60; // a session this old with someone missing gets its quiet line
@@ -41,7 +48,7 @@ export const END_GRACE = 15 * 60; // fewer than two for this long → the sessio
 export const NOTE_TTL = 2 * 60; // the "pulled you in" note removes itself after this
 const UNDO_QUIET = 60; // a ↩ undo keeps the Lobby quiet even while people trickle back in
 const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
-const RETRY_GUESS = 86400; // Gemini couldn't answer: ask about that name again a day later
+const RETRY_GUESS = 3600; // Gemini couldn't answer: ask about that name again once more than an hour has passed
 const mention = (u: string) => `<@${u}>`;
 const real = not(like(rooms.channel_id, "pending:%"));
 
@@ -50,7 +57,11 @@ export type Change = { user: string; from: string | null; to: string | null };
 type Room = typeof rooms.$inferSelect;
 type Session = typeof sessions.$inferSelect;
 type Prompt = typeof lobbyPrompts.$inferSelect;
-type Planned = { soon: boolean; on: boolean; rooms: Set<string> };
+/** The locked-in night that hasn't started and starts within WINDOW (or is due). */
+export type Ahead = { day: string; game: string; start_at: number };
+type Planned = { night: Ahead | null; on: boolean; rooms: Set<string> };
+/** What the night's own rules say about who's here: start it now, or look again then. */
+export type Early = { start: Ahead | null; due: number | null };
 
 /** What to tell the tapper privately: a line, or a whole message (with buttons). */
 export type Notice = string | { content: string; components: unknown[] } | null;
@@ -122,6 +133,21 @@ export class Spontaneous extends Context.Service<
     minute(t?: number): Effect.Effect<Record<string, unknown>, DbError>;
     /** Unplanned nights that counted, by day (stats): [{ day, game }]. */
     counted(fromDay: string, toDay: string): Effect.Effect<{ day: string; game: string }[], DbError>;
+    /**
+     * ⚔️ Early birds: all three of us here (the Lobby, or an open room of the night's game) for
+     * EARLY_AFTER, before a locked-in night inside WINDOW, with nobody having said "Just hanging out"
+     * and no two of us shown in another of our games: the night to start now (gamenight.ts claims
+     * and runs it). Otherwise when to look again, or null.
+     */
+    early(where: Where, t?: number): Effect.Effect<Early, DbError>;
+    /**
+     * The night of `day` changed (started, called off, its start moved), or with no day every open
+     * card is checked (the minute): a card whose night is no longer ahead goes, one whose start
+     * moved shows the new one.
+     */
+    nightChanged(day?: string): Effect.Effect<void, DbError>;
+    /** A self-removing note in a room's chat, with ↩ Back to the Lobby for `moved`. */
+    note(channel: string, content: string, moved: ReadonlyArray<string>, t?: number): Effect.Effect<void, DbError>;
   }
 >()("meme-bot/spontaneous") {
   static readonly layer = Layer.effect(
@@ -146,15 +172,16 @@ export class Spontaneous extends Context.Service<
 
       /**
        * The planned night that owns voice right now: `rooms` are open rooms of nights that started (for
-       * NIGHT_LIVE), `on` means one started lately (even if its room didn't open), `soon` that one is
-       * about to start (or is due and hasn't yet).
+       * NIGHT_LIVE), `on` means one started lately (even if its room didn't open), `night` the one that
+       * hasn't started yet and starts within WINDOW (or is due and hasn't yet).
        */
       const planned = Effect.fnUntraced(function* (t: number) {
         const nights = yield* db
-          .select({ day: gameNights.day, start_at: gameNights.start_at, reminded: gameNights.reminded })
+          .select({ day: gameNights.day, start_at: gameNights.start_at, reminded: gameNights.reminded, game: gameNights.game })
           .from(gameNights)
-          .where(and(eq(gameNights.stage, "set"), gt(gameNights.start_at, t - NIGHT_LIVE), lte(gameNights.start_at, t + PLANNED_SOON)));
-        const soon = nights.some((n) => !n.reminded);
+          .where(and(eq(gameNights.stage, "set"), gt(gameNights.start_at, t - NIGHT_LIVE), lte(gameNights.start_at, t + WINDOW)));
+        const ahead = nights.filter((n) => !n.reminded && n.game).sort((a, b) => a.start_at! - b.start_at!)[0];
+        const night: Ahead | null = ahead ? { day: ahead.day, game: ahead.game!, start_at: ahead.start_at! } : null;
         const started = nights.filter((n) => n.reminded && n.start_at! <= t).map((n) => n.day);
         const open = started.length
           ? yield* db
@@ -163,7 +190,7 @@ export class Spontaneous extends Context.Service<
               .where(and(inArray(rooms.day, started), isNull(rooms.archived_at), real))
           : [];
         const on = nights.some((n) => n.reminded && n.start_at! <= t && n.start_at! > t - NIGHT_ON);
-        return { soon, on, rooms: new Set(open.map((r) => r.channel_id)) } satisfies Planned;
+        return { night, on, rooms: new Set(open.map((r) => r.channel_id)) } satisfies Planned;
       });
 
       // ---------------------------------------------------------------- 🎮 what we're playing (game detection)
@@ -207,11 +234,11 @@ export class Spontaneous extends Context.Service<
         for (const a of yield* db.select().from(gameAliases).where(inArray(gameAliases.activity, [...names]))) known.add(a.activity.toLowerCase());
         const learned: { activity: string; game: string | null }[] = [];
         for (const name of names.filter((n) => !known.has(n.toLowerCase()))) {
-          // claim the name, so a second presence update doesn't ask twice; a failed ask may retry tomorrow
+          // claim the name, so a second presence update doesn't ask twice; a failed ask may retry after an hour
           const [claim] = yield* db
             .insert(activityGuesses)
             .values({ activity: name, at: t })
-            .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lte(activityGuesses.at, t - RETRY_GUESS)) })
+            .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lt(activityGuesses.at, t - RETRY_GUESS)) })
             .returning({ a: activityGuesses.activity });
           if (!claim) continue;
           const r = yield* gemini.ask(
@@ -223,7 +250,7 @@ or a browser, or you aren't sure), answer null.`,
             { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } }, required: ["game"] },
             Guess,
           );
-          if (!r) continue; // no answer to be had today: claimed, so tomorrow it's tried again
+          if (!r) continue; // no answer to be had right now: claimed, so it's tried again after an hour
           const game = list.find((g) => g.toLowerCase() === r.game?.toLowerCase()) ?? null;
           // the answer and its alias together (answered with no alias would never be asked again)
           yield* Effect.uninterruptible(
@@ -260,7 +287,7 @@ or a browser, or you aren't sure), answer null.`,
        * Once per game per day, silently; the room archives itself after an hour if nobody comes.
        */
       const readyRoom = Effect.fnUntraced(function* (where: Where, open: ReadonlyArray<Room>, plan: Planned, t: number) {
-        if (!(yield* presencesOn) || plan.soon || plan.on || plan.rooms.size) return;
+        if (!(yield* presencesOn) || plan.night || plan.on || plan.rooms.size) return;
         // only those not in voice yet (in voice, the Lobby flow has them)
         const away = (yield* trio).filter((p) => !where.get(p));
         if (away.length < 2) return;
@@ -390,12 +417,13 @@ or a browser, or you aren't sure), answer null.`,
         }
         if (cur) {
           if (cur.state !== "open" || !cur.posted_at) return null;
+          if (yield* isCard(cur.id)) return null; // the night's card stays until it's answered or its night moves on (nightChanged)
           if (t - cur.posted_at < PROMPT_TTL) return cur.posted_at + PROMPT_TTL;
           yield* closePrompt(cur, "expired");
           return null;
         }
-        // a planned night owns the Lobby; and with someone already in a game room, joiners get pulled there
-        if (plan.soon || plan.on || plan.rooms.size || open.some((r) => inRoom(r).length)) return null;
+        // a started night owns the Lobby; and with someone already in a game room, joiners get pulled there
+        if (plan.on || plan.rooms.size || open.some((r) => inRoom(r).length)) return null;
 
         // the gathering started when the second of us got here (their Lobby stretch, as tracked for stats)
         const segs = yield* db
@@ -405,6 +433,11 @@ or a browser, or you aren't sure), answer null.`,
         const starts = segs.map((s) => s.started_at).sort((a, b) => a - b);
         const since = starts.length >= 2 ? starts[1] : t;
         if (t < since + GATHER_AFTER) return since + GATHER_AFTER;
+        // a locked-in night ahead: its own rules, never the question
+        if (plan.night) {
+          yield* nightCard(where, lobby, open, plan.night, t);
+          return null;
+        }
         // game detection: two playing the same game and nobody playing another → no need to ask
         const seen = (yield* presencesOn) ? yield* playingGames(lobby) : { of: new Map<string, string>(), unknown: null };
         const one = oneGame(seen.of);
@@ -414,6 +447,132 @@ or a browser, or you aren't sure), answer null.`,
         }
         yield* ask(t, one?.game ?? null, seen.unknown);
         return t + PROMPT_TTL;
+      });
+
+      // ---------------------------------------------------------------- ⚔️ early birds (a locked-in night ahead)
+
+      /** Open rooms of the night's game: being there counts as here. */
+      const nightRooms = (night: Ahead, open: ReadonlyArray<Room>) => new Set(open.filter((r) => r.game.toLowerCase() === night.game.toLowerCase()).map((r) => r.channel_id));
+      /** Who's here for the night (the Lobby, or a room of its game) and who isn't. */
+      const hereFor = Effect.fnUntraced(function* (where: Where, night: Ahead, open: ReadonlyArray<Room>) {
+        const ids = new Set([lobbyId, ...nightRooms(night, open)]);
+        const ps = yield* trio;
+        const isHere = (p: string) => ids.has(where.get(p) ?? "");
+        return { here: ps.filter(isHere), missing: ps.filter((p) => !isHere(p)) };
+      });
+
+      /** Two or more of `users` shown in one of our games that isn't the night's: don't start the wrong game. */
+      const wrongGame = Effect.fnUntraced(function* (users: ReadonlyArray<string>, night: Ahead) {
+        if (!(yield* presencesOn)) return false;
+        const { of } = yield* playingGames(users);
+        return [...of.values()].filter((g) => g.toLowerCase() !== night.game.toLowerCase()).length >= 2;
+      });
+
+      /** Whether a gathering's row is the night's card (not the question). */
+      const isCard = Effect.fnUntraced(function* (id: number) {
+        return (yield* db.select({ id: nightCards.prompt_id }).from(nightCards).where(eq(nightCards.prompt_id, id))).length > 0;
+      });
+
+      /** "Just hanging out" (or ↩ back to the Lobby) on this gathering: the bot leaves it alone. */
+      const leftAlone = Effect.fnUntraced(function* () {
+        const [cur] = yield* db.select({ state: lobbyPrompts.state }).from(lobbyPrompts).where(eq(lobbyPrompts.current, true));
+        return cur?.state === "dismissed" || cur?.state === "undone";
+      });
+
+      const cardMessage = Effect.fnUntraced(function* (id: number, night: Ahead, missing: ReadonlyArray<string>) {
+        const emoji = yield* games.emojiFor(night.game);
+        const btn = (label: string, custom_id: string, e: string, style = 2) => ({ type: 2, style, label, custom_id: custom_id.slice(0, 100), emoji: { name: e } });
+        const waiting = missing.length ? `Still waiting on ${names(missing)}. ` : "";
+        return {
+          flags: IS_COMPONENTS_V2 | SILENT,
+          allowed_mentions: { parse: [] },
+          components: [
+            {
+              type: 17,
+              accent_color: 0xeb459e,
+              components: [
+                { type: 10, content: `### ${emoji} ${night.game} at <t:${night.start_at}:t> · you're early\n-# ${waiting}Want the room already?` },
+                { type: 1, components: [btn("Open the room", `lob:${id}:g:${night.game}`, emoji, 1), btn("Just hanging out", `lob:${id}:chill`, "🛋️")] },
+              ],
+            },
+          ],
+        };
+      });
+
+      /**
+       * Two or more of us in the Lobby, the night ahead: both shown in the night's game → straight in
+       * (↩ to undo); everyone here and the right game → nothing (`early` starts it); else the card.
+       */
+      const nightCard = Effect.fnUntraced(function* (where: Where, lobby: ReadonlyArray<string>, open: ReadonlyArray<Room>, night: Ahead, t: number) {
+        if (night.start_at - t <= CARD_LAST) return;
+        const { here, missing } = yield* hereFor(where, night, open);
+        if (yield* presencesOn) {
+          const one = oneGame((yield* playingGames(lobby)).of);
+          if (one && one.by.length >= 2 && one.game.toLowerCase() === night.game.toLowerCase()) return yield* autoMove(night.game, one.by, t);
+        }
+        if (!missing.length && !(yield* wrongGame(here, night))) return;
+        // claim → post → record, never cut short (architecture §15); a failed post leaves the gathering quiet
+        yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "open" }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
+            if (!claim) return;
+            yield* db.insert(nightCards).values({ prompt_id: claim.id, day: night.day, start_at: night.start_at });
+            yield* Effect.gen(function* () {
+              const msg = yield* discord.createMessage(lobbyId, yield* cardMessage(claim.id, night, missing));
+              yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
+            }).pipe(
+              Effect.catch((e) =>
+                Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("posting the early-bird card", e)),
+              ),
+            );
+          }),
+        );
+      });
+
+      const early = Effect.fn("Spontaneous.early")(function* (where: Where, at?: number) {
+        const t = at ?? (yield* nowSec);
+        const none: Early = { start: null, due: null };
+        const plan = yield* planned(t);
+        const night = plan.night;
+        if (!night || night.start_at <= t || plan.on) return none;
+        const open = yield* voice.openRooms;
+        const { here, missing } = yield* hereFor(where, night, open);
+        if (missing.length || (yield* leftAlone()) || (yield* wrongGame(here, night))) return none;
+        // here since the last of us got here (their current stretch, as tracked for stats)
+        const ids = new Set([lobbyId, ...nightRooms(night, open)]);
+        const segs = yield* db
+          .select({ user_id: voiceSegments.user_id, channel_id: voiceSegments.channel_id, started_at: voiceSegments.started_at })
+          .from(voiceSegments)
+          .where(and(eq(voiceSegments.open, true), inArray(voiceSegments.user_id, here)));
+        const since = Math.max(...here.map((p) => segs.find((s) => s.user_id === p && ids.has(s.channel_id))?.started_at ?? t));
+        if (t < since + EARLY_AFTER) return { start: null, due: since + EARLY_AFTER } satisfies Early;
+        return { start: night, due: null } satisfies Early;
+      });
+
+      /** One card, held to its night: gone once the night isn't ahead any more, else showing its start. */
+      const reconcile = Effect.fnUntraced(function* (p: Prompt, card: typeof nightCards.$inferSelect) {
+        const [n] = yield* db
+          .select({ day: gameNights.day, stage: gameNights.stage, reminded: gameNights.reminded, game: gameNights.game, start_at: gameNights.start_at })
+          .from(gameNights)
+          .where(eq(gameNights.day, card.day));
+        if (!n || n.stage !== "set" || n.reminded || !n.game || !n.start_at) return yield* closePrompt(p, "expired");
+        if (n.start_at === card.start_at || !p.message_id) return;
+        const night: Ahead = { day: n.day, game: n.game, start_at: n.start_at };
+        const where: Where = new Map(yield* Effect.forEach(yield* trio, (u) => Effect.map(presence.lastKnown(u), (c) => [u, c] as const)));
+        const { missing } = yield* hereFor(where, night, yield* voice.openRooms);
+        const { flags: _, ...body } = yield* cardMessage(p.id, night, missing);
+        // (deleted by hand: then there's nothing to follow; the row still closes with the gathering)
+        yield* discord.editMessage(lobbyId, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
+        yield* db.update(nightCards).set({ start_at: n.start_at }).where(eq(nightCards.prompt_id, p.id));
+      });
+
+      const nightChanged = Effect.fn("Spontaneous.nightChanged")(function* (day?: string) {
+        const cards = yield* db
+          .select({ p: lobbyPrompts, card: nightCards })
+          .from(lobbyPrompts)
+          .innerJoin(nightCards, eq(nightCards.prompt_id, lobbyPrompts.id))
+          .where(and(eq(lobbyPrompts.current, true), eq(lobbyPrompts.state, "open"), day ? eq(nightCards.day, day) : undefined));
+        for (const { p, card } of cards) yield* reconcile(p, card);
       });
 
       const answer = Effect.fn("Spontaneous.answer")(function* (id: number, user: string, what: string, game?: string) {
@@ -670,6 +829,11 @@ or a browser, or you aren't sure), answer null.`,
         recentGames,
         answer,
         goBack,
+        early,
+        nightChanged,
+        note: Effect.fn("Spontaneous.note")(function* (channel: string, content: string, moved: ReadonlyArray<string>, at?: number) {
+          yield* note(channel, content, moved, at ?? (yield* nowSec));
+        }),
         absorb: Effect.fn("Spontaneous.absorb")(function* (day: string, game: string) {
           const [s] = yield* db
             .update(sessions)
@@ -694,7 +858,8 @@ or a browser, or you aren't sure), answer null.`,
           if (due.length) out.notes = due.length;
 
           const [cur] = yield* db.select().from(lobbyPrompts).where(and(eq(lobbyPrompts.current, true), eq(lobbyPrompts.state, "open")));
-          if (cur?.posted_at && t - cur.posted_at >= PROMPT_TTL) {
+          if (cur && (yield* isCard(cur.id))) yield* nightChanged();
+          else if (cur?.posted_at && t - cur.posted_at >= PROMPT_TTL) {
             yield* closePrompt(cur, "expired");
             out.expired = cur.id;
           }

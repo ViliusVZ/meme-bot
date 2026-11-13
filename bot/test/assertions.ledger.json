@@ -1685,6 +1685,12 @@
    "expect.toEqual([\"backtest:sheet\"])",
    "expect.toEqual([])",
    "expect.toEqual([false])"
+  ],
+  "fn earlySequences": [
+   "expect.toEqual([false, now() + 3600])",
+   "expect.toEqual([])",
+   "expect.toEqual([true, now()])",
+   "expect.toBe(3)"
   ]
  },
  "hub.test.ts": {
@@ -1794,6 +1800,11 @@
    "expect.toEqual([401, \"nope\"])",
    "expect.toEqual([200, {}])",
    "expect.toEqual([])"
+  ],
+  "test \"the admin lobby action runs the early birds too, as live.ts does (plan 07's QA)\"": [
+   "expect.toEqual({ due: t0 + 30, early: { started: null, due: t0 + 30 } })",
+   "expect.toEqual({ due: null, early: { started: \"2026-11-06\", due: null } })",
+   "expect.toEqual([{ reminded: true, start_at: t0 + 30 }])"
   ]
  },
  "starts.test.ts": {
@@ -2395,6 +2406,143 @@
   "test \"an interaction's token never lands in a span (its webhook calls are left out)\"": [
    "expect.toBeGreaterThan(0)",
    "expect.toEqual([])"
+  ]
+ },
+ "early.test.ts": {
+  "test \"2026-11-12 again: the third joins at 18:43:45, the night starts at 18:44:15 with one silent line, and 19:00 brings nothing\"": [
+   "expect.toEqual([])",
+   "expect.toBe(false)",
+   "expect.toEqual([true, at(\"18:44:15\")])",
+   "expect.toHaveLength(1)",
+   "expect.toBe(`⚔️ Everyone's here early, so **World of Warcraft** is on now (was 19:00) → <#${yield* roomId}>`)",
+   "expect.toBe(SILENT)",
+   "expect.toEqual({ parse: [] })",
+   "expect.not.toContain(\"<@\")",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])",
+   "expect.toEqual([ [\"a\", \"arrived\", at(\"18:44:15\")], [\"b\", \"arrived\", at(\"18:44:15\")], [\"c\", \"arrived\", at(\"18:44:15\")], ])",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"two early: the night's card, not the question; Open the room; the line for the third; the third pulled in and 30 s later it starts, counted once\"": [
+   "expect.toBe(at(\"18:20:40\"))",
+   "expect.toHaveLength(1)",
+   "expect.not.toContain(\"Playing something?\")",
+   "expect.toContain(`### ⚔️ World of Warcraft at <t:${START}:t> · you're early`)",
+   "expect.toContain(\"-# Still waiting on <@c>. Want the room already?\")",
+   "expect.toBe(V2 | SILENT)",
+   "expect.toEqual({ parse: [] })",
+   "expect.toEqual([true, true])",
+   "expect.toEqual([ [\"a\", room], [\"b\", room], ])",
+   "expect.toBe(true)",
+   "expect.toBe(false)",
+   "expect.toEqual([`🎮 <@a> and <@b> are in **World of Warcraft** → <#${room}>`])",
+   "expect.toBe(4)",
+   "expect.toEqual([room])",
+   "expect.toBe(false)",
+   "expect.toEqual([true, at(\"18:35:31\")])",
+   "expect.toBe(`⚔️ Everyone's here early, so **World of Warcraft** is on now (was 19:00) → <#${room}>`)",
+   "expect.toEqual([SILENT, { parse: [] }])",
+   "expect.toHaveLength(2)",
+   "expect.toEqual([true, false])",
+   "expect.toBe(true)",
+   "expect.toBe(4)",
+   "expect.toEqual([])"
+  ],
+  "test \"two early in the room, the third never comes: at 19:00 one message pinging only the third, their late slip at 19:10\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toBe(\"⏰ <@c> ⚔️ **World of Warcraft** starts now! <@a> and <@b> are already in → <#wow>\")",
+   "expect.toEqual({ users: [\"c\"] })",
+   "expect.toHaveLength(3)",
+   "expect.toContain(\"⏰ <@c> we've started **World of Warcraft** in <#wow>. Running late?\")",
+   "expect.toEqual({ users: [\"c\"] })"
+  ],
+  "test \"the start pings exactly the people not in the room, for all eight combinations of who is\"": [
+   "expect.toHaveLength(1)",
+   "expect.toEqual([\"⚔️ Everyone's here, so **World of Warcraft** is on → <#wow>\", SILENT, { parse: [] }])",
+   "expect.toEqual({ users: pinged })",
+   "expect.toBe(true)",
+   "expect.toBe(inRoom.length > 0)",
+   "expect.toEqual(inRoom)"
+  ],
+  "test \"two early, both shown in the night's game: moved straight in, with ↩, and no card\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([room, room])",
+   "expect.toBe(\"moved\")",
+   "expect.toContain(\"Saw <@a> and <@b> in **World of Warcraft**\")",
+   "expect.toContain(\"lob:back:a,b\")",
+   "expect.toBe(false)"
+  ],
+  "test \"“Just hanging out”, then the third arrives: no early start; the planned start runs as usual\"": [
+   "expect.toBe(\"dismissed\")",
+   "expect.toBe(true)",
+   "expect.toEqual({ started: null, due: null })",
+   "expect.toBe(false)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([true, START])",
+   "expect.toEqual([`⏰ <@a> <@b> <@c> ⚔️ **World of Warcraft** starts now! Room: <#${room}> (moved <@a> <@b> <@c> from the Lobby)`])"
+  ],
+  "test \"all three here, two shown in another of our games: no early start, the card instead\"": [
+   "expect.toEqual({ started: null, due: null })",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"you're early\\\\n-# Want the room already?\")",
+   "expect.not.toContain(\"Still waiting on\")",
+   "expect.toBe(false)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"the card goes when the gathering breaks up and when the night is called off, and follows a moved start\"": [
+   "expect.toHaveLength(1)",
+   "expect.toBe(true)",
+   "expect.toBeUndefined()",
+   "expect.toHaveLength(2)",
+   "expect.toBe(START + 900)",
+   "expect.toContain(`at <t:${START + 900}:t> · you're early`)",
+   "expect.toBe(START + 900)",
+   "expect.toBe(\"off\")",
+   "expect.toBe(true)",
+   "expect.toBe(\"expired\")"
+  ],
+  "test \"outside the window, and while the vote is still open: plan 01's question, unchanged\"": [
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"Playing something?\")",
+   "expect.toEqual({ started: null, due: null })",
+   "expect.toHaveLength(2)",
+   "expect.toContain(\"Playing something?\")",
+   "expect.toEqual([])"
+  ],
+  "test \"no voice snapshot: no early start and no card\"": [
+   "expect.toEqual({ started: null, due: null })",
+   "expect.toBe(false)",
+   "expect.toEqual([])"
+  ],
+  "test \"a voice change and the minute tick both see “everyone's here” at once: one start\"": [
+   "expect.toEqual([DAY])",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toBe(4)",
+   "expect.toEqual([true, at(\"18:20:30\")])"
+  ],
+  "test \"“World of Warcraft: Forever” is World of Warcraft (a migration); an unanswered ask is tried again after an hour\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", WOW]])",
+   "expect.toEqual([\"moved\", WOW, true])",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toHaveLength(1)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(2)",
+   "expect.toEqual([])",
+   "expect.toHaveLength(2)"
+  ],
+  "test \"a card that won't post leaves the gathering quiet (and says so); the next gathering gets one\"": [
+   "expect.toBe(\"failed\")",
+   "expect.toContain(\"posting the early-bird card\")",
+   "expect.toHaveLength(1)",
+   "expect.toBe(\"open\")",
+   "expect.toHaveLength(2)"
   ]
  }
 }

@@ -78,6 +78,7 @@ it.effect("an old-style migrations table (Drizzle 0.45) is upgraded in place, no
       spontaneous: 1794386631426, lobby_activity: 1794387985356, activity_guesses: 1794398083351,
       news: 1794480064000, // (added after the 1.0 conversion: its folder's time)
       news_stories: 1794498328000, // (plan 06: its folder's time too)
+      early_birds: 1794552575000, wow_forever_alias: 1794552577000, // (plan 07: their folders' times too)
     };
     yield* p(() => pool.query(`CREATE SCHEMA ${schema}_drizzle; CREATE TABLE ${table} (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)`));
     for (const m of readdirSync(dir).sort()) {

@@ -5,6 +5,13 @@ Read `README.md` in this folder first.
 > **Since plan 05 (2026-11): the bot is Effect-native.** Build this as Effect services, as the
 > house rules in `README.md` and `bot/README.md` describe (nothing of it is built yet).
 
+## Resume here (2026-11-13)
+
+- Step 0 done the owner-away way (below): samples rendered, a default chosen, checked by
+  speech-to-text. The build follows plan 07's deploy (it touches the same start path).
+- **Production gets the code with the 🔇 toggle off** (nobody has listened yet); the test bot runs it
+  with the toggle on. The owner joins the test server, listens, and turns it on himself.
+
 ## Why
 
 The owner asked about replacing Rythm with our own music player. That was dropped (it needs a
@@ -24,6 +31,14 @@ The bot joins a voice channel, says one thing, and leaves. Three moments:
    person's name and how many minutes late) in the same voice as `roasts.ts`.
 3. **The Lobby question** (plan 01): when the bot posts "🎮 Playing something?" it also joins the
    Lobby and asks it aloud. Not on auto-move: there the bot stays silent.
+4. **The lone early bird** (from plan 07; the owner's idea, 2026-11-13): one of the trio alone in
+   voice (the Lobby or the night's room) before a locked-in night, inside plan 07's window (start
+   at most three hours away), nobody else in voice, for a random four to nine minutes. The bot
+   joins, waits 3 s, a short beep and one line ("beep beep, what are you waiting for, Koral?
+   Chilling alone?"), waits 3 s, leaves, and leaves him confused. Lines hand-written in the voice
+   of `roasts.ts`, mixed Lithuanian and English, a pool per person plus a shared one, drawn from a
+   shuffle-bag so none repeats within a cycle; Ieva's jokes non-sexual. Once per person per night;
+   not if anyone else joins first; off with the 🔇 toggle; every rule below applies.
 
 ## The owner's timing rule (explicit, do not shave)
 
@@ -100,6 +115,32 @@ only the owner's ears can judge it. Before building anything else:
 
 Prefer an option that keeps working if the provider disappears: with the clip cache, every line
 already spoken keeps playing, and only new lines need the engine.
+
+### Step 0 findings (2026-11-13, the owner away)
+
+Samples: `C:\p\meme-bot-voice-samples\` (see its README.txt)
+(`samples/` the voices, `jingles/` the three jingles, `stt_small.txt` the speech-to-text check).
+
+- **Rendered** the six sentences (two Lithuanian, two English, two mixed; the three names and the
+  real line "We had a plan. {who} had other plans. Gaila, bet ne labai.") with: Microsoft's neural
+  voices through the Edge read-aloud endpoint (no account): `lt-LT-LeonasNeural`,
+  `lt-LT-OnaNeural`, `en-US-AndrewMultilingualNeural`, `en-US-AvaMultilingualNeural`,
+  `en-US-BrianMultilingualNeural`; Gemini's own TTS on the free key (`gemini-3.8-flash-tts`, voice
+  Charon, 2–3 s a clip); and a split render: English spans in Brian, Lithuanian spans in Leonas.
+  Azure's and Google Cloud's free tiers need an account with a card (the owner's): not tried. Piper
+  has no Lithuanian.
+- **Checked without ears** by local speech-to-text (Whisper small; weak at Lithuanian, and it picks
+  one language per clip, so mixed lines lose a language in transcription): the English voices read
+  Lithuanian with English sounds ("Labas Coral, Cochacea Divinas"); the Lithuanian voices mangle
+  English ("Gemeinnigt"). Mean word match: split Brian+Leonas 0.70, Brian 0.66, Ava and Gemini
+  0.61, Andrew 0.59, Ona 0.39, Leonas alone 0.38. "Jeva" for Ieva and "Coral" for Koral are spelling,
+  not sound.
+- **Default chosen (the owner can swap it):** the split render: English in
+  `en-US-BrianMultilingualNeural`, Lithuanian in `lt-LT-LeonasNeural`, every spoken line
+  hand-marked into language spans. Jingles (original, synthesised): `jingle1-arpeggio` for a
+  night's start, `jingle2-beepbeep` for the lone early bird, `jingle3-fanfare` spare. The Edge
+  endpoint is unofficial and can break: every line spoken once stays in the clip cache, and a miss
+  falls back to the jingle alone. Gemini TTS is the second engine if Edge stops answering.
 
 ## Edge cases to cover with tests
 

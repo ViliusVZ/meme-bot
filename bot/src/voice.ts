@@ -77,6 +77,11 @@ export class Voice extends Context.Service<
     openRoom(game: string, emoji: string | null, opts?: { day?: string; by?: string; move?: boolean }): Effect.Effect<Opened, DbError | DiscordError | RoomStillCreating>;
     /** Moves every player currently in the Lobby into a room, all at once. Returns who was moved. */
     moveFromLobby(channelId: string): Effect.Effect<string[], DbError>;
+    /**
+     * The same move, also saying who was already in that room (the same lookups: the start pings
+     * only who isn't there yet).
+     */
+    bringIn(channelId: string): Effect.Effect<{ moved: string[]; already: string[] }, DbError>;
     /** Each player's voice channel right now (null: couldn't tell, so don't act on it). */
     readonly whereIs: Effect.Effect<Map<string, string | null> | null>;
     /**
@@ -193,13 +198,14 @@ export class Voice extends Context.Service<
         );
       });
 
-      const moveFromLobby = Effect.fn("Voice.moveFromLobby")(function* (channelId: string) {
+      const gather = Effect.fnUntraced(function* (channelId: string) {
         const ps = yield* trio;
         const went = yield* Effect.forEach(
           ps,
           (p) =>
             Effect.gen(function* () {
               const at = yield* voiceChannel(p).pipe(Effect.catch((e) => Effect.as(Effect.logInfo(`voice lookup failed ${p} ${e}`), null)));
+              if (at === channelId) return "already" as const;
               if (at !== config.lobbyChannelId) return false;
               return yield* discord.moveMember(p, channelId).pipe(
                 Effect.as(true),
@@ -208,9 +214,12 @@ export class Voice extends Context.Service<
             }),
           { concurrency: "unbounded" },
         );
-        const moved = ps.filter((_, i) => went[i]); // stable order for the ping
+        const moved = ps.filter((_, i) => went[i] === true); // stable order for the ping
         if (moved.length) yield* db.update(rooms).set({ last_seen: yield* nowSec }).where(eq(rooms.channel_id, channelId));
-        return moved;
+        return { moved, already: ps.filter((_, i) => went[i] === "already") };
+      });
+      const moveFromLobby = Effect.fn("Voice.moveFromLobby")(function* (channelId: string) {
+        return (yield* gather(channelId)).moved;
       });
 
       const whereIs = Effect.gen(function* () {
@@ -431,6 +440,9 @@ export class Voice extends Context.Service<
         openRooms,
         openRoom,
         moveFromLobby,
+        bringIn: Effect.fn("Voice.bringIn")(function* (channelId: string) {
+          return yield* gather(channelId);
+        }),
         whereIs,
         checkRooms,
         leftRoom: Effect.fn("Voice.leftRoom")(function* (channelId: string, at?: number) {

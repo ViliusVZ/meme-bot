@@ -815,6 +815,11 @@ recordings (see "Numbers").
 - **G3 query sites 210 → 228 (branch `effect-news`):** plan 02's WoW: Forever news, ported as the
   `News` service (`src/news.ts`), adds 18 query sites; every one is run by `test/news.test.ts` and
   test 6's news entry. `scripts/gates.json` `querySites` follows. Nothing else changed the count.
+- **G3 query sites 228 → 238 (branch `early-birds`, plan 07):** the early-bird card and the early
+  start add 10 query sites in `src/spontaneous.ts` (the card's claim, its `night_cards` row, its
+  message id, its failure; whether a gathering's row is a card; "Just hanging out" on it; who's been
+  here how long; the card's night, its new start, and the open cards). Every one is run by
+  `test/early.test.ts` and test 6's early-start entry. `scripts/gates.json` `querySites` follows.
 - **G3 query sites 228 → 233 (branch `news-v2`, plan 06):** the WoW news's second version replaces
   plan 02's `src/news.ts`: its 18 query sites go, 23 come (`news_stories`, `news_cache` and the
   run's settings); every one is run by `test/news.test.ts` and test 6's new news entry.
@@ -853,6 +858,9 @@ recordings (see "Numbers").
   without them (none of those recordings is at the baseline; HEAD has the new ones).
 - **drizzle-kit and partial indexes, plan 06:** `generate` for `news_stories` wrote only the two
   new tables this time (no proposal to drop the five partial indexes); nothing was deleted.
+- **G3 query sites 236 + 10 = 246 (merging `main` with plan 07 into `news-v2`, 2026-11-13):** the two
+  branches' sites add up (plan 06's 228 → 236 and plan 07's 228 → 238 touch different files), and the
+  test floor likewise (907 + 18 = 925).
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

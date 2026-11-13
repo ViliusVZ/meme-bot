@@ -404,7 +404,9 @@ export const Routes = HttpRouter.use((router) =>
                 // "LOBBY" stands for the configured Lobby, so a script needn't know its id
                 const where = new Map(Object.entries((input.where ?? {}) as Record<string, string | null>).map(([u, c]) => [u, c === "LOBBY" ? config.lobbyChannelId : c]));
                 yield* activity.track(where, t);
-                return answer({ due: yield* spontaneous.react(where, t, input.change ?? undefined) });
+                // as live.ts does: the early birds first (⚔️ all three here before a locked-in night), then spontaneous play
+                const early = yield* gameNight.early(where, t);
+                return answer({ due: yield* spontaneous.react(where, t, input.change ?? undefined), early });
               }),
             ),
           ),

@@ -106,5 +106,18 @@
   "db": {
    "games": "8:44c5a8b0c098"
   }
+ },
+ "the admin lobby action runs the early birds too, as live.ts does (plan 07's QA)": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/channels/gn/messages d4d09b338d40"
+  ],
+  "db": {
+   "game_nights": "1:015e17a7565f",
+   "games": "8:297130793490",
+   "rooms": "1:342f104b3d5c",
+   "voice_segments": "3:afa955e26f0f"
+  }
  }
 }

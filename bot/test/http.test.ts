@@ -236,3 +236,17 @@ it.effect("POST /admin/news: a bad token, and with no news channel configured an
     expect(h.calls).toEqual([]);
   }).pipe(h.provide),
 );
+
+it.effect("the admin lobby action runs the early birds too, as live.ts does (plan 07's QA)", () =>
+  Effect.gen(function* () {
+    const t0 = Date.parse("2026-11-06T15:00:00Z") / 1000; // 17:00 in Vilnius
+    yield* Effect.promise(() => h.t.pool.query(`INSERT INTO game_nights (day, stage, game, start_at) VALUES ('2026-11-06', 'set', 'World of Warcraft', ${t0 + 3600})`));
+    const app = yield* build(up);
+    const lobby = (t: number) =>
+      app.inject({ method: "POST", url: "/admin/gamenight", headers: { authorization: "Bearer a" }, payload: { action: "lobby", players: "qa_e1,qa_e2,qa_e3", where: { qa_e1: "LOBBY", qa_e2: "LOBBY", qa_e3: "LOBBY" }, t } });
+    expect((yield* lobby(t0)).json()).toEqual({ due: t0 + 30, early: { started: null, due: t0 + 30 } }); // (the gathering's 30 s, and the early start's)
+    expect((yield* lobby(t0 + 30)).json()).toEqual({ due: null, early: { started: "2026-11-06", due: null } });
+    const { rows } = yield* Effect.promise(() => h.t.pool.query(`SELECT reminded, start_at FROM game_nights WHERE day = '2026-11-06'`));
+    expect(rows).toEqual([{ reminded: true, start_at: t0 + 30 }]);
+  }).pipe(h.provide),
+);
