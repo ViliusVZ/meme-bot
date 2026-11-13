@@ -1242,148 +1242,6 @@
    "settings": "1:4fa1570e14dd"
   }
  },
- "a WoW news card (its claim → the post → its id): interrupted before its claim, nothing is done": {
-  "calls": [],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_stories": "1:e7facbbf50a0",
-   "settings": "1:6abe9b4efee6"
-  }
- },
- "a WoW news card (its claim → the post → its id): interrupted during the claim, everything is done, once": {
-  "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a WoW news card (its claim → the post → its id): interrupted during the post, everything is done, once": {
-  "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_stories": "1:1c9ce3695ad0",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a WoW news card (its claim → the post → its id): interrupted during the record, everything is done, once": {
-  "calls": [
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a backtest card posted on the test bot (its claim → the post → its id): interrupted before its claim, nothing is done": {
-  "calls": [],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_cache": "1:34cace05c415",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the claim, everything is done, once": {
-  "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_cache": "2:3ae533429ce6",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the post, everything is done, once": {
-  "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_cache": "2:97878226fb1d",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
- "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the record, everything is done, once": {
-  "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
-  ],
-  "db": {
-   "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
-   "game_night_votes": "3:f98beaf65529",
-   "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "news_cache": "2:3ae533429ce6",
-   "news_stories": "1:9135fab0240a",
-   "settings": "2:050b5e4eb43f"
-  }
- },
  "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
@@ -1393,7 +1251,6 @@
    "game_nights": "1:602eb4f5c39d",
    "games": "9:ea9dfc7eb603",
    "memes": "1:d188e12f3e47",
-   "news_items": "1:9dfd5c513026",
    "settings": "1:4fa1570e14dd",
    "voice_segments": "3:8b7ac1867a3a"
   }
@@ -1418,7 +1275,6 @@
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_items": "1:9dfd5c513026",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
    "settings": "1:4fa1570e14dd",
@@ -1445,7 +1301,6 @@
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_items": "1:9dfd5c513026",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
    "settings": "1:4fa1570e14dd",
@@ -1472,11 +1327,160 @@
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
-   "news_items": "1:9dfd5c513026",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
    "settings": "1:4fa1570e14dd",
    "voice_segments": "3:080d0cd320ec"
+  }
+ },
+ "a WoW news card (its claim → the post → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_stories": "1:e7facbbf50a0",
+   "settings": "1:6abe9b4efee6"
+  }
+ },
+ "a WoW news card (its claim → the post → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a WoW news card (its claim → the post → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_stories": "1:1c9ce3695ad0",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a WoW news card (its claim → the post → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a backtest card posted on the test bot (its claim → the post → its id): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_cache": "1:34cace05c415",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_cache": "2:3ae533429ce6",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_cache": "2:97878226fb1d",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
+  }
+ },
+ "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_cache": "2:3ae533429ce6",
+   "news_stories": "1:9135fab0240a",
+   "settings": "2:050b5e4eb43f"
   }
  }
 }

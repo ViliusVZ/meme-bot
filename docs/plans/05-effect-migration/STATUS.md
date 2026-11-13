@@ -861,6 +861,10 @@ recordings (see "Numbers").
 - **G3 query sites 236 + 10 = 246 (merging `main` with plan 07 into `news-v2`, 2026-11-13):** the two
   branches' sites add up (plan 06's 228 → 236 and plan 07's 228 → 238 touch different files), and the
   test floor likewise (907 + 18 = 925).
+  The merge changes 12 test 6 recordings in their `db` only, every call identical: plan 07's early
+  start no longer sees the `news_items` row plan 02's removed entries left before it, and the two plan
+  06 entries (now after it) see the 2 `fleeting` rows the early start leaves. Re-recorded in the
+  merge's follow-up commit.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`
