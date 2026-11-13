@@ -104,7 +104,7 @@ EGAME = "QA Early Birds"
 DAY = TEST_DAYS[6]
 START = int(vilnius(DAY, "19:00"))
 early = lambda where, t, change=None: admin("/admin/gamenight", {"action": "lobby", "players": EPLAYERS, "where": where, "t": t, "change": change})
-answer = lambda pid, what, game=None: admin("/admin/gamenight", {"action": "lobby", "players": EPLAYERS, "answer": {"id": pid, "user": "qa_e1", "what": what, "game": game}})
+answer = lambda pid, what, game=None: admin("/admin/gamenight", {"action": "lobby", "players": EPLAYERS, "answer": {"id": pid, "user": "qa_e1", "what": what, **({"game": game} if game else {})}})
 current = lambda: sql("SELECT p.*, c.day AS night, c.start_at AS shows FROM lobby_prompts p LEFT JOIN night_cards c ON c.prompt_id = p.id WHERE p.current")
 on_air = lambda: sql(f"SELECT reminded, start_at FROM game_nights WHERE day = '{DAY}'")[0]
 snap = Snapshot()
