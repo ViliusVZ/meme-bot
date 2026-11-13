@@ -41,8 +41,11 @@ owner's feedback the day plan 02 went live.
     with `-# backtest · <weekday> <day>` under it; claimed once per sheet in `news_cache`, never
     touching `news_stories` or the day's cap. Refused (403) unless `NEWS_BACKTEST_POST=1`, which
     only `deploy/dev.env` sets.
-- **Deployed:** the test bot runs `news-v2` (`0144368`) since 2026-11-12 18:31; the work above is
-  not deployed. Production is still on `main` = `79c0a2d` (plan 02's news). Both bots share the
+- **2026-11-13 09:44:** `main` (plan 07, which also switched plan 02's news off in production and
+  deleted its stale post) merged into `news-v2` (`b99d5a5`, then `99b7240` re-recording test 6's
+  merged entries); all gates green (925 tests, 246 sites). Test bot on `99b7240` since 09:48;
+  backtest (days 7, max_calls 10) started 09:50.
+- **Deployed (before that):** the test bot ran `news-v2` (`0144368`) since 2026-11-12 18:31. Production is still on `main` = `79c0a2d` (plan 02's news). Both bots share the
   key: production's plan 02 code still counts its own old budget (`gemini_budget`, 15 a day,
   `gemini-3.8-flash` for game names; its news on `gemini-3.5-flash` → `gemini-3.8-flash`), so until
   the merge the two bots' counts don't see each other.
