@@ -4,6 +4,7 @@
 //   • someone joining the Lobby during a game night is pulled into the game's room at once
 //   • when a room empties, its 15-minute wrap-up timer starts; it fires exactly on time
 //   • 🎮 spontaneous play (spontaneous.ts): the Lobby question, unplanned sessions, pulling people in
+//   • ⚔️ early birds: all three of us here before a locked-in night starts it now (gamenight.ts)
 //   • 🐦 the lone early bird (botvoice.ts): one of us waiting alone before a night gets a visit
 import { Cause, Clock, Context, Duration, Effect, Fiber, FiberHandle, Layer, PubSub, Queue, Schedule, type Scope } from "effect";
 import { AppConfig, players } from "./config.js";
@@ -12,6 +13,7 @@ import { Activity } from "./activity.js";
 import { Voice } from "./voice.js";
 import { LateSlips } from "./late.js";
 import { Spontaneous, type Change } from "./spontaneous.js";
+import { GameNight } from "./gamenight.js";
 import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { Background } from "./background.js";
@@ -65,6 +67,7 @@ export class Live extends Context.Service<
       const voice = yield* Voice;
       const late = yield* LateSlips;
       const spontaneous = yield* Spontaneous;
+      const gameNight = yield* GameNight;
       const botVoice = yield* BotVoice;
       const alerts = yield* Alerts;
       const background = yield* Background;
@@ -98,11 +101,18 @@ export class Live extends Context.Service<
           yield* timer(wrapUp, nextDue * 1000 <= now ? RETRY : nextDue * 1000 - now + 500, { _tag: "WrapUpDue" });
         });
 
-        /** 🎮 Spontaneous play, and a timer for whatever it says is due next (the question's 30 s, say). */
+        /**
+         * ⚔️ Early birds, then 🎮 spontaneous play, and a timer for whatever they say is due next (the
+         * question's 30 s, the early start's 30 s).
+         */
         const lobby = (change?: Change) =>
           Effect.gen(function* () {
             if (!(yield* presence.isReady)) return;
-            const due = yield* spontaneous.react(yield* where, yield* nowSec, change);
+            const w = yield* where;
+            const t = yield* nowSec;
+            const early = (yield* gameNight.early(w, t)).due;
+            const next = yield* spontaneous.react(w, t, change);
+            const due = early === null ? next : next === null ? early : Math.min(early, next);
             yield* FiberHandle.clear(lobbyTimer);
             if (due === null) return;
             yield* timer(lobbyTimer, Math.max(1000, due * 1000 - (yield* Clock.currentTimeMillis) + 500), { _tag: "LobbyDue" });

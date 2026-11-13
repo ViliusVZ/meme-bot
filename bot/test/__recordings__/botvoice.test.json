@@ -70,7 +70,7 @@
  "11. a clip that isn't cached and can't be made: no speech, no alert storm (one alert); a night's start plays its jingle alone": {
   "calls": [
    "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
-   "POST https://discord.com/api/v10/channels/70000/messages 3a3330e40a63"
+   "POST https://discord.com/api/v10/channels/70000/messages c402bf08fcbd"
   ],
   "db": {
    "roast_bags": "1:6b4b52bf3ff0"
@@ -127,8 +127,8 @@
  "moment 4: alone before a locked-in night, for a random 4 to 9 minutes: a beep, then one line, for them": {
   "calls": [],
   "db": {
-   "early_birds": "1:60dc4d666134",
    "game_nights": "1:f43e8c641524",
+   "lone_birds": "1:60dc4d666134",
    "roast_bags": "1:12c8fdd69791",
    "voice_clips": "1:35c7a775f864",
    "voice_segments": "1:eddf7de4849b"
@@ -137,8 +137,8 @@
  "moment 4: someone who sat alone before a restart is counted from when they got there; the night's room counts too": {
   "calls": [],
   "db": {
-   "early_birds": "1:a66cd7c76d9b",
    "game_nights": "1:c3a8001e71ed",
+   "lone_birds": "1:a66cd7c76d9b",
    "roast_bags": "1:a6995bb2e4e7",
    "rooms": "2:ec41dca21e83",
    "voice_clips": "1:c11313993357",
@@ -155,8 +155,8 @@
  "moment 4: once per person per night": {
   "calls": [],
   "db": {
-   "early_birds": "2:e7ca86cfe704",
    "game_nights": "1:f43e8c641524",
+   "lone_birds": "2:e7ca86cfe704",
    "roast_bags": "1:311c71202cf6",
    "voice_clips": "5:23f5b7ca6d99",
    "voice_segments": "2:3769725d65d1"

@@ -7,7 +7,7 @@ import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber, Layer } from "effect";
-import { activityGuesses, earlyBirds, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, settings, voiceSegments, votes } from "../src/db/schema.js";
+import { activityGuesses, loneBirds, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, settings, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -1002,6 +1002,44 @@ it.effect("/meme: its reply's message id is recorded even when the background wo
   }).pipe(h.provide),
 );
 
+// ---------------------------------------------------------------- plan 07: the early start
+// (after every earlier test, for the same reason as above)
+
+/** ⚔️ Everyone's here early: its claim (the start moved to now) → the silent line → the night counted as played. */
+function earlySequences(): Record<string, Sequence> {
+  const trio = ["a", "b", "c"];
+  return {
+    "the early start (its claim, the start moved to now → the silent line → the night counted as played)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03", plays: 2 }).onConflictDoUpdate({ target: games.name, set: { plays: 2 } });
+          yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() + 3600, message_id: "card" });
+          yield* db.insert(voiceSegments).values(trio.map((user_id) => ({ user_id, channel_id: "lobby", started_at: now() - 60, last_seen: now() })));
+          yield* Presence.use((p) => p.snapshot(trio.map((user_id) => ({ user_id, channel_id: "lobby" }))));
+        }),
+      run: () => GameNight.use((g) => g.early(new Map(trio.map((u) => [u, "lobby"])), now())),
+      claim: { table: "game_nights", op: "UPDATE", when: "NEW.reminded AND NOT OLD.reminded" },
+      record: { table: "games", op: "UPDATE" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [n] = yield* db.select().from(gameNights);
+          expect([n.reminded, n.start_at]).toEqual([false, now() + 3600]);
+          expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [n] = yield* db.select().from(gameNights);
+          expect([n.reminded, n.start_at]).toEqual([true, now()]);
+          expect((yield* db.select().from(games).where(eq(games.name, "R.E.P.O.")))[0].plays).toBe(3);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(earlySequences())) define(name, s);
 it.effect("🐦 the lone early bird: interrupted during its claim, the line is still queued (once per night, never claimed and lost)", () =>
   Effect.gen(function* () {
     const db = yield* Db;
@@ -1013,13 +1051,13 @@ it.effect("🐦 the lone early bird: interrupted during its claim, the line is s
       yield* Effect.scoped(
         Effect.gen(function* () {
           yield* v.run;
-          const held = yield* hold({ table: "early_birds", op: "INSERT" });
+          const held = yield* hold({ table: "lone_birds", op: "INSERT" });
           const fiber = yield* Effect.forkChild(v.earlyBird(new Map([["a", "lobby"]]), now()), { startImmediately: true });
           yield* held.inFlight;
           const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
           yield* Fiber.join(stopped);
           yield* held.done;
-          expect((yield* db.select().from(earlyBirds)).map((b) => [b.day, b.user_id])).toEqual([[DAY, "a"]]);
+          expect((yield* db.select().from(loneBirds)).map((b) => [b.day, b.user_id])).toEqual([[DAY, "a"]]);
           expect(h.logs.some((l) => l.includes("voice: queued early bird for lobby"))).toBe(true);
           expect(yield* v.earlyBird(new Map([["a", "lobby"]]), now() + 60)).toBeNull(); // and not again
         }),
@@ -1028,7 +1066,7 @@ it.effect("🐦 the lone early bird: interrupted during its claim, the line is s
       // this file's later tests see none of it
       Effect.ensuring(
         Effect.gen(function* () {
-          yield* Effect.ignore(db.delete(earlyBirds));
+          yield* Effect.ignore(db.delete(loneBirds));
           yield* Effect.ignore(db.delete(roastBags).where(eq(roastBags.pool, "voice:early")));
           yield* Effect.ignore(db.delete(settings).where(eq(settings.key, "bot_voice")));
         }),

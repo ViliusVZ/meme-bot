@@ -292,6 +292,17 @@ export const sessions = pgTable(
   (t) => [primaryKey({ columns: [t.day, t.game] })],
 );
 
+/**
+ * ⚔️ An early-bird card (plan 07): the gathering's row in lobby_prompts is the night's card instead of
+ * the question ("you're early: want the room already?"). Its night, and the start it shows (it follows
+ * the night's start until it's answered, the gathering breaks up, or the night starts or is off).
+ */
+export const nightCards = pgTable("night_cards", {
+  prompt_id: integer().primaryKey(), // lobby_prompts.id
+  day: text().notNull(), // the night's day
+  start_at: unix("start_at").notNull(), // the start the card shows
+});
+
 /** Bot messages that remove themselves (the "pulled you in" notes): deleted once due, restarts or not. */
 export const fleeting = pgTable("fleeting", {
   message_id: text().primaryKey(),
@@ -319,7 +330,7 @@ export const readyRooms = pgTable(
 
 /**
  * 🧠 What Gemini said a Discord game name is (spontaneous.ts): asked once per name, in the
- * background. `game` null with `answered` = not one of ours; not answered = ask again tomorrow.
+ * background. `game` null with `answered` = not one of ours; not answered = ask again after an hour.
  */
 export const activityGuesses = pgTable("activity_guesses", {
   activity: citext("activity").primaryKey(),
@@ -366,8 +377,8 @@ export const voiceClips = pgTable("voice_clips", {
 });
 
 /** 🐦 The lone early bird: the bot dropped in on one of us waiting alone, once per person per night. */
-export const earlyBirds = pgTable(
-  "early_birds",
+export const loneBirds = pgTable(
+  "lone_birds",
   {
     day: text().notNull(),
     user_id: text().notNull(),

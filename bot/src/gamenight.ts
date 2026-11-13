@@ -7,8 +7,10 @@
 //   time → everyone picks the earliest time they can start; we start at the latest of those, and
 //          only if everyone gets an hour together before the first 🏁 leave-by
 //   set  → locked in: Discord event + one ping now; at start a voice room opens (voice.ts) and
-//          latecomers are handled (late.ts). We play all together or not at all: anyone bailing,
-//          even after the start, calls it off for everyone (and gets roasted)
+//          latecomers are handled (late.ts). The start pings only who isn't in the room yet, and
+//          all three of us here early starts it early (⚔️ early birds, spontaneous.ts says when).
+//          We play all together or not at all: anyone bailing, even after the start, calls it off
+//          for everyone (and gets roasted)
 //   off  → someone bailed, or the day ended before we agreed (🔄 reopen works the same day)
 //
 // 🔥 Every vote has a deadline (voteDeadline: 3 h, smart about nights and planned days). Votes stay
@@ -33,7 +35,8 @@ import { Alerts } from "./alerts.js";
 import { Panels, type Mine } from "./panels.js";
 import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
-import { Spontaneous } from "./spontaneous.js";
+import { Spontaneous, names, type Where } from "./spontaneous.js";
+import { Presence } from "./presence.js";
 import { BotVoice } from "./botvoice.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/schema.js";
@@ -61,6 +64,7 @@ const MORNING = { hour: 9, minute: 30 }; // nothing gets decided or posted betwe
 const mention = (id: string) => `<@${id}>`;
 const ts = (sec: number, style: string) => `<t:${sec}:${style}>`;
 const ROOM_EARLY = 10; // a night's room opens this many seconds before the start, so the moves land on the dot
+const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
 const ok: Outcome = { update: true };
 const say = (notice: string, update = false): Outcome => ({ notice, update });
 
@@ -544,6 +548,8 @@ const callNightOff = Effect.fnUntraced(function* (n: Night, who: Record<string, 
       .where(eq(gameNights.day, n.day));
   }
   yield* clearNudge(yield* nightOf(n.day));
+  // an early-bird card for this night in the Lobby goes with it
+  yield* (yield* Spontaneous).nightChanged(n.day).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card after call-off ${errorText(e)}`)));
   return true;
 });
 
@@ -813,6 +819,8 @@ const startMoved = Effect.fnUntraced(function* (n: Night, start: number, user: s
     allowed_mentions: yield* allowedMentions(others),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
+  // an early-bird card in the Lobby shows the new start
+  yield* (yield* Spontaneous).nightChanged(n.day).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card after a moved start ${errorText(e)}`)));
 });
 
 /** Moves the night forward if the votes allow it. */
@@ -1091,7 +1099,27 @@ export const maintainAll = Effect.gen(function* () {
     .from(gameNights)
     .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), lte(gameNights.start_at, t)));
   for (const n of due) if (n.start_at! >= t - 1800 && (yield* claimStart(n))) done.reminded = n.day;
+  // ⚔️ everyone's here early: the minute sees it too (live.ts usually first; the claim makes it once)
+  const early = yield* earlyBirds();
+  if (early.started) done.early = early.started;
   return done;
+});
+
+/**
+ * ⚔️ Early birds: all three of us here before a locked-in night (spontaneous.ts decides): the night
+ * starts now. `where` is who's where (live.ts gives it; the minute reads Presence, and does nothing
+ * without a snapshot: never on a guess). Returns the night it started, and when to look again.
+ */
+export const earlyBirds = Effect.fnUntraced(function* (given?: Where, at?: number) {
+  const presence = yield* Presence;
+  const t = at ?? (yield* currentSec);
+  if (!given && !(yield* presence.isReady)) return { started: null, due: null };
+  const where: Where = given ?? new Map(yield* Effect.forEach(yield* theTrio, (u) => Effect.map(presence.lastKnown(u), (c) => [u, c] as const)));
+  const d = yield* (yield* Spontaneous).early(where, t);
+  if (!d.start) return { started: null, due: d.due };
+  const n = yield* (yield* Nights).get(d.start.day);
+  if (!n || n.stage !== "set" || n.reminded || n.start_at !== d.start.start_at) return { started: null, due: null };
+  return { started: (yield* claimStart(n, undefined, t)) ? n.day : null, due: null };
 });
 
 const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: boolean, done: Record<string, unknown>) {
@@ -1228,25 +1256,31 @@ export const startAt = Effect.fnUntraced(function* (n: Night, stop: Effect.Effec
 /**
  * Claim the start (once, whoever gets there first), then run it; a failure releases the claim. A
  * start that has begun finishes (architecture §15): from the claim on it isn't cut short.
+ * `early` (unix seconds): everyone's here early, so the start moves to then, in the same statement
+ * as the claim; the timer for the planned start then finds it started (and moved) and does nothing.
  */
-const claimStart = (n: Night, at?: number) =>
+const claimStart = (n: Night, at?: number, early?: number) =>
   Effect.uninterruptible(
     Effect.gen(function* () {
       const db = yield* Db;
       const alerts = yield* Alerts;
       const claimed = yield* db
         .update(gameNights)
-        .set({ reminded: true })
+        .set(early === undefined ? { reminded: true } : { reminded: true, start_at: early })
         .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "set"), eq(gameNights.reminded, false), eq(gameNights.start_at, n.start_at!)))
         .returning({ day: gameNights.day });
       if (!claimed.length) return false;
-      const pinged = yield* startReminder(n, at).pipe(
+      const pinged = yield* startReminder(early === undefined ? n : { ...n, start_at: early }, at, early === undefined ? undefined : n.start_at!).pipe(
         Effect.as(true),
         Effect.catch((e) =>
           Effect.gen(function* () {
-            // the ping didn't go out: release the claim so the next minute tries again
-            yield* alerts.failed("the start ping", e, n.day);
-            yield* db.update(gameNights).set({ reminded: false }).where(eq(gameNights.day, n.day));
+            // the ping didn't go out: release the claim so the next minute tries again (an early
+            // start gets its planned start back, so it's either tried again early or runs on time)
+            yield* alerts.failed(early === undefined ? "the start ping" : "the early start", e, n.day);
+            yield* db
+              .update(gameNights)
+              .set(early === undefined ? { reminded: false } : { reminded: false, start_at: n.start_at })
+              .where(eq(gameNights.day, n.day));
             return false;
           }),
         ),
@@ -1262,15 +1296,18 @@ const claimStart = (n: Night, at?: number) =>
         .pipe(Effect.catch((e) => alerts.failed("counting the night as played", e, n.day)));
       // already playing it unplanned today? Then that session is this night now, counted once
       yield* (yield* Spontaneous).absorb(n.day, n.game!).pipe(Effect.catch((e) => alerts.failed("merging the unplanned session into the night", e, n.day)));
+      // an early-bird card still up in the Lobby goes
+      yield* (yield* Spontaneous).nightChanged(n.day).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card at start ${errorText(e)}`)));
       return true;
     }),
   );
 
 /**
  * It's time: open the room, then (at `at`, epoch ms, when given) move the Lobby in, make the
- * event live and ping the squad.
+ * event live and ping whoever isn't in the room yet. `was` (an early start): the planned start, for
+ * the one silent line (everyone's here, nobody to ping).
  */
-const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
+const startReminder = Effect.fnUntraced(function* (n: Night, at?: number, was?: number) {
   const config = yield* AppConfig;
   const discord = yield* Discord;
   const alerts = yield* Alerts;
@@ -1279,23 +1316,38 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
   const emoji = yield* (yield* Games).emojiFor(n.game!);
   // open the game's voice room and bring the Lobby along; the ping still goes out if this fails
   let where = "Hop in 🔊";
+  let already: string[] = []; // in the room before the start: never pinged
   const room = yield* voice.openRoom(n.game!, emoji, { day: n.day, move: false }).pipe(Effect.catch((e) => Effect.as(alerts.failed("opening the game room", e, n.day), null)));
   if (at) yield* sleepUntil(at);
   // external events don't go live on their own (made live alongside the moves)
   const live = n.event_id
     ? yield* Effect.forkDetach(Effect.asVoid(discord.editEvent(n.event_id, { status: 2 })).pipe(Effect.catch((e) => Effect.logInfo(`event start ${errorText(e)}`))), { startImmediately: true })
     : null;
+  let moved: string[] = [];
   if (room) {
-    const moved = yield* voice.moveFromLobby(room.channelId).pipe(Effect.catch((e) => Effect.as(alerts.failed("moving people from the Lobby", e, n.day), [] as string[])));
-    yield* (yield* Attendances).markArrived(n.day, moved);
+    ({ moved, already } = yield* voice.bringIn(room.channelId).pipe(Effect.catch((e) => Effect.as(alerts.failed("moving people from the Lobby", e, n.day), { moved: [] as string[], already: [] as string[] }))));
+    // everyone in the room counts as arrived, on the second
+    yield* (yield* Attendances).markArrived(n.day, ps.filter((p) => moved.includes(p) || already.includes(p)));
     where = `Room: <#${room.channelId}>${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`;
   }
   if (live) yield* Fiber.join(live);
-  yield* discord.createMessage(config.gameChannelId, {
-    content: `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`,
-    allowed_mentions: yield* allowedMentions(ps),
-    message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
-  });
+  const reference = n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined;
+  const toRoom = room ? ` → <#${room.channelId}>` : "";
+  const pinged = ps.filter((p) => !already.includes(p));
+  if (was !== undefined || !pinged.length) {
+    // ⚔️ everyone's here: one silent line, pinging nobody
+    const w = yield* when;
+    const content = was !== undefined ? `${emoji} Everyone's here early, so **${n.game}** is on now (was ${timeLabel(w, was, n.day)})${toRoom}` : `${emoji} Everyone's here, so **${n.game}** is on${toRoom}`;
+    yield* discord.createMessage(config.gameChannelId, { content, flags: SILENT, allowed_mentions: { parse: [] }, message_reference: reference });
+    if (room && moved.length) yield* (yield* Spontaneous).note(room.channelId, `${emoji} Everyone's here early, so I brought you over.`, moved);
+    // 🔊 the room is open, people are in, the line is out: now the bot may say it (queued, never waited on)
+    if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
+    return;
+  }
+  const content = already.length
+    ? `⏰ ${pinged.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${names(already)} ${already.length === 1 ? "is" : "are"} already in${toRoom}${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`
+    : `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`;
+  yield* discord.createMessage(config.gameChannelId, { content, allowed_mentions: yield* allowedMentions(pinged), message_reference: reference });
   // 🔊 the room is open, people are in, the ping is out: now the bot may say it (queued, never waited on)
   if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
 });
@@ -1703,7 +1755,7 @@ const clearDay = (tx: DbTx, day: string) =>
 // ---------------------------------------------------------------- the service
 
 /** What the night's code runs on. */
-type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | BotVoice;
+type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | Presence | BotVoice;
 
 const makeGameNight = Effect.gen(function* () {
   // the services, captured once; a call's own overrides (quiet, stand-in players) still come from
@@ -1729,6 +1781,8 @@ const makeGameNight = Effect.gen(function* () {
     maintain: Effect.provideContext(maintainAll, ctx).pipe(Effect.withSpan("GameNight.maintain")),
     upcomingStarts: bound(upcoming),
     preciseStarts: bound(startsDue),
+    /** ⚔️ Everyone's here early: start the night now (see earlyBirds); live.ts calls it on every voice change. */
+    early: bound(earlyBirds),
     startOnTime: (n: Night, stop?: Effect.Effect<void>) => Effect.provideContext(startAt(n, stop), ctx).pipe(Effect.withSpan("GameNight.startOnTime", { attributes: { day: n.day, game: n.game } })),
     render: (day: string, viewer?: string, notice?: string) => Effect.provideContext(renderCard(day, viewer, notice), ctx),
     planPicker: Effect.provideContext(planPickerCard, ctx),

@@ -1,8 +1,8 @@
-CREATE TABLE "early_birds" (
+CREATE TABLE "lone_birds" (
 	"day" text,
 	"user_id" text,
 	"at" bigint NOT NULL,
-	CONSTRAINT "early_birds_pkey" PRIMARY KEY("day","user_id")
+	CONSTRAINT "lone_birds_pkey" PRIMARY KEY("day","user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "voice_clips" (

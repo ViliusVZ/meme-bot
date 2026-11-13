@@ -12,6 +12,7 @@ import { Activity } from "../src/activity.js";
 import { Voice } from "../src/voice.js";
 import { LateSlips } from "../src/late.js";
 import { Spontaneous } from "../src/spontaneous.js";
+import { GameNight } from "../src/gamenight.js";
 import { Alerts } from "../src/alerts.js";
 import { BotVoice } from "../src/botvoice.js";
 import { Background } from "../src/background.js";
@@ -65,6 +66,7 @@ const setup = (stand: Stand = {}) =>
           }),
           Layer.mock(LateSlips, { watch: Effect.succeed({}) }),
           Layer.mock(Spontaneous, { react: () => Effect.succeed(null), learn: () => Effect.succeed([]) }),
+          Layer.mock(GameNight, { early: () => Effect.succeed({ started: null, due: null }) }),
           Layer.mock(BotVoice, { earlyBird: (_: ReadonlyMap<string, string | null>, t: number) => stand.bird?.(t) ?? Effect.succeed(null) }),
           Background.layer.pipe(Layer.provideMerge(Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }))),
         ),

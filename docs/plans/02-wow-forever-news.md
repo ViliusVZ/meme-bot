@@ -2,6 +2,9 @@
 
 Read `README.md` in this folder first.
 
+> **Switched off in production on 2026-11-13** (with plan 07): `NEWS_CHANNEL_ID` is gone from
+> `bot/deploy/prod.env`, and with no channel the news is fully off (no feed reads, no Gemini, no posts). The test bot keeps it.
+
 > **Since plan 05 (2026-11): the bot is Effect-native.** Build this as Effect services, as the
 > house rules in `README.md` and `bot/README.md` describe (a branch (`wow-news`, f298ce4) written in the old promise style was paused mid-rollout on 2026-11-11; porting it means rewriting `news.ts` as a service).
 

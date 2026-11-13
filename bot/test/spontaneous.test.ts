@@ -230,7 +230,8 @@ it.effect("a planned night owns the Lobby: none while one starts within 15 min o
   Effect.gen(function* () {
     const db = yield* Db;
     const t0 = yield* now;
-    yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 + 600, reminded: false });
+    // (plan 07: a night ahead gets its own card instead; in its last minute, not even that)
+    yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t0 + 90, reminded: false });
     yield* at(t0, { a: "lobby", b: "lobby" });
     expect(yield* at(t0 + 60)).toBeNull();
     // it started, its room is open

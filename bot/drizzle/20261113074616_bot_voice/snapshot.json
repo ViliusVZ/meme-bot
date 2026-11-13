@@ -2,9 +2,9 @@
   "type": "diff",
   "version": "9",
   "dialect": "postgres",
-  "id": "3a77a171-07e1-41fe-b1bb-e66003eda557",
+  "id": "00f6be67-b070-46bc-be7f-dfe4bd2e20de",
   "prevIds": [
-    "8176470b-b4f1-4c3f-b95f-b7a030370cb2"
+    "3c191f66-e229-47da-b2ea-35317dd38828"
   ],
   "footprints": [
     {
@@ -12,15 +12,15 @@
       "statementTarget": [
         "table",
         "public",
-        "early_birds"
+        "lone_birds"
       ],
       "writes": [
-        "s|tbl|public.early_birds",
-        "n|tbl|public.early_birds",
-        "e|tbl|public.early_birds",
-        "n|rel|public.early_birds",
-        "n|type|public.early_birds",
-        "n|rel|public.early_birds_pkey"
+        "s|tbl|public.lone_birds",
+        "n|tbl|public.lone_birds",
+        "e|tbl|public.lone_birds",
+        "n|rel|public.lone_birds",
+        "n|type|public.lone_birds",
+        "n|rel|public.lone_birds_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -51,7 +51,7 @@
       "op": "create",
       "row": {
         "schema": "public",
-        "name": "early_birds",
+        "name": "lone_birds",
         "isRlsEnabled": false,
         "entityType": "tables"
       }
@@ -69,7 +69,7 @@
       "op": "create",
       "row": {
         "schema": "public",
-        "table": "early_birds",
+        "table": "lone_birds",
         "name": "day",
         "type": "text",
         "typeSchema": null,
@@ -85,7 +85,7 @@
       "op": "create",
       "row": {
         "schema": "public",
-        "table": "early_birds",
+        "table": "lone_birds",
         "name": "user_id",
         "type": "text",
         "typeSchema": null,
@@ -101,7 +101,7 @@
       "op": "create",
       "row": {
         "schema": "public",
-        "table": "early_birds",
+        "table": "lone_birds",
         "name": "at",
         "type": "bigint",
         "typeSchema": null,
@@ -213,8 +213,8 @@
       "op": "create",
       "row": {
         "schema": "public",
-        "table": "early_birds",
-        "name": "early_birds_pkey",
+        "table": "lone_birds",
+        "name": "lone_birds_pkey",
         "columns": [
           "day",
           "user_id"

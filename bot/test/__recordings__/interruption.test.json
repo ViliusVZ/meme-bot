@@ -1346,10 +1346,106 @@
    "settings": "1:4fa1570e14dd"
   }
  },
+ "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted before its claim, nothing is done": {
+  "calls": [],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "game_nights": "1:602eb4f5c39d",
+   "games": "9:ea9dfc7eb603",
+   "memes": "1:d188e12f3e47",
+   "news_items": "1:9dfd5c513026",
+   "settings": "1:4fa1570e14dd",
+   "voice_segments": "3:8b7ac1867a3a"
+  }
+ },
+ "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted during the claim, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 908e25d06719",
+   "POST https://discord.com/api/v10/channels/gn/messages e9e7eaf31f0e",
+   "POST https://discord.com/api/v10/channels/20000/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card ffdeeba634b2"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "1:3425b2621923",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "game_nights": "1:a966e79e0386",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_items": "1:9dfd5c513026",
+   "night_attendance": "3:baa73d39e1bd",
+   "rooms": "1:16fb061a2387",
+   "settings": "1:4fa1570e14dd",
+   "voice_segments": "3:e9327d28131f"
+  }
+ },
+ "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted during the post, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 908e25d06719",
+   "POST https://discord.com/api/v10/channels/gn/messages e9e7eaf31f0e",
+   "POST https://discord.com/api/v10/channels/20000/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card ffdeeba634b2"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "game_nights": "1:a966e79e0386",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_items": "1:9dfd5c513026",
+   "night_attendance": "3:baa73d39e1bd",
+   "rooms": "1:16fb061a2387",
+   "settings": "1:4fa1570e14dd",
+   "voice_segments": "3:21067506ca0d"
+  }
+ },
+ "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted during the record, everything is done, once": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels d91ec9c2960b",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 908e25d06719",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 908e25d06719",
+   "POST https://discord.com/api/v10/channels/gn/messages e9e7eaf31f0e",
+   "POST https://discord.com/api/v10/channels/20000/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card ffdeeba634b2"
+  ],
+  "db": {
+   "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
+   "game_aliases": "1:130fae3e9565",
+   "game_night_votes": "3:f98beaf65529",
+   "game_nights": "1:a966e79e0386",
+   "games": "9:fa5c08387b7a",
+   "memes": "1:d188e12f3e47",
+   "news_items": "1:9dfd5c513026",
+   "night_attendance": "3:baa73d39e1bd",
+   "rooms": "1:16fb061a2387",
+   "settings": "1:4fa1570e14dd",
+   "voice_segments": "3:080d0cd320ec"
+  }
+ },
  "🐦 the lone early bird: interrupted during its claim, the line is still queued (once per night, never claimed and lost)": {
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
+   "fleeting": "2:d53c2a108780",
    "game_aliases": "1:130fae3e9565",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:d5e86a79408c",
@@ -1357,7 +1453,7 @@
    "memes": "1:d188e12f3e47",
    "news_items": "1:9dfd5c513026",
    "settings": "1:4fa1570e14dd",
-   "voice_segments": "1:af6cb3e1fb1b"
+   "voice_segments": "1:85218fcef9f8"
   }
  }
 }

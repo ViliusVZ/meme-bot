@@ -20,7 +20,7 @@
 // when no term is running.
 import { and, eq, gt, inArray, isNull, lte, max, sql } from "drizzle-orm";
 import { Cause, Clock, Context, Duration, Effect, Layer, Option, PubSub, Random, Ref, Schema, type Scope } from "effect";
-import { earlyBirds, gameNights, rooms, settings, voiceSegments } from "./db/schema.js";
+import { loneBirds, gameNights, rooms, settings, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Presence } from "./presence.js";
@@ -327,9 +327,9 @@ export class BotVoice extends Context.Service<
           return null;
         }
         const [done] = yield* db
-          .select({ at: earlyBirds.at })
-          .from(earlyBirds)
-          .where(and(eq(earlyBirds.day, night.day), eq(earlyBirds.user_id, user)));
+          .select({ at: loneBirds.at })
+          .from(loneBirds)
+          .where(and(eq(loneBirds.day, night.day), eq(loneBirds.user_id, user)));
         if (done) return null;
         let b = yield* Ref.get(bird);
         if (b?.user !== user) {
@@ -345,7 +345,7 @@ export class BotVoice extends Context.Service<
         // were checked above), and a visit that goes wrong later still used the night's one go
         yield* Effect.uninterruptible(
           Effect.gen(function* () {
-            const [claim] = yield* db.insert(earlyBirds).values({ day: night.day, user_id: user, at: t }).onConflictDoNothing().returning({ day: earlyBirds.day });
+            const [claim] = yield* db.insert(loneBirds).values({ day: night.day, user_id: user, at: t }).onConflictDoNothing().returning({ day: loneBirds.day });
             if (!claim) return;
             const { all, fits } = family(EARLY, EARLY_PERSONAL, user);
             const line = fill(yield* roasts.draw("voice:early", all, fits), { who: user });

@@ -26,7 +26,7 @@ import { readConfig } from "../src/config.js";
 import { Db } from "../src/db/db.js";
 import { EARLY, EARLY_PERSONAL, LATE, LOBBY, START, family, fill, spans } from "../src/lines.js";
 import {
-  earlyBirds,
+  loneBirds,
   fleeting,
   gameAliases,
   gameNights,
@@ -51,7 +51,7 @@ const fake = {
   readyAfter: 500 as number | null, // ms from join to ready; null: never ready
   clipMs: 1000 as number | null, // how long each clip plays; null: playback hangs
   joinFails: null as string | null,
-  synthFails: false,
+  synthFails: false, // each failure a different one (refused, timed out, closed early…)
   synths: [] as string[],
   reset() {
     Object.assign(fake, { events: [], readyAfter: 500, clipMs: 1000, joinFails: null, synthFails: false, synths: [] });
@@ -92,7 +92,7 @@ const FakeTts = Layer.succeed(
   Tts.of({
     synth: (text, voice) =>
       fake.synthFails
-        ? Effect.fail(new TtsUnavailable({ engine: "edge", detail: "Edge is down" }))
+        ? Effect.fail(new TtsUnavailable({ engine: "edge", detail: ["refused", "timed out", "closed early", "no audio"][fake.synths.push("✗") % 4] }))
         : Effect.sync(() => {
             fake.synths.push(text);
             return enc.encode(`${voice === LT_VOICE ? "lt" : "en"}:${text}`);
@@ -101,7 +101,7 @@ const FakeTts = Layer.succeed(
 );
 
 const h = harness({
-  tables: [voiceClips, earlyBirds, roastBags, settings, gameNights, rooms, voiceSegments, lobbyPrompts, sessions, nightAttendance, fleeting, readyRooms, gameAliases, games],
+  tables: [voiceClips, loneBirds, roastBags, settings, gameNights, rooms, voiceSegments, lobbyPrompts, sessions, nightAttendance, fleeting, readyRooms, gameAliases, games],
   discord: { firstId: 70000, routes: [routes.noVoiceState, routes.lobbyOnly] },
   clock: "test",
   env: { BOT_VOICE: true },
@@ -279,6 +279,7 @@ it.effect("6. the 30-second cap fires even if playback hangs", () =>
         yield* TestClock.adjust(29_999);
         expect(count("leave")).toBe(0);
         yield* TestClock.adjust(1);
+        yield* until(() => count("leave") === 1, "the cap"); // while the term still runs
       }),
     );
     expect(timeline()).toEqual([
@@ -584,7 +585,7 @@ it.effect("moment 4: not with the night more than 3 h away, not with no night, n
       }),
     );
     expect(count("join")).toBe(0);
-    expect(yield* db.select().from(earlyBirds)).toEqual([]);
+    expect(yield* db.select().from(loneBirds)).toEqual([]);
   }).pipe(h.provide),
 );
 
@@ -614,7 +615,8 @@ it.effect("moment 4: once per person per night", () =>
       }),
     );
     expect(count("join")).toBe(2);
-    expect((yield* db.select().from(earlyBirds)).map((b) => b.user_id).sort()).toEqual(["a", "b"]);
+    expect(h.logs.filter((l) => l.includes("voice: queued early bird")).length).toBe(2); // one each, never a second for a
+    expect((yield* db.select().from(loneBirds)).map((b) => b.user_id).sort()).toEqual(["a", "b"]);
   }).pipe(h.provide),
 );
 
@@ -634,7 +636,7 @@ it.effect("moment 4: not if someone else joins first", () =>
       }),
     );
     expect(count("join")).toBe(0);
-    expect(yield* db.select().from(earlyBirds)).toEqual([]);
+    expect(yield* db.select().from(loneBirds)).toEqual([]);
   }).pipe(h.provide),
 );
 
@@ -653,7 +655,7 @@ it.effect("moment 4: off with the toggle", () =>
       }),
     );
     expect(count("join")).toBe(0);
-    expect(yield* db.select().from(earlyBirds)).toEqual([]);
+    expect(yield* db.select().from(loneBirds)).toEqual([]);
   }).pipe(h.provide),
 );
 
@@ -666,7 +668,7 @@ it.effect("moment 4: nothing at all while no term is running (another copy leads
     expect(yield* bird({ a: "lobby" }, t)).toBeNull();
     yield* BotVoice.use((v) => v.nightStarted(DAY, "room", "R.E.P.O."));
     expect(yield* Effect.flatMap(Db, (db) => db.select().from(roastBags))).toEqual([]);
-    expect(yield* Effect.flatMap(Db, (db) => db.select().from(earlyBirds))).toEqual([]);
+    expect(yield* Effect.flatMap(Db, (db) => db.select().from(loneBirds))).toEqual([]);
   }).pipe(h.provide),
 );
 
