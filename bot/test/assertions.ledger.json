@@ -2585,6 +2585,11 @@
   ],
   "test \"a line already in the cache plays even with the speech engine down\"": [
    "expect.toEqual([\"♪night\", ...spoken(fill(START[2], { game: \"R.E.P.O.\" }))])"
+  ],
+  "test \"clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round\"": [
+   "expect.toBe(4)",
+   "expect.toBe(true)",
+   "expect.toBe(1)"
   ]
  },
  "tts.test.ts": {

@@ -126,8 +126,12 @@ const concat = (parts: ReadonlyArray<Uint8Array>) => {
 export class Tts extends Context.Service<
   Tts,
   {
-    /** One span of a line in one voice: WebM Opus from Edge, or (Edge failing) Ogg Opus from Gemini. */
-    synth(text: string, voice: string): Effect.Effect<Speech, TtsUnavailable>;
+    /**
+     * One span of a line in one voice: WebM Opus from Edge, or (Edge failing, `spare` not false) Ogg
+     * Opus from Gemini. Clips made ahead pass `spare: false`: Gemini's few lines a day are for speech
+     * that's due now.
+     */
+    synth(text: string, voice: string, options?: { readonly spare?: boolean }): Effect.Effect<Speech, TtsUnavailable>;
   }
 >()("meme-bot/tts") {
   static readonly layer = Layer.effect(
@@ -210,11 +214,11 @@ export class Tts extends Context.Service<
       });
 
       return Tts.of({
-        synth: (text, voice) =>
+        synth: (text, voice, options) =>
           viaEdge(text, voice).pipe(
             // Edge said no: the spare engine, if there's a key (both failures reach the caller as one)
             Effect.catch((edgeFailed) =>
-              config.geminiApiKey
+              config.geminiApiKey && options?.spare !== false
                 ? viaGemini(text).pipe(
                     Effect.catchTags({
                       HttpClientError: (e) => Effect.fail(geminiFailed(e.message)),

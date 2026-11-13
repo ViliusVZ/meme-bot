@@ -198,5 +198,11 @@
    "roast_bags": "1:da1899c75167",
    "voice_clips": "2:dc81c65f03a3"
   }
+ },
+ "clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round": {
+  "calls": [],
+  "db": {
+   "voice_clips": "4:989ce6f96e2e"
+  }
  }
 }

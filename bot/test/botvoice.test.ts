@@ -90,11 +90,11 @@ const FakeVoice = Layer.succeed(
 const FakeTts = Layer.succeed(
   Tts,
   Tts.of({
-    synth: (text, voice) =>
+    synth: (text, voice, options) =>
       fake.synthFails
         ? Effect.fail(new TtsUnavailable({ engine: "edge", detail: ["refused", "timed out", "closed early", "no audio"][fake.synths.push("✗") % 4] }))
         : Effect.sync(() => {
-            fake.synths.push(text);
+            fake.synths.push(options?.spare === false ? `${text} (ahead)` : text);
             return { audio: enc.encode(`${voice === LT_VOICE ? "lt" : "en"}:${text}`), engine: "edge" as const };
           }),
   }),
@@ -718,5 +718,17 @@ it.effect("a line already in the cache plays even with the speech engine down", 
       }),
     );
     expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)).toEqual(["♪night", ...spoken(fill(START[2], { game: "R.E.P.O." }))]);
+  }).pipe(h.provide),
+);
+
+it.effect("clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round", () =>
+  Effect.gen(function* () {
+    yield* start;
+    const v = yield* BotVoice;
+    expect(yield* v.prewarm).toBe(4);
+    expect(fake.synths.every((s) => s.endsWith(" (ahead)"))).toBe(true);
+    fake.synthFails = true;
+    expect(yield* v.prewarm).toBe(1); // one try, then wait for the next minute
+    yield* real(50);
   }).pipe(h.provide),
 );

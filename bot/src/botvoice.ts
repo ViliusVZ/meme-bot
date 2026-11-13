@@ -25,7 +25,7 @@ import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Presence } from "./presence.js";
 import { Roasts } from "./roasts.js";
-import { Clips } from "./clips.js";
+import { Clips, clipKey } from "./clips.js";
 import { VoiceConnector, VoiceFailed } from "./voiceconn.js";
 import { VoiceLink } from "./voicelink.js";
 import { Alerts } from "./alerts.js";
@@ -95,6 +95,7 @@ export class BotVoice extends Context.Service<
       const wake = yield* PubSub.sliding<void>(1);
       const lastSynthAlert = yield* Ref.make<number | null>(null);
       const bird = yield* Ref.make<{ user: string; since: number; due: number } | null>(null);
+      const cachedKeys = new Set<string>(); // clips known to be in the cache (prewarm stops asking the database about them)
 
       // ---------------------------------------------------------------- the 🔇 toggle
 
@@ -248,9 +249,20 @@ export class BotVoice extends Context.Service<
         let made = 0;
         for (const span of lines.flatMap(spans)) {
           if (made >= PREWARM_BATCH) break;
-          if (yield* clips.cached(span)) continue;
+          const key = clipKey(span);
+          if (cachedKeys.has(key)) continue;
+          if (yield* clips.cached(span)) {
+            cachedKeys.add(key);
+            continue;
+          }
           made++;
-          yield* clips.get(span).pipe(Effect.catch((e) => synthFailed(span, e)));
+          // Edge only: Gemini's few lines a day are for speech that's due now. Edge failing: try again next minute
+          const ok = yield* clips.get(span, { spare: false }).pipe(
+            Effect.as(true),
+            Effect.catch((e) => Effect.as(synthFailed(span, e), false)),
+          );
+          if (!ok) break;
+          cachedKeys.add(key);
         }
         if (made) yield* Effect.logInfo(`voice: made ${made} clip(s) ahead`);
         return made;

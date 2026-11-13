@@ -15,8 +15,8 @@ export const clipKey = (s: Span) => createHash("sha256").update(`${s.voice}\n${s
 export class Clips extends Context.Service<
   Clips,
   {
-    /** The span's audio: from the cache, or made now (and kept). */
-    get(span: Span): Effect.Effect<Uint8Array, DbError | TtsUnavailable>;
+    /** The span's audio: from the cache, or made now (and kept). `spare: false`: Edge only (made ahead). */
+    get(span: Span, options?: { readonly spare?: boolean }): Effect.Effect<Uint8Array, DbError | TtsUnavailable>;
     /** Only what's already made (null: not in the cache). */
     cached(span: Span): Effect.Effect<Uint8Array | null, DbError>;
   }
@@ -32,10 +32,10 @@ export class Clips extends Context.Service<
       });
       return Clips.of({
         cached,
-        get: Effect.fn("Clips.get")(function* (span: Span) {
+        get: Effect.fn("Clips.get")(function* (span: Span, options?: { readonly spare?: boolean }) {
           const hit = yield* cached(span);
           if (hit) return hit;
-          const { audio, engine } = yield* tts.synth(span.text, span.voice);
+          const { audio, engine } = yield* tts.synth(span.text, span.voice, options);
           yield* db
             .insert(voiceClips)
             .values({ key: clipKey(span), voice: span.voice, text: span.text, audio: Buffer.from(audio), engine, created_at: yield* nowSec })
