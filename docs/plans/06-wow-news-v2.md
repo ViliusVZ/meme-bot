@@ -17,9 +17,16 @@ owner's feedback the day plan 02 went live.
   silence "run again" (`8790a11`). Pattern 9 (fill by score) already held: the warlock anecdote took
   the 8/10 layers story's slot, now cut as an opinion. Pattern 10's "repeat of an unposted story"
   came from the failed write-up (a rerun writes it); crossposts were already merged by title.
-- **Next:** gates, deploy `news-v2` to the test bot, rerun the backtest (v2 prompts: cached triage and
-  write-ups are paid for again), post its cards, screenshot, editor pass 2. If Gemini fails pass 2,
-  stop the news line and report the failing examples (owner's rule).
+- **Then (13:00):** two more pipeline leaks found on the v2 sheet and fixed (`63f1594`, `b3dab57`): a
+  running topic's opening post repeated the sections its later staff posts carry, and a Blizzard story
+  was handed its own post again as `blizzard_post` from today's feed excerpt (later sections leaked
+  in). Gates green (`0eb531f`), test bot on it. Sheet: session scratchpad `editor2/sheet.md` (6 cards;
+  Tuesday's three top stories wait on Gemini's budget: 3.6-flash spent, 3.7/3.5 503s).
+- **Mid-flight:** editor pass 2 reading `editor2/sheet.md`. If Gemini fails pass 2 after this prompt
+  work, stop the news line and report the failing examples (owner's rule).
+- **Next:** after 10:00 Vilnius (Google's day), rerun the backtest (`max_calls` 6) to write Tuesday;
+  post the cards (`{"backtest":"post"}`), screenshot three; if no findings, merge `news-v2` to `main`
+  when nobody is in voice (the first live run posts nothing).
 
 ## Earlier: Gemini per model, batched write-ups, backtest posting (2026-11-13 morning)
 
