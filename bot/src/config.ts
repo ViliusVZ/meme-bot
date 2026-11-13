@@ -38,6 +38,11 @@ export interface AppConfigShape {
   readonly geminiApiKey: Redacted.Redacted<string> | undefined;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   readonly newsChannelId: string | undefined;
+  /**
+   * 🔊 The bot's voice (botvoice.ts) until someone taps the 🔇 toggle on the HQ panel: BOT_VOICE=on
+   * (the test bot); unset or "off" means off (production, until the owner has listened).
+   */
+  readonly botVoice: boolean;
   readonly appName: string;
   readonly revision: string;
   /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
@@ -104,6 +109,7 @@ export const readConfig = Effect.gen(function* () {
     presences: (yield* or("PRESENCES", "")) === "1",
     geminiApiKey: geminiApiKey === undefined ? undefined : Redacted.make(geminiApiKey),
     newsChannelId,
+    botVoice: (yield* or("BOT_VOICE", "off")) === "on",
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
     otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),

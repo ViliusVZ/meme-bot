@@ -7,7 +7,7 @@ import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber, Layer } from "effect";
-import { activityGuesses, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { activityGuesses, earlyBirds, fleeting, newsItems, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, settings, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -25,6 +25,7 @@ import { Interactions } from "../src/interactions.js";
 import { Background } from "../src/background.js";
 import { News, FEED, FORUM } from "../src/news.js";
 import { AppConfig } from "../src/config.js";
+import { BotVoice } from "../src/botvoice.js";
 import { harness, json, routes, type TestDb } from "./fx.js";
 
 const CLOCK = "2026-11-10T19:00:00Z"; // Tuesday 21:00 in Vilnius
@@ -998,5 +999,40 @@ it.effect("/meme: its reply's message id is recorded even when the background wo
     yield* h.settle;
     h.override = theirs;
     expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", message_id: "meme-msg" });
+  }).pipe(h.provide),
+);
+
+it.effect("🐦 the lone early bird: interrupted during its claim, the line is still queued (once per night, never claimed and lost)", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const v = yield* BotVoice;
+    yield* Effect.gen(function* () {
+      yield* v.toggle("a"); // on (this file has no BOT_VOICE)
+      yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() + 2 * 3600, message_id: "card" });
+      yield* db.insert(voiceSegments).values({ user_id: "a", channel_id: "lobby", started_at: now() - 3600, last_seen: now() });
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* v.run;
+          const held = yield* hold({ table: "early_birds", op: "INSERT" });
+          const fiber = yield* Effect.forkChild(v.earlyBird(new Map([["a", "lobby"]]), now()), { startImmediately: true });
+          yield* held.inFlight;
+          const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
+          yield* Fiber.join(stopped);
+          yield* held.done;
+          expect((yield* db.select().from(earlyBirds)).map((b) => [b.day, b.user_id])).toEqual([[DAY, "a"]]);
+          expect(h.logs.some((l) => l.includes("voice: queued early bird for lobby"))).toBe(true);
+          expect(yield* v.earlyBird(new Map([["a", "lobby"]]), now() + 60)).toBeNull(); // and not again
+        }),
+      );
+    }).pipe(
+      // this file's later tests see none of it
+      Effect.ensuring(
+        Effect.gen(function* () {
+          yield* Effect.ignore(db.delete(earlyBirds));
+          yield* Effect.ignore(db.delete(roastBags).where(eq(roastBags.pool, "voice:early")));
+          yield* Effect.ignore(db.delete(settings).where(eq(settings.key, "bot_voice")));
+        }),
+      ),
+    );
   }).pipe(h.provide),
 );

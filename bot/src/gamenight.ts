@@ -34,6 +34,7 @@ import { Panels, type Mine } from "./panels.js";
 import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Spontaneous } from "./spontaneous.js";
+import { BotVoice } from "./botvoice.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/schema.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
@@ -1295,6 +1296,8 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number) {
     allowed_mentions: yield* allowedMentions(ps),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
+  // 🔊 the room is open, people are in, the ping is out: now the bot may say it (queued, never waited on)
+  if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
 });
 
 // ---------------------------------------------------------------- rendering
@@ -1700,7 +1703,7 @@ const clearDay = (tx: DbTx, day: string) =>
 // ---------------------------------------------------------------- the service
 
 /** What the night's code runs on. */
-type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous;
+type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | BotVoice;
 
 const makeGameNight = Effect.gen(function* () {
   // the services, captured once; a call's own overrides (quiet, stand-in players) still come from

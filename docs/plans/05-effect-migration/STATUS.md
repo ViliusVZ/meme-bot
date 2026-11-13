@@ -815,6 +815,10 @@ recordings (see "Numbers").
 - **G3 query sites 210 → 228 (branch `effect-news`):** plan 02's WoW: Forever news, ported as the
   `News` service (`src/news.ts`), adds 18 query sites; every one is run by `test/news.test.ts` and
   test 6's news entry. `scripts/gates.json` `querySites` follows. Nothing else changed the count.
+- **G3 query sites 228 → 239 (branch `bot-voice`, plan 03):** the bot's voice adds 11 query sites:
+  `src/botvoice.ts` (the 🔇 toggle in `settings`, the lone early bird's night, room, voice-segment
+  and `early_birds` queries, the clips made ahead) and `src/clips.ts` (the `voice_clips` cache).
+  Every one is run by `test/botvoice.test.ts` and test 6's early-bird entry. Nothing else changed.
 - **`news.test.json` › "never one good check yet…" re-recorded (branch `bot-voice`):** its
   `settings` row's `updated_at` is set from the fake clock (2026-11-12 12:01 UTC), and the
   recorder masks any `updated_at` within 10 minutes of the real time as the database's `now()`.

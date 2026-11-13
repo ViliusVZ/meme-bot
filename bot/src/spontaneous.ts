@@ -27,6 +27,7 @@ import { Voice } from "./voice.js";
 import { Presence } from "./presence.js";
 import { Gemini } from "./gemini.js";
 import { Alerts } from "./alerts.js";
+import { BotVoice } from "./botvoice.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 
@@ -136,6 +137,7 @@ export class Spontaneous extends Context.Service<
       const presence = yield* Presence;
       const gemini = yield* Gemini;
       const alerts = yield* Alerts;
+      const botVoice = yield* BotVoice;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
       const presencesOn = Effect.succeed(config.presences);
@@ -356,6 +358,8 @@ or a browser, or you aren't sure), answer null.`,
             yield* Effect.gen(function* () {
               const msg = yield* discord.createMessage(lobbyId, yield* questionMessage(claim.id, first));
               yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
+              // 🔊 and aloud (queued, never waited on; not on auto-move, where the bot stays silent)
+              yield* botVoice.lobbyAsked;
             }).pipe(
               Effect.catch((e) =>
                 Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("asking the Lobby what we're playing", e)),

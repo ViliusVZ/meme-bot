@@ -39,10 +39,17 @@ import { Ticker } from "./scheduler.js";
 import { Live } from "./live.js";
 import { Gateway, GatewayClient } from "./gateway.js";
 import { Leadership } from "./leadership.js";
+import * as NodeWS from "@effect/platform-node/NodeWS";
+import { Tts } from "./tts.js";
+import { Clips } from "./clips.js";
+import { VoiceLink } from "./voicelink.js";
+import { VoiceConnector } from "./voiceconn.js";
+import { BotVoice } from "./botvoice.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
   | LocalTime | Games | Nights | Memes | Roasts | Panels | Gemini
+  | Tts | Clips | VoiceLink | VoiceConnector | BotVoice
   | Snoozes | Voice | Attendances | Reddit | News | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub | Cleanup | MemeShame | Jobs | Interactions | Ticker | Live | Gateway | GatewayClient | Leadership;
 
 /** What a test changes about the app's layer (its throwaway schema). */
@@ -50,6 +57,10 @@ export interface LayerOptions {
   readonly db?: { readonly startupOptions?: string };
   /** Outbound HTTP (Discord, Reddit, the Blizzard feed, Gemini): fetch, unless a test gives its own. */
   readonly http?: Layer.Layer<HttpClient.HttpClient>;
+  /** Joining voice (@discordjs/voice), unless a test gives a fake. */
+  readonly voice?: Layer.Layer<VoiceConnector, never, VoiceLink | AppConfig>;
+  /** Speech synthesis (the Edge endpoint), unless a test gives a fake. */
+  readonly tts?: Layer.Layer<Tts, never, AppConfig>;
 }
 
 /**
@@ -86,15 +97,27 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Jobs.layer)),
     Layer.provideMerge(Layer.mergeAll(LateSlips.layer)),
     Layer.provideMerge(Layer.mergeAll(GameNight.layer, Activity.layer)),
-    Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer)),
-    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, MemeShame.layer, Cleanup.layer, Hub.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
-    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer)),
+    Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer)),
+    Layer.provideMerge(Layer.mergeAll(Snoozes.layer, MemeShame.layer, Cleanup.layer, BotVoice.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
+    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer, Clips.layer)),
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer)),
     Layer.provideMerge(Alerts.layer),
-    Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer)),
+    Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer, options.tts ?? Tts.layer, options.voice ?? VoiceConnector.layer)),
+    Layer.provideMerge(VoiceLink.layer),
     Layer.provideMerge(OtlpLive),
     Layer.provideMerge(
-      Layer.mergeAll(config, Reactivity.layer, Layer.succeed(DbOptions, options.db ?? {}), Channels.layer, Presence.layer, Lifecycle.layer, options.http ?? FetchHttpClient.layer, NoTracePropagation, NoWebhookSpans),
+      Layer.mergeAll(
+        config,
+        Reactivity.layer,
+        Layer.succeed(DbOptions, options.db ?? {}),
+        Channels.layer,
+        Presence.layer,
+        Lifecycle.layer,
+        options.http ?? FetchHttpClient.layer,
+        NodeWS.layerWebSocketConstructor,
+        NoTracePropagation,
+        NoWebhookSpans,
+      ),
     ),
     Layer.provideMerge(LoggerLive),
   );

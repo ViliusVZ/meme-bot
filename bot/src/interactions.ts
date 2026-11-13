@@ -19,6 +19,7 @@ import { Activity, type Kind } from "./activity.js";
 import { LateSlips } from "./late.js";
 import { Attendances } from "./attendance.js";
 import { Snoozes, type Span } from "./snooze.js";
+import { BotVoice } from "./botvoice.js";
 import { Spontaneous, type Notice } from "./spontaneous.js";
 import { LocalTime } from "./localtime.js";
 import { Nights } from "./nights.js";
@@ -168,6 +169,7 @@ export class Interactions extends Context.Service<
       const late = yield* LateSlips;
       const attendances = yield* Attendances;
       const snoozes = yield* Snoozes;
+      const botVoice = yield* BotVoice;
       const spontaneous = yield* Spontaneous;
       const time = yield* LocalTime;
       const nights = yield* Nights;
@@ -275,6 +277,11 @@ export class Interactions extends Context.Service<
               if (what === "games") return reply({ type: R.Message, data: yield* hub.gamesManager() });
               if (what === "room") return reply({ type: R.Message, data: yield* voice.roomPicker });
               if (what === "snooze") return reply({ type: R.Message, data: yield* snoozes.panel() });
+              // 🔇 the bot's voice, from the HQ panel: flip it, and the panel shows the new state
+              if (what === "voice") {
+                yield* botVoice.toggle(user.id);
+                return reply({ type: R.UpdateMessage, data: yield* hub.hubPanel });
+              }
               return ephemeral(OLDER);
             }),
           ),

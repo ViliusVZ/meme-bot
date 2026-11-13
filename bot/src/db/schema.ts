@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  bytea,
   customType,
   index,
   integer,
@@ -347,3 +348,30 @@ export const newsItems = pgTable("news_items", {
   posted_at: unix("posted_at"),
   updated_day: text(), // the last day we said "updated" about it (once a day at most)
 });
+
+// ---------------------------------------------------------------- 🔊 the bot's voice (botvoice.ts)
+
+/**
+ * Every line the bot has spoken, as audio (WebM Opus, tens of kilobytes): made once per text and
+ * voice, kept for good (deploys, backups), so a line already said plays even if the speech engine
+ * is gone. `key` is a hash of the voice and the text.
+ */
+export const voiceClips = pgTable("voice_clips", {
+  key: text().primaryKey(),
+  voice: text().notNull(),
+  text: text().notNull(),
+  audio: bytea().notNull(),
+  engine: text().notNull(), // edge | gemini
+  created_at: unix("created_at").notNull(),
+});
+
+/** 🐦 The lone early bird: the bot dropped in on one of us waiting alone, once per person per night. */
+export const earlyBirds = pgTable(
+  "early_birds",
+  {
+    day: text().notNull(),
+    user_id: text().notNull(),
+    at: unix("at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.user_id] })],
+);

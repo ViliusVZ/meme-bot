@@ -13,6 +13,7 @@ import { Voice } from "../src/voice.js";
 import { LateSlips } from "../src/late.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Alerts } from "../src/alerts.js";
+import { BotVoice } from "../src/botvoice.js";
 import { Background } from "../src/background.js";
 import { configFromEnv } from "./env.js";
 import { testEnv } from "./pg.js";
@@ -29,6 +30,8 @@ interface Stand {
   readonly leaveTakes?: (user: string) => Effect.Effect<void>;
   /** The wrap-up due after each room check, in turn (unix seconds; null: none due). */
   readonly due?: ReadonlyArray<number | null>;
+  /** 🐦 What the early bird says each time it's asked (unix seconds to look again; null: nothing due). */
+  readonly bird?: (t: number) => Effect.Effect<number | null>;
 }
 
 const setup = (stand: Stand = {}) =>
@@ -62,6 +65,7 @@ const setup = (stand: Stand = {}) =>
           }),
           Layer.mock(LateSlips, { watch: Effect.succeed({}) }),
           Layer.mock(Spontaneous, { react: () => Effect.succeed(null), learn: () => Effect.succeed([]) }),
+          Layer.mock(BotVoice, { earlyBird: (_: ReadonlyMap<string, string | null>, t: number) => stand.bird?.(t) ?? Effect.succeed(null) }),
           Background.layer.pipe(Layer.provideMerge(Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }))),
         ),
       ),
@@ -210,6 +214,26 @@ describe("Live (TestClock)", () => {
         yield* adjust("5 seconds");
         yield* Fiber.join(ending);
         assert.deepStrictEqual(yield* Ref.get(s.log), ["leave a", "left a", "leave b", "left b"]);
+      }).pipe(Effect.provide(s.layer));
+    }),
+  );
+
+  it.effect("🐦 the early bird is asked on every change, and again exactly when it said it's due", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const asked: number[] = [];
+      const due = sec(T0) + 6 * 60 + 20; // 6 min 20 s alone (off the minute heartbeats)
+      const s = yield* setup({ bird: (t) => Effect.sync(() => (asked.push(t - sec(T0)), t < due ? due : null)) });
+      yield* Effect.gen(function* () {
+        yield* watching([{ user_id: "a", channel_id: "lobby" }]);
+        assert.include(asked, 0); // asked as soon as a's there
+        const before = asked.length;
+        yield* adjust("6 minutes"); // the minute heartbeats ask too
+        assert.isAbove(asked.length, before);
+        assert.notInclude(asked, 6 * 60 + 20);
+        yield* adjust("21 seconds");
+        assert.include(asked, 6 * 60 + 20); // the timer, at the due second (it aims half a second past it)
+        assert.isEmpty(yield* Ref.get(s.failed));
       }).pipe(Effect.provide(s.layer));
     }),
   );

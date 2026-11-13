@@ -19,6 +19,7 @@ import { Discord, type DiscordError } from "./discord.js";
 import { Attendances, real, slipFor, type Attendance } from "./attendance.js";
 import { GameNight, type NightGone } from "./gamenight.js";
 import { Voice } from "./voice.js";
+import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
 
@@ -45,6 +46,7 @@ export class LateSlips extends Context.Service<
       const attendances = yield* Attendances;
       const gameNight = yield* GameNight;
       const voice = yield* Voice;
+      const botVoice = yield* BotVoice;
       const alerts = yield* Alerts;
       const trio = Effect.provideService(players, AppConfig, config);
 
@@ -63,6 +65,8 @@ export class LateSlips extends Context.Service<
           if (row?.state === "arrived") return;
           yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: t }));
           note("arrived", p);
+          // 🔊 a spoken welcome for the latecomer (queued; nothing here waits on it)
+          yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
           return;
         }
         if (row?.state === "absent") return;
@@ -72,6 +76,7 @@ export class LateSlips extends Context.Service<
           yield* discord.moveMember(p, roomId);
           yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: t }));
           note("moved", p);
+          yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
           return;
         }
 

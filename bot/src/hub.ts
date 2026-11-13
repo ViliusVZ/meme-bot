@@ -1,10 +1,12 @@
 // Button-first entry points: /help (private) and the pinned "Game Night HQ" panel share the same
-// guide and action buttons, so nobody has to remember a single command.
+// guide and action buttons, so nobody has to remember a single command. The panel also carries the
+// 🔇 Bot voice toggle (botvoice.ts), showing whether it's on.
 import { Context, Effect, Layer } from "effect";
 import { AppConfig } from "./config.js";
 import type { DbError } from "./db/db.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import { Games } from "./games.js";
+import { BotVoice } from "./botvoice.js";
 
 const text = (content: string) => ({ type: 10, content });
 const divider = { type: 14, divider: true, spacing: 1 };
@@ -14,6 +16,9 @@ export const actions = () => [
   { type: 1, components: [button(3, "🎮", "Play today", "hub:play"), button(1, "📅", "Plan a day", "hub:plan"), button(1, "🔊", "Game room", "hub:room"), button(2, "😴", "Snooze", "hub:snooze")] },
   { type: 1, components: [button(1, "🗳️", "New poll", "hub:poll"), button(2, "🕹️", "Games", "hub:games"), button(2, "📊", "Stats", "hub:stats"), button(2, "❓", "Help", "hub:help")] },
 ];
+
+/** 🔇 The bot's voice, on or off: tapping it flips it (the panel shows the new state). */
+export const voiceToggle = (on: boolean) => ({ type: 1, components: [button(on ? 3 : 2, on ? "🔊" : "🔇", on ? "Bot voice: on" : "Bot voice: off", "hub:voice")] });
 
 type Channels = { readonly gameChannelId: string; readonly lobbyChannelId: string; readonly channelId: string };
 
@@ -38,6 +43,7 @@ function guide(c: Channels) {
       [
         `### 🔊 Voice · <#${c.lobbyChannelId}>`,
         "Hang out in the **Lobby**. When a game night starts, the bot opens a room for the game and moves everyone in the Lobby into it. Want to play right now? **🔊 Game room** does the same instantly. Rooms tidy themselves: 15 min after the last person leaves, the room moves to 🗄️ Recent games and the night's event ends; archived rooms are deleted after 3 days (rejoin one to bring it back).",
+        "**🔊 Bot voice:** the bot pops into voice to say one thing and leaves: a jingle when a night starts, a word for latecomers, the Lobby question aloud, and a beep for whoever waits alone before a night. **🔇** on the HQ panel turns it off (or on) for everyone.",
         "**Running late?** Say so on the locked-in card (⏰ +5 min … +1 h): before the start, we wait for you, so the start moves for everyone and the others get pinged. Hop in the Lobby and you'll be pulled into the game. Not there 10 min after the start (or after your ETA)? You get one late slip to share your ETA (🏃), or bow out (😴), which calls the night off for everyone.",
       ].join("\n"),
     ),
@@ -82,8 +88,8 @@ export class Hub extends Context.Service<
   {
     /** /help and the ❓ button: the guide, privately. */
     readonly helpMessage: Effect.Effect<{ flags: number; components: unknown[] }>;
-    /** The pinned panel in the game-night channel. */
-    readonly hubPanel: Effect.Effect<{ flags: number; allowed_mentions: { parse: string[] }; components: unknown[] }>;
+    /** The pinned panel in the game-night channel (with the 🔇 Bot voice toggle). */
+    readonly hubPanel: Effect.Effect<{ flags: number; allowed_mentions: { parse: string[] }; components: unknown[] }, DbError>;
     /** 🕹️ Games: the list, an add button (form) and a remove dropdown. */
     gamesManager(notice?: string): Effect.Effect<object, DbError>;
   }
@@ -93,15 +99,16 @@ export class Hub extends Context.Service<
     Effect.gen(function* () {
       const config = yield* AppConfig;
       const games = yield* Games;
+      const botVoice = yield* BotVoice;
       return Hub.of({
         helpMessage: Effect.sync(() => ({
           flags: IS_COMPONENTS_V2 | EPHEMERAL,
           components: [{ type: 17, accent_color: 0x8e44ad, components: guide(config) }],
         })),
-        hubPanel: Effect.sync(() => ({
+        hubPanel: Effect.map(botVoice.enabled, (on) => ({
           flags: IS_COMPONENTS_V2,
           allowed_mentions: { parse: [] as string[] },
-          components: [{ type: 17, accent_color: 0x8e44ad, components: guide(config) }],
+          components: [{ type: 17, accent_color: 0x8e44ad, components: [...guide(config), voiceToggle(on)] }],
         })),
         gamesManager: Effect.fn("Hub.gamesManager")(function* (notice?: string) {
           // the whole list here (dropdowns elsewhere show the top 25 by plays)

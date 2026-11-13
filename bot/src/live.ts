@@ -4,6 +4,7 @@
 //   • someone joining the Lobby during a game night is pulled into the game's room at once
 //   • when a room empties, its 15-minute wrap-up timer starts; it fires exactly on time
 //   • 🎮 spontaneous play (spontaneous.ts): the Lobby question, unplanned sessions, pulling people in
+//   • 🐦 the lone early bird (botvoice.ts): one of us waiting alone before a night gets a visit
 import { Cause, Clock, Context, Duration, Effect, Fiber, FiberHandle, Layer, PubSub, Queue, Schedule, type Scope } from "effect";
 import { AppConfig, players } from "./config.js";
 import { Presence } from "./presence.js";
@@ -11,6 +12,7 @@ import { Activity } from "./activity.js";
 import { Voice } from "./voice.js";
 import { LateSlips } from "./late.js";
 import { Spontaneous, type Change } from "./spontaneous.js";
+import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { Background } from "./background.js";
 import { nowSec } from "./clock.js";
@@ -27,6 +29,7 @@ type LiveEvent =
   | { readonly _tag: "Heartbeat" }
   | { readonly _tag: "WrapUpDue" }
   | { readonly _tag: "LobbyDue" }
+  | { readonly _tag: "BirdDue" }
   | { readonly _tag: "Resync" }
   | { readonly _tag: "Stop" };
 
@@ -36,6 +39,7 @@ const labels: Record<LiveEvent["_tag"], string> = {
   Heartbeat: "heartbeat",
   WrapUpDue: "wrap-up",
   LobbyDue: "lobby",
+  BirdDue: "early bird",
   Resync: "resync",
   Stop: "stop",
 };
@@ -61,6 +65,7 @@ export class Live extends Context.Service<
       const voice = yield* Voice;
       const late = yield* LateSlips;
       const spontaneous = yield* Spontaneous;
+      const botVoice = yield* BotVoice;
       const alerts = yield* Alerts;
       const background = yield* Background;
 
@@ -70,6 +75,7 @@ export class Live extends Context.Service<
         const heartbeat = yield* FiberHandle.make();
         const wrapUp = yield* FiberHandle.make();
         const lobbyTimer = yield* FiberHandle.make();
+        const birdTimer = yield* FiberHandle.make();
         const offer = (e: LiveEvent) => Queue.offer(queue, e);
         /** A timer that queues `e` in `ms`; setting one replaces the one before. */
         const timer = (handle: FiberHandle.FiberHandle, ms: number, e: LiveEvent) =>
@@ -102,6 +108,15 @@ export class Live extends Context.Service<
             yield* timer(lobbyTimer, Math.max(1000, due * 1000 - (yield* Clock.currentTimeMillis) + 500), { _tag: "LobbyDue" });
           });
 
+        /** 🐦 One of us alone before a night: a timer for when the bot drops in. */
+        const earlyBird = Effect.gen(function* () {
+          if (!(yield* presence.isReady)) return;
+          const due = yield* botVoice.earlyBird(yield* where, yield* nowSec);
+          yield* FiberHandle.clear(birdTimer);
+          if (due === null) return;
+          yield* timer(birdTimer, Math.max(1000, due * 1000 - (yield* Clock.currentTimeMillis) + 500), { _tag: "BirdDue" });
+        });
+
         const beat = Effect.gen(function* () {
           if (!(yield* presence.isReady)) return; // never record "nobody's here" just because we can't see
           const w = yield* where;
@@ -112,6 +127,7 @@ export class Live extends Context.Service<
           // busy rooms: keep their last_seen fresh (and their night's event alive)
           if (anyone) yield* checkRooms;
           if (anyone) yield* lobby();
+          yield* earlyBird;
         });
 
         const handle = (e: LiveEvent) => {
@@ -132,6 +148,8 @@ export class Live extends Context.Service<
             case "Playing":
             case "LobbyDue":
               return lobby();
+            case "BirdDue":
+              return earlyBird;
             case "Heartbeat":
               return beat;
             case "WrapUpDue":

@@ -11,6 +11,7 @@ import { Lifecycle } from "./lifecycle.js";
 import { Live } from "./live.js";
 import { Ticker } from "./scheduler.js";
 import { Gateway } from "./gateway.js";
+import { BotVoice } from "./botvoice.js";
 
 const LEADER_LOCK = 4_242_002;
 const TRY_AGAIN = Duration.seconds(1); // someone else leads: ask again in a second
@@ -48,27 +49,30 @@ export class Leadership extends Context.Service<
       const live = yield* Live;
       const ticker = yield* Ticker;
       const gateway = yield* Gateway;
+      const botVoice = yield* BotVoice;
       const reactivity = yield* Reactivity.Reactivity;
 
       /**
        * Everything a leader runs, until the scope closes. Each part has its own scope, so the term's end
-       * goes in today's order: /health stops saying we lead, then the gateway closes (the other copy
-       * can connect), then the clock and live voice stop together (a start under way finishes, what's
-       * queued is handled).
+       * goes in today's order: /health stops saying we lead, the bot leaves voice if it's speaking
+       * (it needs the gateway for that), then the gateway closes (the other copy can connect), then
+       * the clock and live voice stop together (a start under way finishes, what's queued is handled).
        */
       const inTerm = (opts: LeadOptions): Effect.Effect<void, never, Scope.Scope> =>
         Effect.gen(function* () {
           yield* lifecycle.setLeader(true);
           yield* Effect.logInfo("leader: took over");
-          const [voice, clock, gw] = [yield* Scope.make(), yield* Scope.make(), yield* Scope.make()];
+          const [voice, clock, gw, speech] = [yield* Scope.make(), yield* Scope.make(), yield* Scope.make(), yield* Scope.make()];
           yield* Effect.addFinalizer(() =>
             Effect.gen(function* () {
               yield* lifecycle.setLeader(false);
+              yield* Scope.close(speech, Exit.void);
               yield* Scope.close(gw, Exit.void);
               yield* Effect.all([Scope.close(clock, Exit.void), Scope.close(voice, Exit.void)], { concurrency: 2, discard: true });
             }),
           );
           const watching = yield* live.watch.pipe(Scope.provide(voice));
+          yield* botVoice.run.pipe(Scope.provide(speech));
           yield* Effect.forkIn(ticker.run({ onStall: opts.onStall }).pipe(Scope.provide(clock)), clock);
           // the gateway connects in the background, retrying with back-off (say, Discord is down); until
           // it's up, voice lookups fall back to REST and everything else carries on as normal

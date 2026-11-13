@@ -30,6 +30,8 @@ export interface Env {
   GEMINI_API_KEY?: string;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   NEWS_CHANNEL_ID?: string;
+  /** 🔊 The bot's voice by default (BOT_VOICE=on); off unless set. */
+  BOT_VOICE?: boolean;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -71,6 +73,7 @@ export function envFields(c: AppConfigShape): Omit<Env, "db"> {
     PRESENCES: c.presences,
     GEMINI_API_KEY: c.geminiApiKey === undefined ? undefined : Redacted.value(c.geminiApiKey),
     NEWS_CHANNEL_ID: c.newsChannelId,
+    BOT_VOICE: c.botVoice,
   };
 }
 
@@ -99,6 +102,7 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     presences: env.PRESENCES ?? false,
     geminiApiKey: env.GEMINI_API_KEY === undefined ? undefined : Redacted.make(env.GEMINI_API_KEY),
     newsChannelId: env.NEWS_CHANNEL_ID,
+    botVoice: env.BOT_VOICE ?? false,
     appName: "meme-bot",
     revision: "dev",
   };

@@ -1,0 +1,202 @@
+{
+ "1. join → ready → 3 s → play → end → 3 s → leave, in that order with those gaps (a night's start: the jingle, then its line)": {
+  "calls": [],
+  "db": {
+   "roast_bags": "1:a936fad0de73",
+   "voice_clips": "2:8475527e74d0"
+  }
+ },
+ "2. a connection that never becomes ready is given up at 10 s, with one alert; the caller never waited": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/70000/messages 9e4bb832e88b"
+  ],
+  "db": {
+   "roast_bags": "1:8c0ca037925e",
+   "voice_clips": "3:683d67231f52"
+  }
+ },
+ "3. everyone leaves while it's speaking: it stops and leaves at once": {
+  "calls": [],
+  "db": {
+   "voice_clips": "1:f6c18e27acfd"
+  }
+ },
+ "4. two things for two channels: one visit each, in order, never in two channels at once; two for one channel: one visit": {
+  "calls": [],
+  "db": {
+   "voice_clips": "4:ae5fab5ccd83"
+  }
+ },
+ "5. something queued more than 20 s before its turn is dropped; younger is still said": {
+  "calls": [],
+  "db": {
+   "voice_clips": "2:f72c560cb4f2"
+  }
+ },
+ "6. the 30-second cap fires even if playback hangs": {
+  "calls": [],
+  "db": {
+   "voice_clips": "1:dabc1b9bd0c8"
+  }
+ },
+ "7. the term ends (shutdown, or leadership lost) while connected: it leaves first, and makes sure Discord has it out": {
+  "calls": [],
+  "db": {
+   "voice_clips": "1:2936dae80844"
+  }
+ },
+ "9. the toggle is off: no joins at all, no lines drawn; the HQ panel's 🔇 flips it": {
+  "calls": [],
+  "db": {
+   "settings": "1:2114f1de0c00"
+  }
+ },
+ "9. BOT_VOICE: on means on until someone taps it; unset or off means off (production ships off)": {
+  "calls": [],
+  "db": {}
+ },
+ "10. the bot alone in a room: the room still wraps up on its 15 minutes, and plan 01 sees no gathering or session": {
+  "calls": [
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "POST https://discord.com/api/v10/guilds/guild/channels 4f48d5c9b64c",
+   "PATCH https://discord.com/api/v10/channels/r1 acf1dd0aed28"
+  ],
+  "db": {
+   "rooms": "1:e54a4cd74523",
+   "voice_segments": "1:e33137afc508"
+  }
+ },
+ "11. a clip that isn't cached and can't be made: no speech, no alert storm (one alert); a night's start plays its jingle alone": {
+  "calls": [
+   "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
+   "POST https://discord.com/api/v10/channels/70000/messages 3a3330e40a63"
+  ],
+  "db": {
+   "roast_bags": "1:6b4b52bf3ff0"
+  }
+ },
+ "moment 1: a night's start queues its jingle and line for the room, after the ping": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels ff140b4de8c6",
+   "POST https://discord.com/api/v10/channels/gn/messages f0134fbbd8b1",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 5ccaa5fda71f"
+  ],
+  "db": {
+   "game_nights": "1:8546c8f807b1",
+   "games": "1:d3fdae7f9400",
+   "roast_bags": "1:dbb81afd00ef",
+   "rooms": "1:efc1ecc81465"
+  }
+ },
+ "moment 2: a latecomer in the night's room hears how late they are": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 22c97390fd1a",
+   "POST https://discord.com/api/v10/channels/gn/messages fdd0a1dded01"
+  ],
+  "db": {
+   "game_nights": "1:d71b01fcd6c2",
+   "night_attendance": "3:98529f24e3d4",
+   "roast_bags": "1:ec8f7b880fe3",
+   "rooms": "1:d1c4eb9f8537",
+   "voice_clips": "1:9b6c254fe716"
+  }
+ },
+ "moment 3: the Lobby question is asked aloud; on auto-move the bot stays silent": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/lobby/messages eda1e4812adb",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 3f55ddea7b49",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a b86532e467be",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b b86532e467be",
+   "POST https://discord.com/api/v10/channels/70001/messages 6bfc99582b2c"
+  ],
+  "db": {
+   "fleeting": "1:7f73d2823b22",
+   "games": "1:97abecacab69",
+   "lobby_prompts": "1:6844738cbafd",
+   "roast_bags": "1:d0e248d68276",
+   "rooms": "1:53adef148ea0",
+   "voice_clips": "2:130ce3612749",
+   "voice_segments": "2:49f635f6f932"
+  }
+ },
+ "moment 4: alone before a locked-in night, for a random 4 to 9 minutes: a beep, then one line, for them": {
+  "calls": [],
+  "db": {
+   "early_birds": "1:60dc4d666134",
+   "game_nights": "1:f43e8c641524",
+   "roast_bags": "1:12c8fdd69791",
+   "voice_clips": "1:35c7a775f864",
+   "voice_segments": "1:eddf7de4849b"
+  }
+ },
+ "moment 4: someone who sat alone before a restart is counted from when they got there; the night's room counts too": {
+  "calls": [],
+  "db": {
+   "early_birds": "1:a66cd7c76d9b",
+   "game_nights": "1:c3a8001e71ed",
+   "roast_bags": "1:a6995bb2e4e7",
+   "rooms": "2:ec41dca21e83",
+   "voice_clips": "1:c11313993357",
+   "voice_segments": "2:add96b1a569a"
+  }
+ },
+ "moment 4: not with the night more than 3 h away, not with no night, not once it has started": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:6a8942255fe3",
+   "voice_segments": "1:954f8a1c4249"
+  }
+ },
+ "moment 4: once per person per night": {
+  "calls": [],
+  "db": {
+   "early_birds": "2:e7ca86cfe704",
+   "game_nights": "1:f43e8c641524",
+   "roast_bags": "1:311c71202cf6",
+   "voice_clips": "5:23f5b7ca6d99",
+   "voice_segments": "2:3769725d65d1"
+  }
+ },
+ "moment 4: not if someone else joins first": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:f43e8c641524",
+   "voice_segments": "1:0cdd7f027a6d"
+  }
+ },
+ "moment 4: off with the toggle": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:f43e8c641524",
+   "settings": "1:b83a275ed775",
+   "voice_segments": "1:d40fce18f44f"
+  }
+ },
+ "moment 4: nothing at all while no term is running (another copy leads)": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:f43e8c641524",
+   "voice_segments": "1:84aec8be7110"
+  }
+ },
+ "a span is made once and cached; ahead of time, the likely lines are made a few a minute (none while off)": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:c3a8001e71ed",
+   "settings": "1:b83a275ed775",
+   "voice_clips": "9:2fa57e8a2e76"
+  }
+ },
+ "a line already in the cache plays even with the speech engine down": {
+  "calls": [],
+  "db": {
+   "roast_bags": "1:da1899c75167",
+   "voice_clips": "2:dc81c65f03a3"
+  }
+ }
+}
