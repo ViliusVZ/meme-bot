@@ -815,6 +815,11 @@ recordings (see "Numbers").
 - **G3 query sites 210 → 228 (branch `effect-news`):** plan 02's WoW: Forever news, ported as the
   `News` service (`src/news.ts`), adds 18 query sites; every one is run by `test/news.test.ts` and
   test 6's news entry. `scripts/gates.json` `querySites` follows. Nothing else changed the count.
+- **G3 query sites 228 → 238 (branch `early-birds`, plan 07):** the early-bird card and the early
+  start add 10 query sites in `src/spontaneous.ts` (the card's claim, its `night_cards` row, its
+  message id, its failure; whether a gathering's row is a card; "Just hanging out" on it; who's been
+  here how long; the card's night, its new start, and the open cards). Every one is run by
+  `test/early.test.ts` and test 6's early-start entry. `scripts/gates.json` `querySites` follows.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

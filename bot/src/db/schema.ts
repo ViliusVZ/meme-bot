@@ -291,6 +291,17 @@ export const sessions = pgTable(
   (t) => [primaryKey({ columns: [t.day, t.game] })],
 );
 
+/**
+ * ⚔️ An early-bird card (plan 07): the gathering's row in lobby_prompts is the night's card instead of
+ * the question ("you're early: want the room already?"). Its night, and the start it shows (it follows
+ * the night's start until it's answered, the gathering breaks up, or the night starts or is off).
+ */
+export const nightCards = pgTable("night_cards", {
+  prompt_id: integer().primaryKey(), // lobby_prompts.id
+  day: text().notNull(), // the night's day
+  start_at: unix("start_at").notNull(), // the start the card shows
+});
+
 /** Bot messages that remove themselves (the "pulled you in" notes): deleted once due, restarts or not. */
 export const fleeting = pgTable("fleeting", {
   message_id: text().primaryKey(),

@@ -1000,3 +1000,42 @@ it.effect("/meme: its reply's message id is recorded even when the background wo
     expect((yield* db.select().from(memeTable))[0]).toMatchObject({ post_kind: "request", message_id: "meme-msg" });
   }).pipe(h.provide),
 );
+
+// ---------------------------------------------------------------- plan 07: the early start
+// (after every earlier test, for the same reason as above)
+
+/** ⚔️ Everyone's here early: its claim (the start moved to now) → the silent line → the night counted as played. */
+function earlySequences(): Record<string, Sequence> {
+  const trio = ["a", "b", "c"];
+  return {
+    "the early start (its claim, the start moved to now → the silent line → the night counted as played)": {
+      setup: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.insert(games).values({ name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03", plays: 2 }).onConflictDoUpdate({ target: games.name, set: { plays: 2 } });
+          yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: now() + 3600, message_id: "card" });
+          yield* db.insert(voiceSegments).values(trio.map((user_id) => ({ user_id, channel_id: "lobby", started_at: now() - 60, last_seen: now() })));
+          yield* Presence.use((p) => p.snapshot(trio.map((user_id) => ({ user_id, channel_id: "lobby" }))));
+        }),
+      run: () => GameNight.use((g) => g.early(new Map(trio.map((u) => [u, "lobby"])), now())),
+      claim: { table: "game_nights", op: "UPDATE", when: "NEW.reminded AND NOT OLD.reminded" },
+      record: { table: "games", op: "UPDATE" },
+      post: { method: "POST", path: "/channels/gn/messages" },
+      nothing: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [n] = yield* db.select().from(gameNights);
+          expect([n.reminded, n.start_at]).toEqual([false, now() + 3600]);
+          expect(calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages")).toEqual([]);
+        }),
+      everything: () =>
+        Effect.gen(function* () {
+          const db = yield* Db;
+          const [n] = yield* db.select().from(gameNights);
+          expect([n.reminded, n.start_at]).toEqual([true, now()]);
+          expect((yield* db.select().from(games).where(eq(games.name, "R.E.P.O.")))[0].plays).toBe(3);
+        }),
+    },
+  };
+}
+for (const [name, s] of Object.entries(earlySequences())) define(name, s);

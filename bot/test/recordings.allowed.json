@@ -1,0 +1,8 @@
+{
+ "spontaneous.test.json": {
+  "an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update": "plan 07: an unanswered Gemini ask is retried after an hour, not a day; the test now asks at +30 min (not retried) and +1 h (retried), so the guess's stored time differs"
+ },
+ "news.test.json": {
+  "never one good check yet: the owner hears after a day of trying, not on the first failure": "not a behaviour change: main's recording was taken at 13:55 on 2026-11-12, within 10 minutes of the test's frozen 14:01, so the recorder masked updated_at as the database's now(); from 14:11 that day it can't be reproduced (it fails on main too). Re-recorded with the real value"
+ }
+}
