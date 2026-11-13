@@ -12,6 +12,7 @@ import { Presence } from "../src/presence.js";
 import { Channels } from "../src/channels.js";
 import { AppConfig } from "../src/config.js";
 import { Alerts } from "../src/alerts.js";
+import { VoiceLink } from "../src/voicelink.js";
 import { configFromEnv } from "./env.js";
 import { testEnv } from "./pg.js";
 
@@ -27,6 +28,7 @@ const setup = (attempts: ReadonlyArray<Attempt>, presences = false) =>
     const destroyed = yield* Ref.make(0);
     const failed = yield* Ref.make<string[]>([]);
     const snapshots = yield* Ref.make(0);
+    const sent = yield* Ref.make<unknown[]>([]); // voice-state payloads (op 4) the bot sent
     let emit: (e: GatewayEvent) => void = () => {};
     const client = Layer.succeed(
       GatewayClient,
@@ -40,6 +42,7 @@ const setup = (attempts: ReadonlyArray<Attempt>, presences = false) =>
             if (how === "throw") return yield* new GatewayUnavailable({ detail: "TypeError: the library threw" });
             return {
               connect: how === "ok" ? Effect.void : how === "fail" ? Effect.fail(new GatewayUnavailable({ detail: "Error: boom" })) : Effect.never,
+              send: (payload: unknown) => Ref.update(sent, (l) => [...l, payload]),
               destroy: Ref.update(destroyed, (d) => d + 1),
             };
           }),
@@ -47,10 +50,10 @@ const setup = (attempts: ReadonlyArray<Attempt>, presences = false) =>
     );
     const config = Layer.succeed(AppConfig, { ...configFromEnv(testEnv({} as never)), guildId: "g", presences });
     const layer = Gateway.layer.pipe(
-      Layer.provideMerge(Layer.mergeAll(Presence.layer, Channels.layer)),
+      Layer.provideMerge(Layer.mergeAll(Presence.layer, Channels.layer, VoiceLink.layer)),
       Layer.provide(Layer.mergeAll(client, config, Layer.mock(Alerts, { failed: (what: string) => Ref.update(failed, (f) => [...f, what]) }))),
     );
-    return { layer, opens, destroyed, failed, snapshots, emit: (e: GatewayEvent) => emit(e) };
+    return { layer, opens, destroyed, failed, snapshots, sent, emit: (e: GatewayEvent) => emit(e) };
   });
 
 const dispatch = (t: string, d: object): GatewayEvent => ({ _tag: "Dispatch", payload: { op: 0, s: 1, t, d } as never });
@@ -190,6 +193,71 @@ describe("the gateway (TestClock)", () => {
         yield* Gateway.use((g) => g.hold(Effect.void));
         yield* adjust("3 seconds");
         assert.deepStrictEqual((yield* Ref.get(s.opens)).map((o) => (o.at - T0) / 1000), [0, 2]);
+      }).pipe(Effect.scoped, Effect.provide(s.layer));
+    }),
+  );
+
+  it.effect("8. startup while Discord still shows the bot in a channel: it leaves; not while a visit of its own is under way", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const s = yield* setup(["ok"]);
+      yield* Effect.gen(function* () {
+        const link = yield* VoiceLink;
+        yield* Gateway.use((g) => g.hold(Effect.void));
+        yield* flush;
+        s.emit(dispatch(GatewayDispatchEvents.Ready, { user: { id: "bot" } }));
+        // a crash left the bot in a room: the fresh snapshot shows it there
+        s.emit(guild([{ user_id: "a", channel_id: "lobby" }, { user_id: "bot", channel_id: "room" }]));
+        yield* flush;
+        assert.deepStrictEqual(yield* Ref.get(s.sent), [{ op: 4, d: { guild_id: "g", channel_id: null, self_mute: false, self_deaf: false } }]);
+        assert.strictEqual(yield* link.selfChannel, "room");
+        s.emit(dispatch(GatewayDispatchEvents.VoiceStateUpdate, { guild_id: "g", user_id: "bot", channel_id: null }));
+        yield* flush;
+        assert.strictEqual(yield* link.selfChannel, null);
+        // with a connection of the library's own open (a visit), a snapshot leaves it alone, and its
+        // payloads go out on this connection, its voice events come back to it
+        const heard: string[] = [];
+        const adapter = link.adapterCreator({
+          onVoiceStateUpdate: (d) => void heard.push(`state ${d.channel_id}`),
+          onVoiceServerUpdate: (d) => void heard.push(`server ${d.endpoint}`),
+          destroy: () => void heard.push("destroyed"),
+        });
+        assert.strictEqual(adapter.sendPayload({ op: 4, d: { guild_id: "g", channel_id: "room", self_mute: false, self_deaf: true } }), true);
+        s.emit(guild([{ user_id: "bot", channel_id: "room" }]));
+        s.emit(dispatch(GatewayDispatchEvents.VoiceStateUpdate, { guild_id: "g", user_id: "bot", channel_id: "room", session_id: "s" }));
+        s.emit(dispatch(GatewayDispatchEvents.VoiceServerUpdate, { guild_id: "g", token: "t", endpoint: "voice.example" }));
+        s.emit(dispatch(GatewayDispatchEvents.VoiceStateUpdate, { guild_id: "g", user_id: "a", channel_id: "room" })); // not the bot's
+        yield* flush;
+        assert.deepStrictEqual((yield* Ref.get(s.sent)).length, 2);
+        assert.deepStrictEqual(heard, ["state room", "server voice.example"]);
+        adapter.destroy();
+      }).pipe(Effect.scoped, Effect.provide(s.layer));
+    }),
+  );
+
+  it.effect("without a gateway the library's payloads are refused at once, and a gateway that goes tears its connection down", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(T0);
+      const s = yield* setup(["ok"]);
+      yield* Effect.gen(function* () {
+        const link = yield* VoiceLink;
+        const heard: string[] = [];
+        const adapter = link.adapterCreator({ onVoiceStateUpdate: () => {}, onVoiceServerUpdate: () => {}, destroy: () => void heard.push("destroyed") });
+        const payload = { op: 4, d: { guild_id: "g", channel_id: "room", self_mute: false, self_deaf: true } } as const;
+        assert.strictEqual(adapter.sendPayload(payload), false); // not connected yet
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            yield* Gateway.use((g) => g.hold(Effect.void));
+            yield* flush;
+            assert.strictEqual(adapter.sendPayload(payload), true);
+            yield* flush;
+          }),
+        );
+        assert.deepStrictEqual(heard, ["destroyed"]);
+        assert.strictEqual(adapter.sendPayload(payload), false);
+        assert.strictEqual((yield* Ref.get(s.sent)).length, 1);
+        yield* link.leave; // nothing to leave, nothing sent
+        assert.strictEqual((yield* Ref.get(s.sent)).length, 1);
       }).pipe(Effect.scoped, Effect.provide(s.layer));
     }),
   );

@@ -17,6 +17,7 @@ import { Cleanup } from "./cleanup.js";
 import { MemeShame } from "./memeshame.js";
 import { Spontaneous } from "./spontaneous.js";
 import { News } from "./news.js";
+import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { count, jobsFailed, jobsRun, jobTime, time } from "./metrics.js";
 import { leaderboardMessage, memeMessage } from "./ui.js";
@@ -68,6 +69,7 @@ export class Jobs extends Context.Service<
       const memeShame = yield* MemeShame;
       const spontaneous = yield* Spontaneous;
       const news = yield* News;
+      const botVoice = yield* BotVoice;
       const alerts = yield* Alerts;
 
       // ---------------------------------------------------------------- daily post
@@ -173,6 +175,7 @@ export class Jobs extends Context.Service<
         ["cleanup", cleanup.nightly], // 🧹 03:00: yesterday's bot messages leave #game-night
         ["meme-shame", memeShame.evening], // 😐 19:00: whoever stopped voting on the daily memes hears about it
         ["gateway", alerts.watchGateway], // 🚨 a DM if the live connection to Discord stays down
+        ["voice", botVoice.prewarm], // 🔊 the bot's likely lines made ahead, a few a minute (nothing while 🔇 is off)
       ] as const;
 
       return Jobs.of({

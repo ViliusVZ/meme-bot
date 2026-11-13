@@ -18,7 +18,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 import { Cause, Clock, Console, Duration, Effect, Exit, Layer, ManagedRuntime, Random, Redacted, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { AppConfig, type AppConfigShape } from "../src/config.js";
-import { appLayerFor, type AppServices } from "../src/runtime.js";
+import { appLayerFor, type AppServices, type LayerOptions } from "../src/runtime.js";
 import { Background } from "../src/background.js";
 import { Spontaneous } from "../src/spontaneous.js";
 import { Gemini } from "../src/gemini.js";
@@ -49,6 +49,9 @@ import {
 export { json, routes, type Call, type Route, type TestDb } from "./recorder.js";
 
 export type Options = Omit<OldOptions, "clock"> & {
+  /** The bot's voice connection and speech engine (botvoice tests): fakes instead of Discord's voice and Edge. */
+  voice?: LayerOptions["voice"];
+  tts?: LayerOptions["tts"];
   /**
    * The clock the app reads. A time (ms since the epoch, or an ISO string): frozen there for each
    * test, moved only by `h.setTime`, sleeps still taking real time (the old fake Date, exactly).
@@ -251,7 +254,7 @@ export function harness(o: Options = {}): Harness {
 
   // ---------------------------------------------------------------- per file, per test
   const fresh = () =>
-    ManagedRuntime.make(appLayerFor(h.config, { http, ...(h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {}) })) as Runtime;
+    ManagedRuntime.make(appLayerFor(h.config, { http, voice: o.voice, tts: o.tts, ...(h.t ? { db: { startupOptions: `-c search_path=${h.t.schema},public` } } : {}) })) as Runtime;
 
   beforeAll(async () => {
     if (o.db !== false) {

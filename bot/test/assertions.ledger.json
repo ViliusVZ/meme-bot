@@ -1691,6 +1691,11 @@
    "expect.toEqual([])",
    "expect.toEqual([true, now()])",
    "expect.toBe(3)"
+  ],
+  "test \"🐦 the lone early bird: interrupted during its claim, the line is still queued (once per night, never claimed and lost)\"": [
+   "expect.toEqual([[DAY, \"a\"]])",
+   "expect.toBe(true)",
+   "expect.toBeNull()"
   ]
  },
  "hub.test.ts": {
@@ -1892,6 +1897,13 @@
   ],
   "describe \"Live (TestClock)\" > test \"when the term ends, what's queued is still handled\"": [
    "assert.deepStrictEqual(_, [\"leave a\", \"left a\", \"leave b\", \"left b\"])"
+  ],
+  "describe \"Live (TestClock)\" > test \"🐦 the early bird is asked on every change, and again exactly when it said it's due\"": [
+   "assert.include(_, 0)",
+   "assert.isAbove(_, before)",
+   "assert.notInclude(_, 6 * 60 + 20)",
+   "assert.include(_, 6 * 60 + 20)",
+   "assert.isEmpty(_)"
   ]
  },
  "gateway.test.ts": {
@@ -1933,6 +1945,22 @@
   ],
   "describe \"the gateway (TestClock)\" > test \"a connection that can't even be made is logged and tried again\"": [
    "assert.deepStrictEqual(_, [0, 2])"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"8. startup while Discord still shows the bot in a channel: it leaves; not while a visit of its own is under way\"": [
+   "assert.deepStrictEqual(_, [{ op: 4, d: { guild_id: \"g\", channel_id: null, self_mute: false, self_deaf: false } }])",
+   "assert.strictEqual(_, \"room\")",
+   "assert.strictEqual(_, null)",
+   "assert.strictEqual(_, true)",
+   "assert.deepStrictEqual(_, 2)",
+   "assert.deepStrictEqual(_, [\"state room\", \"server voice.example\"])"
+  ],
+  "describe \"the gateway (TestClock)\" > test \"without a gateway the library's payloads are refused at once, and a gateway that goes tears its connection down\"": [
+   "assert.strictEqual(_, false)",
+   "assert.strictEqual(_, true)",
+   "assert.deepStrictEqual(_, [\"destroyed\"])",
+   "assert.strictEqual(_, false)",
+   "assert.strictEqual(_, 1)",
+   "assert.strictEqual(_, 1)"
   ]
  },
  "leadership.test.ts": {
@@ -1952,6 +1980,11 @@
    "expect.toBe(true)",
    "expect.toBe(true)",
    "expect.toBe(\"gateway off, leader false\")",
+   "expect.toEqual([\"clock off, leader false\", \"live off, leader false\"])"
+  ],
+  "test \"the bot leaves voice first: its speech stops before the gateway closes (it needs the gateway to leave)\"": [
+   "expect.toBe(true)",
+   "expect.toEqual([\"speech off, leader false\", \"gateway off, leader false\"])",
    "expect.toEqual([\"clock off, leader false\", \"live off, leader false\"])"
   ]
  },
@@ -2543,6 +2576,261 @@
    "expect.toHaveLength(1)",
    "expect.toBe(\"open\")",
    "expect.toHaveLength(2)"
+  ]
+ },
+ "botvoice.test.ts": {
+  "test \"1. join → ready → 3 s → play → end → 3 s → leave, in that order with those gaps (a night's start: the jingle, then its line)\"": [
+   "expect.toEqual([0])",
+   "expect.toEqual([500])",
+   "expect.toBe(3000)",
+   "expect.toBe(\"♪night\")",
+   "expect.toContainEqual(plays.slice(1))",
+   "expect.toBe(at(\"end\")[i - 1])",
+   "expect.toBe(3000)",
+   "expect.toEqual([\"join\", \"ready\", ...plays.flatMap(() => [\"play\", \"end\"]), \"leave\"])"
+  ],
+  "test \"2. a connection that never becomes ready is given up at 10 s, with one alert; the caller never waited\"": [
+   "expect.toBe(T0)",
+   "expect.toEqual([ [0, \"join\", \"room\"], [10_000, \"leave\", \"room\"], ])",
+   "expect.toBe(1)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"speaking in voice\")"
+  ],
+  "test \"3. everyone leaves while it's speaking: it stops and leaves at once\"": [
+   "expect.toEqual([ [0, \"join\", \"room\"], [500, \"ready\", \"room\"], [3500, \"play\", \"en:A long line.\"], [4500, \"leave\", \"room\"], ])"
+  ],
+  "test \"4. two things for two channels: one visit each, in order, never in two channels at once; two for one channel: one visit\"": [
+   "expect.toEqual([\"room0\", \"room1\", \"room2\"])",
+   "expect.toEqual([\"room0\", \"room1\", \"room2\"])",
+   "expect.toBeGreaterThanOrEqual(leaves[i - 1].at)",
+   "expect.toEqual([\"en:Busy.\", \"en:First.\", \"en:Also first.\", \"en:Second.\"])"
+  ],
+  "test \"5. something queued more than 20 s before its turn is dropped; younger is still said\"": [
+   "expect.toEqual([\"room1\", \"room3\"])",
+   "expect.toBe(true)"
+  ],
+  "test \"6. the 30-second cap fires even if playback hangs\"": [
+   "expect.toBe(0)",
+   "expect.toEqual([ [0, \"join\", \"room\"], [500, \"ready\", \"room\"], [3500, \"play\", \"en:Stuck.\"], [30_000, \"leave\", \"room\"], ])",
+   "expect.toBe(true)"
+  ],
+  "test \"7. the term ends (shutdown, or leadership lost) while connected: it leaves first, and makes sure Discord has it out\"": [
+   "expect.toEqual([5000, \"leave\", \"room\"])",
+   "expect.toEqual([{ op: 4, d: { guild_id: \"guild\", channel_id: null, self_mute: false, self_deaf: false } }])",
+   "expect.toBe(false)"
+  ],
+  "test \"9. the toggle is off: no joins at all, no lines drawn; the HQ panel's 🔇 flips it\"": [
+   "expect.toBe(true)",
+   "expect.toContain(\"Bot voice: off\")",
+   "expect.toBe(false)",
+   "expect.toBe(false)",
+   "expect.toBe(true)",
+   "expect.toContain(\"for the trio\")",
+   "expect.toBe(true)",
+   "expect.toBe(0)",
+   "expect.toEqual([])",
+   "expect.toEqual({ on: true, by: \"b\" })"
+  ],
+  "test \"9. BOT_VOICE: on means on until someone taps it; unset or off means off (production ships off)\"": [
+   "expect.toBe(true)",
+   "expect.toBe(false)",
+   "expect.toBe(false)"
+  ],
+  "test \"10. the bot alone in a room: the room still wraps up on its 15 minutes, and plan 01 sees no gathering or session\"": [
+   "expect.toBeNull()",
+   "expect.toBe(t + 15 * 60)",
+   "expect.toEqual([])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"a\"])"
+  ],
+  "test \"11. a clip that isn't cached and can't be made: no speech, no alert storm (one alert); a night's start plays its jingle alone\"": [
+   "expect.toBe(0)",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"making the bot's speech\")",
+   "expect.toEqual([\"♪night\"])"
+  ],
+  "test \"moment 1: a night's start queues its jingle and line for the room, after the ping\"": [
+   "expect.toBeGreaterThan(-1)",
+   "expect.toBe(true)",
+   "expect.toBe(true)",
+   "expect.toBe(0)"
+  ],
+  "test \"moment 2: a latecomer in the night's room hears how late they are\"": [
+   "expect.toMatchObject({ arrived: [\"a\"] })",
+   "expect.toEqual({})",
+   "expect.toBe(1)",
+   "expect.toContainEqual(said)"
+  ],
+  "test \"moment 3: the Lobby question is asked aloud; on auto-move the bot stays silent\"": [
+   "expect.toBe(\"moved\")",
+   "expect.toEqual([\"lobby\"])",
+   "expect.toContainEqual(fake.events.filter((e) => e.what === \"play\").map((e) => e.detail))"
+  ],
+  "test \"moment 4: alone before a locked-in night, for a random 4 to 9 minutes: a beep, then one line, for them\"": [
+   "expect.toBeGreaterThanOrEqual(4 * 60)",
+   "expect.toBeLessThanOrEqual(9 * 60)",
+   "expect.toBe(due)",
+   "expect.toBe(due)",
+   "expect.toBe(0)",
+   "expect.toBeNull()",
+   "expect.toBe(\"♪beep\")",
+   "expect.toContainEqual(plays.slice(1))"
+  ],
+  "test \"moment 4: someone who sat alone before a restart is counted from when they got there; the night's room counts too\"": [
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toEqual([\"r1\"])"
+  ],
+  "test \"moment 4: not with the night more than 3 h away, not with no night, not once it has started\"": [
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.not.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBe(0)",
+   "expect.toEqual([])"
+  ],
+  "test \"moment 4: once per person per night\"": [
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBe(2)",
+   "expect.toBe(2)",
+   "expect.toEqual([\"a\", \"b\"])"
+  ],
+  "test \"moment 4: not if someone else joins first\"": [
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toBe(0)",
+   "expect.toEqual([])"
+  ],
+  "test \"moment 4: off with the toggle\"": [
+   "expect.toBeNull()",
+   "expect.toBe(0)",
+   "expect.toEqual([])"
+  ],
+  "test \"moment 4: nothing at all while no term is running (another copy leads)\"": [
+   "expect.toBeNull()",
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ],
+  "test \"a span is made once and cached; ahead of time, the likely lines are made a few a minute (none while off)\"": [
+   "expect.toBeNull()",
+   "expect.toBe(\"lt:Labas.\")",
+   "expect.toBe(\"lt:Labas.\")",
+   "expect.toEqual([\"Labas.\"])",
+   "expect.toEqual([LT_VOICE, \"Labas.\", \"edge\"])",
+   "expect.toBe(4)",
+   "expect.toBe(4)",
+   "expect.toHaveLength(9)",
+   "expect.toBe(0)",
+   "expect.toContain(\"Playing something?\")"
+  ],
+  "test \"a line already in the cache plays even with the speech engine down\"": [
+   "expect.toEqual([\"♪night\", ...spoken(fill(START[2], { game: \"R.E.P.O.\" }))])"
+  ],
+  "test \"clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round\"": [
+   "expect.toBe(4)",
+   "expect.toBe(true)",
+   "expect.toBe(1)"
+  ]
+ },
+ "tts.test.ts": {
+  "test \"the token matches the Python package's, for the same moments\"": [
+   "expect.toBe(\"3689BC1F78238B9A-DD2A2B71647FAA9B316154E46E5EEA92B85708C5C753EC77984ED8A78A848763\")",
+   "expect.toBe(\"6EA6AF6A0550F520-17E5A544A1EFE811EA5248AFBD9780637964201A6D3A15ADE53A30AB9D066A4F\")",
+   "expect.toBe(\"99E54519B490BE5C-E162DB0977FBDCB9B86DD8148BF1BCDC3C0303176CE39852A42B415935C20654\")",
+   "expect.toBe(secMsGec(1763000000))",
+   "expect.not.toBe(secMsGec(1763000000))"
+  ],
+  "describe \"the Edge read-aloud endpoint (a fake one)\" > test \"asks for WebM Opus in the given voice, the text escaped, with the browser's headers and this window's token; the audio comes back whole\"": [
+   "expect.toEqual([1, 2, 3, 4, 5])",
+   "expect.toContain(\"wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=\")",
+   "expect.toContain(`&Sec-MS-GEC=${secMsGec(Date.parse(\"2026-11-13T07:00:00Z\") / 1000)}&Sec-MS-GEC-Version=2-143.0.3650.75`)",
+   "expect.toBe(\"chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold\")",
+   "expect.toContain(\"Edg/143.0.0.0\")",
+   "expect.toMatch(/^muid=[0-9A-F]{32};$/)",
+   "expect.toContain(\"Path:speech.config\")",
+   "expect.toContain('\"outputFormat\":\"webm-24khz-16bit-mono-opus\"')",
+   "expect.toContain(\"Path:ssml\")",
+   "expect.toContain(\"<voice name='lt-LT-LeonasNeural'>\")",
+   "expect.toContain(\"Tom &amp; Jerry &lt;3\")",
+   "expect.toContain(\"X-Timestamp:Fri, 13 Nov 2026 07:00:00 GMTZ\")"
+  ],
+  "describe \"the Edge read-aloud endpoint (a fake one)\" > test \"closed before the end, no audio, refused, or no answer at all: each is TtsUnavailable\"": [
+   "expect.toBe(\"TtsUnavailable\")",
+   "expect.toBe(\"edge\")",
+   "expect.toBe(\"no audio in the answer\")",
+   "expect.toBe(\"timed out\")"
+  ],
+  "test \"an answer's frames: text frames by their path; audio frames with their audio; the empty last one without\"": [
+   "expect.toEqual({ path: \"turn.end\" })",
+   "expect.toEqual({ path: \"audio\", audio: new Uint8Array([9, 8]) })",
+   "expect.toEqual({ path: \"audio\" })",
+   "expect.toEqual({ path: undefined })",
+   "expect.toBe(\"a&lt;b&gt;&amp;&quot;c&quot;&apos; \")",
+   "expect.toContain(\"X-RequestId:id\\r\\nContent-Type:application/ssml+xml\\r\\nX-Timestamp:DZ\\r\\nPath:ssml\\r\\n\\r\\n<speak\")"
+  ],
+  "describe \"the spoken lines\" > test \"are as written: 3 for a start, 11 for latecomers, 3 for the Lobby, 24 for early birds\"": [
+   "expect.toEqual([3, 11, 3, 24])",
+   "expect.toEqual({ \"306836805825593344\": \"Vithis\", \"212567787896307713\": \"Koral\", \"747902984003780651\": \"Ieva\" })"
+  ],
+  "describe \"the spoken lines\" > test \"never put a placeholder inside a Lithuanian span; {mins} always reads '{mins} minutes'; nothing that can't be read aloud\"": [
+   "expect.not.toMatch(/\\{/)",
+   "expect.not.toContain(\"{mins}\")",
+   "expect.toBe(l)",
+   "expect.toBe((l.match(/›/g) ?? []).length)"
+  ],
+  "describe \"the spoken lines\" > test \"fill in the person, the game and the minutes: 1 minute, 12 minutes\"": [
+   "expect.toBe(\"Koral, 1 minute late. We noticed.\")",
+   "expect.toBe(\"Ieva, 12 minutes late. ‹Vieną seriją, sakei.›\")",
+   "expect.toBe(\"World of Warcraft. ‹Pradedam.›\")",
+   "expect.toBe(\"Beep beep, you there.\")"
+  ],
+  "describe \"the spoken lines\" > test \"split into what each voice says, in order; a span with nothing to say is dropped\"": [
+   "expect.toEqual([ { voice: LT_VOICE, text: \"Labas,\" }, { voice: EN_VOICE, text: \"Koral. Only 12 minutes late.\" }, { voice: LT_VOICE, text: \"Rekordas.\" }, ])",
+   "expect.toEqual([EN_VOICE, LT_VOICE, EN_VOICE])",
+   "expect.toEqual([{ voice: LT_VOICE, text: \"Tylu, ramu, jauku.\" }])"
+  ],
+  "describe \"the spoken lines\" > test \"text read aloud is cleaned: no emoji, markdown, small print or mentions\"": [
+   "expect.toBe(\"R.E.P.O. with Koral in the channel\")",
+   "expect.toBe(\"Party Pooper x\")"
+  ],
+  "describe \"the spoken lines\" > test \"'1 minute' is singular\"": [
+   "expect.toEqual([\"1 minute\", \"2 minutes\", \"45 minutes\"])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Edge answers: Edge's WebM, and Gemini isn't asked\"": [
+   "expect.toEqual([\"edge\", false])",
+   "expect.toEqual([])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Edge down: the line comes from Gemini (Charon), as Ogg Opus in 20 ms mono packets\"": [
+   "expect.toBe(\"gemini\")",
+   "expect.toBe(true)",
+   "expect.toEqual({ contents: [{ parts: [{ text: \"Labas, Koral.\" }] }], generationConfig: { responseModalities: [\"AUDIO\"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: \"Charon\" } } } } })",
+   "expect.toEqual([1, 24000])",
+   "expect.toHaveLength(50)",
+   "expect.toEqual([20, 0, 0])"
+  ],
+  "describe \"Gemini's speech, the spare engine\" > test \"Gemini's WAV is read for its rate; what can't be encoded, a refusal, no key or no budget left: TtsUnavailable, both reasons given\"": [
+   "expect.toBe(16000)",
+   "expect.toContain(\"audio it can't encode (audio/wav)\")",
+   "expect.toEqual([\"edge, gemini\", expect.stringContaining(\"429\")])",
+   "expect.toContain(\"no audio in the answer\")",
+   "expect.toBe(\"edge\")",
+   "expect.toEqual({ day: \"2026-11-13\", used: 4 })",
+   "expect.toContain(`today's ${GEMINI_DAILY} lines are used up`)",
+   "expect.toEqual([])",
+   "expect.toBe(\"gemini\")"
+  ],
+  "test \"PCM to Ogg Opus: whole pages, the first one a stream's start and the last one its end; raw PCM and WAV both read\"": [
+   "expect.toBe(\"OggS\")",
+   "expect.toEqual([2, 0, 0, 0, 4])",
+   "expect.toBe(BigInt(312 + 150 * 960))",
+   "expect.toEqual({ pcm: new Int16Array([1]), rate: 24000 })",
+   "expect.toBeNull()",
+   "expect.toBeNull()",
+   "expect.toEqual({ pcm: new Int16Array([5, 6]), rate: 12000 })"
   ]
  }
 }

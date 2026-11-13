@@ -40,6 +40,8 @@ export interface Env {
   NEWS_WRITE_BATCH?: string;
   /** ⚔️ The backtest's cards may be posted ("1": the test bot only). */
   NEWS_BACKTEST_POST?: string;
+  /** 🔊 The bot's voice by default (BOT_VOICE=on); off unless set. */
+  BOT_VOICE?: boolean;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -87,6 +89,7 @@ export function envFields(c: AppConfigShape): Omit<Env, "db"> {
     NEWS_TRIAGE_MODELS: c.newsTriageModels.join(","),
     NEWS_WRITE_BATCH: String(c.newsWriteBatch),
     NEWS_BACKTEST_POST: c.newsBacktestPost ? "1" : "",
+    BOT_VOICE: c.botVoice,
   };
 }
 
@@ -124,6 +127,7 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     newsBacktestPost: env.NEWS_BACKTEST_POST === "1",
     // the tests never wait out Reddit's minute between requests (one test sets its own)
     newsRedditGapMs: 0,
+    botVoice: env.BOT_VOICE ?? false,
     appName: "meme-bot",
     revision: "dev",
   };

@@ -57,6 +57,11 @@ export interface AppConfigShape {
    * server (plan 06, Step 0). Not from the environment; the tests set it to 0.
    */
   readonly newsRedditGapMs: number;
+  /**
+   * 🔊 The bot's voice (botvoice.ts) until someone taps the 🔇 toggle on the HQ panel: BOT_VOICE=on
+   * (the test bot); unset or "off" means off (production, until the owner has listened).
+   */
+  readonly botVoice: boolean;
   readonly appName: string;
   readonly revision: string;
   /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
@@ -144,6 +149,7 @@ export const readConfig = Effect.gen(function* () {
     newsWriteBatch: Math.max(1, Number(yield* or("NEWS_WRITE_BATCH", "3")) || 1),
     newsBacktestPost: (yield* or("NEWS_BACKTEST_POST", "")) === "1",
     newsRedditGapMs: REDDIT_GAP_MS,
+    botVoice: (yield* or("BOT_VOICE", "off")) === "on",
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
     otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),

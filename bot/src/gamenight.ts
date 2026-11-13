@@ -37,6 +37,7 @@ import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Spontaneous, names, type Where } from "./spontaneous.js";
 import { Presence } from "./presence.js";
+import { BotVoice } from "./botvoice.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, type Reason, type Stage } from "./db/schema.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
@@ -1339,12 +1340,16 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number, was?: 
     const content = was !== undefined ? `${emoji} Everyone's here early, so **${n.game}** is on now (was ${timeLabel(w, was, n.day)})${toRoom}` : `${emoji} Everyone's here, so **${n.game}** is on${toRoom}`;
     yield* discord.createMessage(config.gameChannelId, { content, flags: SILENT, allowed_mentions: { parse: [] }, message_reference: reference });
     if (room && moved.length) yield* (yield* Spontaneous).note(room.channelId, `${emoji} Everyone's here early, so I brought you over.`, moved);
+    // 🔊 the room is open, people are in, the line is out: now the bot may say it (queued, never waited on)
+    if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
     return;
   }
   const content = already.length
     ? `⏰ ${pinged.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${names(already)} ${already.length === 1 ? "is" : "are"} already in${toRoom}${moved.length ? ` (moved ${moved.map(mention).join(" ")} from the Lobby)` : ""}`
     : `⏰ ${ps.map(mention).join(" ")} ${emoji} **${n.game}** starts now! ${where}`;
   yield* discord.createMessage(config.gameChannelId, { content, allowed_mentions: yield* allowedMentions(pinged), message_reference: reference });
+  // 🔊 the room is open, people are in, the ping is out: now the bot may say it (queued, never waited on)
+  if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
 });
 
 // ---------------------------------------------------------------- rendering
@@ -1750,7 +1755,7 @@ const clearDay = (tx: DbTx, day: string) =>
 // ---------------------------------------------------------------- the service
 
 /** What the night's code runs on. */
-type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | Presence;
+type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | Presence | BotVoice;
 
 const makeGameNight = Effect.gen(function* () {
   // the services, captured once; a call's own overrides (quiet, stand-in players) still come from

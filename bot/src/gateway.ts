@@ -2,17 +2,20 @@
 // in, the moment it changes. @discordjs/ws handles heartbeats, reconnects and session resumes
 // (a resume replays the events we missed, so the picture stays exact across short drops).
 // Interactions still arrive over HTTP (app.ts), so clicks keep working even while this reconnects.
+// It also carries the bot's own voice (voicelink.ts): its voice-state payloads out, its voice
+// events in.
 //
 // A boundary file (architecture §16): @discordjs/ws is callback- and promise-based. Its callbacks
 // only put events on a queue; one fiber handles them, in order, on the services.
 import { REST } from "@discordjs/rest";
 import { WebSocketManager, WebSocketShardEvents } from "@discordjs/ws";
-import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload } from "discord-api-types/v10";
+import { GatewayDispatchEvents, GatewayIntentBits, type GatewayDispatchPayload, type GatewayVoiceStateUpdate } from "discord-api-types/v10";
 import { Cause, Context, Duration, Effect, Fiber, Layer, Queue, Redacted, Ref, Schema, type Scope } from "effect";
 import { AppConfig } from "./config.js";
 import { Presence } from "./presence.js";
 import { Channels, type Channel } from "./channels.js";
 import { Alerts } from "./alerts.js";
+import { VoiceLink } from "./voicelink.js";
 
 const CONNECT_TIMEOUT = Duration.seconds(30);
 const DISALLOWED_INTENTS = 4014;
@@ -30,9 +33,14 @@ export type GatewayEvent =
 /** A connect that failed, timed out, or was refused. */
 export class GatewayUnavailable extends Schema.TaggedError<GatewayUnavailable>()("GatewayUnavailable", { detail: Schema.String }) {}
 
-/** One connection to Discord's gateway, as the library gives it: events out, connect, destroy. */
+/** One of the library's promises (a connect, a send), its failure as GatewayUnavailable. */
+const attempt = (f: () => unknown) => Effect.asVoid(Effect.tryPromise({ try: () => Promise.resolve(f()), catch: (e) => new GatewayUnavailable({ detail: String(e) }) }));
+
+/** One connection to Discord's gateway, as the library gives it: events out, connect, send, destroy. */
 export interface Socket {
   readonly connect: Effect.Effect<void, GatewayUnavailable>;
+  /** A voice-state payload (op 4) for the bot itself. */
+  send(payload: GatewayVoiceStateUpdate): Effect.Effect<void, GatewayUnavailable>;
   readonly destroy: Effect.Effect<void>;
 }
 
@@ -58,7 +66,8 @@ export class GatewayClient extends Context.Service<
             manager.on(WebSocketShardEvents.Closed, (code: number) => emit({ _tag: "Closed", code }));
             manager.on(WebSocketShardEvents.Error, (e: Error) => emit({ _tag: "Error", message: e.message }));
             return {
-              connect: Effect.tryPromise({ try: () => Promise.resolve(manager.connect()), catch: (e) => new GatewayUnavailable({ detail: String(e) }) }),
+              connect: attempt(() => manager.connect()),
+              send: (payload: GatewayVoiceStateUpdate) => attempt(() => manager.send(0, payload)),
               destroy: Effect.tryPromise(() => Promise.resolve(manager.destroy())).pipe(Effect.catch((e) => Effect.logInfo(`gateway close ${String(e)}`))),
             };
           } }),
@@ -87,6 +96,7 @@ export class Gateway extends Context.Service<
       const presence = yield* Presence;
       const channels = yield* Channels;
       const alerts = yield* Alerts;
+      const link = yield* VoiceLink;
       // Discord refused the presence intent (it's off in the Developer Portal): from then on, connect without it
       const presencesRefused = yield* Ref.make(false);
       const ours = (d: { guild_id?: string }) => d.guild_id === config.guildId;
@@ -104,6 +114,7 @@ export class Gateway extends Context.Service<
             // a fresh connection: the full picture of who's in voice right now, and of the channels
             yield* channels.snapshot((payload.d.channels ?? []) as Channel[]);
             yield* presence.snapshot(payload.d.voice_states ?? []);
+            yield* link.snapshot(payload.d.voice_states ?? []);
             for (const p of payload.d.presences ?? []) yield* presence.setActivities(p.user.id, p.activities as { type: number; name: string }[]);
             yield* Effect.logInfo(`gateway: voice snapshot ${(payload.d.voice_states ?? []).length} in voice`);
             yield* onSnapshot;
@@ -117,6 +128,11 @@ export class Gateway extends Context.Service<
             yield* Effect.logInfo(`gateway: guild gone${payload.d.unavailable ? " (outage)" : ""}`);
           } else if (payload.t === GatewayDispatchEvents.VoiceStateUpdate && ours(payload.d)) {
             yield* presence.update(payload.d.user_id, payload.d.channel_id);
+            yield* link.selfState(payload.d);
+          } else if (payload.t === GatewayDispatchEvents.VoiceServerUpdate && payload.d.guild_id === config.guildId) {
+            yield* link.serverUpdate(payload.d);
+          } else if (payload.t === GatewayDispatchEvents.Ready) {
+            yield* link.setSelf(payload.d.user.id);
           } else if (payload.t === GatewayDispatchEvents.PresenceUpdate && ours(payload.d)) {
             yield* presence.setActivities(payload.d.user.id, payload.d.activities as { type: number; name: string }[]);
           }
@@ -172,6 +188,8 @@ export class Gateway extends Context.Service<
           );
           // the library waits for READY with no limit of its own (it keeps retrying inside), so bound it
           yield* socket.connect.pipe(Effect.timeoutOrElse({ duration: CONNECT_TIMEOUT, orElse: () => Effect.fail(new GatewayUnavailable({ detail: "Error: gateway connect timed out" })) }));
+          // the bot's own voice goes out on this connection while it lasts
+          yield* link.attach((payload) => socket.send(payload).pipe(Effect.catch((e) => Effect.logInfo(`gateway: voice payload not sent ${e.detail}`))));
         });
 
       const hold = (onSnapshot: Effect.Effect<void>) =>

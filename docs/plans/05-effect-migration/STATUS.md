@@ -865,6 +865,14 @@ recordings (see "Numbers").
   start no longer sees the `news_items` row plan 02's removed entries left before it, and the two plan
   06 entries (now after it) see the 2 `fleeting` rows the early start leaves. Re-recorded in the
   merge's follow-up commit.
+- **G3 query sites 238 → 251 (branch `bot-voice`, plan 03, on top of plan 07):** the bot's voice adds 13 query sites:
+  `src/botvoice.ts` (the 🔇 toggle in `settings`, the lone early bird's night, room, voice-segment
+  and `lone_birds` queries, the clips made ahead), `src/clips.ts` (the `voice_clips` cache) and
+  `src/tts.ts` (Gemini's speech budget in `settings`). Every one is run by `test/botvoice.test.ts`,
+  `test/tts.test.ts` and test 6's lone-early-bird entry. Nothing else changed.
+- **G3 query sites 246 + 13 = 259 (merging `main` with plan 03 into `news-v2`, 2026-11-13):** the
+  branches' sites add up again (plan 03's 238 → 251 is in files plan 06 doesn't touch), and the test
+  floor too (925 + 43 = 968). Test 6's lone-early-bird test now runs after the news entries.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

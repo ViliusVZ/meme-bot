@@ -12,6 +12,7 @@ import { Live } from "../src/live.js";
 import { Ticker } from "../src/scheduler.js";
 import { Gateway } from "../src/gateway.js";
 import { AppConfig } from "../src/config.js";
+import { BotVoice } from "../src/botvoice.js";
 import { configFromEnv } from "./env.js";
 import { testEnv, url } from "./pg.js";
 
@@ -30,6 +31,7 @@ function copy(name: string, log: string[]) {
         Layer.succeed(Live, Live.of({ watch: Effect.as(running("live"), { resync: Effect.void }) })),
         Layer.succeed(Ticker, Ticker.of({ sinceTick: Effect.succeed(null), run: () => Effect.andThen(running("clock"), Effect.never) })),
         Layer.succeed(Gateway, Gateway.of({ hold: () => running("gateway") })),
+        Layer.mock(BotVoice, { run: Effect.void }),
       ),
     ),
   );
@@ -98,6 +100,7 @@ test("a term ends in today's order: /health stops saying leader, then the gatewa
     Layer.effect(Live, Effect.map(part("live"), (p) => Live.of({ watch: Effect.as(p, { resync: Effect.void }) }))),
     Layer.effect(Ticker, Effect.map(part("clock"), (p) => Ticker.of({ sinceTick: Effect.succeed(null), run: () => Effect.andThen(p, Effect.never) }))),
     Layer.effect(Gateway, Effect.map(part("gateway"), (p) => Gateway.of({ hold: () => p }))),
+    Layer.mock(BotVoice, { run: Effect.void }),
   );
   const layer = Leadership.layer.pipe(
     Layer.provideMerge(stands),
@@ -119,5 +122,33 @@ test("a term ends in today's order: /health stops saying leader, then the gatewa
     await rt.runPromise(Fiber.interrupt(fiber));
     await rt.dispose();
     await admin.end();
+  }
+});
+
+test("the bot leaves voice first: its speech stops before the gateway closes (it needs the gateway to leave)", { timeout: 30_000 }, async () => {
+  const log: string[] = [];
+  const part = (what: string) =>
+    Effect.map(Lifecycle, (l) => Effect.acquireRelease(Effect.void, () => Effect.flatMap(l.leader, (leads) => Effect.sync(() => void log.push(`${what} off, leader ${leads}`)))));
+  const stands = Layer.mergeAll(
+    Layer.effect(Live, Effect.map(part("live"), (p) => Live.of({ watch: Effect.as(p, { resync: Effect.void }) }))),
+    Layer.effect(Ticker, Effect.map(part("clock"), (p) => Ticker.of({ sinceTick: Effect.succeed(null), run: () => Effect.andThen(p, Effect.never) }))),
+    Layer.effect(Gateway, Effect.map(part("gateway"), (p) => Gateway.of({ hold: () => p }))),
+    Layer.effect(BotVoice, Effect.map(part("speech"), (p) => BotVoice.of({ run: p } as never))),
+  );
+  const layer = Leadership.layer.pipe(
+    Layer.provideMerge(stands),
+    Layer.provideMerge(Lifecycle.layer),
+    Layer.provide(Layer.mergeAll(Layer.succeed(AppConfig, { ...configFromEnv(testEnv({} as never), { databaseUrl: url() }), appName: "qa-leader-speech" }), Reactivity.layer)),
+  );
+  const rt = ManagedRuntime.make(layer);
+  const fiber = rt.runFork(Leadership.use((l) => l.lead()));
+  try {
+    expect(await until(() => rt.runPromise(Lifecycle.use((l) => l.leader)), 5000)).toBe(true);
+    await new Promise((ok) => setTimeout(ok, 300));
+    await rt.runPromise(Fiber.interrupt(fiber)); // shutdown
+    expect(log.slice(0, 2)).toEqual(["speech off, leader false", "gateway off, leader false"]);
+    expect([...log.slice(2)].sort()).toEqual(["clock off, leader false", "live off, leader false"]);
+  } finally {
+    await rt.dispose();
   }
 });
