@@ -870,6 +870,10 @@ recordings (see "Numbers").
     your panel…": their original bodies, unchanged, as races (the next tap comes before the
     previous tap's background work has landed): `panels.message_id`, no calls. Each has a twin
     "(each tap done before the next)" that waits between taps and is recorded in full.
+  - news "the minute's jobs include the news check (what the Ticker runs)" (plan 06, declared
+    2026-11-13 after a gates run recorded its calls in another order): the news run starts in the
+    background, so its Reddit and forum reads land among the later jobs' calls as timing has it;
+    calls sorted, bodies hashed, nothing masked.
   Evidence: full dumps (`RECORD=full`) of normal and jitter runs differ only in those columns.
 - **Masked values:** `roast_bags.updated_at` and `settings.updated_at` where the value is within 10
   minutes of the real wall clock: the database's own `now()` (a heuristic: a value the bot wrote

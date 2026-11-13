@@ -671,6 +671,7 @@ it.effect("no channel configured: no fetch, no Gemini, no post, nothing stored, 
 
 it.effect("the minute's jobs include the news check (what the Ticker runs)", () =>
   Effect.gen(function* () {
+    h.race("the news run goes on in the background, so its calls land among the minute's other jobs' calls as timing has it");
     const out = yield* Jobs.use((j) => j.minute);
     expect(out["wow-news"]).toEqual({ checking: true });
     yield* h.settle;

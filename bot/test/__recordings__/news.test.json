@@ -720,21 +720,21 @@
  },
  "the minute's jobs include the news check (what the Ticker runs)": {
   "calls": [
-   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=100 -",
-   "POST https://discord.com/api/v10/channels/gn/messages ee24d0d9d136",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=<id> -",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "GET https://discord.com/api/v10/users/@me -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
-   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
-   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
    "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
-   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
-   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/ProgrammerHumor/top/.rss?t=week&limit=<id> -",
    "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=<id> -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
-   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -"
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=<id> -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=<id> -",
+   "POST https://discord.com/api/v10/channels/gn/messages ee24d0d9d136"
   ],
   "db": {
    "game_nights": "1:df4b397fd2d7",
