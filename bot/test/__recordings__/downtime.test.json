@@ -50,6 +50,24 @@
    "games": "8:44c5a8b0c098"
   }
  },
+ "a notice whose announced end has already passed never makes a card or a ping (Blizzard leaves notices up after the end)": {
+  "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages 796a808cf672"
+  ],
+  "db": {
+   "downtimes": "1:ec01f69e809f",
+   "games": "8:44c5a8b0c098"
+  }
+ },
  "Blizzard leaves its notice up after the end: 15 minutes past it, with no realm offline, the card says they should be back (an edit, no ping); the same text later changes nothing, a later end opens it again": {
   "calls": [
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",

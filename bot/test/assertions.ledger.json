@@ -2954,6 +2954,10 @@
   "test \"15 minutes past the end with a realm still offline: still down until the status page says otherwise\"": [
    "expect.toEqual([\"open\"])",
    "expect.toBe(\"### ✅ WoW Forever: servers are back\")"
+  ],
+  "test \"a notice whose announced end has already passed never makes a card or a ping (Blizzard leaves notices up after the end)\"": [
+   "expect.toEqual([[], []])",
+   "expect.toHaveLength(1)"
   ]
  }
 }

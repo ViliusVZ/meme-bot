@@ -192,6 +192,18 @@ it.effect("the launcher's notice: one card that pings the three of us, edited as
   }).pipe(h.provide),
 );
 
+it.effect("a notice whose announced end has already passed never makes a card or a ping (Blizzard leaves notices up after the end)", () =>
+  Effect.gen(function* () {
+    notice = EN_GB;
+    yield* poll(E + 60);
+    yield* poll(E + 3600);
+    expect([posts(), edits()]).toEqual([[], []]);
+    // still running when first seen: that one is news
+    yield* poll(S + 600);
+    expect(posts()).toHaveLength(1);
+  }).pipe(h.provide),
+);
+
 it.effect("Blizzard leaves its notice up after the end: 15 minutes past it, with no realm offline, the card says they should be back (an edit, no ping); the same text later changes nothing, a later end opens it again", () =>
   Effect.gen(function* () {
     notice = EN_GB;

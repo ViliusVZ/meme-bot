@@ -52,7 +52,6 @@ export const BURST_WINDOW = 15 * 60; // …created within this long of each othe
 const BURST_FRESH = 60 * 60; // a burst counts while its last thread is at most this old
 const QUIET = 60 * 60; // a downtime only players reported is over this long after the last burst
 const OVER_AFTER_END = 15 * 60; // a downtime is over this long after the end Blizzard gave (the launcher keeps its notice up for hours), unless a realm still shows offline
-const STALE_NOTICE = 30 * 60; // a notice whose end is longer ago than this is no news
 const UNTIMED_LIFE = 6 * 3600; // a forum post with no times: over after this long
 const REMIND_BEFORE = 60 * 60; // the reminder, this long before a planned start…
 const REMIND_IF_POSTED = 75 * 60; // …when the card went out at least this long before it
@@ -428,7 +427,9 @@ export class Downtime extends Context.Service<
         const match =
           rows.find((i) => i.notice === text) ??
           (w ? rows.find((i) => overlaps(i, w)) : rows.find((i) => current(i, t)));
-        if (w && (w.end ?? w.start + 3600) < t - STALE_NOTICE && !match) return; // long over: no news
+        // a notice whose announced end has already passed never makes a new card or a ping (Blizzard leaves notices up
+        // after the end); it can still update a card that exists
+        if (w && (w.end ?? w.start + 3600) <= t && !match) return;
         if (!match) {
           yield* create({
             key: `notice:${w ? w.start : textKey(text)}`, source, state: "open", notice: text, link, start_at: w?.start ?? null, end_at: w?.end ?? null, created_at: t, last_seen: t,
