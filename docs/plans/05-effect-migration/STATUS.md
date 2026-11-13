@@ -828,7 +828,8 @@ recordings (see "Numbers").
   recording whose `news_items` rows (left behind by the removed entries) are gone, its calls
   unchanged. Their ledger entries are removed from `test/assertions.ledger.json` by hand (the
   ledger has no exception list); the baseline's ledger never had them. The test floor goes on
-  rising (888 → 894).
+  rising (888 → 894). The 28 allowances were removed on 2026-11-13, once a full gates run held
+  without them (none of those recordings is at the baseline; HEAD has the new ones).
 - **drizzle-kit and partial indexes, plan 06:** `generate` for `news_stories` wrote only the two
   new tables this time (no proposal to drop the five partial indexes); nothing was deleted.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
