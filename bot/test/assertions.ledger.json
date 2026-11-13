@@ -2941,6 +2941,19 @@
   ],
   "test \"a maintenance planned for next week doesn't swallow tonight's trouble: the players' burst gets its own card\"": [
    "expect.toEqual([\"### 🛠️ WoW Forever: servers down for maintenance\", \"### ⚠️ WoW Forever: players report the servers going down\"])"
+  ],
+  "test \"Blizzard leaves its notice up after the end: 15 minutes past it, with no realm offline, the card says they should be back (an edit, no ping); the same text later changes nothing, a later end opens it again\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toEqual([\"### ✅ WoW Forever: servers should be back\", `**Down** <t:${S}:t>–about <t:${E}:t> (Blizzard's estimate)`])",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(2)",
+   "expect.toContain(`**Down now**, since <t:${S}:t>, back about <t:${E + 1800}:R>`)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"15 minutes past the end with a realm still offline: still down until the status page says otherwise\"": [
+   "expect.toEqual([\"open\"])",
+   "expect.toBe(\"### ✅ WoW Forever: servers are back\")"
   ]
  }
 }

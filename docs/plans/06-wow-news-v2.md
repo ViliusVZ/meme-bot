@@ -11,7 +11,9 @@ owner's feedback the day plan 02 went live.
   backs off to 30 min), the realm status page every 2 min, and Blizzard's maintenance/restart staff
   posts (news.ts now marks them `skip`/`downtime notice`, never the writer's). One card per downtime
   (`downtimes` table, claimed by key), edited as it changes (down now, extended, back, notice taken
-  down); a reminder an hour before when the card went out 75+ min ahead. Per the owner the new card
+  down); a reminder an hour before when the card went out 75+ min ahead. Blizzard leaves its launcher notice up
+  for hours: 15 min past the notice's end with no realm offline the card says "servers should be back"
+  (an edit; the same text later changes nothing, a later end opens it again). Per the owner the new card
   and the reminder are NOT silent and mention the three of us (edits notify nobody); one spoken line
   through BotVoice when any of us is in voice. Not in the news cap.
 - **Test bot replay:** `POST /admin/news {"downtime": {"notice": "…"}}` / `{"notice": ""}` / `{"topics":

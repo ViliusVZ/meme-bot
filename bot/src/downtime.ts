@@ -51,7 +51,7 @@ export const BURST = 3; // players' threads about the servers…
 export const BURST_WINDOW = 15 * 60; // …created within this long of each other
 const BURST_FRESH = 60 * 60; // a burst counts while its last thread is at most this old
 const QUIET = 60 * 60; // a downtime only players reported is over this long after the last burst
-const OVER_AFTER_END = 60 * 60; // a notice gone quiet (or Blizzard's post): over this long after its end
+const OVER_AFTER_END = 15 * 60; // a downtime is over this long after the end Blizzard gave (the launcher keeps its notice up for hours), unless a realm still shows offline
 const STALE_NOTICE = 30 * 60; // a notice whose end is longer ago than this is no news
 const UNTIMED_LIFE = 6 * 3600; // a forum post with no times: over after this long
 const REMIND_BEFORE = 60 * 60; // the reminder, this long before a planned start…
@@ -183,7 +183,7 @@ export function spokenIn(sec: number): string {
 
 type Row = typeof downtimes.$inferSelect;
 /** What a card is made from. */
-export type Incident = Pick<Row, "source" | "state" | "notice" | "link" | "thread" | "reports" | "quote" | "realms" | "realms_down" | "start_at" | "end_at" | "back_at" | "last_seen">;
+export type Incident = Pick<Row, "source" | "state" | "closed_by" | "notice" | "link" | "thread" | "reports" | "quote" | "realms" | "realms_down" | "start_at" | "end_at" | "back_at" | "last_seen">;
 
 const kindOf = (i: Incident) => (i.notice !== null ? "notice" : i.realms !== null ? "realms" : "players");
 
@@ -197,8 +197,10 @@ export function downtimeText(i: Incident, now: number): string {
   const kind = kindOf(i);
   const thread = i.thread ? `[players' thread](${i.thread})` : null;
   if (kind === "notice") {
-    lines.push(back ? "### ✅ WoW Forever: servers are back" : i.state === "cancelled" ? "### 🛠️ WoW Forever: maintenance notice taken down" : "### 🛠️ WoW Forever: servers down for maintenance");
-    if (back) lines.push(S !== null && i.back_at !== null ? `**Down** <t:${S}:t>–<t:${i.back_at}:t>` : i.back_at !== null ? `**Back** since <t:${i.back_at}:t>` : "**Back** up");
+    const guessed = back && i.closed_by === "time" && S !== null && E !== null; // over by Blizzard's own estimate, nothing said it
+    lines.push(guessed ? "### ✅ WoW Forever: servers should be back" : back ? "### ✅ WoW Forever: servers are back" : i.state === "cancelled" ? "### 🛠️ WoW Forever: maintenance notice taken down" : "### 🛠️ WoW Forever: servers down for maintenance");
+    if (guessed) lines.push(`**Down** <t:${S}:t>–about <t:${E}:t> (Blizzard's estimate)`);
+    else if (back) lines.push(S !== null && i.back_at !== null ? `**Down** <t:${S}:t>–<t:${i.back_at}:t>` : i.back_at !== null ? `**Back** since <t:${i.back_at}:t>` : "**Back** up");
     else if (i.state === "cancelled") lines.push("Blizzard took the notice down before it started.");
     else if (S !== null && S <= now) lines.push(`**Down now**, since <t:${S}:t>${E !== null ? `, back about <t:${E}:R>` : ""}`);
     else if (S !== null) lines.push(`**When** <t:${S}:F> (<t:${S}:R>)${E !== null ? ` until about <t:${E}:t>, roughly ${lasting(E - S)}` : ""}`);
@@ -433,7 +435,10 @@ export class Downtime extends Context.Service<
           });
           return;
         }
-        const reopen = match.state !== "open" && match.closed_by === "notice" && source === "launcher" && (match.end_at === null || t < match.end_at);
+        // the notice back after it went, or a new text with a later end after the old end passed (extended): open again;
+        // the same text still up after its end changes nothing
+        const extended = match.closed_by === "time" && w?.end != null && match.end_at !== null && w.end > match.end_at && t <= w.end + OVER_AFTER_END;
+        const reopen = match.state !== "open" && source === "launcher" && ((match.closed_by === "notice" && (match.end_at === null || t < match.end_at)) || extended);
         const launcherWins = source === "launcher";
         yield* set(match.key, {
           last_seen: t,
@@ -500,10 +505,10 @@ export class Downtime extends Context.Service<
       });
 
       /** What time alone ends: a notice that went quiet after its end, Blizzard's post with no times, players who stopped reporting. */
-      const closeByTime = Effect.fn("Downtime.closeByTime")(function* (t: number, showing: string | null) {
+      const closeByTime = Effect.fn("Downtime.closeByTime")(function* (t: number) {
         for (const i of yield* recent(t)) {
           if (i.state !== "open" || i.realms_down) continue;
-          if (i.end_at !== null && t > i.end_at + OVER_AFTER_END && !(i.source === "launcher" && showing === i.notice)) yield* set(i.key, { state: "back", closed_by: "time", back_at: i.end_at });
+          if (i.end_at !== null && t > i.end_at + OVER_AFTER_END) yield* set(i.key, { state: "back", closed_by: "time", back_at: i.end_at });
           else if (i.end_at === null && i.source === "blizzard" && t - i.created_at > UNTIMED_LIFE) yield* set(i.key, { state: "back", closed_by: "time", back_at: t });
           else if (i.source === "forum" && t - i.last_seen > QUIET) yield* set(i.key, { state: "back", closed_by: "quiet", back_at: i.last_seen });
         }
@@ -621,7 +626,7 @@ export class Downtime extends Context.Service<
             yield* burstSeen(b, t);
           }
         }
-        yield* closeByTime(t, notice);
+        yield* closeByTime(t);
         yield* publish(ch, t, out);
         return out;
       });

@@ -50,6 +50,52 @@
    "games": "8:44c5a8b0c098"
   }
  },
+ "Blizzard leaves its notice up after the end: 15 minutes past it, with no realm offline, the card says they should be back (an edit, no ping); the same text later changes nothing, a later end opens it again": {
+  "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 0522a1f02084",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 c6f94c69139f",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 bb924465b2b2"
+  ],
+  "db": {
+   "downtimes": "1:7f80dffaab47",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "15 minutes past the end with a realm still offline: still down until the status page says otherwise": {
+  "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages 567dec575df8",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 368dbea4a81a"
+  ],
+  "db": {
+   "downtimes": "1:ba26547f1db6",
+   "games": "8:44c5a8b0c098"
+  }
+ },
  "the reminder: an hour before a start the card announced well ahead, once (a restart included), pinging the three of us; none for a card posted late": {
   "calls": [
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
@@ -186,15 +232,15 @@
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
    "POST https://discord.com/api/v10/channels/news/messages ebaae49fe3b0",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 5f777017fc78",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 c6f94c69139f",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
    "POST https://discord.com/api/v10/channels/news/messages eed1ee8b3239",
-   "PATCH https://discord.com/api/v10/channels/news/messages/501 732787b054ce"
+   "PATCH https://discord.com/api/v10/channels/news/messages/501 f306dc0a3e37"
   ],
   "db": {
-   "downtimes": "3:9f7cae1f8773",
+   "downtimes": "3:b8cbaa3659fe",
    "games": "8:44c5a8b0c098",
    "settings": "1:b83a275ed775"
   }

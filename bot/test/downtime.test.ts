@@ -192,6 +192,40 @@ it.effect("the launcher's notice: one card that pings the three of us, edited as
   }).pipe(h.provide),
 );
 
+it.effect("Blizzard leaves its notice up after the end: 15 minutes past it, with no realm offline, the card says they should be back (an edit, no ping); the same text later changes nothing, a later end opens it again", () =>
+  Effect.gen(function* () {
+    notice = EN_GB;
+    yield* poll(S - 600);
+    yield* poll(E + 14 * 60);
+    expect(edits()).toHaveLength(1); // down now
+    yield* poll(E + 15 * 60 + 1);
+    expect(edits()).toHaveLength(2);
+    expect(textOf(edits()[1]).split("\n").slice(0, 2)).toEqual(["### ✅ WoW Forever: servers should be back", `**Down** <t:${S}:t>–about <t:${E}:t> (Blizzard's estimate)`]);
+    expect(posts()).toHaveLength(1);
+    // the same notice still up an hour later: nothing
+    yield* poll(E + 3600);
+    expect(edits()).toHaveLength(2);
+    // Blizzard extends it to 21:30 CET: the card is down again, until 15 minutes past the new end
+    notice = EXTENDED;
+    yield* poll(E + 20 * 60);
+    expect(textOf(edits()[2])).toContain(`**Down now**, since <t:${S}:t>, back about <t:${E + 1800}:R>`);
+    expect(posts()).toHaveLength(1);
+  }).pipe(h.provide),
+);
+
+it.effect("15 minutes past the end with a realm still offline: still down until the status page says otherwise", () =>
+  Effect.gen(function* () {
+    notice = EN_GB;
+    realms = ONLINE.map((r) => ({ ...r, online: r.name !== "PvP" }));
+    yield* poll(S);
+    yield* poll(E + 30 * 60);
+    expect((yield* rows).map((r) => r.state)).toEqual(["open"]);
+    realms = ONLINE;
+    yield* poll(E + 31 * 60);
+    expect(textOf(edits().at(-1)!).split("\n")[0]).toBe("### ✅ WoW Forever: servers are back");
+  }).pipe(h.provide),
+);
+
 it.effect("the reminder: an hour before a start the card announced well ahead, once (a restart included), pinging the three of us; none for a card posted late", () =>
   Effect.gen(function* () {
     notice = EN_GB;
@@ -333,7 +367,7 @@ it.effect("said aloud where we are when the card goes out, only with someone in 
 
 it.effect("the spoken lines: plain, no emoji or markdown", () =>
   Effect.sync(() => {
-    const base = { source: "launcher" as const, state: "open" as const, notice: EN_GB, link: null, thread: null, reports: null, quote: null, realms: null, realms_down: false, start_at: S, end_at: E, back_at: null, last_seen: S };
+    const base = { source: "launcher" as const, state: "open" as const, closed_by: null, notice: EN_GB, link: null, thread: null, reports: null, quote: null, realms: null, realms_down: false, start_at: S, end_at: E, back_at: null, last_seen: S };
     expect(spokenFor(base, S - 30 * 60)).toBe("Heads up: WoW servers go down for maintenance in about 30 minutes.");
     expect(spokenFor(base, S - 60 * 60)).toBe("Heads up: WoW servers go down for maintenance in about 1 hour.");
     expect(spokenFor(base, S + 60)).toBe("Heads up: WoW servers are down for maintenance right now.");
