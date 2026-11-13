@@ -14,6 +14,10 @@ owner's feedback the day plan 02 went live.
 - **2026-11-13** (gates green, 906 tests, every new rule's break-it red):
   - `d4a834a`: the minute's-jobs news test was flaky (its background run's calls interleave with
     the later jobs'): now a declared race. `2af1543`: plan 02's 28 recording allowances removed.
+    `01f2be7`: everything below. `d26b496`: the news's queues break ties by id (test 9 had listed
+    two tied candidates in either order). The next commit: the last recording allowance removed,
+    and the timeout test's quick clock only shortens the model's five minutes (it had shortened
+    the database pool's wait too, which failed once under load).
   - **Gemini's budget per model** (`src/gemini.ts`): the free tier is ~20 requests a day per
     model per project, so every request that goes out (a 503 or a timeout too) counts against its
     own model's day, at most `PER_MODEL_DAILY = 18`, game names and the news counted together, by

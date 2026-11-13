@@ -1,5 +1,1 @@
-{
- "news.test.json": {
-  "4. the same story in two subreddits and as a Blizzard post: one card, with Blizzard's link and its article read": "plan 06: candidates that tie go to the triage by id now (hot1 before hot2), where the database's row order used to decide; the triage's prompt lists them in that order"
- }
-}
+{}

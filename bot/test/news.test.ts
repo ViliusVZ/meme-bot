@@ -599,9 +599,9 @@ it.effect("a 503 or a timeout moves on to the next model, each request counted a
       if (modelOf(c) === "gemini-3.5-flash-lite") return json({ candidates: [{ content: { parts: [{ text: '{"nope":1}' }] } }] });
       return okAnswer(c);
     };
-    // (the five minutes a model gets, as 50 ms)
+    // (the five minutes a model gets, as 50 ms; shorter waits, like the database pool's, as they are)
     const clock = yield* Clock.clockWith(Effect.succeed);
-    const quick = <A, E, R>(e: Effect.Effect<A, E, R>) => Effect.provideService(e, Clock.Clock, { ...clock, sleep: () => Effect.provideService(Effect.sleep(Duration.millis(50)), Clock.Clock, clock) });
+    const quick = <A, E, R>(e: Effect.Effect<A, E, R>) => Effect.provideService(e, Clock.Clock, { ...clock, sleep: (d) => clock.sleep(Duration.toMillis(d) >= 60_000 ? Duration.millis(50) : d) });
     const r = yield* quick(gemini.request("news", OK_SCHEMA, Ok, { models: ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash"], use: "news" }));
     expect([r.answer, r.attempts]).toEqual([{ ok: true }, [{ model: "gemini-3.6-flash", outcome: "failed" }, { model: "gemini-3.7-flash", outcome: "failed" }, { model: "gemini-3.5-flash", outcome: "answered" }]]);
     const left = yield* Effect.forEach(["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash"], (m) => gemini.left([m], "news"));

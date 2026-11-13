@@ -838,7 +838,7 @@ recordings (see "Numbers").
   ask `gemini-3.8-flash` alone and keep the `gemini_budget` row as it was. The removal's gate run
   then caught news test 9 listing two tied candidates in the other order: the news's queues now
   break ties by id (they were in the database's row order), which reorders test 4's triage prompt
-  (allowed for that commit, removed in the next). Seen once in the same runs, not reproduced:
+  (allowed for that commit, `d26b496`, removed in the next). Seen once in the same runs, not reproduced:
   `reddit.test.json` "a restart doesn't fetch again" differing (untouched code, under the load of
   another worktree's gates).
 - **Plan 06 replaces plan 02's news tests (branch `news-v2`):** their behaviour is gone (Blizzard
