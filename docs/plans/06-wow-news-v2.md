@@ -4,7 +4,27 @@ Read `README.md` in this folder and `bot/README.md` (the house rules for the Eff
 first. This replaces what plan 02 built. Written 2026-11-12 by the planning thread, from the
 owner's feedback the day plan 02 went live.
 
-## Resume here (2026-11-13, afternoon: the editor's first review fixed; prompts v2)
+## Resume here (2026-11-13, 14:00: STOPPED by the owner's rule after editor pass 2)
+
+- **Stopped, not shipped.** Editor pass 2 (sheet `editor2/sheet.md`, prompts v2 + the pipeline fixes):
+  **7 findings** (down from 19). The owner's rule: "If Gemini fails the editor twice after real prompt
+  work, stop that line, say so with the failing examples, and don't build the outside-writer
+  endpoints." Gemini's own failures in pass 2, despite "add nothing you can't find in it": a card
+  stating the reverse of Blizzard's post ("scales with rank" vs "at all ranks"), an invented fact
+  ("favors slower main-hand weapons"), an overstatement ("significantly more rewarding"); in pass 1:
+  "using Arcane Explosion while layer hopping" (a commenter's guess), "on EU realms" (invented).
+  Full verdicts: session scratchpad `editor1/verdict.md`, `editor2/verdict.md`.
+- **State:** `news-v2` (has `main` with plans 07 and 03 merged in) is green and runs on the TEST bot
+  only; production has no news (plan 02 switched off with plan 07). Not merged to `main`.
+- **Pipeline findings still open (mine, code):** Blizzard posts not filtered to Forever (category 360
+  vs 235); a rewritten running post loses lists Blizzard overwrote (the Nov 10 hotfix list vanished):
+  read dated versions or Wowhead's copy; hotfix topics never get replies (pair with the discussion);
+  a merged card's time/mood from its main source; repeats by content, naming what they repeat; day
+  cut-off at Vilnius midnight; the sheet's stale header line.
+- **The owner's call:** a different writer (the outside-writer endpoints were not built, per the
+  rule), or the pipeline fixes above with Gemini and a third pass, or leave the channel quiet.
+
+## Earlier (2026-11-13, afternoon: the editor's first review fixed; prompts v2)
 
 - **Editor pass 1 (sheet of 2026-11-13 morning, prompts v1): 19 findings** (2 keep, 4 fix, 5 cut of
   12 cards; the week's top story, Sunday's dungeon XP +50%, lost to Gemini not answering). Verdict
