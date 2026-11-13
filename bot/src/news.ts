@@ -422,7 +422,7 @@ export class News extends Context.Service<
           points_to: s.url,
           text: own ? own.text : s.body,
           article: text ? { url: target, text } : null,
-          blizzard_post: blizzard,
+          blizzard_post: s.source === "blizzard" ? null : blizzard, // a Blizzard story's own post is its text already
           comments,
         };
         const links = [s.link, s.url, s.official ?? "", ...(text ? [target] : []), ...linksIn(s.body), ...linksIn(own?.text ?? ""), ...linksIn(text ?? ""), ...(blizzard ? [blizzard.url, ...linksIn(blizzard.text)] : [])].filter(Boolean);
@@ -808,10 +808,13 @@ export class News extends Context.Service<
                 reasons.set(r.id, "its thread didn't load");
                 continue;
               }
-              const b = x.official ? (blue.find((p) => p.link === x.official) ?? null) : null;
+              const b = x.official && r.source === "reddit" ? (blue.find((p) => p.link === x.official) ?? null) : null;
+              // Blizzard's post as it stood that day (the feed's excerpt is today's: a running post grows)
+              const bForum = b ? yield* cached(`bt:forum:${b.link}`, Schema.Array(ForumPostSchema), forumTopic(b.link)) : null;
+              const bThen = b && bForum ? forumMaterial(bForum, postNumber(b.link), at, d.iso)?.text : undefined;
               const byThen = thread.times ? thread.comments.filter((_, j) => (thread.times?.[j] ?? 0) <= at) : thread.comments;
               const forum = r.source === "blizzard" ? yield* cached(`bt:forum:${r.link}`, Schema.Array(ForumPostSchema), forumTopic(r.link)) : null;
-              const { material, links } = yield* materialFor({ ...r, official: x.official }, at, byThen, b ? { url: b.link, title: b.title, text: b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)), forum);
+              const { material, links } = yield* materialFor({ ...r, official: x.official }, at, byThen, b ? { url: b.link, title: b.title, text: bThen ?? b.excerpt } : null, (url) => cached(`bt:article:${url}`, Schema.String, article(url)), forum);
               round.push({ r, official: x.official, key, w, links, material });
               if (!w) toWrite++;
               if (alone) break;

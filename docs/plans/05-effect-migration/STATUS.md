@@ -888,6 +888,10 @@ recordings (see "Numbers").
   meant (no allowance: the old ones aren't at the baseline). Test 1's assertion changed (one story
   per staff post, not per topic): its ledger entry was deleted by hand and added again (`--add`),
   with 10 new tests' entries.
+  Then (same day): a running topic's opening post leaves out the sections a later staff post carries,
+  and a Blizzard story no longer gets its own post again as `blizzard_post` (today's feed excerpt,
+  which leaked later sections into a backtest card); a thread's official Blizzard post is read as it
+  stood that day. 4 news recordings change in their Gemini request bodies only; 3 new tests.
 - **Unordered call groups** (`verification.md` §2a), `test/recorder.ts` `UNORDERED`:
   - "panel copies": a run of consecutive `PATCH /webhooks/<app>/<token>/messages/@original` is put
     in URL order, stably, so two edits of the same copy keep their order. `panels.ts` `push()`

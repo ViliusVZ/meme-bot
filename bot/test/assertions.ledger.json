@@ -2485,6 +2485,14 @@
   "test \"a running hotfix topic's opening post leaves out the sections a later staff post carries (that post is their story)\"": [
    "expect.toBe(\"Hotfixes November 5, 2026 Rend and Tear fixed.\")",
    "expect.toBe(\"November 6, 2026 Voidwalkers have more health.\")"
+  ],
+  "test \"the backtest never shows the writer today's excerpt of a running Blizzard post: not as the story's own post, nor as a thread's official post\"": [
+   "expect.toBe(1)",
+   "expect.not.toContain(\"Later section\")",
+   "expect.toMatchObject({ blizzard_post: { text: \"Hotfixes November 10, 2026 Pets have more health.\" } })"
+  ],
+  "test \"a Blizzard story isn't given its own post a second time as its official post\"": [
+   "expect.toMatchObject({ blizzard_post: null })"
   ]
  },
  "traces.test.ts": {

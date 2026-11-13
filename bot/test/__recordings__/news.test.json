@@ -60,7 +60,7 @@
    "GET https://www.reddit.com/r/wowforever/comments/new1/.rss?sort=top&limit=60 -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/700/1.json -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/700/1 -",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 7f7e3a7f357c",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent a2accae32437",
    "POST https://discord.com/api/v10/channels/news/messages 87e5acaf6bab",
    "POST https://discord.com/api/v10/channels/news/messages cf9705b99371"
   ],
@@ -566,7 +566,7 @@
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1 -",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 0696fa9ff1bd",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 8d18a0286520",
    "POST https://discord.com/api/v10/channels/news/messages 2db5b4f5eddb"
   ],
   "db": {
@@ -906,7 +906,7 @@
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent a104123e07b7",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/4.json -",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent ebb825f90dd5",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent b4379eba3542",
    "POST https://discord.com/api/v10/channels/news/messages a1217cccd141"
   ],
   "db": {
@@ -1110,12 +1110,63 @@
    "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
    "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent efab910f646f",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/900/1.json -",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent e9241ea5ee56"
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 0744cf2a8e9e"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_cache": "11:73777ad9b936",
    "settings": "2:f2f97fcd1c13"
+  }
+ },
+ "the backtest never shows the writer today's excerpt of a running Blizzard post: not as the story's own post, nor as a thread's official post": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=week&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=week&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent 9c15f01c1383",
+   "GET https://www.reddit.com/r/wowforever/comments/w1/.rss?sort=top&limit=60 -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/900/1.json -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent effce425333f"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_cache": "12:a2574b015f04",
+   "settings": "2:f2f97fcd1c13"
+  }
+ },
+ "a Blizzard story isn't given its own post a second time as its official post": {
+  "calls": [
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=month&limit=100 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=month&limit=100 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
+   "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/classicwow/hot/.rss?limit=25 -",
+   "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
+   "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent a104123e07b7",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/4.json -",
+   "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/4 -",
+   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent 92b68535b594",
+   "POST https://discord.com/api/v10/channels/news/messages db1da72ec90d"
+  ],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "news_stories": "1:81cbb6b778b4",
+   "settings": "4:797cd106df75"
   }
  },
  "no channel configured, no news": {

@@ -28,7 +28,7 @@ const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, imp
 
 type Post = { id: string; title: string; ago: number; url?: string; body?: string };
 type Verdict = { game?: string; touches_forever?: boolean; kind?: string; matters?: number; same_as?: string };
-type Material = { title: string; text: string; comments: string[]; article: { url: string; text: string } | null; link: string; points_to: string };
+type Material = { title: string; text: string; comments: string[]; article: { url: string; text: string } | null; link: string; points_to: string; blizzard_post?: { url: string; title: string; text: string } | null };
 
 let feeds: Record<string, string | number> = {}; // a URL's answer: the feed, or a status
 let blue: string | number = "";
@@ -987,6 +987,38 @@ it.effect("the backtest reads a Blizzard post from its topic as it stood that da
     writeWith = (m) => ((seen = m), goodWriteup(m));
     yield* news.backtest({ days: 1, maxCalls: 10 });
     expect(seen).toMatchObject({ text: "Hotfixes November 10, 2026 Pets have more health.", comments: ["Nice."], article: null });
+  }).pipe(h.provide),
+);
+
+it.effect("the backtest never shows the writer today's excerpt of a running Blizzard post: not as the story's own post, nor as a thread's official post", () =>
+  Effect.gen(function* () {
+    const news = yield* News;
+    const day1 = now() - (24 + 5.5) * 3600;
+    // the blue tracker's excerpt is the post as it is today, with a later section on top
+    blue = rss([[900, 1, "WoW: Forever Hotfixes", 24 + 5.5]]).replace("<p>About WoW: Forever Hotfixes.</p>", "<p>Hotfixes November 14, 2026 Later section.</p>");
+    listing("wowforever", "week", [{ id: "w1", title: "Hotfixes are out", ago: 24 + 5 }]);
+    triageWith = (c) => (c.id === "reddit:t3_w1" ? { matters: 9, same_as: "blizzard:900" } : { matters: 9 });
+    articles["https://eu.forums.blizzard.com/en/wow/t/slug/900/1.json"] = JSON.stringify({
+      post_stream: { posts: [{ post_number: 1, created_at: iso(day1), cooked: "<p>Hotfixes</p><p>November 14, 2026 Later section.</p><p>November 10, 2026 Pets have more health.</p>", staff: true }] },
+    });
+    const seen: Material[] = [];
+    writeWith = (m) => (seen.push(m), goodWriteup(m));
+    yield* news.backtest({ days: 1, maxCalls: 10 });
+    expect(seen.length).toBe(1); // one story: the thread, with Blizzard's post as its official one
+    expect(JSON.stringify(seen)).not.toContain("Later section");
+    expect(seen[0]).toMatchObject({ blizzard_post: { text: "Hotfixes November 10, 2026 Pets have more health." } });
+  }).pipe(h.provide),
+);
+
+it.effect("a Blizzard story isn't given its own post a second time as its official post", () =>
+  Effect.gen(function* () {
+    yield* firstRun();
+    blue = rss([[800, 4, "Dungeon XP Increased", 4]]);
+    triageWith = () => ({ matters: 9 });
+    let seen: Material | null = null;
+    writeWith = (m) => ((seen = m), goodWriteup(m));
+    yield* run();
+    expect(seen).toMatchObject({ blizzard_post: null });
   }).pipe(h.provide),
 );
 
