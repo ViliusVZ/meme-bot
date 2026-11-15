@@ -9,6 +9,7 @@ import { Downtime, FORUM, FORUM_LATEST, LAUNCHER, REALMS, burstOf, isDowntimeNot
 import { AppConfig, type AppConfigShape } from "../src/config.js";
 import { BotVoice } from "../src/botvoice.js";
 import { Presence } from "../src/presence.js";
+import { SILENT } from "../src/newscard.js";
 import { VoiceConnector } from "../src/voiceconn.js";
 import { Tts } from "../src/tts.js";
 import { IS_COMPONENTS_V2 } from "../src/discord.js";
@@ -155,8 +156,8 @@ it.effect("the launcher's notice: one card that pings the three of us, edited as
     expect(textOf(posts()[0])).toBe(
       [
         "### 🛠️ WoW Forever: servers down for maintenance",
-        `**When** <t:${S}:F> (<t:${S}:R>) until about <t:${E}:t>, roughly 1 hour`,
-        `**Blizzard says** "${EN_GB}"`,
+        `**When** (your time) <t:${S}:F> (<t:${S}:R>) until about <t:${E}:t>, roughly 1 hour`,
+        `**Blizzard says** (their time zone) "${EN_GB}"`,
         "-# Blizzard's launcher notice · [server status](https://worldofwarcraft.blizzard.com/en-gb/game/status/eu)",
         "<@a> <@b> <@c>",
       ].join("\n"),
@@ -172,7 +173,7 @@ it.effect("the launcher's notice: one card that pings the three of us, edited as
     expect(edits()).toHaveLength(1);
     expect(edits()[0].body.flags).toBe(IS_COMPONENTS_V2);
     expect(edits()[0].body.allowed_mentions).toEqual({ parse: [] });
-    expect(textOf(edits()[0])).toContain(`**Down now**, since <t:${S}:t>, back about <t:${E}:R>`);
+    expect(textOf(edits()[0])).toContain(`**Down now** (your time), since <t:${S}:t>, back about <t:${E}:R>`);
     // Blizzard extends it: the same card, the new end
     notice = EXTENDED;
     yield* poll(S + 600);
@@ -220,7 +221,7 @@ it.effect("Blizzard leaves its notice up after the end: 15 minutes past it, with
     // Blizzard extends it to 21:30 CET: the card is down again, until 15 minutes past the new end
     notice = EXTENDED;
     yield* poll(E + 20 * 60);
-    expect(textOf(edits()[2])).toContain(`**Down now**, since <t:${S}:t>, back about <t:${E + 1800}:R>`);
+    expect(textOf(edits()[2])).toContain(`**Down now** (your time), since <t:${S}:t>, back about <t:${E + 1800}:R>`);
     expect(posts()).toHaveLength(1);
   }).pipe(h.provide),
 );
@@ -255,6 +256,37 @@ it.effect("the reminder: an hour before a start the card announced well ahead, o
       allowed_mentions: { parse: [], users: ["a", "b", "c"] },
       message_reference: { message_id: "500", fail_if_not_exists: false },
     });
+  }).pipe(h.provide),
+);
+
+it.effect("a reminder that falls between 00:00 and 08:00 here goes out silent with no mentions, unless one of us is in voice; the card itself still pings", () =>
+  Effect.gen(function* () {
+    // Wednesday's maintenance: 03:00–04:00 CET, 04:00 Vilnius, so its reminder would come at 03:00 Vilnius
+    notice = "We will be performing maintenance beginning on Wednesday, 18 November, 03:00 (CET) and we expect the service to be available again at approximately 04:00 (CET). During this time the game will be unavailable for play.";
+    const start = sec("2026-11-18T02:00:00Z");
+    yield* inVoice({});
+    yield* poll(sec("2026-11-17T22:41:00Z")); // posted 00:41 Vilnius
+    expect(posts()[0].body.allowed_mentions).toEqual({ parse: [], users: ["a", "b", "c"] }); // the card pings at any hour
+    yield* poll(start - 3600);
+    const [quiet] = posts().filter((c) => c.body.message_reference);
+    expect(quiet.body).toEqual({
+      content: `⏰ WoW Forever goes down <t:${start}:R> (<t:${start}:t>) for about 1 hour.`,
+      allowed_mentions: { parse: [], users: [] },
+      flags: SILENT,
+      message_reference: { message_id: "500", fail_if_not_exists: false },
+    });
+  }).pipe(h.provide),
+);
+
+it.effect("someone in voice at 03:00: the night reminder pings as usual", () =>
+  Effect.gen(function* () {
+    notice = "We will be performing maintenance beginning on Wednesday, 18 November, 03:00 (CET) and we expect the service to be available again at approximately 04:00 (CET). During this time the game will be unavailable for play.";
+    const start = sec("2026-11-18T02:00:00Z");
+    yield* poll(sec("2026-11-17T22:41:00Z"));
+    yield* inVoice({ a: "lobby" });
+    yield* poll(start - 3600);
+    const [loud] = posts().filter((c) => c.body.message_reference);
+    expect([loud.body.allowed_mentions, loud.body.flags]).toEqual([{ parse: [], users: ["a", "b", "c"] }, undefined]);
   }).pipe(h.provide),
 );
 
@@ -335,7 +367,7 @@ it.effect("Blizzard's forum post about maintenance (kept from the news) makes th
     yield* poll(sec("2026-11-13T13:00:00Z"));
     expect(posts()).toHaveLength(1);
     expect(textOf(posts()[0])).toContain(`-# [Blizzard's forum post](${link})`);
-    expect(textOf(posts()[0])).toContain(`**When** <t:${S}:F>`);
+    expect(textOf(posts()[0])).toContain(`**When** (your time) <t:${S}:F>`);
     notice = EN_GB;
     yield* poll(sec("2026-11-13T13:01:00Z"));
     expect(posts()).toHaveLength(1);
@@ -347,7 +379,7 @@ it.effect("a notice we can't read times from still makes the card, without a Whe
   Effect.gen(function* () {
     notice = "We are aware of players disconnecting from realms and are investigating.";
     yield* poll(sec("2026-11-13T19:30:00Z"));
-    expect(textOf(posts()[0]).split("\n").slice(0, 2)).toEqual(["### 🛠️ WoW Forever: servers down for maintenance", `**Blizzard says** "${notice}"`]);
+    expect(textOf(posts()[0]).split("\n").slice(0, 2)).toEqual(["### 🛠️ WoW Forever: servers down for maintenance", `**Blizzard says** (their time zone) "${notice}"`]);
   }).pipe(h.provide),
 );
 
