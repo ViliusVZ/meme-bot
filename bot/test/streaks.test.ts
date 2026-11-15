@@ -165,7 +165,7 @@ it.effect("answering on time ends the streak: the next card says so once", () =>
     const broke = card.match(/-# 🏅 [^"]*/g) ?? [];
     expect(broke).toHaveLength(1); // Ieva's only
     expect(broke[0]).toContain(`<@${L}>`);
-    expect(broke[0].replace(/<@\d+>/g, "")).toMatch(/\b2\b/); // the streak that ended
+    expect((broke[0] ?? "").replace(/<@\d+>/g, "")).toMatch(/\b2\b/); // the streak that ended
     // re-rendered, the card still says it; a card planned for later doesn't say it again
     expect(JSON.stringify(yield* GameNight.use((g) => g.render("2026-11-23")))).toContain("🏅");
     yield* start("2026-11-25");
