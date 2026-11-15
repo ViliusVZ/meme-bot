@@ -15,13 +15,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
-import { Cause, Clock, Console, Duration, Effect, Exit, Layer, ManagedRuntime, Random, Redacted, Schema } from "effect";
+import { Cause, Clock, Console, Duration, Effect, Exit, Layer, ManagedRuntime, Random, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { AppConfig, type AppConfigShape } from "../src/config.js";
 import { appLayerFor, type AppServices, type LayerOptions } from "../src/runtime.js";
 import { Background } from "../src/background.js";
 import { Spontaneous } from "../src/spontaneous.js";
-import { Gemini } from "../src/gemini.js";
 import { configFromEnv } from "./env.js";
 import type { Env } from "./env.js";
 import { testDb, testEnv, url } from "./pg.js";
@@ -94,8 +93,8 @@ export type Harness = {
   promise<A, E, R, B>(self: Effect.Effect<A, E, R>, check: (p: Promise<A>) => Promise<B>): Effect.Effect<B, never, R>;
   /** Move the frozen clock (files with a `clock` time). */
   setTime(at: number | string): Effect.Effect<void>;
-  /** Game detection and the Gemini key for one call, as `{ ...env, PRESENCES: true, GEMINI_API_KEY: "k" }` did. */
-  withConfig(change: { readonly presences?: boolean; readonly geminiApiKey?: string }): <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
+  /** Game detection for one call, as `{ ...env, PRESENCES: true }` did. */
+  withConfig(change: { readonly presences?: boolean }): <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
   /** Wait for background work (followups, panel edits) to finish, as a real user's next tap would. */
   settle: Effect.Effect<void, StillRunning, Background>;
   /** Declare a race (as in test/harness.ts; listed in STATUS.md under "Declared exceptions"). */
@@ -240,10 +239,9 @@ export function harness(o: Options = {}): Harness {
       const own: AppConfigShape = {
         ...c,
         presences: change.presences ?? c.presences,
-        geminiApiKey: change.geminiApiKey === undefined ? c.geminiApiKey : Redacted.make(change.geminiApiKey),
       };
-      // Spontaneous and Gemini hold no state of their own: this call gets its own, with that configuration
-      const services = Layer.fresh(Spontaneous.layer).pipe(Layer.provideMerge(Layer.fresh(Gemini.layer)), Layer.provide(Layer.succeed(AppConfig, own)));
+      // Spontaneous holds no state of its own: this call gets its own, with that configuration
+      const services = Layer.fresh(Spontaneous.layer).pipe(Layer.provide(Layer.succeed(AppConfig, own)));
       return yield* Effect.provide(self, services);
     }) as never;
 

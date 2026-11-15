@@ -763,24 +763,20 @@ function define(name: string, s: Sequence) {
 }
 for (const [name, s] of Object.entries(sequences)) define(name, s);
 
-it.effect("a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)", () =>
+it.effect("a name the news writer placed: interrupted while its answer is written, the alias is written too (phase 5 audit)", () =>
   Effect.gen(function* () {
     const db = yield* Db;
     yield* db.delete(gameAliases);
     yield* db.delete(activityGuesses);
     yield* db.insert(games).values({ name: "World of Warcraft", emoji: "🐉", added_at: "2026-11-03" }).onConflictDoNothing();
-    const theirs = h.override;
-    h.override = (c) =>
-      c.path.includes("generativelanguage.googleapis.com") ? json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ game: "World of Warcraft" }) }] } }] }) : theirs?.(c);
-    yield* Effect.gen(function* () {
-      const held = yield* hold({ table: "activity_guesses", op: "UPDATE", when: "NEW.answered" });
-      const fiber = yield* Effect.forkChild(Spontaneous.use((s) => s.learn(["World of Warcraft: Forever"], now())).pipe(h.withConfig({ presences: true, geminiApiKey: "k" })), { startImmediately: true });
-      yield* held.inFlight;
-      const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
-      held.release();
-      yield* Fiber.join(stopped);
-      yield* held.done;
-    }).pipe(Effect.ensuring(Effect.sync(() => void (h.override = theirs))));
+    expect(yield* Spontaneous.use((s) => s.learn(["World of Warcraft: Forever"], now()))).toEqual(["World of Warcraft: Forever"]);
+    const held = yield* hold({ table: "activity_guesses", op: "UPDATE", when: "NEW.answered" });
+    const fiber = yield* Effect.forkChild(Spontaneous.use((s) => s.place("World of Warcraft: Forever", "World of Warcraft")), { startImmediately: true });
+    yield* held.inFlight;
+    const stopped = yield* Effect.forkChild(Fiber.interrupt(fiber), { startImmediately: true });
+    held.release();
+    yield* Fiber.join(stopped);
+    yield* held.done;
     expect((yield* db.select().from(activityGuesses)).map((g) => [g.activity, g.answered])).toEqual([["World of Warcraft: Forever", true]]);
     expect((yield* db.select().from(gameAliases)).map((a) => [a.activity, a.game])).toEqual([["World of Warcraft: Forever", "World of Warcraft"]]);
   }).pipe(h.provide),

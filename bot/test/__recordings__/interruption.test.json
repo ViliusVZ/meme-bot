@@ -757,18 +757,15 @@
    "votes": "1:27fd349c6e9d"
   }
  },
- "a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)": {
-  "calls": [
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 555deb7a9e3c"
-  ],
+ "a name the news writer placed: interrupted while its answer is written, the alias is written too (phase 5 audit)": {
+  "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -776,12 +773,11 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:bf43c59c933f",
    "votes": "1:27fd349c6e9d"
   }
@@ -792,13 +788,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:dfb2d9495374",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:a6958f81c496",
    "votes": "1:27fd349c6e9d"
   }
@@ -809,13 +804,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:311d5ada1ab7",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:8b2bfa60c2d1",
    "votes": "1:27fd349c6e9d"
   }
@@ -826,13 +820,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:4f8acf337716",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:d9939d3674d4",
    "votes": "1:27fd349c6e9d"
   }
@@ -841,13 +834,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:ef3338fa32a2",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -857,13 +849,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:2cd616eb3001",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -873,13 +864,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:c19706d34da5",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -887,13 +877,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -903,14 +892,13 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "night_attendance": "1:5e5199e84c8a",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -920,14 +908,13 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "night_attendance": "1:fcace8483a81",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -937,14 +924,13 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "night_attendance": "1:5e5199e84c8a",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -952,13 +938,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:1fde1c44a1e4",
    "game_nights": "1:246aaf69ee16",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -969,13 +954,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:ac9e22683476",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -986,13 +970,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:dda2391c7e83",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1003,13 +986,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:ac9e22683476",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1017,13 +999,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:254a0ae2ecb8",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1033,13 +1014,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:b9b7a4cbfe62",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1049,13 +1029,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:d99d295e940e",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1065,13 +1044,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:b9b7a4cbfe62",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1079,13 +1057,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:5b4a9cc3f6e4",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1095,13 +1072,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:f03bb65ca87f",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1111,13 +1087,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:217fa934595d",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1127,13 +1102,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:f03bb65ca87f",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1141,13 +1115,12 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:22a6ccc24a55",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:e8f835a74af4",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1157,13 +1130,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:3ae0f5fe9d43",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1173,13 +1145,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:3ae0f5fe9d43",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1189,13 +1160,12 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:3ae0f5fe9d43",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1203,14 +1173,13 @@
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "rooms": "1:803d92d9d09a",
    "sessions": "1:24df3aa6f117",
-   "settings": "1:4fa1570e14dd",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1221,11 +1190,10 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
-   "memes": "1:9bc174350963",
-   "settings": "1:4fa1570e14dd"
+   "memes": "1:9bc174350963"
   }
  },
  "/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)": {
@@ -1235,23 +1203,21 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47",
-   "settings": "1:4fa1570e14dd"
+   "memes": "1:d188e12f3e47"
   }
  },
  "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:602eb4f5c39d",
    "games": "9:ea9dfc7eb603",
    "memes": "1:d188e12f3e47",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "3:8b7ac1867a3a"
   }
  },
@@ -1270,14 +1236,13 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "1:3425b2621923",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "3:e9327d28131f"
   }
  },
@@ -1296,14 +1261,13 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "3:21067506ca0d"
   }
  },
@@ -1322,14 +1286,13 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "3:080d0cd320ec"
   }
  },
@@ -1338,7 +1301,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1353,7 +1316,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1368,7 +1331,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1383,7 +1346,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1396,7 +1359,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1412,7 +1375,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1428,7 +1391,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1444,7 +1407,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
@@ -1458,7 +1421,7 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:d53c2a108780",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "game_nights": "1:d5e86a79408c",
    "games": "9:fa5c08387b7a",

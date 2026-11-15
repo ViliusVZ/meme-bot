@@ -1,19 +1,20 @@
 // 🎮 Spontaneous play against a real Postgres, Discord stubbed: the Lobby question, unplanned
 // sessions (the quiet line, counting, wrapping up), pulling people in, and ↩ back to the Lobby.
+import { readdirSync, readFileSync } from "node:fs";
 import { beforeEach, expect, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Clock, ConfigProvider, Effect, Exit, Schema } from "effect";
+import { Clock, ConfigProvider, Context, Effect, Exit, Layer } from "effect";
+import { HttpRouter, HttpServer } from "effect/http";
 import * as spontaneous from "../src/spontaneous.js";
 import { Spontaneous, type Change, type Where } from "../src/spontaneous.js";
 import { Presence } from "../src/presence.js";
 import { Activity } from "../src/activity.js";
 import { Interactions } from "../src/interactions.js";
-import { LocalTime } from "../src/localtime.js";
-import { readConfig } from "../src/config.js";
+import { AppConfig, readConfig, type AppConfigShape } from "../src/config.js";
+import { AppStatus, ROUTER_CONFIG, routesOn } from "../src/app.js";
 import { Db } from "../src/db/db.js";
 import type { AppServices } from "../src/runtime.js";
 import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
-import * as gemini from "../src/gemini.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
@@ -25,6 +26,7 @@ const h = harness({
     ]),
   discord: { firstId: 9000, routes: [routes.lobbyOnly] },
   clock: "2026-11-10T19:00:00Z", // Tuesday 21:00 in Vilnius
+  env: { NEWS_WRITER_KEY: "w" }, // the news writer places names Discord uses (GET /news/names)
 });
 const calls = h.calls;
 
@@ -695,48 +697,48 @@ it.effect("an auto-move whose room won't open keeps the gathering quiet and says
   }).pipe(h.provide),
 );
 
-// ---------------------------------------------------------------- 🧠 Gemini places names Discord uses
+// ---------------------------------------------------------------- 🧠 the news writer places names Discord uses
 
-/** Answer Gemini calls with `game` (or fail them), counting how many were made. */
-function geminiSays(answer: string | null | "fail") {
-  const asked: string[] = [];
-  const prev = h.override;
-  h.override = (c) => {
-    if (c.path.includes("generativelanguage.googleapis.com")) {
-      asked.push(JSON.stringify(c.body));
-      if (answer === "fail") return json({ error: { message: "overloaded" } }, 503);
-      return json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ game: answer }) }] } }] });
-    }
-    return prev?.(c);
-  };
-  return asked;
-}
+const waitingNames = Spontaneous.use((s) => s.namesWaiting);
+const place = (name: string, game: string | null) => Spontaneous.use((s) => s.place(name, game));
+const toGemini = () => calls.filter((c) => c.path.includes("generativelanguage.googleapis.com"));
 
-it.effect("a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room", () =>
+it.effect("a new name Discord uses waits for the writer once; its yes becomes an alias, so two of us in it go straight to the room", () =>
   Effect.gen(function* () {
-    const e = h.withConfig({ presences: true, geminiApiKey: "k" });
-    const asked = geminiSays("World of Warcraft");
-    expect(yield* e(sp.learn(["World of Warcraft: Forever"]))).toEqual([{ activity: "World of Warcraft: Forever", game: "World of Warcraft" }]);
-    expect(asked).toHaveLength(1);
-    expect(asked[0]).toContain("World of Warcraft: Forever");
-    // known now: no second question
-    expect(yield* e(sp.learn(["World of Warcraft: Forever", "World of Warcraft"]))).toEqual([]);
-    expect(asked).toHaveLength(1);
+    const db = yield* Db;
+    const e = h.withConfig({ presences: true });
     const t0 = yield* now;
+    expect(yield* e(sp.learn(["World of Warcraft: Forever", "World of Warcraft"], t0))).toEqual(["World of Warcraft: Forever"]);
+    // seen again: still once, first seen when it was
+    expect(yield* e(sp.learn(["World of Warcraft: Forever"], t0 + 7200))).toEqual([]);
+    expect(yield* e(waitingNames)).toEqual({
+      games: [
+        { name: "R.E.P.O.", emoji: "📦" },
+        { name: "World of Warcraft", emoji: "🐉" },
+      ],
+      names: [{ name: "World of Warcraft: Forever", first_seen: "2026-11-10T19:00:00.000Z" }],
+    });
+    expect(yield* e(place("World of Warcraft: Forever", "world of warcraft"))).toEqual({ ok: true, name: "World of Warcraft: Forever", game: "World of Warcraft" });
+    expect((yield* db.select().from(gameAliases)).map((a) => [a.activity, a.game, a.added_by])).toEqual([["World of Warcraft: Forever", "World of Warcraft", "writer"]]);
+    expect((yield* e(waitingNames)).names).toEqual([]);
+    // once per name: a second answer changes nothing
+    expect(yield* e(place("World of Warcraft: Forever", null))).toEqual({ ok: false, status: 409, error: '"World of Warcraft: Forever" isn\'t waiting any more (answered: World of Warcraft)' });
+    expect(yield* e(sp.learn(["World of Warcraft: Forever"]))).toEqual([]);
     yield* playing("a", "World of Warcraft: Forever");
     yield* playing("b", "World of Warcraft: Forever");
     yield* at(t0, { a: "lobby", b: "lobby" });
     yield* e(sp.react(where, t0 + 30));
     expect((yield* prompt()).state).toBe("moved");
+    expect(toGemini()).toEqual([]);
   }).pipe(h.provide),
 );
 
-it.effect("Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either", () =>
+it.effect("the writer says it's not one of ours: no alias, and no “is that …?” offer for it either", () =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const e = h.withConfig({ presences: true, geminiApiKey: "k" });
-    geminiSays(null);
-    expect(yield* e(sp.learn(["Visual Studio Code"]))).toEqual([{ activity: "Visual Studio Code", game: null }]);
+    const e = h.withConfig({ presences: true });
+    yield* e(sp.learn(["Visual Studio Code"]));
+    expect(yield* e(place("visual studio code", null))).toEqual({ ok: true, name: "Visual Studio Code", game: null });
     expect(yield* db.select().from(gameAliases)).toEqual([]);
     yield* playing("a", "Visual Studio Code");
     yield* playing("b", "Visual Studio Code");
@@ -746,44 +748,98 @@ it.effect("Gemini says it's not one of ours: no alias, and no “is that …?”
   }).pipe(h.provide),
 );
 
-it.effect("an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update", () =>
+it.effect("an answer that isn't one of our games is refused and the name keeps waiting; a name nobody saw is 404", () =>
   Effect.gen(function* () {
-    const e = h.withConfig({ presences: true, geminiApiKey: "k" });
-    geminiSays("Some Game We Never Added");
-    expect(yield* e(sp.learn(["Peak"]))).toEqual([{ activity: "Peak", game: null }]);
-    const asked = geminiSays("fail");
-    const t0 = yield* now;
-    expect(yield* e(sp.learn(["Lethal Company"], t0))).toEqual([]);
-    expect(yield* e(sp.learn(["Lethal Company"], t0 + 3600))).toEqual([]);
-    expect(asked).toHaveLength(1);
-    expect(yield* e(sp.learn(["Lethal Company"], t0 + 86400))).toEqual([]);
-    expect(asked).toHaveLength(2);
+    yield* sp.learn(["Peak"]);
+    const r = yield* place("Peak", "Some Game We Never Added");
+    expect(r).toMatchObject({ ok: false, status: 400 });
+    expect((yield* waitingNames).names.map((n) => n.name)).toEqual(["Peak"]);
+    expect(yield* place("Lethal Company", null)).toEqual({ ok: false, status: 404, error: 'no name "Lethal Company" is waiting' });
   }).pipe(h.provide),
 );
 
-it.effect("no key, no questions", () =>
-  Effect.gen(function* () {
-    const asked = geminiSays("World of Warcraft");
-    expect(yield* sp.learn(["World of Warcraft: Forever"])).toEqual([]);
-    expect(asked).toEqual([]);
-  }).pipe(h.provide),
-);
-
-it.effect("Gemini's daily budget is kept in the database and stops asking once it's spent", () =>
+it.effect("no word from the writer yet: the Lobby question still teaches it with one tap, and then it's off the writer's list", () =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const e = h.withConfig({ geminiApiKey: "k" });
-    const ask = (prompt: string, schema: object) => e(gemini.Gemini.use((g) => g.ask(prompt, schema, Schema.Unknown)));
-    const asked = geminiSays("World of Warcraft");
-    const schema = { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } } };
-    yield* db.insert(settings).values({ key: "gemini_budget", value: { day: (yield* LocalTime.use((t) => t.now)).day, used: gemini.PER_MODEL_DAILY - 1 } });
-    expect(yield* ask("q", schema)).toEqual({ game: "World of Warcraft" });
-    expect(yield* ask("q", schema)).toBeNull();
-    expect(asked).toHaveLength(1);
-    // a new day, a new budget
-    yield* db.update(settings).set({ value: { day: "2000-01-01", used: 99 } });
-    expect(yield* ask("q", schema)).toEqual({ game: "World of Warcraft" });
+    const e = h.withConfig({ presences: true });
+    const t0 = yield* now;
+    yield* e(sp.learn(["World of Warcraft: Forever"], t0));
+    yield* playing("a", "World of Warcraft: Forever");
+    yield* playing("b", "World of Warcraft: Forever");
+    yield* at(t0, { a: "lobby", b: "lobby" });
+    yield* e(sp.react(where, t0 + 30));
+    const p = yield* prompt();
+    expect(p).toMatchObject({ state: "open", activity: "World of Warcraft: Forever" });
+    yield* e(sp.answer(p.id, "a", "g", "World of Warcraft"));
+    expect(yield* e(sp.answer(p.id, "a", "alias"))).toBe("👍 From now on, two of you in *World of Warcraft: Forever* go straight to **World of Warcraft**.");
+    expect((yield* e(waitingNames)).names).toEqual([]);
+    // the writer's late answer keeps the tap's alias
+    expect(yield* e(place("World of Warcraft: Forever", null))).toEqual({ ok: false, status: 409, error: '"World of Warcraft: Forever" isn\'t waiting any more (known already)' });
+    expect((yield* db.select().from(gameAliases)).map((a) => [a.game, a.added_by])).toEqual([["World of Warcraft", "a"]]);
   }).pipe(h.provide),
+);
+
+/** The app's routes as the writer calls them (the key is "w"). */
+const app = (change: Partial<AppConfigShape> = {}) =>
+  Effect.gen(function* () {
+    const base = yield* Effect.context<AppServices>();
+    const config = yield* AppConfig;
+    const ctx = Context.add(base, AppConfig, { ...config, ...change });
+    const statusLayer = Layer.succeed(AppStatus, AppStatus.of({ leader: Effect.succeed(true), shuttingDown: Effect.succeed(false), publicKey: h.env.DISCORD_PUBLIC_KEY }));
+    const { handler } = HttpRouter.toWebHandler(routesOn(statusLayer, ctx).pipe(Layer.provide(HttpServer.layerServices)), { disableLogger: true, routerConfig: ROUTER_CONFIG });
+    return (method: "GET" | "POST", path: string, payload?: unknown, token = "w") =>
+      Effect.promise(async () => {
+        const res = await handler(
+          new Request(`http://local${path}`, { method, headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, ...(payload === undefined ? {} : { body: typeof payload === "string" ? payload : JSON.stringify(payload) }) }),
+          ctx,
+        );
+        return { statusCode: res.status, body: await res.text() };
+      });
+  });
+
+it.effect("GET /news/names and POST /news/name: the news writer's key, JSON both ways, a refusal's status with its reason", () =>
+  Effect.gen(function* () {
+    const http = yield* app();
+    yield* sp.learn(["Peak", "Lethal Company"], (yield* now) - 60);
+    expect((yield* http("GET", "/news/names", undefined, "x")).statusCode).toBe(401);
+    expect((yield* http("POST", "/news/name", { name: "Peak", game: null }, "x")).statusCode).toBe(401);
+    const q = yield* http("GET", "/news/names");
+    expect([q.statusCode, JSON.parse(q.body)]).toEqual([
+      200,
+      {
+        games: [
+          { name: "R.E.P.O.", emoji: "📦" },
+          { name: "World of Warcraft", emoji: "🐉" },
+        ],
+        names: [
+          { name: "Lethal Company", first_seen: "2026-11-10T18:59:00.000Z" },
+          { name: "Peak", first_seen: "2026-11-10T18:59:00.000Z" },
+        ],
+      },
+    ]);
+    expect((yield* http("POST", "/news/name", "not json")).statusCode).toBe(400);
+    expect((yield* http("POST", "/news/name", { name: "Peak" })).statusCode).toBe(400);
+    const ok = yield* http("POST", "/news/name", { name: "Peak", game: "R.E.P.O.", reason: "a test" });
+    expect([ok.statusCode, JSON.parse(ok.body)]).toEqual([200, { ok: true, name: "Peak", game: "R.E.P.O." }]);
+    const again = yield* http("POST", "/news/name", { name: "Peak", game: null });
+    expect([again.statusCode, JSON.parse(again.body)]).toEqual([409, { error: '"Peak" isn\'t waiting any more (answered: R.E.P.O.)' }]);
+    expect(JSON.parse((yield* http("GET", "/news/names")).body).names.map((n: { name: string }) => n.name)).toEqual(["Lethal Company"]);
+    // no writer key configured: both routes are 404
+    const none = yield* app({ newsWriterKey: undefined });
+    expect((yield* none("GET", "/news/names")).statusCode).toBe(404);
+    expect((yield* none("POST", "/news/name", { name: "Lethal Company", game: null })).statusCode).toBe(404);
+    expect(toGemini()).toEqual([]);
+  }).pipe(h.provide),
+);
+
+it.effect("nothing asks Gemini for text any more: only the voice's spare speech engine calls it", () =>
+  Effect.sync(() => {
+    const dir = new URL("../src/", import.meta.url);
+    const callers = readdirSync(dir, { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith(".ts") && readFileSync(new URL(f.replaceAll("\\", "/"), dir), "utf8").includes("generativelanguage.googleapis.com"));
+    expect(callers).toEqual(["tts.ts"]);
+  }),
 );
 
 it.effect("a pull-in another copy makes at the same moment moves you once", () =>

@@ -1160,37 +1160,6 @@
    "expect.toBe(\"failed\")",
    "expect.toEqual([])"
   ],
-  "test \"a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room\"": [
-   "expect.toEqual([{ activity: \"World of Warcraft: Forever\", game: \"World of Warcraft\" }])",
-   "expect.toHaveLength(1)",
-   "expect.toContain(\"World of Warcraft: Forever\")",
-   "expect.toEqual([])",
-   "expect.toHaveLength(1)",
-   "expect.toBe(\"moved\")"
-  ],
-  "test \"Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either\"": [
-   "expect.toEqual([{ activity: \"Visual Studio Code\", game: null }])",
-   "expect.toEqual([])",
-   "expect.toBeNull()"
-  ],
-  "test \"an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update\"": [
-   "expect.toEqual([{ activity: \"Peak\", game: null }])",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toHaveLength(1)",
-   "expect.toEqual([])",
-   "expect.toHaveLength(2)"
-  ],
-  "test \"no key, no questions\"": [
-   "expect.toEqual([])",
-   "expect.toEqual([])"
-  ],
-  "test \"Gemini's daily budget is kept in the database and stops asking once it's spent\"": [
-   "expect.toEqual({ game: \"World of Warcraft\" })",
-   "expect.toBeNull()",
-   "expect.toHaveLength(1)",
-   "expect.toEqual({ game: \"World of Warcraft\" })"
-  ],
   "test \"a pull-in another copy makes at the same moment moves you once\"": [
    "expect.toHaveLength(1)",
    "expect.toEqual([\"a\"])"
@@ -1208,6 +1177,51 @@
    "expect.toBeNull()",
    "expect.toEqual({ channel_id: \"lobby\" })",
    "expect.toBe(\"undone\")"
+  ],
+  "test \"a new name Discord uses waits for the writer once; its yes becomes an alias, so two of us in it go straight to the room\"": [
+   "expect.toEqual([\"World of Warcraft: Forever\"])",
+   "expect.toEqual([])",
+   "expect.toEqual({ games: [ { name: \"R.E.P.O.\", emoji: \"📦\" }, { name: \"World of Warcraft\", emoji: \"🐉\" }, ], names: [{ name: \"World of Warcraft: Forever\", first_seen: \"2026-11-10T19:00:00.000Z\" }], })",
+   "expect.toEqual({ ok: true, name: \"World of Warcraft: Forever\", game: \"World of Warcraft\" })",
+   "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\", \"writer\"]])",
+   "expect.toEqual([])",
+   "expect.toEqual({ ok: false, status: 409, error: '\"World of Warcraft: Forever\" isn\\'t waiting any more (answered: World of Warcraft)' })",
+   "expect.toEqual([])",
+   "expect.toBe(\"moved\")",
+   "expect.toEqual([])"
+  ],
+  "test \"the writer says it's not one of ours: no alias, and no “is that …?” offer for it either\"": [
+   "expect.toEqual({ ok: true, name: \"Visual Studio Code\", game: null })",
+   "expect.toEqual([])",
+   "expect.toBeNull()"
+  ],
+  "test \"an answer that isn't one of our games is refused and the name keeps waiting; a name nobody saw is 404\"": [
+   "expect.toMatchObject({ ok: false, status: 400 })",
+   "expect.toEqual([\"Peak\"])",
+   "expect.toEqual({ ok: false, status: 404, error: 'no name \"Lethal Company\" is waiting' })"
+  ],
+  "test \"no word from the writer yet: the Lobby question still teaches it with one tap, and then it's off the writer's list\"": [
+   "expect.toMatchObject({ state: \"open\", activity: \"World of Warcraft: Forever\" })",
+   "expect.toBe(\"👍 From now on, two of you in *World of Warcraft: Forever* go straight to **World of Warcraft**.\")",
+   "expect.toEqual([])",
+   "expect.toEqual({ ok: false, status: 409, error: '\"World of Warcraft: Forever\" isn\\'t waiting any more (known already)' })",
+   "expect.toEqual([[\"World of Warcraft\", \"a\"]])"
+  ],
+  "test \"GET /news/names and POST /news/name: the news writer's key, JSON both ways, a refusal's status with its reason\"": [
+   "expect.toBe(401)",
+   "expect.toBe(401)",
+   "expect.toEqual([ 200, { games: [ { name: \"R.E.P.O.\", emoji: \"📦\" }, { name: \"World of Warcraft\", emoji: \"🐉\" }, ], names: [ { name: \"Lethal Company\", first_seen: \"2026-11-10T18:59:00.000Z\" }, { name: \"Peak\", first_seen: \"2026-11-10T18:59:00.000Z\" }, ], }, ])",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toEqual([200, { ok: true, name: \"Peak\", game: \"R.E.P.O.\" }])",
+   "expect.toEqual([409, { error: '\"Peak\" isn\\'t waiting any more (answered: R.E.P.O.)' }])",
+   "expect.toEqual([\"Lethal Company\"])",
+   "expect.toBe(404)",
+   "expect.toBe(404)",
+   "expect.toEqual([])"
+  ],
+  "test \"nothing asks Gemini for text any more: only the voice's spare speech engine calls it\"": [
+   "expect.toEqual([\"tts.ts\"])"
   ]
  },
  "time.test.ts": {
@@ -1636,10 +1650,6 @@
    "expect.toEqual([])",
    "expect.toEqual([\"week:2026-11-08\"])"
   ],
-  "test \"a name Gemini placed: interrupted while its answer is written, the alias is written too (phase 5 audit)\"": [
-   "expect.toEqual([[\"World of Warcraft: Forever\", true]])",
-   "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\"]])"
-  ],
   "fn lobbySequences": [
    "expect.toEqual([])",
    "expect.toEqual([])",
@@ -1696,6 +1706,11 @@
    "expect.toEqual([[DAY, \"a\"]])",
    "expect.toBe(true)",
    "expect.toBeNull()"
+  ],
+  "test \"a name the news writer placed: interrupted while its answer is written, the alias is written too (phase 5 audit)\"": [
+   "expect.toEqual([\"World of Warcraft: Forever\"])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", true]])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", \"World of Warcraft\"]])"
   ]
  },
  "hub.test.ts": {
@@ -2251,24 +2266,20 @@
    "expect.toBe(4)",
    "expect.toEqual([true, at(\"18:20:30\")])"
   ],
-  "test \"“World of Warcraft: Forever” is World of Warcraft (a migration); an unanswered ask is tried again after an hour\"": [
-   "expect.toEqual([])",
-   "expect.toEqual([[\"World of Warcraft: Forever\", WOW]])",
-   "expect.toEqual([\"moved\", WOW, true])",
-   "expect.toEqual([])",
-   "expect.toEqual([])",
-   "expect.toHaveLength(1)",
-   "expect.toEqual([])",
-   "expect.toHaveLength(2)",
-   "expect.toEqual([])",
-   "expect.toHaveLength(2)"
-  ],
   "test \"a card that won't post leaves the gathering quiet (and says so); the next gathering gets one\"": [
    "expect.toBe(\"failed\")",
    "expect.toContain(\"posting the early-bird card\")",
    "expect.toHaveLength(1)",
    "expect.toBe(\"open\")",
    "expect.toHaveLength(2)"
+  ],
+  "test \"“World of Warcraft: Forever” is World of Warcraft (a migration); a name we don't know waits for the news writer, once\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([[\"World of Warcraft: Forever\", WOW]])",
+   "expect.toEqual([\"moved\", WOW, true])",
+   "expect.toEqual([\"CurseForge\"])",
+   "expect.toEqual([])",
+   "expect.toEqual([\"CurseForge\"])"
   ]
  },
  "botvoice.test.ts": {
