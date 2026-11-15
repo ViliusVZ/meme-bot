@@ -439,7 +439,7 @@ const aliasMigration = () => {
   return readFileSync(`${dir}/${m}/migration.sql`, "utf8");
 };
 
-it.effect("“World of Warcraft: Forever” is World of Warcraft (a migration); an unanswered ask is tried again after an hour", () =>
+it.effect("“World of Warcraft: Forever” is World of Warcraft (a migration); a name we don't know waits for the news writer, once", () =>
   Effect.gen(function* () {
     reset();
     const migrate = Effect.promise(() => h.t.pool.query(aliasMigration()));
@@ -455,18 +455,12 @@ it.effect("“World of Warcraft: Forever” is World of Warcraft (a migration); 
     yield* step(at("18:20:00"), { a: "lobby", b: "lobby" });
     yield* step(at("18:20:30"));
     expect([(yield* prompt).state, (yield* prompt).game, !!(yield* roomId)]).toEqual(["moved", WOW, true]);
-    // Gemini didn't answer about "CurseForge": asked again once an hour has passed, not before, not a day later
-    const asked: string[] = [];
-    h.override = (c) => (c.path.includes("generativelanguage.googleapis.com") ? (asked.push(c.path), json({ error: "busy" }, 503)) : undefined);
-    const learn = (t: number) => Spontaneous.use((s) => s.learn(["CurseForge"], t)).pipe(h.withConfig({ geminiApiKey: "k" }));
+    // "CurseForge" waits for the news writer: once, however often it's seen (World of Warcraft: Forever is known)
+    const learn = (t: number) => Spontaneous.use((s) => s.learn(["CurseForge", "World of Warcraft: Forever"], t));
     const t0 = at("18:21:00");
-    expect(yield* learn(t0)).toEqual([]);
-    expect(yield* learn(t0 + 3600)).toEqual([]);
-    expect(asked).toHaveLength(1);
+    expect(yield* learn(t0)).toEqual(["CurseForge"]);
     expect(yield* learn(t0 + 3601)).toEqual([]);
-    expect(asked).toHaveLength(2);
-    expect(yield* learn(t0 + 3700)).toEqual([]);
-    expect(asked).toHaveLength(2); // one claim per name: once an hour at most
+    expect((yield* Spontaneous.use((s) => s.namesWaiting)).names.map((n) => n.name)).toEqual(["CurseForge"]);
   }).pipe(h.provide),
 );
 

@@ -26,7 +26,7 @@ export interface Env {
   ALERT_USER_ID?: string; // 🚨 who gets a DM when something breaks (alerts.ts); unset on the test bot
   /** 🎮 Ask Discord what people are playing (the presence intent, on in the Developer Portal too). */
   PRESENCES?: boolean;
-  /** 🧠 Gemini, free tier (gemini.ts): judgment calls only; unset means none are made. */
+  /** 🔊 Gemini, free tier: the spare speech engine (tts.ts); unset means Edge only. */
   GEMINI_API_KEY?: string;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   NEWS_CHANNEL_ID?: string;

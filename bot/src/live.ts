@@ -200,11 +200,11 @@ export class Live extends Context.Service<
               yield* Effect.logInfo(`playing ${c.user} ${c.names.length ? c.names.join(" | ") : "(nothing)"}`); // what Discord calls each game
               // what someone's playing changed: it may be time to get a room ready
               yield* offer({ _tag: "Playing" });
-              // a name we don't know: Gemini may place it, in the background (it can take minutes; nothing
-              // waits, and it isn't cut short when the term ends: background work drains at shutdown)
+              // a name we don't know: it waits for the news writer's word (GET /news/names), in the
+              // background (it isn't cut short when the term ends: background work drains at shutdown)
               yield* background.run(
                 spontaneous.learn(c.names).pipe(
-                  Effect.tap((l) => (l.length ? Effect.logInfo(`learned ${jsonText(l)}`) : Effect.void)),
+                  Effect.tap((l) => (l.length ? Effect.logInfo(`name waiting for the writer ${jsonText(l)}`) : Effect.void)),
                   Effect.catch((e) => Effect.logInfo(`learning a game name failed ${e}`)),
                 ),
                 "learning a game name",

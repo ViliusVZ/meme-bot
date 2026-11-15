@@ -29,7 +29,8 @@ import { BotVoice } from "./botvoice.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 import { plain } from "./newsfeeds.js";
-import { clean } from "./newscard.js";
+import { SILENT, clean } from "./newscard.js";
+import { LocalTime } from "./localtime.js";
 import { DOWNTIME } from "./lines.js";
 
 export const LAUNCHER = "https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb";
@@ -54,6 +55,7 @@ const QUIET = 60 * 60; // a downtime only players reported is over this long aft
 const OVER_AFTER_END = 15 * 60; // a downtime is over this long after the end Blizzard gave (the launcher keeps its notice up for hours), unless a realm still shows offline
 const UNTIMED_LIFE = 6 * 3600; // a forum post with no times: over after this long
 const REMIND_BEFORE = 60 * 60; // the reminder, this long before a planned start…
+const QUIET_UNTIL = 8; // …but before this hour (Vilnius), with none of us in voice, it goes out silent with no mentions
 const REMIND_IF_POSTED = 75 * 60; // …when the card went out at least this long before it
 const RECENT = 14 * 86400; // downtimes looked at when matching a notice
 const REPLAY = "downtime_replay"; // the test bot's stand-ins for the sources (POST /admin/news {"downtime": …})
@@ -201,9 +203,9 @@ export function downtimeText(i: Incident, now: number): string {
     if (guessed) lines.push(`**Down** <t:${S}:t>–about <t:${E}:t> (Blizzard's estimate)`);
     else if (back) lines.push(S !== null && i.back_at !== null ? `**Down** <t:${S}:t>–<t:${i.back_at}:t>` : i.back_at !== null ? `**Back** since <t:${i.back_at}:t>` : "**Back** up");
     else if (i.state === "cancelled") lines.push("Blizzard took the notice down before it started.");
-    else if (S !== null && S <= now) lines.push(`**Down now**, since <t:${S}:t>${E !== null ? `, back about <t:${E}:R>` : ""}`);
-    else if (S !== null) lines.push(`**When** <t:${S}:F> (<t:${S}:R>)${E !== null ? ` until about <t:${E}:t>, roughly ${lasting(E - S)}` : ""}`);
-    lines.push(`**Blizzard says** "${clean(i.notice!, 500)}"`);
+    else if (S !== null && S <= now) lines.push(`**Down now** (your time), since <t:${S}:t>${E !== null ? `, back about <t:${E}:R>` : ""}`);
+    else if (S !== null) lines.push(`**When** (your time) <t:${S}:F> (<t:${S}:R>)${E !== null ? ` until about <t:${E}:t>, roughly ${lasting(E - S)}` : ""}`);
+    lines.push(`**Blizzard says** (their time zone) "${clean(i.notice!, 500)}"`);
     if (i.realms_down && i.realms) lines.push(`**Server status** ${clean(i.realms, 200)} offline`);
     if (i.quote) lines.push(`**Players quote the in-game notice** "${i.quote}"`);
     const where = i.source === "blizzard" && i.link ? `[Blizzard's forum post](${i.link})` : "Blizzard's launcher notice";
@@ -326,6 +328,7 @@ export class Downtime extends Context.Service<
       const discord = yield* Discord;
       const background = yield* Background;
       const presence = yield* Presence;
+      const time = yield* LocalTime;
       const botVoice = yield* BotVoice;
       const channel = config.newsChannelId;
       const trio = Effect.provideService(players, AppConfig, config);
@@ -579,8 +582,15 @@ export class Downtime extends Context.Service<
               Effect.gen(function* () {
                 const [claim] = yield* db.update(downtimes).set({ reminder_id: "posting" }).where(and(eq(downtimes.key, i.key), isNull(downtimes.reminder_id))).returning({ key: downtimes.key });
                 if (!claim) return null;
+                // at night (00:00–08:00 here) the reminder wakes nobody, unless one of us is in voice right now
+                const night = time.at(t).hour < QUIET_UNTIL && (yield* ourChannel) === null;
                 const msg = yield* discord
-                  .createMessage(ch, { content: reminderText(S, i.end_at, us), allowed_mentions: { parse: [], users: [...us] }, message_reference: { message_id: card, fail_if_not_exists: false } })
+                  .createMessage(ch, {
+                    content: reminderText(S, i.end_at, night ? [] : us),
+                    allowed_mentions: { parse: [], users: night ? [] : [...us] },
+                    ...(night ? { flags: SILENT } : {}),
+                    message_reference: { message_id: card, fail_if_not_exists: false },
+                  })
                   .pipe(Effect.tapError(() => set(i.key, { reminder_id: null })));
                 yield* set(i.key, { reminder_id: msg.id });
                 return msg.id;

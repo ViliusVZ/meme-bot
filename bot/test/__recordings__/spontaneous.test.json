@@ -385,9 +385,8 @@
    "voice_segments": "2:ecb0a69c5d7e"
   }
  },
- "a new name Discord uses is put to Gemini once; a yes becomes an alias, so two of us in it go straight to the room": {
+ "a new name Discord uses waits for the writer once; its yes becomes an alias, so two of us in it go straight to the room": {
   "calls": [
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent fc0a0d3e93cd",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 47a990a61f75",
@@ -398,53 +397,62 @@
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "1:fc1daf7cf081",
-   "game_aliases": "1:130fae3e9565",
+   "game_aliases": "1:1731edb01033",
    "games": "2:ea1d256f0698",
    "lobby_prompts": "1:0020a1019a2d",
    "rooms": "1:4e11b6de6ef9",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:cc3ffb2a182e"
   }
  },
- "Gemini says it's not one of ours: no alias, and no “is that …?” offer for it either": {
+ "the writer says it's not one of ours: no alias, and no “is that …?” offer for it either": {
   "calls": [
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 53a0137d8505",
    "POST https://discord.com/api/v10/channels/lobby/messages 220bd7991fbf"
   ],
   "db": {
    "activity_guesses": "1:897fd1fe95b7",
    "games": "2:5e1dfd246dc8",
    "lobby_prompts": "1:231b5c6dc912",
-   "settings": "1:4fa1570e14dd",
    "voice_segments": "2:e6e1d6e6520b"
   }
  },
- "an answer that isn't on the list is treated as no; Gemini down means try again tomorrow, not every update": {
-  "calls": [
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 7ce1d37b0b9c",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent cf96c20f196f",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent cf96c20f196f"
-  ],
-  "db": {
-   "activity_guesses": "2:22b3a950cf3a",
-   "games": "2:1cc1574d068c",
-   "settings": "1:ba1296990210"
-  }
- },
- "no key, no questions": {
+ "an answer that isn't one of our games is refused and the name keeps waiting; a name nobody saw is 404": {
   "calls": [],
   "db": {
-   "games": "2:cc9c7c084c8d"
+   "activity_guesses": "1:154661c91dac",
+   "games": "2:1cc1574d068c"
   }
  },
- "Gemini's daily budget is kept in the database and stops asking once it's spent": {
+ "no word from the writer yet: the Lobby question still teaches it with one tap, and then it's off the writer's list": {
   "calls": [
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 07d6b7fc20c9",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent 07d6b7fc20c9"
+   "POST https://discord.com/api/v10/channels/lobby/messages fff1e6d1e50d",
+   "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
   ],
   "db": {
-   "games": "2:b51874aa91c9",
-   "settings": "1:e7df305b4690"
+   "activity_guesses": "1:b6c3fcd70efd",
+   "game_aliases": "1:0bb2f84a3f4c",
+   "games": "2:cc9c7c084c8d",
+   "lobby_prompts": "1:9642b166cc8b",
+   "rooms": "1:cdf8f4d98ff7",
+   "voice_segments": "2:e2d8f95f2f46"
+  }
+ },
+ "GET /news/names and POST /news/name: the news writer's key, JSON both ways, a refusal's status with its reason": {
+  "calls": [],
+  "db": {
+   "activity_guesses": "2:c7bf316cce6d",
+   "game_aliases": "1:9091aa826984",
+   "games": "2:b51874aa91c9"
+  }
+ },
+ "nothing asks Gemini for text any more: only the voice's spare speech engine calls it": {
+  "calls": [],
+  "db": {
+   "games": "2:42880c06ec5b"
   }
  },
  "a pull-in another copy makes at the same moment moves you once": {
@@ -454,9 +462,9 @@
   ],
   "db": {
    "fleeting": "1:18a3024edca8",
-   "games": "2:42880c06ec5b",
+   "games": "2:fb4a86ba70e5",
    "rooms": "1:24cc6bfc3127",
-   "voice_segments": "2:0619bc9bffd2"
+   "voice_segments": "2:32fdf2d981a4"
   }
  },
  "a session another copy already counted isn't counted again": {
@@ -464,10 +472,10 @@
    "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d"
   ],
   "db": {
-   "games": "2:fb4a86ba70e5",
+   "games": "2:331466efeb47",
    "rooms": "1:a7f3af5a37f4",
    "sessions": "1:48c2c1bda2f7",
-   "voice_segments": "2:59cbd8421f64"
+   "voice_segments": "2:1adca0ce6858"
   }
  },
  "a pull-in whose note won't post still pulls you in": {
@@ -476,9 +484,9 @@
    "POST https://discord.com/api/v10/channels/wow/messages 4697a51049a8"
   ],
   "db": {
-   "games": "2:331466efeb47",
+   "games": "2:05f43cedc41f",
    "rooms": "1:24cc6bfc3127",
-   "voice_segments": "2:80c15f0a6840"
+   "voice_segments": "2:8c4e59573cd1"
   }
  },
  "↩ moves back whoever it can when one move fails": {
@@ -487,11 +495,11 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/c efb15453a805"
   ],
   "db": {
-   "games": "2:05f43cedc41f",
-   "lobby_prompts": "1:b4ba8caf8d77",
+   "games": "2:155ad530a6e2",
+   "lobby_prompts": "1:21e9aaeddf5b",
    "rooms": "1:7fc380c049e5",
    "sessions": "1:af380710ad50",
-   "voice_segments": "2:4cef67b18ace"
+   "voice_segments": "2:6e871c04641f"
   }
  }
 }

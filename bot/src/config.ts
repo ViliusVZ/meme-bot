@@ -34,7 +34,7 @@ export interface AppConfigShape {
   readonly alertUserId: string | undefined; // 🚨 who gets a DM when something breaks; unset on the test bot
   /** 🎮 Ask Discord what people are playing (the presence intent, on in the Developer Portal too). */
   readonly presences: boolean;
-  /** 🧠 Gemini, free tier: judgment calls only; unset means none are made. */
+  /** 🔊 Gemini, free tier: the bot voice's spare speech engine (tts.ts); unset means Edge only. */
   readonly geminiApiKey: Redacted.Redacted<string> | undefined;
   /** ⚔️ Where WoW: Forever news goes (news.ts); unset means no news. */
   readonly newsChannelId: string | undefined;

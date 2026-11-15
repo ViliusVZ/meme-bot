@@ -20,7 +20,6 @@ import { Memes } from "./memes.js";
 import { Roasts } from "./roasts.js";
 import { Streaks } from "./streaks.js";
 import { Panels } from "./panels.js";
-import { Gemini } from "./gemini.js";
 import { Snoozes } from "./snooze.js";
 import { Voice } from "./voice.js";
 import { Attendances } from "./attendance.js";
@@ -51,7 +50,7 @@ import { BotVoice } from "./botvoice.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
-  | LocalTime | Games | Nights | Memes | Roasts | Panels | Gemini
+  | LocalTime | Games | Nights | Memes | Roasts | Panels
   | RedditNews
   | Tts | Clips | VoiceLink | VoiceConnector | BotVoice
   | Snoozes | Streaks | Voice | Attendances | Reddit | News | Downtime | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub | Cleanup | MemeShame | Jobs | Interactions | Ticker | Live | Gateway | GatewayClient | Leadership;
@@ -59,7 +58,7 @@ export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClie
 /** What a test changes about the app's layer (its throwaway schema). */
 export interface LayerOptions {
   readonly db?: { readonly startupOptions?: string };
-  /** Outbound HTTP (Discord, Reddit, the Blizzard feed, Gemini): fetch, unless a test gives its own. */
+  /** Outbound HTTP (Discord, Reddit, the Blizzard feed, the speech engines): fetch, unless a test gives its own. */
   readonly http?: Layer.Layer<HttpClient.HttpClient>;
   /** Joining voice (@discordjs/voice), unless a test gives a fake. */
   readonly voice?: Layer.Layer<VoiceConnector, never, VoiceLink | AppConfig>;
@@ -104,7 +103,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer, Downtime.layer)),
     Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Streaks.layer, MemeShame.layer, Cleanup.layer, BotVoice.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
     Layer.provideMerge(RedditNews.layer),
-    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Gemini.layer, Clips.layer)),
+    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Clips.layer)),
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer, options.tts ?? Tts.layer)),
     Layer.provideMerge(Alerts.layer),
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer, options.voice ?? VoiceConnector.layer)),

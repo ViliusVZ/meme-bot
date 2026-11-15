@@ -221,19 +221,17 @@
    "voice_segments": "3:5c1e5216a64b"
   }
  },
- "“World of Warcraft: Forever” is World of Warcraft (a migration); an unanswered ask is tried again after an hour": {
+ "“World of Warcraft: Forever” is World of Warcraft (a migration); a name we don't know waits for the news writer, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels ff140b4de8c6",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 7dc6fa5a7ca3",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b 7dc6fa5a7ca3",
-   "POST https://discord.com/api/v10/channels/70000/messages 6bfc99582b2c",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent d605313b7228",
-   "POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent d605313b7228"
+   "POST https://discord.com/api/v10/channels/70000/messages 6bfc99582b2c"
   ],
   "db": {
-   "activity_guesses": "1:445fd8f2e3c6",
+   "activity_guesses": "1:4cbd46effd09",
    "fleeting": "1:475c8fd6149a",
    "game_aliases": "1:2a697e510234",
    "game_nights": "1:7db33e727e84",
@@ -241,7 +239,6 @@
    "lobby_prompts": "1:b8177793eea8",
    "roast_bags": "1:914eb2efbc0e",
    "rooms": "1:504475c12f32",
-   "settings": "1:961f1219f07b",
    "voice_segments": "2:305c11955eac"
   }
  },

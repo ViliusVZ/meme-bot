@@ -114,6 +114,9 @@ const bodyText = (req: HttpServerRequest.HttpServerRequest) =>
     Effect.mapError(() => new NotOurs({ text: "FastifyError [FST_ERR_CTP_BODY_TOO_LARGE]: Request body is too large" })),
   );
 /** A request body that isn't what the route takes: the sender's mistake, answered 400 (README difference 4; it used to become {}). */
+/** POST /news/name: the writer's word on one waiting name (game null: not one of ours). */
+const NameInput = Schema.Struct({ name: Schema.String, game: Schema.NullOr(Schema.String), reason: Schema.optional(Schema.String) });
+
 export class BadRequest extends Schema.TaggedError<BadRequest>()("BadRequest", { message: Schema.String }) {}
 
 const Text = Schema.String;
@@ -381,6 +384,27 @@ export const Routes = HttpRouter.use((router) =>
         const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(ArticleInput))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) })));
         if (input.day !== undefined && !/^\d{4}-\d\d-\d\d$/.test(input.day)) return json({ error: "day: YYYY-MM-DD" }, 400);
         return yield* news.article(input).pipe(Effect.map((r) => json(r)), Effect.catchTag("NewsRefused", refused));
+      }),
+    );
+
+    // 🧠 the same writer, on the same key: Discord game names we don't know (spontaneous.ts). GET
+    // answers our games and the names waiting; POST {name, game, reason?} places one, once (game:
+    // one of ours, or null: not one of ours).
+    yield* route("GET", "/news/names", (req) =>
+      Effect.gen(function* () {
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        return json(yield* spontaneous.namesWaiting);
+      }),
+    );
+    yield* route("POST", "/news/name", (req) =>
+      Effect.gen(function* () {
+        const body = yield* bodyText(req);
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(NameInput))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) })));
+        const r = yield* spontaneous.place(input.name, input.game, input.reason);
+        return r.ok ? json(r) : json({ error: r.error }, r.status);
       }),
     );
 

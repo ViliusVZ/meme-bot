@@ -22,7 +22,7 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
@@ -32,21 +32,21 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 0522a1f02084",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 96e702a32d5b",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 bb924465b2b2",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 f74dfadecd40",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 3b1a3110fc8e",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 42464018ad3d",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -"
   ],
   "db": {
-   "downtimes": "1:14798b717629",
+   "downtimes": "1:758abcd22162",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -61,10 +61,10 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 796a808cf672"
+   "POST https://discord.com/api/v10/channels/news/messages 93ffcb855b80"
   ],
   "db": {
-   "downtimes": "1:ec01f69e809f",
+   "downtimes": "1:dd945e2b22e2",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -73,25 +73,25 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 0522a1f02084",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 96e702a32d5b",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 c6f94c69139f",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 19f148fc7ddb",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 bb924465b2b2"
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 f74dfadecd40"
   ],
   "db": {
-   "downtimes": "1:7f80dffaab47",
+   "downtimes": "1:15e354153b6f",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -100,17 +100,17 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 567dec575df8",
+   "POST https://discord.com/api/v10/channels/news/messages e9119158f082",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 368dbea4a81a"
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 b260a2bf1107"
   ],
   "db": {
-   "downtimes": "1:ba26547f1db6",
+   "downtimes": "1:8560a65bfb51",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -119,7 +119,7 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
@@ -135,7 +135,39 @@
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -"
   ],
   "db": {
-   "downtimes": "1:2ef6bfbcce76",
+   "downtimes": "1:9a5e82990187",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a reminder that falls between 00:00 and 08:00 here goes out silent with no mentions, unless one of us is in voice; the card itself still pings": {
+  "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages fc6e51eea859",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages 598a4c82268d"
+  ],
+  "db": {
+   "downtimes": "1:09dcf91f0f56",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "someone in voice at 03:00: the night reminder pings as usual": {
+  "calls": [
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages fc6e51eea859",
+   "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
+   "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
+   "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
+   "POST https://discord.com/api/v10/channels/news/messages f1e456949c31"
+  ],
+  "db": {
+   "downtimes": "1:09dcf91f0f56",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -144,13 +176,13 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -"
   ],
   "db": {
-   "downtimes": "1:db19a3992735",
+   "downtimes": "1:253e77841532",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -168,10 +200,10 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 3fd74fd14806"
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 f98c0f7c8f87"
   ],
   "db": {
-   "downtimes": "1:444c29c26a4e",
+   "downtimes": "1:e51484f32122",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -180,7 +212,7 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 8c84ee93bced",
+   "POST https://discord.com/api/v10/channels/news/messages ec7c07c9925e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
@@ -188,7 +220,7 @@
    "POST https://discord.com/api/v10/channels/news/messages 5e5029fbbf26"
   ],
   "db": {
-   "downtimes": "2:9694f262d947",
+   "downtimes": "2:623785944f7c",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -216,14 +248,14 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 780d85038a05",
+   "POST https://discord.com/api/v10/channels/news/messages a04c93db1c6d",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 0e12f35d94fe"
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 2ad5fc331cf3"
   ],
   "db": {
-   "downtimes": "1:e6683779461a",
+   "downtimes": "1:cb7670b32527",
    "games": "8:44c5a8b0c098",
    "news_stories": "1:40e876b9c222"
   }
@@ -233,10 +265,10 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages eb5a9820bfa7"
+   "POST https://discord.com/api/v10/channels/news/messages a567cec72e59"
   ],
   "db": {
-   "downtimes": "1:63942b91129d",
+   "downtimes": "1:621b73180d01",
    "games": "8:44c5a8b0c098"
   }
  },
@@ -245,20 +277,20 @@
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages ebaae49fe3b0",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 c6f94c69139f",
+   "POST https://discord.com/api/v10/channels/news/messages 98f1171dadf2",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 19f148fc7ddb",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -",
-   "POST https://discord.com/api/v10/channels/news/messages eed1ee8b3239",
-   "PATCH https://discord.com/api/v10/channels/news/messages/501 f306dc0a3e37"
+   "POST https://discord.com/api/v10/channels/news/messages 55df8b0da72a",
+   "PATCH https://discord.com/api/v10/channels/news/messages/501 b725c45f4e06"
   ],
   "db": {
-   "downtimes": "3:b8cbaa3659fe",
+   "downtimes": "3:e258976ed4dc",
    "games": "8:44c5a8b0c098",
    "settings": "1:b83a275ed775"
   }
@@ -272,15 +304,15 @@
  "the replay (test bot only): the notice, then gone; elsewhere it isn't there": {
   "calls": [
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
-   "POST https://discord.com/api/v10/channels/news/messages 9ec60a1c73f8",
+   "POST https://discord.com/api/v10/channels/news/messages 35e65a1c8d6e",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
-   "PATCH https://discord.com/api/v10/channels/news/messages/500 965ab9ccce96",
+   "PATCH https://discord.com/api/v10/channels/news/messages/500 7785cd3fc261",
    "GET https://breaking-news.support.blizzard.com/service/wow-forever/live/eu/en-gb -",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61",
    "GET https://eu.forums.blizzard.com/en/wow/c/wow-forever/359/l/latest.json -"
   ],
   "db": {
-   "downtimes": "1:1b56534f596c",
+   "downtimes": "1:a16293223f46",
    "games": "8:44c5a8b0c098"
   }
  }

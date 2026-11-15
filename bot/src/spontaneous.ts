@@ -11,17 +11,19 @@
 //     with a note that offers the way back.
 //   • With game detection on (PRESENCES=1): two of us in the Lobby playing the same game skip the
 //     question and go straight to its room (↩ to undo). A name Discord uses that isn't one of our
-//     games is put to Gemini once, in the background ("World of Warcraft: Forever" → World of
-//     Warcraft); when Gemini can't say, one tap teaches it instead. And two of us playing a game before anyone's in voice gets its room ready
-//     under the Lobby, silently (it archives itself after an hour if nobody comes).
+//     games waits for the news writer (the Claude agent that writes the WoW news, every two hours:
+//     GET /news/names, POST /news/name), which says once whether it's one of ours ("World of
+//     Warcraft: Forever" → World of Warcraft); until it has, one tap teaches it instead. And two of us
+//     playing a game before anyone's in voice gets its room ready under the Lobby, silently (it
+//     archives itself after an hour if nobody comes).
 //   • ⚔️ A locked-in night starting within three hours owns the Lobby instead (plan 07, "early
 //     birds"): never "Playing something?". All three of us here (the Lobby or the night's room) for
 //     30 s starts the night early (gamenight.ts runs it; `early` says when). Two here get the
 //     night's card: "Open the room" or "Just hanging out". Two shown in the night's game are moved
 //     straight in.
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
-import { and, desc, eq, gt, inArray, isNull, lt, lte, not, like, sql } from "drizzle-orm";
-import { Context, Effect, Layer, Match, Schema } from "effect";
+import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
+import { Context, DateTime, Effect, Layer, Match } from "effect";
 import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, nightCards, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
@@ -30,7 +32,6 @@ import { LocalTime } from "./localtime.js";
 import { Games } from "./games.js";
 import { Voice } from "./voice.js";
 import { Presence } from "./presence.js";
-import { Gemini } from "./gemini.js";
 import { Alerts } from "./alerts.js";
 import { BotVoice } from "./botvoice.js";
 import { nowSec } from "./clock.js";
@@ -49,7 +50,7 @@ export const END_GRACE = 15 * 60; // fewer than two for this long → the sessio
 export const NOTE_TTL = 2 * 60; // the "pulled you in" note removes itself after this
 const UNDO_QUIET = 60; // a ↩ undo keeps the Lobby quiet even while people trickle back in
 const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
-const RETRY_GUESS = 3600; // Gemini couldn't answer: ask about that name again once more than an hour has passed
+export const NAMES_WAITING = 10; // names the writer is handed at once (oldest first)
 const mention = (u: string) => `<@${u}>`;
 const real = not(like(rooms.channel_id, "pending:%"));
 
@@ -67,8 +68,13 @@ export type Early = { start: Ahead | null; due: number | null };
 /** What to tell the tapper privately: a line, or a whole message (with buttons). */
 export type Notice = string | { content: string; components: unknown[] } | null;
 
-/** Gemini's answer about a name Discord shows. */
-const Guess = Schema.Struct({ game: Schema.optional(Schema.NullOr(Schema.String)) });
+/** GET /news/names: our games, and the names Discord showed us that wait for the writer's word. */
+export type NamesWaiting = {
+  readonly games: ReadonlyArray<{ readonly name: string; readonly emoji: string | null }>;
+  readonly names: ReadonlyArray<{ readonly name: string; readonly first_seen: string }>;
+};
+/** POST /news/name: what came of the writer's answer (`status` and `error` when it's refused). */
+export type Placed = { readonly ok: true; readonly name: string; readonly game: string | null } | { readonly ok: false; readonly status: number; readonly error: string };
 
 /** "A", "A and B", "A, B and C". */
 export function names(users: ReadonlyArray<string>) {
@@ -104,11 +110,18 @@ export class Spontaneous extends Context.Service<
      */
     react(where: Where, t?: number, change?: Change): Effect.Effect<number | null, DbError | DiscordError>;
     /**
-     * Someone's playing something new to us: ask Gemini (once per name, in the background) whether
-     * it's one of our games under another name. A yes becomes an alias, so the next time two of us
-     * are in it, it just works. Returns what was learned, for logs and tests.
+     * Someone's playing something new to us: the name waits for the news writer (once per name),
+     * which says whether it's one of our games under another name (`place`). Returns the names that
+     * are newly waiting, for logs and tests.
      */
-    learn(names: ReadonlyArray<string>, t?: number): Effect.Effect<{ activity: string; game: string | null }[], DbError>;
+    learn(names: ReadonlyArray<string>, t?: number): Effect.Effect<string[], DbError>;
+    /** GET /news/names: our games and the names waiting for the writer's word (NAMES_WAITING at most, oldest first). */
+    namesWaiting: Effect.Effect<NamesWaiting, DbError>;
+    /**
+     * POST /news/name: the writer's word on one waiting name, once: one of our games (it becomes an
+     * alias, so the next time two of us are in it, it just works) or null (not one of ours).
+     */
+    place(name: string, game: string | null, reason?: string): Effect.Effect<Placed, DbError>;
     /** Up to three games, the ones we played most recently first, then the most played. */
     recentGames(n?: number): Effect.Effect<string[], DbError>;
     /**
@@ -161,13 +174,11 @@ export class Spontaneous extends Context.Service<
       const games = yield* Games;
       const voice = yield* Voice;
       const presence = yield* Presence;
-      const gemini = yield* Gemini;
       const alerts = yield* Alerts;
       const botVoice = yield* BotVoice;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
       const presencesOn = Effect.succeed(config.presences);
-      const hasGeminiKey = Effect.succeed(!!config.geminiApiKey);
       const sessionIs = (s: { day: string; game: string }) => and(eq(sessions.day, s.day), eq(sessions.game, s.game));
 
       // ---------------------------------------------------------------- what's planned
@@ -215,7 +226,7 @@ export class Spontaneous extends Context.Service<
           const g = names.map((n) => game.get(n.toLowerCase())).find(Boolean);
           if (g) of.set(u, g);
         }
-        // a name two of them share that we can't place (and Gemini didn't already rule out): worth a tap
+        // a name two of them share that we can't place (and the writer didn't already rule out): worth a tap
         const notOurs = all.length
           ? new Set(
               (yield* db
@@ -230,40 +241,61 @@ export class Spontaneous extends Context.Service<
 
       const learn = Effect.fn("Spontaneous.learn")(function* (names: ReadonlyArray<string>, at?: number) {
         const t = at ?? (yield* nowSec);
-        if (!(yield* hasGeminiKey) || !names.length) return [];
-        const list = (yield* games.list(200)).map((g) => g.name);
-        const known = new Set(list.map((g) => g.toLowerCase()));
+        if (!names.length) return [];
+        const known = new Set((yield* db.select({ name: gameTable.name }).from(gameTable).where(inArray(gameTable.name, [...names]))).map((g) => g.name.toLowerCase()));
         for (const a of yield* db.select().from(gameAliases).where(inArray(gameAliases.activity, [...names]))) known.add(a.activity.toLowerCase());
-        const learned: { activity: string; game: string | null }[] = [];
-        for (const name of names.filter((n) => !known.has(n.toLowerCase()))) {
-          // claim the name, so a second presence update doesn't ask twice; a failed ask may retry after an hour
-          const [claim] = yield* db
-            .insert(activityGuesses)
-            .values({ activity: name, at: t })
-            .onConflictDoUpdate({ target: activityGuesses.activity, set: { at: t }, setWhere: and(eq(activityGuesses.answered, false), lt(activityGuesses.at, t - RETRY_GUESS)) })
-            .returning({ a: activityGuesses.activity });
-          if (!claim) continue;
-          const r = yield* gemini.ask(
-            `Discord shows a friend "Playing ${jsonText(name)}". Our friend group's game list: ${jsonText(list)}.
-Is it one of the games on the list? Answer that game's name exactly as written in the list only if it
-is clearly the same game (an edition, expansion, client, launcher or longer name of it, like "World of
-Warcraft Classic" for "World of Warcraft"). If it's anything else (another game, an app like an editor
-or a browser, or you aren't sure), answer null.`,
-            { type: "OBJECT", properties: { game: { type: "STRING", nullable: true } }, required: ["game"] },
-            Guess,
-          );
-          if (!r) continue; // no answer to be had right now: claimed, so it's tried again after an hour
-          const game = list.find((g) => g.toLowerCase() === r.game?.toLowerCase()) ?? null;
-          // the answer and its alias together (answered with no alias would never be asked again)
-          yield* Effect.uninterruptible(
-            Effect.gen(function* () {
-              yield* db.update(activityGuesses).set({ game, answered: true }).where(eq(activityGuesses.activity, name));
-              if (game) yield* db.insert(gameAliases).values({ activity: name, game, added_by: "gemini" }).onConflictDoNothing();
-            }),
-          );
-          learned.push({ activity: name, game });
-        }
-        return learned;
+        const fresh = [...new Set(names.filter((n) => !known.has(n.toLowerCase())))];
+        if (!fresh.length) return [];
+        // once per name: a name already waiting (or answered) stays as it is
+        const added = yield* db
+          .insert(activityGuesses)
+          .values(fresh.map((activity) => ({ activity, at: t })))
+          .onConflictDoNothing()
+          .returning({ a: activityGuesses.activity });
+        return added.map((r) => r.a);
+      });
+
+      /** A waiting name: not answered, and not since added as a game or taught with a tap. */
+      const waiting = and(
+        eq(activityGuesses.answered, false),
+        sql`NOT EXISTS (SELECT 1 FROM ${gameAliases} WHERE ${gameAliases.activity} = ${activityGuesses.activity})`,
+        sql`NOT EXISTS (SELECT 1 FROM ${gameTable} WHERE ${gameTable.name} = ${activityGuesses.activity})`,
+      );
+
+      const namesWaiting = Effect.gen(function* () {
+        const list = yield* games.list(200);
+        const rows = yield* db.select().from(activityGuesses).where(waiting).orderBy(activityGuesses.at, activityGuesses.activity).limit(NAMES_WAITING);
+        return {
+          games: list.map((g) => ({ name: g.name, emoji: g.emoji })),
+          names: rows.map((r) => ({ name: r.activity, first_seen: DateTime.formatIso(DateTime.makeUnsafe(r.at * 1000)) })),
+        } satisfies NamesWaiting;
+      }).pipe(Effect.withSpan("Spontaneous.namesWaiting"));
+
+      const place = Effect.fn("Spontaneous.place")(function* (name: string, given: string | null, reason?: string) {
+        const refuse = (status: number, error: string): Placed => ({ ok: false, status, error });
+        const list = (yield* games.list(200)).map((g) => g.name);
+        const game = given === null ? null : list.find((g) => g.toLowerCase() === given.trim().toLowerCase());
+        if (game === undefined) return refuse(400, `"${given}" isn't one of our games: ${list.join(", ")} (or null: not one of ours)`);
+        // the answer and its alias together (answered with no alias would never be asked again); the
+        // claim is the name going from waiting to answered, so a second answer changes nothing
+        return yield* Effect.uninterruptible(
+          Effect.gen(function* () {
+            const [won] = yield* db
+              .update(activityGuesses)
+              .set({ game, answered: true })
+              .where(and(eq(activityGuesses.activity, name), waiting))
+              .returning({ a: activityGuesses.activity });
+            if (!won) {
+              const [row] = yield* db.select().from(activityGuesses).where(eq(activityGuesses.activity, name));
+              if (!row) return refuse(404, `no name "${name}" is waiting`);
+              return refuse(409, `"${row.activity}" isn't waiting any more (${row.answered ? `answered: ${row.game ?? "not one of ours"}` : "known already"})`);
+            }
+            // (a tap teaching it at this very moment: that one stays)
+            if (game) yield* db.insert(gameAliases).values({ activity: won.a, game, added_by: "writer" }).onConflictDoNothing();
+            yield* Effect.logInfo(`name placed ${won.a} → ${game ?? "not ours"}${reason ? ` (${reason})` : ""}`);
+            return { ok: true, name: won.a, game } as Placed;
+          }),
+        );
       });
 
       // ---------------------------------------------------------------- posting and tidying
@@ -830,6 +862,8 @@ or a browser, or you aren't sure), answer null.`,
           return yield* gathering(where, open, inRoom, plan, t);
         }),
         learn,
+        namesWaiting,
+        place,
         recentGames,
         answer,
         goBack,

@@ -141,7 +141,7 @@ export const seedOf = (name: string) => parseInt(createHash("sha1").update(name)
 
 // Columns that default to the database's own now() (one update in roasts.ts also sets now()). That
 // value is the real time, not the bot's behaviour, so it is masked; when the bot writes the column
-// itself (gemini.ts, reddit.ts and snooze.ts set it from the fake clock) the value is kept.
+// itself (tts.ts, reddit.ts and snooze.ts set it from the fake clock) the value is kept.
 const NOW_COLUMNS: Record<string, string[]> = { roast_bags: ["updated_at"], settings: ["updated_at"] };
 // Date is faked in most tests; this is the wall clock the database's now() follows
 const realNow = () => performance.timeOrigin + performance.now();
