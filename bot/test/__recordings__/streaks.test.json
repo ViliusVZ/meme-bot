@@ -1,0 +1,49 @@
+{
+ "the streak is late cards in a row, the window the late ones among the last 14; a reminder counts its own card": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the tier: 2–3, 4–6, 7+ in a row, or late at least every other time; one slip gets nothing": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the backfill: before tracking, a 👻 or a vote over an hour after its step opened is late (production's real week)": {
+  "calls": [],
+  "db": {
+   "game_night_votes": "38:cd5221082a3a",
+   "game_nights": "7:f7dc463f19f9",
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "a reminder roasts the repeat offender extra (first reminder of the card only); one slip gets the plain one, pings unchanged": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages b4d1a45da644",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/5000 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 4ab3f5e8ec39"
+  ],
+  "db": {
+   "chases": "4:e767f4a219b6",
+   "game_night_votes": "1:e8f361d0bab3",
+   "game_nights": "3:3d31ca28ac2f",
+   "games": "8:44c5a8b0c098",
+   "roast_bags": "1:1dbb961347db"
+  }
+ },
+ "answering on time ends the streak: the next card says so once": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 878a31b2c91d",
+   "POST https://discord.com/api/v10/channels/gn/messages d7059137f22f"
+  ],
+  "db": {
+   "chases": "2:687c241ea5ac",
+   "game_nights": "5:f968129fe70b",
+   "games": "8:44c5a8b0c098",
+   "roast_bags": "1:4985d671193f",
+   "streak_breaks": "1:09de0ce706ce"
+  }
+ }
+}

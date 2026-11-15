@@ -2959,5 +2959,42 @@
    "expect.toEqual([[], []])",
    "expect.toHaveLength(1)"
   ]
+ },
+ "streaks.test.ts": {
+  "test \"the streak is late cards in a row, the window the late ones among the last 14; a reminder counts its own card\"": [
+   "expect.toEqual({ streak: 3, late: 6, of: 14 })",
+   "expect.toEqual({ streak: 4, late: 7, of: 14 })",
+   "expect.toEqual({ streak: 1, late: 1, of: 14 })",
+   "expect.toEqual({ streak: 1, late: 1, of: 1 })"
+  ],
+  "test \"the tier: 2–3, 4–6, 7+ in a row, or late at least every other time; one slip gets nothing\"": [
+   "expect.toEqual([null, null, null, null])",
+   "expect.toEqual([\"habit\", \"habit\"])",
+   "expect.toEqual([\"two\", \"two\", \"four\", \"four\", \"seven\", \"seven\"])",
+   "expect.toEqual([])"
+  ],
+  "test \"the backfill: before tracking, a 👻 or a vote over an hour after its step opened is late (production's real week)\"": [
+   "expect.toEqual({ [V]: { streak: 1, late: 1, of: 7 }, [K]: { streak: 0, late: 2, of: 7 }, [L]: { streak: 1, late: 3, of: 7 }, })"
+  ],
+  "test \"a reminder roasts the repeat offender extra (first reminder of the card only); one slip gets the plain one, pings unchanged\"": [
+   "expect.toBe(`<@${V}> <@${L}> ⏳ still waiting on you: are you in tonight? ⬆️`)",
+   "expect.toHaveLength(1)",
+   "expect.toMatch(/^> /)",
+   "expect.toContain(`<@${L}>`)",
+   "expect.not.toContain(`<@${V}>`)",
+   "expect.toMatch(/third|\\b3\\b/)",
+   "expect.toEqual({ users: [V, L] })",
+   "expect.toEqual([V, L].sort())",
+   "expect.toMatch(/^<@\\d+> <@\\d+> ⏳ Last call: 29 min/)",
+   "expect.not.toContain(\"\\n\")"
+  ],
+  "test \"answering on time ends the streak: the next card says so once\"": [
+   "expect.toHaveLength(1)",
+   "expect.toContain(`<@${L}>`)",
+   "expect.toMatch(/\\b2\\b/)",
+   "expect.toContain(\"🏅\")",
+   "expect.not.toContain(\"🏅\")",
+   "expect.toEqual([[L, \"2026-11-22\", \"2026-11-23\", 2]])"
+  ]
  }
 }

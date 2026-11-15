@@ -13,9 +13,9 @@ import { Context, Effect, Layer, Random } from "effect";
 import { roastBags } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 
-const V = "306836805825593344"; // Vithis: programmer, built this bot
-const K = "212567787896307713"; // Koral: Venipak courier, has the kurjeriai crew
-const L = "747902984003780651"; // Lionixity (Ieva): programmer, pole dance gym, nails, Netflix, cat Pūkis
+export const V = "306836805825593344"; // Vithis: programmer, built this bot
+export const K = "212567787896307713"; // Koral: Venipak courier, has the kurjeriai crew
+export const L = "747902984003780651"; // Lionixity (Ieva): programmer, pole dance gym, nails, Netflix, cat Pūkis
 
 const SOLO = [
   "{who} picked violence: no game night. Ačiū, labai ačiū.",

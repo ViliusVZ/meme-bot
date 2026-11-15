@@ -11,7 +11,7 @@ import type { DiscordError } from "../src/discord.js";
 import { Nights } from "../src/nights.js";
 import { Interactions } from "../src/interactions.js";
 import { Db, type DbError } from "../src/db/db.js";
-import { gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
+import { chases, gameNights, gameNightVotes, nightAttendance, roastBags, settings } from "../src/db/schema.js";
 import { harness } from "./fx.js";
 
 type Answer = "yes" | "maybe" | "no" | null;
@@ -25,7 +25,7 @@ const HOLD = [0, 2 * 3600, 3600];
 const LABEL = { yes: "I'm in", maybe: "Maybe", no: "Not today" } as const;
 
 const h = harness({
-  tables: [gameNightVotes, nightAttendance, gameNights, roastBags, settings],
+  tables: [gameNightVotes, nightAttendance, gameNights, chases, roastBags, settings],
   discord: { firstId: 1000 },
   clock: T("17:00") * 1000,
 });

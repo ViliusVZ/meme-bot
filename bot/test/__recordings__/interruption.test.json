@@ -661,6 +661,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 7caca20c899f"
   ],
   "db": {
+   "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:68e4eda7d57e",
    "games": "8:20142a6ccc67"
@@ -671,6 +672,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 7caca20c899f"
   ],
   "db": {
+   "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:b007b3d4e485",
    "games": "8:20142a6ccc67"
@@ -681,6 +683,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 7caca20c899f"
   ],
   "db": {
+   "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:68e4eda7d57e",
    "games": "8:20142a6ccc67"
@@ -1033,6 +1036,7 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
+   "chases": "1:046591c1eb5b",
    "game_aliases": "1:130fae3e9565",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:b9b7a4cbfe62",
@@ -1049,6 +1053,7 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
+   "chases": "1:046591c1eb5b",
    "game_aliases": "1:130fae3e9565",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:d99d295e940e",
@@ -1065,6 +1070,7 @@
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
+   "chases": "1:046591c1eb5b",
    "game_aliases": "1:130fae3e9565",
    "game_night_votes": "2:fd341fb76d4d",
    "game_nights": "1:b9b7a4cbfe62",

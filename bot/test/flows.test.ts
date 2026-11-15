@@ -21,11 +21,11 @@ import { Interactions } from "../src/interactions.js";
 import { Db } from "../src/db/db.js";
 import { nowIso, nowSec } from "../src/clock.js";
 import { pollHourOf, wallToUnixIn } from "../src/localtime.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, panels, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
+import { chases, gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, panels, roastBags, rooms, polls as pollTable, pollVotes, settings, votes } from "../src/db/schema.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
-  tables: [panels, gameNightVotes, nightAttendance, rooms, gameNights, pollVotes, pollTable, votes, memeTable, games, roastBags, settings],
+  tables: [panels, gameNightVotes, nightAttendance, rooms, gameNights, chases, pollVotes, pollTable, votes, memeTable, games, roastBags, settings],
   seed: (t) =>
     t.db.insert(games).values([
       { name: "R.E.P.O.", emoji: "📦", added_at: "2026-11-03" },

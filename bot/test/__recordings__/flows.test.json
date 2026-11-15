@@ -176,6 +176,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages e72ebe4bcf27"
   ],
   "db": {
+   "chases": "1:07cfb1d1508e",
    "game_night_votes": "2:c6e0460e61aa",
    "game_nights": "1:fa2c3ea5d4d3",
    "games": "3:c1b80a36da66",
@@ -221,6 +222,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 8b490d31fa7a"
   ],
   "db": {
+   "chases": "1:1fa92d84b591",
    "game_night_votes": "2:27349f3ce78d",
    "game_nights": "1:9b365b265fee",
    "games": "3:21fa96597e79",

@@ -156,6 +156,30 @@ export const roastBags = pgTable("roast_bags", {
   updated_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
+/** 🐌 Who had to be chased on a day's card (a "still waiting on you" or a last call): streaks.ts. */
+export const chases = pgTable(
+  "chases",
+  {
+    day: text().notNull(),
+    user_id: text().notNull(),
+    at: unix("at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.user_id] })],
+);
+
+/** 🏅 A late streak someone broke by answering on time, said once (its key) on the next card. */
+export const streakBreaks = pgTable(
+  "streak_breaks",
+  {
+    user_id: text().notNull(),
+    broken_on: text().notNull(), // the day of the card they answered on time
+    card_day: text().notNull(), // the card that says so
+    streak: integer().notNull(),
+    line: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.user_id, t.broken_on] }), index("streak_breaks_card").on(t.card_day)],
+);
+
 /** Small app-wide settings, key → JSON (😴 the planning snooze, say). */
 export const settings = pgTable("settings", {
   key: text().primaryKey(),

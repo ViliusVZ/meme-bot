@@ -25,6 +25,7 @@ import { Clock, Context, DateTime, Duration, Effect, Fiber, Layer, Match, Result
 import { AppConfig, allowedMentions, players as theTrio } from "./config.js";
 import { Db, type DbError, type Tx as DbTx } from "./db/db.js";
 import { Roasts } from "./roasts.js";
+import { Streaks } from "./streaks.js";
 import type { AppServices } from "./runtime.js";
 import { Discord, type DiscordError } from "./discord.js";
 import { Games } from "./games.js";
@@ -331,6 +332,16 @@ const clearNudge = Effect.fnUntraced(function* (n: Night) {
   yield* db.update(gameNights).set({ nudge_id: null }).where(and(eq(gameNights.day, n.day), eq(gameNights.nudge_id, n.nudge_id)));
 });
 
+/**
+ * 🐌 A reminder to whoever hasn't answered (re-nudge, last call): the same ping, plus an extra roast
+ * for a repeat offender (streaks.ts) on their first reminder of the card; then they count as chased.
+ */
+const chase = Effect.fnUntraced(function* (day: string, who: ReadonlyArray<string>, content: string) {
+  const streaks = yield* Streaks;
+  const extra = yield* streaks.extras(day, who);
+  yield* nudge(day, who, `${content}${extra.map((l) => `\n> ${l}`).join("")}`);
+  yield* streaks.chased(day, who);
+});
 
 // ---------------------------------------------------------------- 🤫 secret ballots
 // The card is the same for everyone, so it can't highlight *your* picks. Clicking it answers with
@@ -445,6 +456,8 @@ export const openNight = Effect.fnUntraced(function* (by?: string, anyHour = fal
       if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
       // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
       return yield* Effect.gen(function* () {
+        // 🏅 a streak the last card broke is said once, on this one
+        yield* (yield* Streaks).claimBreaks(day);
         const msg = yield* discord.createMessage(config.gameChannelId, yield* renderCard(day));
         // only the first writer stores its message; a racing duplicate deletes itself
         const set = yield* db
@@ -1182,7 +1195,7 @@ const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: b
           .returning({ day: gameNights.day });
         if (claimed.length) {
           const left = Math.max(1, Math.round((deadline - t) / 60));
-          yield* nudge(n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
+          yield* chase(n.day, missing, `⏳ Last call: ${left} min to vote, or game night's off and you get roasted 🔥 ⬆️`);
           done[`warned ${n.day}`] = missing;
         }
       }),
@@ -1201,7 +1214,7 @@ const maintainNight = Effect.fnUntraced(function* (n: Night, t: number, awake: b
         if (claimed.length) {
           const tonight = n.day === today(w) ? "tonight" : `on ${weekdayOf(n.day)}`;
           const ask = { ask: `are you in ${tonight}?`, game: "pick a game so we can get going", time: "when can you start?" }[n.stage as "ask"];
-          yield* nudge(n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
+          yield* chase(n.day, missing, `⏳ still waiting on you: ${ask} ⬆️`);
           done[`renudged ${n.day}`] = missing;
         }
       }),
@@ -1403,11 +1416,13 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         else status = `😴 Not ${isToday ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${isToday ? "today" : weekdayOf(day)}).`;
         const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
         const question = isToday ? "Are we playing today?" : `📅 Are we playing on ${weekdayOf(day)}?`;
+        const broke = yield* (yield* Streaks).breaksOn(day);
         // your answer stays coloured, the others grey out
         const pick = (choice: string, style: number) => (me && v[me] && v[me] !== choice ? 2 : style);
         return [
           text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}`),
           text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
+          ...(broke.length ? [text(broke.map((l) => `-# 🏅 ${l}`).join("\n"))] : []),
           ...(n.paused_until
             ? [text(`⏸️ **On hold** until ${stamp(w, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
             : []),
@@ -1755,7 +1770,7 @@ const clearDay = (tx: DbTx, day: string) =>
 // ---------------------------------------------------------------- the service
 
 /** What the night's code runs on. */
-type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Voice | Spontaneous | Presence | BotVoice;
+type Needs = AppConfig | Db | Discord | Nights | Games | Attendances | Panels | Alerts | Snoozes | Roasts | Streaks | Voice | Spontaneous | Presence | BotVoice;
 
 const makeGameNight = Effect.gen(function* () {
   // the services, captured once; a call's own overrides (quiet, stand-in players) still come from

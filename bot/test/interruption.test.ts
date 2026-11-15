@@ -7,7 +7,7 @@ import { expect, it } from "@effect/vitest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { eq } from "drizzle-orm";
 import { Duration, Effect, Fiber, Layer } from "effect";
-import { activityGuesses, loneBirds, fleeting, newsCache, newsStories, settings, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
+import { chases, activityGuesses, loneBirds, fleeting, newsCache, newsStories, settings, gameAliases, gameNights, gameNightVotes, games, lobbyPrompts, memes as memeTable, nightAttendance, readyRooms, recaps, roastBags, rooms, sessions, voiceSegments, votes } from "../src/db/schema.js";
 import { Voice, type RoomStillCreating } from "../src/voice.js";
 import { Db, type DbError } from "../src/db/db.js";
 import type { DiscordError } from "../src/discord.js";
@@ -30,7 +30,7 @@ import { harness, json, routes, type TestDb } from "./fx.js";
 
 const CLOCK = "2026-11-10T19:00:00Z"; // Tuesday 21:00 in Vilnius
 const h = harness({
-  tables: [lobbyPrompts, sessions, nightAttendance, voiceSegments, rooms, gameNights],
+  tables: [lobbyPrompts, sessions, nightAttendance, voiceSegments, rooms, gameNights, chases],
   discord: { firstId: 20000, routes: [routes.noVoiceState, routes.lobbyOnly] },
   clock: CLOCK,
 });

@@ -25,6 +25,14 @@ for (const [f, keys] of Object.entries(allowed))
     }
     console.log(`allowed to differ: ${f} › ${k}: ${reason}`);
   }
+// "+tables": tables added after a reference was recorded, which a recording may gain (rows of
+// that table) where the reference has none; the rest of it must still be identical
+const newTables = Object.keys(allowed["+tables"] ?? {});
+const without = (rec, ref) => {
+  const db = { ...rec.db };
+  for (const t of newTables) if (!(t in (ref.db ?? {}))) delete db[t];
+  return { ...rec, db };
+};
 const git = (...a) => execFileSync("git", a, { cwd: root, encoding: "utf8", maxBuffer: 64 << 20 });
 
 const problems = [];
@@ -50,7 +58,7 @@ for (const base of bases) {
       checked++;
       if (allowed[f]?.[k]) continue;
       if (!(k in now)) problems.push(`${f} › ${k}: no longer recorded (vs ${base})`);
-      else if (JSON.stringify(now[k]) !== JSON.stringify(rec)) problems.push(`${f} › ${k}: differs from ${base}`);
+      else if (JSON.stringify(without(now[k], rec)) !== JSON.stringify(rec)) problems.push(`${f} › ${k}: differs from ${base}`);
     }
   }
   const extra = readdirSync(dir).filter((f) => f.endsWith(".json") && !baseFiles.includes(f));

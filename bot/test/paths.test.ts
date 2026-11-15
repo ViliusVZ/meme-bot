@@ -20,11 +20,11 @@ import { Polls } from "../src/polls.js";
 import { Presence } from "../src/presence.js";
 import type { AppServices } from "../src/runtime.js";
 import { Voice } from "../src/voice.js";
-import { gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, pollVotes, panels } from "../src/db/schema.js";
+import { chases, gameNights, gameNightVotes, games, memes as memeTable, nightAttendance, recaps, roastBags, rooms, users, votes, polls as pollTable, pollVotes, panels } from "../src/db/schema.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
-  tables: [gameNightVotes, nightAttendance, rooms, gameNights, votes, memeTable, users, recaps, roastBags, pollTable, panels],
+  tables: [gameNightVotes, nightAttendance, rooms, gameNights, chases, votes, memeTable, users, recaps, roastBags, pollTable, panels],
   discord: { firstId: 5000, routes: [routes.noVoiceState, routes.lobbyOnly] },
   clock: "2026-11-06T15:00:00Z", // Friday 17:00 in Vilnius
 });
