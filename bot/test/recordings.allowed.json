@@ -1,5 +1,11 @@
 {
  "+tables": {
   "chases": "a re-nudge or a last call now records who it reminded (streaks.ts); every call and every other table is unchanged"
+ },
+ "flows.test.json": {
+  "the whole night: secret answers → game → time → locked in → started on the dot": "⚡ play now (2026-11-16): today's time card has the quick row (Now · In 15 min · In 30 min · In 1 h) and the locked-in card a ⚡ Ready now button, so the card edits' bodies differ; every call, its order and the database are unchanged",
+  "a tap on an out-of-date copy says what changed; the card follows the start": "⚡ play now (2026-11-16): today's time card has the quick row (Now · In 15 min · In 30 min · In 1 h) and the locked-in card a ⚡ Ready now button, so the card edits' bodies differ; every call, its order and the database are unchanged",
+  "private panels follow the card: one person's vote moves everyone's open panel on": "⚡ play now (2026-11-16): today's time card has the quick row (Now · In 15 min · In 30 min · In 1 h) and the locked-in card a ⚡ Ready now button, so the card edits' bodies differ; every call, its order and the database are unchanged",
+  "a tap on your own panel keeps its note when the panels sync": "⚡ play now (2026-11-16): today's time card has the quick row (Now · In 15 min · In 30 min · In 1 h) and the locked-in card a ⚡ Ready now button, so the card edits' bodies differ; every call, its order and the database are unchanged"
  }
 }

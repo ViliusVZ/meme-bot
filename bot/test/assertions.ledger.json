@@ -3014,5 +3014,60 @@
    "expect.not.toContain(\"🏅\")",
    "expect.toEqual([[L, \"2026-11-22\", \"2026-11-23\", 2]])"
   ]
+ },
+ "playnow.test.ts": {
+  "test \"everyone taps ⚡ Now: it starts at once, the Lobby is moved in, and only who isn't in voice is pinged\"": [
+   "expect.toBe(\"time\")",
+   "expect.toEqual([\"set\", at(\"18:05:20\"), true])",
+   "expect.toEqual([ [\"a\", room], [\"b\", room], ])",
+   "expect.toEqual([`⏰ <@c> 📦 **R.E.P.O.** starts now! <@a> and <@b> are already in → <#${room}>`])",
+   "expect.toEqual({ users: [\"c\"] })",
+   "expect.toHaveLength(1)",
+   "expect.not.toContain(\"Slowpoke\")"
+  ],
+  "test \"everyone on ⚡ Now and all in voice: one silent line\"": [
+   "expect.toEqual([[`📦 Everyone's here, so **R.E.P.O.** is on → <#${room}>`, SILENT, { parse: [] }]])"
+  ],
+  "test \"mixed quick picks: rounded up to the next 5 minutes, and the night locks in at the latest\"": [
+   "expect.toEqual([at(\"18:07:30\"), at(\"18:25:00\"), at(\"18:40:00\")])",
+   "expect.toEqual([\"set\", at(\"18:40:00\"), false])",
+   "expect.toEqual([`🎉 <@a> <@b> <@c> it's on! 📦 **R.E.P.O.** at <t:${at(\"18:40:00\")}:t> (<t:${at(\"18:40:00\")}:R>)`])"
+  ],
+  "test \"one on a fixed slot and two on ⚡ Now: it starts at the slot\"": [
+   "expect.toEqual([\"set\", at(\"20:00:00\"), false])"
+  ],
+  "test \"changing your mind: another quick button replaces your pick; tapping your pick's button takes it back, also once it has passed\"": [
+   "expect.toBe(at(\"18:05:00\"))",
+   "expect.toContain(`\"style\":3,\"label\":\"18:05\",\"custom_id\":\"gn:${DAY}:time:${at(\"18:05:00\")}\"`)",
+   "expect.toBe(at(\"19:05:00\"))",
+   "expect.toContain(`gn:${DAY}:time:${at(\"18:05:00\")}`)",
+   "expect.toBeNull()",
+   "expect.toContain(\"already passed\")"
+  ],
+  "test \"a ⚡ Now pick 40 minutes old when the last one taps: it starts now\"": [
+   "expect.toEqual([\"set\", at(\"18:45:00\"), true])",
+   "expect.toEqual([`⏰ <@a> <@b> <@c> 📦 **R.E.P.O.** starts now! Room: <#${room}>`])"
+  ],
+  "test \"the quick row is on today's time card only\"": [
+   "expect.toContain(`gn:${DAY}:soon:${m}`)",
+   "expect.toContain('\"label\":\"Now\"')",
+   "expect.toContain('\"label\":\"In 1 h\"')",
+   "expect.not.toContain(\":soon:\")",
+   "expect.toContain(\"tonight's card\")",
+   "expect.toBeLessThanOrEqual(40)"
+  ],
+  "test \"⚡ Ready now on a locked-in night: two aren't enough, a tap goes stale after 30 min, all three start it now\"": [
+   "expect.toContain(`gn:${DAY}:readynow`)",
+   "expect.toContain(\"When <@c> taps it too\")",
+   "expect.toContain(\"⚡ Ready now: <@a> <@b>\")",
+   "expect.toBe(false)",
+   "expect.toContain(\"⚡ Ready now: <@a> ·\")",
+   "expect.toBe(false)",
+   "expect.toContain(\"⚡ Ready now: <@b> <@c>\")",
+   "expect.toEqual([true, at(\"18:40:00\")])",
+   "expect.toEqual([`⏰ <@c> 📦 Everyone's ready, so **R.E.P.O.** is on now (was 20:00)! <@a> and <@b> are already in → <#${room}>`])",
+   "expect.toEqual({ users: [\"c\"] })",
+   "expect.toEqual([])"
+  ]
  }
 }
