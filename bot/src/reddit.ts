@@ -10,6 +10,7 @@ import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Memes, type Incoming } from "./memes.js";
 import { Alerts } from "./alerts.js";
+import { RedditNews, type Listed } from "./newsfeeds.js";
 
 const USER_AGENT = "discord-meme-bot/3.0 (daily top post)";
 const IMAGE = /href="(https:\/\/i\.redd\.it\/[^"]+\.(?:png|jpe?g|gif|webp))"/;
@@ -50,6 +51,16 @@ export function parseFeed(xml: string): Incoming[] {
       rank: i + 1,
     });
   });
+  return out;
+}
+
+/** A week's listing (Devvit API or embed widget, newsfeeds.ts) as the pool takes it: i.redd.it image posts only, as the feed had them. */
+export function fromListing(posts: ReadonlyArray<Listed>): Incoming[] {
+  const out: Incoming[] = [];
+  for (const p of posts) {
+    if (p.removed || !/^https:\/\/i\.redd\.it\/[^?#]+\.(?:png|jpe?g|gif|webp)$/.test(p.url)) continue;
+    out.push({ id: p.id, title: p.title, image: p.url, link: p.link, author: p.author ? `/u/${p.author}` : "", published: DateTime.formatIso(DateTime.makeUnsafe(p.created * 1000)), rank: p.rank });
+  }
   return out;
 }
 
@@ -111,6 +122,7 @@ export class Reddit extends Context.Service<
       const http = yield* HttpClient.HttpClient;
       const memes = yield* Memes;
       const alerts = yield* Alerts;
+      const redditNews = yield* RedditNews;
       // the refill times outlive a restart (in `settings`): otherwise every deploy (or a crash loop)
       // fetches straight away, and enough of those in a day get the server's address rate-limited
       // by Reddit (429/403)
@@ -127,8 +139,14 @@ export class Reddit extends Context.Service<
         return yield* new RedditError({ status: res.status, reset: Number(res.headers["x-ratelimit-reset"] ?? 0) });
       }).pipe(Effect.timeout(ATTEMPT_TIMEOUT), Effect.retry(retries));
 
+      // 📮 since Reddit closed its feeds (Nov 2026): the week from the Devvit API or the embed widget
+      const fromSource = Effect.gen(function* () {
+        const posts = yield* redditNews.listing(config.subreddit, "week").pipe(Effect.mapError((e) => new RedditError({ status: "status" in e && typeof e.status === "number" ? e.status : 503, reset: 0 })));
+        return fromListing(posts);
+      });
+
       const refill = Effect.gen(function* () {
-        const found = parseFeed(yield* fetchFeed);
+        const found = config.redditSource === "feeds" ? parseFeed(yield* fetchFeed) : yield* fromSource;
         return { fetched: found.length, stored: yield* memes.ingest(found) };
       });
 

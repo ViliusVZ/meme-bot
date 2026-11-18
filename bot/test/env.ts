@@ -121,6 +121,9 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     newsBacktestPost: env.NEWS_BACKTEST_POST === "1",
     // the tests never wait out Reddit's minute between requests (one test sets its own)
     newsRedditGapMs: 0,
+    redditSource: "feeds",
+    redditApiUrl: undefined,
+    redditApiToken: undefined,
     botVoice: env.BOT_VOICE ?? false,
     appName: "meme-bot",
     revision: "dev",

@@ -54,6 +54,16 @@ export interface AppConfigShape {
    */
   readonly newsRedditGapMs: number;
   /**
+   * 📮 Where Reddit comes from (newsfeeds.ts), since Reddit closed its public feeds in Nov 2026:
+   * "devvit" (our Devvit app's /external/read, trio-relay/), "embed" (Reddit's old embed widget, a
+   * bridge until the app's token is approved) or "feeds" (the old public RSS; the tests).
+   */
+  readonly redditSource: "feeds" | "embed" | "devvit";
+  /** 📮 The Devvit app's read endpoint (https://trio-relay-…-external.devvit.net/external/read). */
+  readonly redditApiUrl: string | undefined;
+  /** 📮 Its managed app token (devvit_at_…), from the app's developer settings. */
+  readonly redditApiToken: Redacted.Redacted<string> | undefined;
+  /**
    * 🔊 The bot's voice (botvoice.ts) until someone taps the 🔇 toggle on the HQ panel: BOT_VOICE=on
    * (the test bot); unset or "off" means off (production, until the owner has listened).
    */
@@ -104,6 +114,8 @@ export const readConfig = Effect.gen(function* () {
   const geminiApiKey = Option.getOrUndefined(yield* optional("GEMINI_API_KEY"));
   const newsChannelId = Option.getOrUndefined(yield* optional("NEWS_CHANNEL_ID"));
   const newsWriterKey = Option.getOrUndefined(yield* optional("NEWS_WRITER_KEY"));
+  const redditApiToken = Option.getOrUndefined(yield* optional("REDDIT_API_TOKEN"));
+  const redditSource = yield* or("REDDIT_SOURCE", "feeds");
   const config: AppConfigShape = {
     databaseUrl: Redacted.make(get("DATABASE_URL")),
     port: Number(yield* or("PORT", "3000")),
@@ -139,6 +151,9 @@ export const readConfig = Effect.gen(function* () {
     newsWriterKey: newsWriterKey === undefined ? undefined : Redacted.make(newsWriterKey),
     newsBacktestPost: (yield* or("NEWS_BACKTEST_POST", "")) === "1",
     newsRedditGapMs: REDDIT_GAP_MS,
+    redditSource: redditSource === "devvit" || redditSource === "embed" ? redditSource : "feeds",
+    redditApiUrl: Option.getOrUndefined(yield* optional("REDDIT_API_URL")),
+    redditApiToken: redditApiToken === undefined ? undefined : Redacted.make(redditApiToken),
     botVoice: (yield* or("BOT_VOICE", "off")) === "on",
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "trio-relay",
+  "server": {
+    "externalEndpoints": {
+      "read": {
+        "endpoint": "/external/read",
+        "scopes": [
+          "global"
+        ]
+      }
+    }
+  },
+  "permissions": {
+    "reddit": {
+      "enable": true
+    }
+  },
+  "scripts": {
+    "dev": "npm run watch"
+  }
+}

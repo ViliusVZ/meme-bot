@@ -735,7 +735,7 @@ it.effect("Reddit's minute: requests one at a time, each the gap after the last"
   Effect.gen(function* () {
     const config = yield* AppConfig;
     const scope = yield* Scope.make();
-    const reddit = Context.get(yield* Layer.buildWithScope(Layer.fresh(RedditNews.layer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsRedditGapMs: 150 }))), scope), RedditNews);
+    const reddit = Context.get(yield* Layer.buildWithScope(Layer.fresh(RedditNews.feedLayer).pipe(Layer.provide(Layer.succeed(AppConfig, { ...config, newsRedditGapMs: 150 }))), scope), RedditNews);
     const stamps: number[] = [];
     h.override = (c) => (c.path.startsWith("https://www.reddit.com/") ? (stamps.push(performance.now()), new Response(atom("x", []))) : undefined);
     yield* Effect.all([reddit.listing("a", "day"), reddit.listing("b", "hot"), reddit.thread("c", "t3_x")], { concurrency: "unbounded" });

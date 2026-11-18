@@ -399,7 +399,8 @@ export class News extends Context.Service<
           if (levels[sub] && t - levels[sub].at < LEVEL_AGE) continue;
           const month = yield* attempt(`r/${sub} month`, reddit.listing(sub, "month"));
           if ("failed" in month) {
-            failures.push(month.failed);
+            // 501: the source has no month (the embed widget, a bridge): the last learned level stays
+            if (!month.failed.endsWith("-> 501")) failures.push(month.failed);
             continue;
           }
           levels[sub] = { bar: barFrom(month.ok, t), at: t };

@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "name": "trio-relay",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:server -- --metafile=dist/server.meta.json --minify",
+    "build:server": "esbuild --bundle --log-level=warning --sourcemap=linked --target=es2023 --format=cjs --outdir=dist/server --platform=node src/server/index.ts",
+    "clean": "rm -rf dist/",
+    "format": "npm run lint -- --fix",
+    "lint": "biome check --error-on-warnings",
+    "playtest": "devvit playtest",
+    "test": "npm run test:types && npm run build",
+    "test:types": "tsc --build",
+    "publish": "npm run clean && npm run build && devvit publish",
+    "watch": "npm run build:server -- --watch=forever"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@devvit/web": "0.15.4",
+    "@types/node": "24.19.2",
+    "devvit": "0.15.4",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
