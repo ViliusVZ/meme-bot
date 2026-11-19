@@ -24,7 +24,7 @@ type Channels = { readonly gameChannelId: string; readonly lobbyChannelId: strin
 
 function guide(c: Channels) {
   return [
-    text("## 🤖 Meme Bot 3000 · how to use me"),
+    text("## 🥋 Klodas Vandamas · how to use me"),
     text(
       [
         `### 🎮 Game night · <#${c.gameChannelId}>`,

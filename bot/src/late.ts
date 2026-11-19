@@ -99,7 +99,9 @@ export class LateSlips extends Context.Service<
               yield* Effect.gen(function* () {
                 const msg = yield* discord.createMessage(config.gameChannelId, {
                   ...slipFor(n.day, p, fresh, n.game!, n.start_at!, roomId),
-                  allowed_mentions: yield* allowedMentions([p]),
+                  // silent: the start already pinged whoever wasn't there; the slip is the record
+                  flags: ((slipFor(n.day, p, fresh, n.game!, n.start_at!, roomId) as { flags?: number }).flags ?? 0) | (1 << 12),
+                  allowed_mentions: { parse: [] },
                   message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
                 });
                 yield* db.update(nightAttendance).set({ message_id: msg.id }).where(and(eq(nightAttendance.day, n.day), eq(nightAttendance.user_id, p)));

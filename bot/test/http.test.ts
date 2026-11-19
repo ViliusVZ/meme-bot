@@ -59,7 +59,7 @@ it.effect("GET /health: the good case, and 503 while shutting down", () =>
 it.effect("GET /: the greeting", () =>
   Effect.gen(function* () {
     const r = yield* (yield* build(up)).inject({ method: "GET", url: "/" });
-    expect([r.statusCode, r.body]).toEqual([200, "Meme Bot 3000 🔥"]);
+    expect([r.statusCode, r.body]).toEqual([200, "Klodas Vandamas 🥋"]);
   }).pipe(h.provide),
 );
 

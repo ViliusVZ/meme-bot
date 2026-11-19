@@ -65,7 +65,7 @@ export const COMMANDS = [
   { name: "games", description: "See, add or remove games in the game-night list" },
   { name: "room", description: "Open a voice room for a game and bring everyone from the Lobby" },
   { name: "gamestats", description: "Voice time, calls and games played: this week, month, year or all time" },
-  { name: "help", description: "How to use Meme Bot 3000" },
+  { name: "help", description: "How to use Klodas Vandamas" },
 ];
 
 /** What /health and the signature check read: whether we lead, whether we're shutting down, the key. */
@@ -262,7 +262,7 @@ export const Routes = HttpRouter.use((router) =>
       }),
     );
 
-    yield* route("GET", "/", () => Effect.succeed(text("Meme Bot 3000 🔥")));
+    yield* route("GET", "/", () => Effect.succeed(text("Klodas Vandamas 🥋")));
 
     yield* route("POST", "/interactions", (req) =>
       Effect.gen(function* () {

@@ -24,11 +24,11 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 6eb44ab48c3c",
+   "POST https://discord.com/api/v10/channels/gn/messages 13f1e6ae7207",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events c094b9f06775",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events a159e4b9f938",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9edb40f14ec2",
    "POST https://discord.com/api/v10/channels/gn/messages 3f5a253944a3",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
@@ -53,11 +53,11 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
-   "POST https://discord.com/api/v10/channels/gn/messages bef01ae7876f"
+   "POST https://discord.com/api/v10/channels/gn/messages 3974327afe29"
   ],
   "db": {
    "game_night_votes": "10:acc0964f120b",
@@ -70,11 +70,11 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages fed9b7d1a87f",
+   "POST https://discord.com/api/v10/channels/gn/messages 2848c81c8036",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
-   "POST https://discord.com/api/v10/channels/gn/messages d45177baf08f"
+   "POST https://discord.com/api/v10/channels/gn/messages 83ef9eeca57b"
   ],
   "db": {
    "game_night_votes": "6:d1b5950ab97e",
@@ -87,11 +87,11 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages fed9b7d1a87f",
+   "POST https://discord.com/api/v10/channels/gn/messages 2848c81c8036",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
-   "POST https://discord.com/api/v10/channels/gn/messages ec76dfebec33",
+   "POST https://discord.com/api/v10/channels/gn/messages d7efb44f4476",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1007 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 bbe621b4d008"
   ],
@@ -122,9 +122,9 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 56c69c729134",
+   "POST https://discord.com/api/v10/channels/gn/messages 188274ef751f",
    "POST https://discord.com/api/v10/channels/gn/messages 7719bfbb8099",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1000 -",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -"
@@ -140,7 +140,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 c681214b9ffa",
-   "POST https://discord.com/api/v10/channels/gn/messages 3b538eedd899"
+   "POST https://discord.com/api/v10/channels/gn/messages 544c1a55b298"
   ],
   "db": {
    "game_night_votes": "1:9f4b56233015",
@@ -154,7 +154,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages c5452963e8b2"
+   "POST https://discord.com/api/v10/channels/gn/messages d43d71b6b1d8"
   ],
   "db": {
    "game_night_votes": "3:2dbe603e3951",
@@ -173,7 +173,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 0d0b51214691",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 514284e51363",
-   "POST https://discord.com/api/v10/channels/gn/messages e72ebe4bcf27"
+   "POST https://discord.com/api/v10/channels/gn/messages 6f9754247553"
   ],
   "db": {
    "chases": "1:07cfb1d1508e",
@@ -188,12 +188,12 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "POST https://discord.com/api/v10/channels/gn/messages 027acd199832",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 37ca16c0b416",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
    "POST https://discord.com/api/v10/channels/gn/messages ed58fe481309",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c"
   ],
   "db": {
    "game_night_votes": "3:1a9bc240a1a6",
@@ -206,12 +206,12 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "POST https://discord.com/api/v10/channels/gn/messages 027acd199832",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 37ca16c0b416",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
    "POST https://discord.com/api/v10/channels/gn/messages ed58fe481309",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 58be4ce58e17",
+   "POST https://discord.com/api/v10/channels/gn/messages 7bfe35f5b181",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 32a0ca4935f9",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1008 -",
    "POST https://discord.com/api/v10/channels/gn/messages f6c1cf88c41b",
@@ -219,7 +219,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 0d0b51214691",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1013 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 99e4a1dee3e1",
-   "POST https://discord.com/api/v10/channels/gn/messages 8b490d31fa7a"
+   "POST https://discord.com/api/v10/channels/gn/messages 6ade83151edb"
   ],
   "db": {
    "chases": "1:1fa92d84b591",
@@ -234,12 +234,12 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages dfe59a60f1fa",
+   "POST https://discord.com/api/v10/channels/gn/messages a30ee057ad58",
    "POST https://discord.com/api/v10/channels/gn/messages 777f18fd4220",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1004 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "POST https://discord.com/api/v10/channels/gn/messages 027acd199832",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 67272359a320",
+   "POST https://discord.com/api/v10/channels/gn/messages 7193bf52d5e3",
    "POST https://discord.com/api/v10/channels/gn/messages 777f18fd4220"
   ],
   "db": {
@@ -254,13 +254,13 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 178de3312b62",
+   "POST https://discord.com/api/v10/channels/gn/messages 027acd199832",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "POST https://discord.com/api/v10/channels/gn/messages fc3be1749975",
    "POST https://discord.com/api/v10/channels/gn/messages ae9e8c8c4119",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1007 -",
-   "POST https://discord.com/api/v10/channels/gn/messages ea901dcae026"
+   "POST https://discord.com/api/v10/channels/gn/messages 69d7245ec7bf"
   ],
   "db": {
    "game_night_votes": "6:c6b30653db8d",
@@ -273,10 +273,10 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 c56ea491f8b4",
-   "POST https://discord.com/api/v10/channels/gn/messages 2fccf8f95d3d"
+   "POST https://discord.com/api/v10/channels/gn/messages 127aa764a624"
   ],
   "db": {
    "game_night_votes": "4:43234d39d942",
@@ -289,7 +289,7 @@
   "calls": [
    "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 09452b9c0077",
-   "POST https://discord.com/api/v10/channels/gn/messages eed8c18e4c6c"
+   "POST https://discord.com/api/v10/channels/gn/messages eb42b3315567"
   ],
   "db": {
    "game_nights": "1:bebc43d2b761",
@@ -302,9 +302,9 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 75e159d413a1"
+   "POST https://discord.com/api/v10/channels/gn/messages 1d1e2b82b212"
   ],
   "db": {
    "game_night_votes": "3:81b6639c3de1",
@@ -325,7 +325,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9edd12faf3e5",
-   "POST https://discord.com/api/v10/channels/gn/messages 6c4b8acf2ab7",
+   "POST https://discord.com/api/v10/channels/gn/messages 31d1545ed1ab",
    "POST https://discord.com/api/v10/channels/gn/messages 7d7c94916ab3"
   ],
   "db": {
@@ -392,8 +392,8 @@
  "latecomers: pulled in from the Lobby once; a slip after 10 minutes otherwise": {
   "calls": [
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 92073870b827",
-   "POST https://discord.com/api/v10/channels/gn/messages 8e89da9c8c74",
-   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4"
+   "POST https://discord.com/api/v10/channels/gn/messages bfe6e592e696",
+   "POST https://discord.com/api/v10/channels/gn/messages 75657e16cf49"
   ],
   "db": {
    "game_nights": "1:b7cd49a0c3ee",
@@ -404,7 +404,7 @@
  },
  "memes: one daily per day even when posted twice at once; votes toggle; streaks": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 4efc7d87b35c",
+   "POST https://discord.com/api/v10/channels/memes/messages 29b0e8c138b3",
    "POST https://discord.com/api/v10/channels/memes/messages/1000/threads 640a237ea8c8"
   ],
   "db": {
@@ -425,15 +425,15 @@
  },
  "all of us or none of us: a bail after the start calls the night off for everyone": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 48100cc75766",
-   "POST https://discord.com/api/v10/channels/gn/messages 8e89da9c8c74",
-   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4",
+   "POST https://discord.com/api/v10/channels/gn/messages df16d06b3112",
+   "POST https://discord.com/api/v10/channels/gn/messages bfe6e592e696",
+   "POST https://discord.com/api/v10/channels/gn/messages 75657e16cf49",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card f33c1f2018f5",
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 7f8e857dc4d8",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 2824cf1a8262",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1001 419e64c457b5",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1002 f9f2eba54b24",
-   "POST https://discord.com/api/v10/channels/gn/messages e7a1b22acf00"
+   "POST https://discord.com/api/v10/channels/gn/messages 851bd746ec92"
   ],
   "db": {
    "game_nights": "1:fda4cf23ed6f",
@@ -447,7 +447,7 @@
  },
  "the card's 🚪 after the start does the same": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 8908ccd61088"
+   "POST https://discord.com/api/v10/channels/gn/messages 8a7bb3423585"
   ],
   "db": {
    "game_nights": "1:6f19409294a6",
@@ -462,7 +462,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c"
   ],
   "db": {
    "game_night_votes": "3:81b6639c3de1",
@@ -477,9 +477,9 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d"
   ],
   "db": {
    "game_night_votes": "7:39ca01bf2e8d",
@@ -502,11 +502,11 @@
  "⏰ running late before the start: we wait, so the start moves to the latest ETA (and back)": {
   "calls": [
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 2d5865c99e8c",
-   "POST https://discord.com/api/v10/channels/gn/messages 60db2fc9be55",
+   "POST https://discord.com/api/v10/channels/gn/messages 630409812e0a",
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 4d159d060b37",
-   "POST https://discord.com/api/v10/channels/gn/messages 8ad0a04ba71d",
+   "POST https://discord.com/api/v10/channels/gn/messages dfc82e336780",
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 2d5865c99e8c",
-   "POST https://discord.com/api/v10/channels/gn/messages b0e8941e2613",
+   "POST https://discord.com/api/v10/channels/gn/messages 5fcd7ef6817c",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 2dfbd610df7f",
@@ -529,8 +529,8 @@
  },
  "⏰ after the start it's an ETA on your slip; said-late people who still don't show get a slip": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 0f7dd1b73384",
-   "POST https://discord.com/api/v10/channels/gn/messages d068c2fc8cf4"
+   "POST https://discord.com/api/v10/channels/gn/messages 9f797abdc80f",
+   "POST https://discord.com/api/v10/channels/gn/messages 75657e16cf49"
   ],
   "db": {
    "game_nights": "1:b7cd49a0c3ee",
@@ -567,12 +567,12 @@
  },
  "😴 snooze: no automatic cards until it runs out; starting by hand still works; wake ends it early": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b",
+   "POST https://discord.com/api/v10/channels/gn/messages 7b033bcb68c2",
    "POST https://discord.com/api/v10/channels/gn/messages f5d0257ff699",
    "POST https://discord.com/api/v10/channels/gn/messages ebd602f123fe",
    "POST https://discord.com/api/v10/channels/gn/messages 4cd065238956",
-   "POST https://discord.com/api/v10/channels/gn/messages f6d525d10f77",
-   "POST https://discord.com/api/v10/channels/gn/messages 2c593f28dd17"
+   "POST https://discord.com/api/v10/channels/gn/messages 13b1d0d71ad5",
+   "POST https://discord.com/api/v10/channels/gn/messages 414618cdeecd"
   ],
   "db": {
    "game_night_votes": "1:efd5f0471b7c",
@@ -584,7 +584,7 @@
  },
  "😴 a week, counted from the next card due": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 5cedb635e593"
+   "POST https://discord.com/api/v10/channels/gn/messages 7f7d4bc794fe"
   ],
   "db": {
    "games": "3:6740a4b99011",
@@ -598,11 +598,11 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1005 -",
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events f08393e0ce38",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 8a3091a8f259",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 8472944b196a",
    "POST https://discord.com/api/v10/channels/gn/messages e31e0fda8a9a",
    "POST https://discord.com/api/v10/guilds/guild/channels ba884d10abfa",
@@ -626,8 +626,8 @@
  },
  "⏰ edge cases: a take-back after the planned time starts it now; late-sayers get the usual grace": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 967e4c5486ee",
-   "POST https://discord.com/api/v10/channels/gn/messages 05aa5bf2836b",
+   "POST https://discord.com/api/v10/channels/gn/messages 350970b0a3ce",
+   "POST https://discord.com/api/v10/channels/gn/messages 540d17c3a2e6",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 79dd27e10a8e",
@@ -636,9 +636,9 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages 23921a12bfa8",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 88ebc297d0ba",
-   "POST https://discord.com/api/v10/channels/gn/messages a79f42cfe298",
-   "POST https://discord.com/api/v10/channels/gn/messages b6f053637a52",
-   "POST https://discord.com/api/v10/channels/gn/messages 68f35f6dcb4e"
+   "POST https://discord.com/api/v10/channels/gn/messages ed006e8f4a7c",
+   "POST https://discord.com/api/v10/channels/gn/messages f7fdef6fe870",
+   "POST https://discord.com/api/v10/channels/gn/messages a1c81b1e0d2b"
   ],
   "db": {
    "game_nights": "1:47286b738fd6",
@@ -660,8 +660,8 @@
  },
  "😴 during the poll hour, a card not posted yet still counts as today's": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b",
-   "POST https://discord.com/api/v10/channels/gn/messages 3d57c55d75b7"
+   "POST https://discord.com/api/v10/channels/gn/messages 7b033bcb68c2",
+   "POST https://discord.com/api/v10/channels/gn/messages 12c9e0c77992"
   ],
   "db": {
    "games": "3:5fbef8d0c2de",
@@ -677,7 +677,7 @@
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9ec672072226",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original a7025dcc90a1",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original a7025dcc90a1",
@@ -692,7 +692,7 @@
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original fb5de75ce332",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 975f755c6b00",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-701000/messages/@original db03318f4e5e",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original db03318f4e5e",
@@ -723,13 +723,13 @@
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 9ec672072226",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original a7025dcc90a1",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original a7025dcc90a1",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original a7025dcc90a1",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1006 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4",
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 975f755c6b00",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-701000/messages/@original f254d3ed697b",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original db03318f4e5e",
@@ -756,7 +756,7 @@
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 68caad0a1b9b",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-a-card/messages/@original 2965a2ca73db",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-b-card/messages/@original 2965a2ca73db",
-   "POST https://discord.com/api/v10/channels/gn/messages 3179678e3319",
+   "POST https://discord.com/api/v10/channels/gn/messages 8be0a30a0c3c",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 20abf054d6bc",
    "PATCH https://discord.com/api/v10/webhooks/app/tok-c-card/messages/@original aeea3701deb5",
    "PATCH https://discord.com/api/v10/channels/gn/messages/1000 20abf054d6bc",
@@ -801,7 +801,7 @@
  },
  "😴 asked ahead: the last snoozed day sleeps, the day it runs out is back": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 8f63c7512f1b"
+   "POST https://discord.com/api/v10/channels/gn/messages 7b033bcb68c2"
   ],
   "db": {
    "games": "3:54d0c1ebcf46",
@@ -815,7 +815,7 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8"
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c"
   ],
   "db": {
    "game_night_votes": "3:81b6639c3de1",
@@ -830,9 +830,9 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d"
   ],
   "db": {
    "game_night_votes": "7:74a6b703082b",
@@ -847,9 +847,9 @@
    "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
    "POST https://discord.com/api/v10/channels/gn/messages 85774ccfbe7d",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 5d5b31898fc8",
+   "POST https://discord.com/api/v10/channels/gn/messages ba049ba77c1c",
    "DELETE https://discord.com/api/v10/channels/gn/messages/1003 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1e50344670c4"
+   "POST https://discord.com/api/v10/channels/gn/messages faaeac1d923d"
   ],
   "db": {
    "game_night_votes": "7:c0352806c2ae",
@@ -862,7 +862,7 @@
  "⏰ a later start moves the Discord event, and its new end is remembered": {
   "calls": [
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/ev1 f6499c78491e",
-   "POST https://discord.com/api/v10/channels/gn/messages 90a150d4f07b"
+   "POST https://discord.com/api/v10/channels/gn/messages 2b5e7d4256ac"
   ],
   "db": {
    "game_nights": "1:cfc1a9d7b36b",

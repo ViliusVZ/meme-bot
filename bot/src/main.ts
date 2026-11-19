@@ -1,4 +1,4 @@
-// Meme Bot 3000. Every running copy serves HTTP (Discord clicks, meme intake); exactly one, the
+// Klodas Vandamas (formerly Meme Bot 3000). Every running copy serves HTTP (Discord clicks, meme intake); exactly one, the
 // leader, also holds the Discord gateway and runs the scheduler. During a deploy the new copy
 // serves alongside the old one, and takes over leadership the moment the old one lets go.
 //

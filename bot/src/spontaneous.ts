@@ -38,7 +38,7 @@ import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
-export const PROMPT_TTL = 10 * 60; // an unanswered question goes away after this
+export const PROMPT_TTL = 6 * 3600; // an unanswered question stays while we're gathered (the gathering ending takes it away)
 export const WINDOW = 3 * 3600; // a locked-in night starting within this owns the Lobby (its own rules, right up to the start)
 export const EARLY_AFTER = 30; // all three of us here this long → the night starts now
 const CARD_LAST = 60; // the night's card isn't posted this close to the start
@@ -162,6 +162,10 @@ export class Spontaneous extends Context.Service<
     nightChanged(day?: string): Effect.Effect<void, DbError>;
     /** A self-removing note in a room's chat, with ↩ Back to the Lobby for `moved`. */
     note(channel: string, content: string, moved: ReadonlyArray<string>, t?: number): Effect.Effect<void, DbError>;
+    /** What `users` are shown playing, as one of our games most of them share (null: nothing clear). */
+    detect(users: ReadonlyArray<string>): Effect.Effect<{ game: string; by: string[] } | null, DbError>;
+    /** Tonight's card's game, picked or leading its vote (null: none yet). */
+    cardGame(day: string): Effect.Effect<string | null, DbError>;
   }
 >()("meme-bot/spontaneous") {
   static readonly layer = Layer.effect(
@@ -178,6 +182,9 @@ export class Spontaneous extends Context.Service<
       const botVoice = yield* BotVoice;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
+      // 🎮 the question and the early-bird card go where the night's card is (#game-night): the
+      // Lobby's own chat is a place nobody looks while sitting in voice (19 Nov)
+      const askIn = config.gameChannelId;
       const presencesOn = Effect.succeed(config.presences);
       const sessionIs = (s: { day: string; game: string }) => and(eq(sessions.day, s.day), eq(sessions.game, s.game));
 
@@ -351,13 +358,13 @@ export class Spontaneous extends Context.Service<
       });
 
       /** Two of us in the Lobby playing the same game: straight to its room, with ↩ in case we're wrong. */
-      const autoMove = (game: string, by: ReadonlyArray<string>, t: number) => Effect.uninterruptible(autoMoveOnce(game, by, t)); // claim → move → note (§15)
-      const autoMoveOnce = Effect.fnUntraced(function* (game: string, by: ReadonlyArray<string>, t: number) {
+      const autoMove = (game: string, by: ReadonlyArray<string>, t: number, why?: string) => Effect.uninterruptible(autoMoveOnce(game, by, t, why)); // claim → move → note (§15)
+      const autoMoveOnce = Effect.fnUntraced(function* (game: string, by: ReadonlyArray<string>, t: number, why?: string) {
         const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "moved", game }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
         if (!claim) return;
         yield* Effect.gen(function* () {
           const r = yield* voice.openRoom(game, yield* games.emojiFor(game), { move: true });
-          if (r.moved.length) yield* note(r.channelId, `🎮 Saw ${names(by)} in **${game}**, so I brought you over.`, r.moved, t);
+          if (r.moved.length) yield* note(r.channelId, why ?? `🎮 Saw ${names(by)} in **${game}**, so I brought you over.`, r.moved, t);
         }).pipe(
           Effect.catch((e) =>
             Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("moving the Lobby into the game we're playing", e, game)),
@@ -366,6 +373,19 @@ export class Spontaneous extends Context.Service<
       });
 
       // ---------------------------------------------------------------- the Lobby question
+
+      /** Tonight's card's game: picked, or (still voting) the one with the most votes so far; null if none. */
+      const cardGame = Effect.fnUntraced(function* (day: string) {
+        const [n] = yield* db.select({ stage: gameNights.stage, game: gameNights.game }).from(gameNights).where(eq(gameNights.day, day));
+        if (!n) return null;
+        if (n.game) return n.game;
+        if (n.stage !== "game") return null;
+        const { rows } = yield* db.execute<{ choice: string; n: number }>(
+          sql`SELECT choice, count(*)::int AS n FROM game_night_votes WHERE day = ${day} AND stage = 'game' GROUP BY choice ORDER BY n DESC, min(voted_at)`,
+        );
+        if (!rows.length || (rows[1] && rows[1].n === rows[0]!.n)) return null;
+        return rows[0]!.choice;
+      });
 
       const recentGames = Effect.fn("Spontaneous.recentGames")(function* (n: number = 3) {
         const { rows } = yield* db.execute<{ game: string }>(sql`
@@ -415,7 +435,7 @@ export class Spontaneous extends Context.Service<
             const [claim] = yield* db.insert(lobbyPrompts).values({ created_at: t, state: "open", activity }).onConflictDoNothing().returning({ id: lobbyPrompts.id });
             if (!claim) return;
             yield* Effect.gen(function* () {
-              const msg = yield* discord.createMessage(lobbyId, yield* questionMessage(claim.id, first));
+              const msg = yield* discord.createMessage(askIn, yield* questionMessage(claim.id, first));
               yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
               // 🔊 and aloud (queued, never waited on; not on auto-move, where the bot stays silent)
               yield* botVoice.lobbyAsked;
@@ -434,7 +454,7 @@ export class Spontaneous extends Context.Service<
           .set({ state })
           .where(and(eq(lobbyPrompts.id, p.id), eq(lobbyPrompts.state, "open")))
           .returning({ id: lobbyPrompts.id });
-        if (done.length && p.message_id) yield* deleteMessage(lobbyId, p.message_id);
+        if (done.length && p.message_id) yield* deleteMessage(askIn, p.message_id);
       });
 
       const endGathering = Effect.fnUntraced(function* (p: Prompt, t: number) {
@@ -470,6 +490,14 @@ export class Spontaneous extends Context.Service<
         const since = starts.length >= 2 ? starts[1] : t;
         if (t < since + GATHER_AFTER) return since + GATHER_AFTER;
         // a locked-in night ahead: its own rules, never the question
+        if (!plan.night) {
+          // tonight's card already names a game (picked, or leading the game vote): that's the answer
+          const named = yield* cardGame(time.at(t).day);
+          if (named) {
+            yield* autoMove(named, lobby, t, `🎮 Tonight's card says **${named}**, so I brought you over.`);
+            return null;
+          }
+        }
         if (plan.night) {
           yield* nightCard(where, lobby, open, plan.night, t);
           return null;
@@ -554,7 +582,7 @@ export class Spontaneous extends Context.Service<
             if (!claim) return;
             yield* db.insert(nightCards).values({ prompt_id: claim.id, day: night.day, start_at: night.start_at });
             yield* Effect.gen(function* () {
-              const msg = yield* discord.createMessage(lobbyId, yield* cardMessage(claim.id, night, missing));
+              const msg = yield* discord.createMessage(askIn, yield* cardMessage(claim.id, night, missing));
               yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
             }).pipe(
               Effect.catch((e) =>
@@ -598,7 +626,7 @@ export class Spontaneous extends Context.Service<
         const { missing } = yield* hereFor(where, night, yield* voice.openRooms);
         const { flags: _, ...body } = yield* cardMessage(p.id, night, missing);
         // (deleted by hand: then there's nothing to follow; the row still closes with the gathering)
-        yield* discord.editMessage(lobbyId, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
+        yield* discord.editMessage(askIn, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
         yield* db.update(nightCards).set({ start_at: n.start_at }).where(eq(nightCards.prompt_id, p.id));
       });
 
@@ -647,7 +675,7 @@ export class Spontaneous extends Context.Service<
               }
               return yield* Effect.gen(function* () {
                 const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
-                if (p.message_id) yield* deleteMessage(lobbyId, p.message_id);
+                if (p.message_id) yield* deleteMessage(askIn, p.message_id);
                 if (p.activity) {
                   // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
                   return {
@@ -862,6 +890,12 @@ export class Spontaneous extends Context.Service<
           return yield* gathering(where, open, inRoom, plan, t);
         }),
         learn,
+        detect: Effect.fn("Spontaneous.detect")(function* (users: ReadonlyArray<string>) {
+          if (!(yield* presencesOn) || !users.length) return null;
+          const one = oneGame((yield* playingGames(users)).of);
+          return one ? { game: one.game, by: [...one.by] } : null;
+        }),
+        cardGame,
         namesWaiting,
         place,
         recentGames,

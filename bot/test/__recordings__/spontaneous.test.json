@@ -1,7 +1,7 @@
 {
  "two of us in the Lobby for 30 s get one silent question; a 29-second visit gets none": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 569d23c6a149"
+   "POST https://discord.com/api/v10/channels/gn/messages 569d23c6a149"
   ],
   "db": {
    "games": "2:9315baed2696",
@@ -18,13 +18,13 @@
  },
  "first tap wins: the room opens, the Lobby comes along, the question goes; a late tap hears who won": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 3fb348fd20d5",
+   "POST https://discord.com/api/v10/channels/gn/messages 3fb348fd20d5",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -"
   ],
   "db": {
    "games": "2:ce8cb772470e",
@@ -51,7 +51,7 @@
  },
  "a room that won't open gives the question back": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 1f2d2de237ed",
+   "POST https://discord.com/api/v10/channels/gn/messages 1f2d2de237ed",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3"
   ],
   "db": {
@@ -62,9 +62,9 @@
  },
  "“Just hanging out” clears the question and keeps the Lobby quiet until the gathering breaks up": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages c42f050e0112",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -",
-   "POST https://discord.com/api/v10/channels/lobby/messages 22caca406e79"
+   "POST https://discord.com/api/v10/channels/gn/messages c42f050e0112",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -",
+   "POST https://discord.com/api/v10/channels/gn/messages 22caca406e79"
   ],
   "db": {
    "games": "2:95dc357c4cdc",
@@ -74,7 +74,7 @@
  },
  "“Other…” opens the full room picker": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages b6d14a5db0d8"
+   "POST https://discord.com/api/v10/channels/gn/messages b6d14a5db0d8"
   ],
   "db": {
    "games": "2:c0de98d6902b",
@@ -84,8 +84,8 @@
  },
  "an unanswered question goes after 10 minutes and isn't asked again that gathering": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 87450822fe19",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
+   "POST https://discord.com/api/v10/channels/gn/messages 87450822fe19",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -"
   ],
   "db": {
    "games": "2:ba99b0efffe6",
@@ -95,8 +95,8 @@
  },
  "a question that fails to post leaves the gathering quiet; the next gathering can ask": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages f1c1666412da",
-   "POST https://discord.com/api/v10/channels/lobby/messages 6902196e09d5"
+   "POST https://discord.com/api/v10/channels/gn/messages f1c1666412da",
+   "POST https://discord.com/api/v10/channels/gn/messages 6902196e09d5"
   ],
   "db": {
    "games": "2:a8111a04d9c5",
@@ -106,12 +106,19 @@
  },
  "a planned night owns the Lobby: none while one starts within 15 min or is on": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 1c8d986c9342"
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 47a990a61f75",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 4830af9bdf1a",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b 4830af9bdf1a",
+   "POST https://discord.com/api/v10/channels/9000/messages a2411ec3f60a"
   ],
   "db": {
+   "fleeting": "1:09de8b4bde1d",
    "game_nights": "1:106549a43dcf",
    "games": "2:dd3b738f7c62",
-   "lobby_prompts": "1:91b12a44379d",
+   "lobby_prompts": "1:02b788bd2472",
+   "rooms": "1:ff03de132412",
    "voice_segments": "2:fb0ca9185717"
   }
  },
@@ -290,7 +297,7 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 4830af9bdf1a",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b 4830af9bdf1a",
    "POST https://discord.com/api/v10/channels/9000/messages 6bfc99582b2c",
-   "POST https://discord.com/api/v10/channels/lobby/messages 2116922e48d6"
+   "POST https://discord.com/api/v10/channels/gn/messages 2116922e48d6"
   ],
   "db": {
    "fleeting": "1:fc1daf7cf081",
@@ -301,8 +308,8 @@
  },
  "different games, or only one of us in a known game: ask, that game first": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages d944c6165bb9",
-   "POST https://discord.com/api/v10/channels/lobby/messages f8ff59bc6d86"
+   "POST https://discord.com/api/v10/channels/gn/messages d944c6165bb9",
+   "POST https://discord.com/api/v10/channels/gn/messages f8ff59bc6d86"
   ],
   "db": {
    "games": "2:1bf312aea2b5",
@@ -312,13 +319,13 @@
  },
  "a name Discord uses that we don't know is learned with one tap, never silently": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages b4312a984022",
+   "POST https://discord.com/api/v10/channels/gn/messages b4312a984022",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 72d19f01bf9c",
@@ -406,7 +413,7 @@
  },
  "the writer says it's not one of ours: no alias, and no “is that …?” offer for it either": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages 220bd7991fbf"
+   "POST https://discord.com/api/v10/channels/gn/messages 220bd7991fbf"
   ],
   "db": {
    "activity_guesses": "1:897fd1fe95b7",
@@ -424,13 +431,13 @@
  },
  "no word from the writer yet: the Lobby question still teaches it with one tap, and then it's off the writer's list": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages fff1e6d1e50d",
+   "POST https://discord.com/api/v10/channels/gn/messages fff1e6d1e50d",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels c054f4afa430",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a fc1002e77385",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b fc1002e77385",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/9000 -"
+   "DELETE https://discord.com/api/v10/channels/gn/messages/9000 -"
   ],
   "db": {
    "activity_guesses": "1:b6c3fcd70efd",

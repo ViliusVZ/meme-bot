@@ -36,7 +36,7 @@ export const LATE_PERSONAL: Readonly<Record<string, ReadonlyArray<string>>> = {
 };
 
 /** 3. The Lobby question, aloud (when the bot posts "Playing something?"). */
-export const LOBBY = ["Playing something? ‹Ką žaidžiam?›", "‹Labas.› What are we playing?", "‹Nu, ką žaidžiam?› Pick something."];
+export const LOBBY = ["Playing something? ‹Ką žaidžiam?› Tap the game in game night.", "‹Labas.› What are we playing? The buttons are in game night.", "‹Nu, ką žaidžiam?› Pick it in the game night channel."];
 
 /** 4. The lone early bird (the beep plays first, then one line). */
 export const EARLY = [

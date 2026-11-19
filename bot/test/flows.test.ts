@@ -315,7 +315,7 @@ it.effect("a no stays secret until everyone's answered, then the night's off and
     expect([n.stage, n.roast!.who]).toEqual(["off", { b: "no" }]);
     const [r] = roastPosts();
     expect(r.body.content).toMatch(/^🔥 \*\*Tonight's game night is off\*\* · <@b> ❌ said no\n> .*<@b>/);
-    expect(r.body.allowed_mentions.users.sort()).toEqual(["a", "b", "c"]);
+    expect([r.body.allowed_mentions, r.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // a roast is silent (19 Nov): names, no ping
     const card = text(yield* render(DAY));
     expect(card).toContain("How everyone voted"); // revealed
     expect(card).toContain("Reopen");
@@ -365,7 +365,7 @@ it.effect("🤔 a maybe holds it for 2 h once everyone's answered, then the unsu
     expect(card).not.toContain("Vote by"); // no deadline while it's on hold
     const held = posts().find((p) => p.body.content?.includes("isn't sure yet"))!;
     expect(held.body.content).toMatch(/^<@a> <@b> 🤔 <@c> isn't sure yet, so it's on hold until/);
-    expect(held.body.allowed_mentions.users).toEqual(["a", "b"]); // the sure ones hear why they wait
+    expect([held.body.allowed_mentions, held.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // why they wait: silent (19 Nov)
 
     yield* h.setTime(Date.parse("2026-11-06T16:59:00Z")); // 18:59: still on hold
     yield* maintain;
@@ -715,7 +715,7 @@ it.effect("all of us or none of us: a bail after the start calls the night off f
     expect(calls.some((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1") && c.body.status === 3)).toBe(true); // live event ended
     const roast = roastPosts()[0];
     expect(roast.body.content).toMatch(/^🔥 \*\*📦 R\.E\.P\.O\. tonight is off\*\* · <@b> 🚪 bailed\n> /);
-    expect(roast.body.allowed_mentions.users.sort()).toEqual(["a", "b", "c"]); // everyone hears it's off
+    expect([roast.body.allowed_mentions, roast.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // silent: the card says it's off
     // everyone else's "running late?" slip now says it's off; b's says they bailed
     const edited = (id: string) => calls.filter((c) => c.method === "PATCH" && c.path.endsWith(`/messages/${id}`)).pop()!.body.components[0].content;
     expect(edited(slips.a!)).toContain("game night's off");
@@ -795,7 +795,7 @@ it.effect("⏰ running late before the start: we wait, so the start moves to the
     const moved = posts().pop()!;
     expect(moved.body.content).toContain("<@a> is running 15 min late, so we start at **20:15**");
     expect(moved.body.content).not.toContain("⚠️"); // exactly an hour with c: fine
-    expect(moved.body.allowed_mentions.users).toEqual(["b", "c"]); // the others hear it
+    expect([moved.body.allowed_mentions, moved.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // silent: the card shows the new start
     const ev = calls.filter((c) => c.method === "PATCH" && c.path.endsWith("/scheduled-events/ev1")).pop()!;
     expect(ev.body.scheduled_start_time).toBe(new Date((start + 15 * 60) * 1000).toISOString());
 
@@ -879,7 +879,7 @@ it.effect("😴 snooze: no automatic cards until it runs out; starting by hand s
     expect((yield* snooze.current)!.until).toBe("2026-11-09"); // Fri, Sat, Sun skipped
     const note = posts().pop()!;
     expect(note.body.content).toContain("<@a> snoozed game night planning for 3 days");
-    expect(note.body.allowed_mentions.users).toEqual(["b", "c"]);
+    expect([note.body.allowed_mentions, note.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // silent (19 Nov)
     // the next card: Monday at 17:00
     expect(yield* snooze.nextCard).toBe(gn.wallToUnix(env, 2026, 11, 9, 17, 0));
 

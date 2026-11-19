@@ -1,8 +1,8 @@
 {
  "everyone taps ⚡ Now: it starts at once, the Lobby is moved in, and only who isn't in voice is pinged": {
   "calls": [
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events e70b8a998133",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6bd6f44a4e97",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 2ecad285c6a1",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 0bbfded40f14",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
@@ -22,8 +22,8 @@
  },
  "everyone on ⚡ Now and all in voice: one silent line": {
   "calls": [
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 8c6db4b22e14",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6ed33d762f31",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events bbb112819fa1",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card fe74ab817fe3",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
@@ -46,7 +46,7 @@
  },
  "mixed quick picks: rounded up to the next 5 minutes, and the night locks in at the latest": {
   "calls": [
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 09a474d2e029",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events b28b8dfc3a10",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 2abc20d9de78",
    "POST https://discord.com/api/v10/channels/gn/messages cc972240dad1"
   ],
@@ -59,7 +59,7 @@
  },
  "one on a fixed slot and two on ⚡ Now: it starts at the slot": {
   "calls": [
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events c094b9f06775",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events a159e4b9f938",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card f562ba94edc3",
    "POST https://discord.com/api/v10/channels/gn/messages 8a17070b9813"
   ],
@@ -80,7 +80,7 @@
  },
  "a ⚡ Now pick 40 minutes old when the last one taps: it starts now": {
   "calls": [
-   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 5b50837ea442",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 34b84a0636a5",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 5dabbf72e0dd",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",

@@ -79,7 +79,7 @@ export class Snoozes extends Context.Service<
       const announce = Effect.fn("Snoozes.announce")(function* (user: string, content: string) {
         const others = (yield* Effect.provideService(players, AppConfig, config)).filter((p) => p !== user);
         yield* discord
-          .createMessage(config.gameChannelId, { content, allowed_mentions: yield* allowedMentions(others) })
+          .createMessage(config.gameChannelId, { content, flags: 1 << 12, allowed_mentions: { parse: [] } }) // silent: nobody has to do anything
           .pipe(Effect.catch((e) => alerts.failed("the snooze announcement", e)));
       });
 

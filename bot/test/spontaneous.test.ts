@@ -93,9 +93,9 @@ it.effect("two of us in the Lobby for 30 s get one silent question; a 29-second 
     expect(yield* at(t0 + 5, { b: "lobby" })).toBe(t0 + 35); // look again when the 30 s are up
     yield* at(t0 + 34, { b: null }); // b leaves at 29 s
     expect(yield* at(t0 + 40, { b: "lobby" })).toBe(t0 + 70); // and back: the 30 s start over
-    expect(posted("lobby")).toEqual([]);
+    expect(posted("gn")).toEqual([]);
     yield* at(t0 + 70);
-    const [q] = posted("lobby");
+    const [q] = posted("gn");
     expect(q.body.flags & (1 << 12)).toBeTruthy(); // no sound, no badge
     expect(q.body.allowed_mentions).toEqual({ parse: [] });
     const ids = JSON.stringify(q.body.components);
@@ -106,7 +106,7 @@ it.effect("two of us in the Lobby for 30 s get one silent question; a 29-second 
     yield* at(t0 + 80, { c: "lobby" });
     yield* at(t0 + 140);
     yield* at(t0 + 141);
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
     expect((yield* prompt()).state).toBe("open");
   }).pipe(h.provide),
 );
@@ -128,7 +128,7 @@ it.effect("first tap wins: the room opens, the Lobby comes along, the question g
     const id = (yield* prompt()).id;
     calls.length = 0;
     yield* tap(`lob:${id}:g:World of Warcraft`, "a");
-    yield* waitFor(Effect.sync(() => expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toBe(true)));
+    yield* waitFor(Effect.sync(() => expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toBe(true)));
     const [room] = yield* db.select().from(rooms);
     expect(room.game).toBe("World of Warcraft");
     expect(calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/guilds/guild/members/")).map((c) => c.body.channel_id)).toEqual([room.channel_id, room.channel_id]);
@@ -173,16 +173,16 @@ it.effect("“Just hanging out” clears the question and keeps the Lobby quiet 
     yield* at(t0 + 30);
     yield* tap(`lob:${(yield* prompt()).id}:chill`, "b");
     yield* waitFor(Effect.gen(function* () { expect((yield* prompt()).state).toBe("dismissed"); }));
-    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toBe(true);
+    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toBe(true);
     yield* at(t0 + 600);
     yield* at(t0 + 1200, { c: "lobby" });
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
     // later: everyone leaves, then two come back → a new gathering, a new question
     yield* at(t0 + 1300, { a: null, b: null, c: null });
     expect(yield* prompt()).toBeUndefined();
     yield* at(t0 + 2000, { a: "lobby", b: "lobby" });
     yield* at(t0 + 2030);
-    expect(posted("lobby")).toHaveLength(2);
+    expect(posted("gn")).toHaveLength(2);
   }).pipe(h.provide),
 );
 
@@ -205,20 +205,20 @@ it.effect("an unanswered question goes after 10 minutes and isn't asked again th
     yield* h.setTime((t0 + 30 + spontaneous.PROMPT_TTL) * 1000);
     expect(yield* sp.minute()).toMatchObject({ expired: expect.any(Number) });
     expect((yield* prompt()).state).toBe("expired");
-    expect(calls.filter((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toHaveLength(1);
+    expect(calls.filter((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toHaveLength(1);
     yield* at(t0 + 2000);
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
   }).pipe(h.provide),
 );
 
 it.effect("a question that fails to post leaves the gathering quiet; the next gathering can ask", () =>
   Effect.gen(function* () {
     const t0 = yield* now;
-    h.override = (c) => (c.method === "POST" && c.path === "/channels/lobby/messages" ? json({ message: "Missing Access" }, 403) : undefined);
+    h.override = (c) => (c.method === "POST" && c.path === "/channels/gn/messages" ? json({ message: "Missing Access" }, 403) : undefined);
     yield* at(t0, { a: "lobby", b: "lobby" });
     yield* at(t0 + 30);
     yield* at(t0 + 90);
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
     expect((yield* prompt()).state).toBe("failed");
     h.override = null;
     yield* at(t0 + 100, { b: null });
@@ -243,12 +243,13 @@ it.effect("a planned night owns the Lobby: none while one starts within 15 min o
     // its room failed to open: the night is still on, so still no question
     yield* db.delete(rooms);
     expect(yield* at(t0 + 150)).toBeNull();
-    expect(posted("lobby")).toEqual([]);
-    // voting still in progress blocks nothing
+    expect(posted("gn")).toEqual([]);
+    // voting still in progress, but the card already names the game: no question, its room (19 Nov)
     yield* db.delete(rooms);
     yield* db.update(gameNights).set({ stage: "time", start_at: null, reminded: false }).where(eq(gameNights.day, DAY));
     yield* at(t0 + 180);
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toEqual([]);
+    expect((yield* db.select().from(rooms)).map((r) => r.game)).toEqual(["R.E.P.O."]);
   }).pipe(h.provide),
 );
 
@@ -258,7 +259,7 @@ it.effect("someone already in a game room: no question (joiners get pulled there
     yield* db.insert(rooms).values({ channel_id: "wow", game: "World of Warcraft", created_at: (yield* now) - 600 });
     yield* at(yield* now, { c: "wow", a: "lobby", b: "lobby" });
     yield* at((yield* now) + 60);
-    expect(posted("lobby")).toEqual([]);
+    expect(posted("gn")).toEqual([]);
   }).pipe(h.provide),
 );
 
@@ -331,7 +332,7 @@ it.effect("↩ Back to the Lobby moves them back and keeps the Lobby quiet", () 
     yield* at(t0 + 2, { a: "lobby" });
     yield* at(t0 + 3, { b: "lobby" });
     yield* at(t0 + 60);
-    expect(posted("lobby")).toEqual([]);
+    expect(posted("gn")).toEqual([]);
     expect((yield* prompt()).state).toBe("undone");
     // nobody left in the room to move back
     expect(yield* sp.goBack("wow", ["a"], undefined, t0 + 70)).toContain("Nobody to move back");
@@ -536,7 +537,7 @@ it.effect("two in the Lobby playing the same game skip the question: straight to
     yield* at(t0, { a: "lobby", b: "lobby" });
     yield* h.setTime((t0 + 30) * 1000);
     expect(yield* e(sp.react(where, t0 + 30))).toBeNull();
-    expect(posted("lobby")).toEqual([]);
+    expect(posted("gn")).toEqual([]);
     const [room] = yield* db.select().from(rooms);
     expect(room.game).toBe("World of Warcraft");
     expect(calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/guilds/guild/members/"))).toHaveLength(2);
@@ -548,7 +549,7 @@ it.effect("two in the Lobby playing the same game skip the question: straight to
     yield* db.delete(lobbyPrompts);
     yield* db.delete(rooms);
     yield* sp.react(where, t0 + 31);
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
   }).pipe(h.provide),
 );
 
@@ -561,12 +562,12 @@ it.effect("different games, or only one of us in a known game: ask, that game fi
     yield* playing("b", "R.E.P.O.");
     yield* at(t0, { a: "lobby", b: "lobby" });
     yield* e(sp.react(where, t0 + 30));
-    expect(posted("lobby")).toHaveLength(1);
+    expect(posted("gn")).toHaveLength(1);
     // b stops; only a plays something we know → asked, with WoW first (R.E.P.O. is otherwise first)
     yield* db.delete(lobbyPrompts);
     yield* playing("b");
     yield* e(sp.react(where, t0 + 31));
-    const q = posted("lobby")[1].body.components[0].components[1].components;
+    const q = posted("gn")[1].body.components[0].components[1].components;
     expect(q.map((b: any) => b.label)).toEqual(["World of Warcraft", "R.E.P.O."]);
   }).pipe(h.provide),
 );
@@ -693,7 +694,7 @@ it.effect("an auto-move whose room won't open keeps the gathering quiet and says
     const said = h.logs.slice(from).join(" ");
     expect(said).toContain("moving the Lobby into the game we're playing failed");
     expect((yield* prompt()).state).toBe("failed");
-    expect(posted("lobby")).toEqual([]);
+    expect(posted("gn")).toEqual([]);
   }).pipe(h.provide),
 );
 

@@ -135,7 +135,7 @@ export class Alerts extends Context.Service<
         setOwner: (userId) => Ref.set(owner, userId),
         test: Effect.fn("Alerts.test")(function* (to: string | undefined) {
           if (!to) return { skipped: "no ALERT_USER_ID and no user given" };
-          yield* dm(to, "🧪 Test alert from Meme Bot 3000: if something breaks, I'll DM you here, like this. Nothing's wrong right now.");
+          yield* dm(to, "🧪 Test alert from Klodas Vandamas: if something breaks, I'll DM you here, like this. Nothing's wrong right now.");
           return { sent: to };
         }),
         /**

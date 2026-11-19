@@ -78,6 +78,7 @@ export class Attendances extends Context.Service<
           const [n] = yield* db.select({ message_id: gameNights.message_id }).from(gameNights).where(eq(gameNights.day, day));
           const msg = yield* discord.createMessage(config.gameChannelId, {
             ...body,
+            flags: ((body as { flags?: number }).flags ?? 0) | (1 << 12), // silent: a slip is news, not a call
             allowed_mentions: { parse: [] },
             message_reference: n?.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
           });

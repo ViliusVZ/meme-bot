@@ -153,7 +153,8 @@ export class MemeShame extends Context.Service<
                   const latest = recent[0];
                   yield* discord.createMessage(config.channelId, {
                     content: `😐 ${line}`,
-                    allowed_mentions: yield* allowedMentions([s.user]),
+                    flags: 1 << 12, // silent: a roast, never a ping
+                    allowed_mentions: { parse: [] },
                     message_reference: latest.message_id ? { message_id: latest.message_id, fail_if_not_exists: false } : undefined,
                   });
                   called.push(s.user);

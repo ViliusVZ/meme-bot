@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="46%" r="72%">
+      <stop offset="0" stop-color="#2b4459"/>
+      <stop offset="1" stop-color="#0d1720"/>
+    </radialGradient>
+    <linearGradient id="body" gradientUnits="userSpaceOnUse" x1="0" y1="-215" x2="0" y2="215">
+      <stop offset="0" stop-color="#f69a66"/>
+      <stop offset="1" stop-color="#cf5c2c"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0354c"/>
+      <stop offset="1" stop-color="#b3192e"/>
+    </linearGradient>
+    <clipPath id="face"><circle cx="256" cy="274" r="134"/></clipPath>
+    <!-- one tapered ray of the spark, pointing up from the centre -->
+    <path id="rayL" d="M-33 -96 L-17 -200 A17 17 0 0 1 17 -200 L33 -96 Z"/>
+    <path id="rayS" d="M-33 -96 L-17 -172 A17 17 0 0 1 17 -172 L33 -96 Z"/>
+    <g id="burst">
+      <use href="#rayL" transform="rotate(0)"/>
+      <use href="#rayS" transform="rotate(30)"/>
+      <use href="#rayL" transform="rotate(60)"/>
+      <use href="#rayS" transform="rotate(90)"/>
+      <use href="#rayL" transform="rotate(120)"/>
+      <use href="#rayS" transform="rotate(150)"/>
+      <use href="#rayL" transform="rotate(180)"/>
+      <use href="#rayS" transform="rotate(210)"/>
+      <use href="#rayL" transform="rotate(240)"/>
+      <use href="#rayS" transform="rotate(270)"/>
+      <use href="#rayL" transform="rotate(300)"/>
+      <use href="#rayS" transform="rotate(330)"/>
+      <circle r="134"/>
+    </g>
+  </defs>
+
+  <!-- backdrop: dark blue with faint action-poster rays -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256 274)" fill="#ffffff" opacity="0.045">
+    <path d="M0 0 L-60 -420 L60 -420 Z"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(45)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(90)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(135)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(180)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(225)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(270)"/>
+    <path d="M0 0 L-60 -420 L60 -420 Z" transform="rotate(315)"/>
+  </g>
+
+  <!-- the spark: drop shadow, then the body -->
+  <use href="#burst" transform="translate(256 286)" fill="#07101a" opacity="0.55"/>
+  <use href="#burst" transform="translate(256 274)" fill="url(#body)"/>
+
+
+  <!-- headband across the forehead -->
+  <g clip-path="url(#face)">
+    <path d="M110 226 Q256 172 402 226 L402 266 Q256 212 110 266 Z" fill="url(#band)"/>
+    <path d="M110 256 Q256 202 402 256 L402 266 Q256 212 110 266 Z" fill="#8f1224" opacity="0.55"/>
+  </g>
+  <!-- knot and tails flying off to the right -->
+  <path d="M380 226 C418 200 450 154 492 152 C488 170 470 176 458 190 C474 188 488 194 504 208 C470 216 434 230 390 250 Z" fill="url(#band)"/>
+  <path d="M390 250 C430 232 470 218 504 208 C488 194 474 188 458 190 C438 208 414 224 384 238 Z" fill="#8f1224" opacity="0.5"/>
+  <ellipse cx="384" cy="238" rx="18" ry="21" fill="#c81f36" transform="rotate(-24 384 238)"/>
+  <ellipse cx="380" cy="233" rx="7" ry="9" fill="#f66478" opacity="0.7" transform="rotate(-24 380 233)"/>
+
+  <!-- eyes: half-lidded action-hero squint -->
+  <ellipse cx="208" cy="298" rx="28" ry="17" fill="#fff7ef"/>
+  <ellipse cx="304" cy="298" rx="28" ry="17" fill="#fff7ef"/>
+  <circle cx="215" cy="299" r="11" fill="#2a130b"/>
+  <circle cx="297" cy="299" r="11" fill="#2a130b"/>
+  <circle cx="219" cy="295" r="3.5" fill="#ffffff"/>
+  <circle cx="301" cy="295" r="3.5" fill="#ffffff"/>
+  <!-- upper lids -->
+  <path d="M178 296 Q208 276 238 297" stroke="#2a130b" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M274 297 Q304 276 334 296" stroke="#2a130b" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- brows: furrowed, the right one cocked a little higher -->
+  <path d="M172 268 L240 284" stroke="#2a130b" stroke-width="18" stroke-linecap="round"/>
+  <path d="M342 260 L272 284" stroke="#2a130b" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- smirk -->
+  <path d="M218 350 C244 368 284 366 306 338" stroke="#2a130b" stroke-width="11" fill="none" stroke-linecap="round"/>
+</svg>
