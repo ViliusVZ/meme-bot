@@ -461,6 +461,8 @@ export const Routes = HttpRouter.use((router) =>
         return yield* Match.value(String(input.action)).pipe(
           Match.when("start", () => Effect.map(quiet(gameNight.startNight(input.user, true)), answer)),
           Match.when("tick", () => Effect.map(quiet(jobs.minute), answer)),
+          // 🌅 the morning joke's check, as if it were `t` (unix s): QA without waiting for 09:00
+          Match.when("joke", () => Effect.map(jokes.postAt(Number(input.t) * 1000), answer)),
           Match.when("stats", () =>
             standIns(
               Effect.gen(function* () {

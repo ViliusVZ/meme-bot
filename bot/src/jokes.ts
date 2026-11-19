@@ -70,6 +70,8 @@ export class Jokes extends Context.Service<
      * LATE_MS late, the morning goes without; an empty stock posts nothing and only logs it.
      */
     readonly postDue: Effect.Effect<{ posted?: number; skipped?: string; day?: string }, DbError | DiscordError>;
+    /** The same, as if it were `ms` (epoch ms): QA on the test bot (POST /admin/gamenight {action: "joke", t: unix s}). */
+    postAt(ms: number): Effect.Effect<{ posted?: number; skipped?: string; day?: string }, DbError | DiscordError>;
     get(id: number): Effect.Effect<Joke | null, DbError>;
     /** Who voted what on a joke, in voting order, and the counts. */
     votes(id: number): Effect.Effect<{ tally: Tally; by: Voters }, DbError>;
@@ -113,10 +115,9 @@ export class Jokes extends Context.Service<
         return { tally, by };
       });
 
-      const postDue = Effect.gen(function* () {
+      const postAt = Effect.fnUntraced(function* (now: number) {
         const channel = config.jokeChannelId;
         if (channel === undefined) return { skipped: "off" };
-        const now = yield* Clock.currentTimeMillis;
         const { day, at } = jokeDue(config.timezone, now);
         if (now < at) return { skipped: "too early" };
         if (yield* postedOn(day)) return { skipped: "already posted", day };
@@ -137,7 +138,8 @@ export class Jokes extends Context.Service<
             return { posted: joke.id, day };
           }),
         );
-      }).pipe(Effect.withSpan("Jokes.postDue"));
+      });
+      const postDue = Effect.flatMap(Clock.currentTimeMillis, postAt).pipe(Effect.withSpan("Jokes.postDue"));
 
       return Jokes.of({
         stock: Effect.gen(function* () {
@@ -167,6 +169,7 @@ export class Jokes extends Context.Service<
           return { ok: true, id: r[0].id } as Added;
         }),
         postDue,
+        postAt,
         get: Effect.fn("Jokes.get")(function* (id: number) {
           return (yield* db.select().from(jokes).where(eq(jokes.id, id)))[0] ?? null;
         }),
