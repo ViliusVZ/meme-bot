@@ -83,6 +83,7 @@ it.effect("an old-style migrations table (Drizzle 0.45) is upgraded in place, no
       news_material: 1794571293000, // (plan 06, the outside writer: its folder's time)
       downtimes: 1794597711000, // (WoW Forever downtime alerts: its folder's time)
       roast_streaks: 1794750190000, // (late streaks: its folder's time)
+      jokes: 1795120569000, // (the morning joke: its folder's time)
     };
     yield* p(() => pool.query(`CREATE SCHEMA ${schema}_drizzle; CREATE TABLE ${table} (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at bigint)`));
     for (const m of readdirSync(dir).sort()) {
