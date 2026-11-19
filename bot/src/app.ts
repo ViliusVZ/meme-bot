@@ -149,6 +149,8 @@ const Input = Schema.Struct({
   game: Schema.optional(Text),
   emoji: Schema.optional(Schema.NullOr(Text)),
   message: Schema.optional(Text),
+  custom_id: Schema.optional(Text), // "tap": the button pressed
+  channel: Schema.optional(Text), // "tap": where its message is
   period: Schema.optional(Text),
   ids: Schema.optional(Schema.Array(Text)),
   // the meme fetcher's batch: passed on as it comes (its shape is the fetcher's)
@@ -463,6 +465,25 @@ export const Routes = HttpRouter.use((router) =>
           Match.when("tick", () => Effect.map(quiet(jobs.minute), answer)),
           // 🌅 the morning joke's check, as if it were `t` (unix s): QA without waiting for 09:00
           Match.when("joke", () => Effect.map(jokes.postAt(Number(input.t) * 1000), answer)),
+          // 👆 a button press as Discord would send it (QA on the test bot): the same handler, and an
+          // "update the message" answer applied to the message, as Discord applies it
+          Match.when("tap", () =>
+            Effect.gen(function* () {
+              const r = (yield* interactions.handle({
+                type: 3,
+                id: "qa",
+                token: "qa",
+                application_id: config.discordAppId,
+                guild_id: config.guildId,
+                channel_id: input.channel,
+                member: { user: { id: input.user, username: "qa" } },
+                message: { id: input.message, flags: 0 },
+                data: { custom_id: input.custom_id, component_type: 2 },
+              })) as { type?: number; data?: object };
+              if (r.type === 7 && r.data && input.channel && input.message) yield* discord.editMessage(input.channel, input.message, r.data);
+              return answer(r);
+            }),
+          ),
           Match.when("stats", () =>
             standIns(
               Effect.gen(function* () {
