@@ -17,6 +17,7 @@ import { LocalTime } from "./localtime.js";
 import { Games } from "./games.js";
 import { Nights } from "./nights.js";
 import { Memes } from "./memes.js";
+import { Jokes } from "./jokes.js";
 import { Roasts } from "./roasts.js";
 import { Streaks } from "./streaks.js";
 import { Panels } from "./panels.js";
@@ -50,7 +51,7 @@ import { BotVoice } from "./botvoice.js";
 
 /** Every service the app provides (grows as modules move to Effect). */
 export type AppServices = AppConfig | Db | PgClient.PgClient | SqlClient.SqlClient | Reactivity.Reactivity | HttpClient.HttpClient | Channels | Discord | Presence | Lifecycle | Alerts | Background
-  | LocalTime | Games | Nights | Memes | Roasts | Panels
+  | LocalTime | Games | Nights | Memes | Jokes | Roasts | Panels
   | RedditNews
   | Tts | Clips | VoiceLink | VoiceConnector | BotVoice
   | Snoozes | Streaks | Voice | Attendances | Reddit | News | Downtime | Spontaneous | GameNight | LateSlips | Polls | Activity | Hub | Cleanup | MemeShame | Jobs | Interactions | Ticker | Live | Gateway | GatewayClient | Leadership;
@@ -103,7 +104,7 @@ export const appLayer = <E>(config: Layer.Layer<AppConfig, E>, options: LayerOpt
     Layer.provideMerge(Layer.mergeAll(Attendances.layer, Spontaneous.layer, Hub.layer, Downtime.layer)),
     Layer.provideMerge(Layer.mergeAll(Snoozes.layer, Streaks.layer, MemeShame.layer, Cleanup.layer, BotVoice.layer, Polls.layer, Voice.layer, Reddit.layer, News.layer)),
     Layer.provideMerge(RedditNews.layer),
-    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Roasts.layer, Panels.layer, Clips.layer)),
+    Layer.provideMerge(Layer.mergeAll(Games.layer, Nights.layer, Memes.layer, Jokes.layer, Roasts.layer, Panels.layer, Clips.layer)),
     Layer.provideMerge(Layer.mergeAll(Background.layer, LocalTime.layer, options.tts ?? Tts.layer)),
     Layer.provideMerge(Alerts.layer),
     Layer.provideMerge(Layer.mergeAll(Db.layer, Discord.layer, GatewayClient.layer, options.voice ?? VoiceConnector.layer)),

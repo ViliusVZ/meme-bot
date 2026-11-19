@@ -8,6 +8,7 @@ import { Db, type DbError } from "./db/db.js";
 import { AppConfig } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";
 import { Memes, utcDayAt } from "./memes.js";
+import { Jokes } from "./jokes.js";
 import { GameNight } from "./gamenight.js";
 import { LateSlips } from "./late.js";
 import { Voice } from "./voice.js";
@@ -61,6 +62,7 @@ export class Jobs extends Context.Service<
       const db = yield* Db;
       const discord = yield* Discord;
       const memeService = yield* Memes;
+      const jokes = yield* Jokes;
       const gameNight = yield* GameNight;
       const late = yield* LateSlips;
       const voice = yield* Voice;
@@ -163,6 +165,7 @@ export class Jobs extends Context.Service<
       const JOBS = [
         ["refill", reddit.maybeRefill], // the meme pool, from Reddit every 6 h (in the background)
         ["meme", postDaily], // posts once per day at or after POST_HOUR_UTC, from memes the fetcher ingested
+        ["joke", jokes.postDue], // 🌅 the morning joke (09:00, 10:30 at weekends, local), oldest in stock; off with no channel
         ["meme-recaps", memeRecaps], // 🏆 Meme of the Week (Sun 18:00 UTC), 👑 Hall of Fame (1st, 09:00 UTC)
         ["close", gameNight.closeStale], // midnight: close yesterday's unfinished poll
         ["start", gameNight.startNight()], // the daily poll (17:00, 14:00 on weekends), unless started by hand or 😴 snoozed

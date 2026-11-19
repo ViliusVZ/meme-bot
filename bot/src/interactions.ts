@@ -8,7 +8,8 @@ import { AppConfig, players } from "./config.js";
 import { avatarUrl, Discord, type DiscordError, EPHEMERAL, IS_COMPONENTS_V2, Response as R } from "./discord.js";
 import { Background } from "./background.js";
 import { Alerts } from "./alerts.js";
-import { Memes, utcDayAt, type VoteKind } from "./memes.js";
+import { Memes, utcDayAt, VOTES, type VoteKind } from "./memes.js";
+import { Jokes } from "./jokes.js";
 import { GameNight, type NightGone, suggestModal, customTimeModal } from "./gamenight.js";
 import { Games } from "./games.js";
 import { Hub, addGameModal } from "./hub.js";
@@ -23,7 +24,7 @@ import { BotVoice } from "./botvoice.js";
 import { Spontaneous, type Notice } from "./spontaneous.js";
 import { LocalTime } from "./localtime.js";
 import { Nights } from "./nights.js";
-import { leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.js";
+import { jokeMessage, leaderboardMessage, memeMessage, statsMessage, streakNote } from "./ui.js";
 
 // ---------------------------------------------------------------- the parts of an interaction the bot reads
 
@@ -74,6 +75,7 @@ export class InteractionMalformed extends Schema.TaggedError<InteractionMalforme
  */
 type Tap =
   | { readonly _tag: "Vote"; readonly memeId: string; readonly kind: VoteKind }
+  | { readonly _tag: "JokeVote"; readonly jokeId: number; readonly kind: VoteKind }
   | { readonly _tag: "Night"; readonly day: string; readonly action: string; readonly arg: string | undefined }
   | { readonly _tag: "Hub"; readonly what: string }
   | { readonly _tag: "Snooze"; readonly what: string }
@@ -97,6 +99,11 @@ export function tapOf(i: Interaction): Tap {
   if (button && cid.startsWith("v:")) {
     const [, memeId, kind] = cid.split(":");
     return { _tag: "Vote", memeId, kind: kind as VoteKind };
+  }
+  // 🌅 the morning joke's votes: joke:<id>:<vote>
+  if (button && cid.startsWith("joke:")) {
+    const [, id, kind] = cid.split(":");
+    if (/^\d+$/.test(id) && VOTES.some((v) => v.key === kind)) return { _tag: "JokeVote", jokeId: Number(id), kind: kind as VoteKind };
   }
   // game night: buttons/selects (type 3) and the suggest/custom-time modals (type 5)
   // custom_id is gn:<day>:<action>[:<value>], e.g. gn:2026-11-03:time:1793736000
@@ -159,6 +166,7 @@ export class Interactions extends Context.Service<
       const background = yield* Background;
       const alerts = yield* Alerts;
       const memeService = yield* Memes;
+      const jokes = yield* Jokes;
       const gameNight = yield* GameNight;
       const games = yield* Games;
       const hub = yield* Hub;
@@ -230,6 +238,15 @@ export class Interactions extends Context.Service<
               const streak = result === "new" && meme.post_kind === "daily" ? yield* memeService.bumpStreak(user.id, name) : null;
               if (streak) yield* later(followup(token, { content: streakNote(streak), flags: EPHEMERAL }));
               return reply({ type: R.UpdateMessage, data: memeMessage(meme, yield* memeService.tally(memeId), config.subreddit, yield* memeService.voters(memeId)) });
+            }),
+          ),
+          Match.tag("JokeVote", ({ jokeId, kind }) =>
+            Effect.gen(function* () {
+              const joke = yield* jokes.get(jokeId);
+              if (!joke) return ephemeral("That joke has left the building 🫥");
+              yield* jokes.castVote(jokeId, user.id, kind);
+              const { tally, by } = yield* jokes.votes(jokeId);
+              return reply({ type: R.UpdateMessage, data: jokeMessage(joke, tally, by) });
             }),
           ),
           Match.tag("Night", ({ day, action, arg }) =>

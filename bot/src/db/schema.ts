@@ -496,3 +496,47 @@ export const downtimes = pgTable("downtimes", {
   rendered: text(), // the card's text as last posted or edited (an edit only when it changes)
   reminder_id: text(), // the reminder an hour before ("posting" while it's sent)
 });
+
+// ---------------------------------------------------------------- 🌅 the morning joke (jokes.ts)
+
+/**
+ * The jokes the outside writer keeps in stock (POST /jokes), and when each was posted. `norm` is the
+ * text with case, accents, punctuation and spacing gone, so a near-repeat is refused by the
+ * database. `day` is the claim: the local day the joke was posted for, at most one joke a day.
+ */
+export const jokes = pgTable(
+  "jokes",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    text: text().notNull(),
+    norm: text().notNull(),
+    lang: text().notNull().$type<"en" | "lt">(),
+    theme: text().notNull(),
+    form: text().notNull(),
+    added_at: text().notNull(),
+    day: text(), // the local day it was posted for (null: still in stock)
+    posted_at: text(),
+    channel_id: text(),
+    message_id: text(),
+  },
+  (t) => [
+    uniqueIndex("jokes_norm").on(t.norm),
+    // the dedupe guarantee: one morning joke per day, enforced by the database
+    uniqueIndex("one_joke_per_day").on(t.day),
+    index("jokes_stock").on(t.added_at).where(sql`${t.day} IS NULL`),
+  ],
+);
+
+/** 🌅 Votes on the morning jokes: the meme buttons (🔥 😂 💀 🗑️), one per person per joke. */
+export const jokeVotes = pgTable(
+  "joke_votes",
+  {
+    joke_id: integer()
+      .notNull()
+      .references(() => jokes.id),
+    user_id: text().notNull(),
+    kind: text().notNull().$type<"fire" | "lol" | "dead" | "mid">(),
+    voted_at: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.joke_id, t.user_id] })],
+);
