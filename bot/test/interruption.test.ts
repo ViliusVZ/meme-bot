@@ -149,7 +149,7 @@ const sequences: Record<string, Sequence> = {
     run: () => Spontaneous.use((s) => s.react(new Map([["a", "lobby"], ["b", "lobby"]]), now())),
     claim: { table: "lobby_prompts", op: "INSERT" },
     record: { table: "lobby_prompts", op: "UPDATE", when: "NEW.message_id IS NOT NULL" },
-    post: { method: "POST", path: "/channels/lobby/messages" },
+    post: { method: "POST", path: "/channels/gn/messages" },
     nothing: () =>
       Effect.gen(function* () {
         const db = yield* Db;
@@ -659,7 +659,7 @@ function lobbySequences(): Record<string, Sequence> {
       run: () => Spontaneous.use((s) => s.react(new Map([["a", "lobby"], ["b", "lobby"], ["c", null]]), now())),
       claim: { table: "lobby_prompts", op: "INSERT" },
       record: { table: "lobby_prompts", op: "UPDATE", when: "NEW.message_id IS NOT NULL" },
-      post: { method: "POST", path: "/channels/lobby/messages" },
+      post: { method: "POST", path: "/channels/gn/messages" },
       nothing: () =>
         Effect.gen(function* () {
           const db = yield* Db;
@@ -680,7 +680,7 @@ function lobbySequences(): Record<string, Sequence> {
         }),
       run: () => Spontaneous.use((s) => s.react(new Map([["a", null], ["b", null], ["c", null]]), now())), // everyone left the Lobby
       claim: { table: "lobby_prompts", op: "UPDATE", when: "NEW.state = 'expired'" },
-      post: { method: "DELETE", path: "/channels/lobby/messages/q1" },
+      post: { method: "DELETE", path: "/channels/gn/messages/q1" },
       nothing: () =>
         Effect.gen(function* () {
           const db = yield* Db;

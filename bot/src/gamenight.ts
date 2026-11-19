@@ -1352,6 +1352,15 @@ const showedUp = Effect.fnUntraced(function* (where: Where, t: number) {
   if (t < since + SETTLE) return { started: null, due: since + SETTLE };
   // the game: the card's, else what Discord shows them in, else our usual; else the Lobby asks
   const spontaneous = yield* Spontaneous;
+  // 🛋️ someone said they're just hanging out (the Lobby's own buttons): leave this gathering alone
+  if (yield* spontaneous.leftAlone) return none;
+  // a game already picked, but two of them shown in another of ours: don't start the wrong game
+  if (n.game) {
+    const d = yield* spontaneous.detect(expected);
+    if (d && d.by.length >= 2 && d.game.toLowerCase() !== n.game.toLowerCase()) return none;
+  }
+  // a locked-in night ahead: the early birds' start, as before (now, with "was …" in its silent line)
+  if (n.stage === "set") return { started: (yield* claimStart(n, undefined, t)) ? day : null, due: null };
   let how: Showed["how"] = "card";
   let game = yield* spontaneous.cardGame(day);
   if (!game) {
@@ -1382,9 +1391,7 @@ const showedUp = Effect.fnUntraced(function* (where: Where, t: number) {
   const head =
     n.stage === "off"
       ? `🎧 Called off? Apparently not: everyone showed up anyway, so ${emoji} **${game}** is on`
-      : n.stage === "set" && n.start_at && n.start_at > t
-        ? `🎧 Everyone's here early, so ${emoji} **${game}** is on now (was ${timeLabel(w, n.start_at, day)})`
-        : `🎧 Everyone showed up, so ${emoji} **${game}** is on${why}`;
+      : `🎧 Everyone showed up, so ${emoji} **${game}** is on${why}`;
   const others = how === "card" ? [] : (yield* spontaneous.recentGames(3)).filter((g) => g.toLowerCase() !== game!.toLowerCase()).slice(0, 2);
   const components = [
     {
@@ -1404,7 +1411,8 @@ const calledIn = Effect.fnUntraced(function* (n: Night, where: Where, ask: Votes
   const db = yield* Db;
   const config = yield* AppConfig;
   const none = { started: null as string | null, due: null as number | null };
-  if (n.stage === "set" && (n.reminded || (n.start_at ?? 0) > t + 3600)) return none; // a night later on has its own start
+  // a locked-in night has its own early-bird card and start ping; "just hanging out" means just that
+  if (n.stage === "set" || (yield* (yield* Spontaneous).leftAlone)) return none;
   const ps = yield* theTrio;
   const byChannel = new Map<string, string[]>();
   for (const p of ps) {

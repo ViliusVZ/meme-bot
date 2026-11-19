@@ -166,6 +166,8 @@ export class Spontaneous extends Context.Service<
     detect(users: ReadonlyArray<string>): Effect.Effect<{ game: string; by: string[] } | null, DbError>;
     /** Tonight's card's game, picked or leading its vote (null: none yet). */
     cardGame(day: string): Effect.Effect<string | null, DbError>;
+    /** 🛋️ "Just hanging out" (or ↩) on the current gathering: leave it alone. */
+    leftAlone: Effect.Effect<boolean, DbError>;
   }
 >()("meme-bot/spontaneous") {
   static readonly layer = Layer.effect(
@@ -182,8 +184,8 @@ export class Spontaneous extends Context.Service<
       const botVoice = yield* BotVoice;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
-      // 🎮 the question and the early-bird card go where the night's card is (#game-night): the
-      // Lobby's own chat is a place nobody looks while sitting in voice (19 Nov)
+      // 🎮 the question goes where the night's card is (#game-night): the Lobby's own chat is a place
+      // nobody looks while sitting in voice (19 Nov). The early-bird card stays in the Lobby's chat.
       const askIn = config.gameChannelId;
       const presencesOn = Effect.succeed(config.presences);
       const sessionIs = (s: { day: string; game: string }) => and(eq(sessions.day, s.day), eq(sessions.game, s.game));
@@ -454,7 +456,7 @@ export class Spontaneous extends Context.Service<
           .set({ state })
           .where(and(eq(lobbyPrompts.id, p.id), eq(lobbyPrompts.state, "open")))
           .returning({ id: lobbyPrompts.id });
-        if (done.length && p.message_id) yield* deleteMessage(askIn, p.message_id);
+        if (done.length && p.message_id) yield* deleteMessage((yield* isCard(p.id)) ? lobbyId : askIn, p.message_id);
       });
 
       const endGathering = Effect.fnUntraced(function* (p: Prompt, t: number) {
@@ -582,7 +584,7 @@ export class Spontaneous extends Context.Service<
             if (!claim) return;
             yield* db.insert(nightCards).values({ prompt_id: claim.id, day: night.day, start_at: night.start_at });
             yield* Effect.gen(function* () {
-              const msg = yield* discord.createMessage(askIn, yield* cardMessage(claim.id, night, missing));
+              const msg = yield* discord.createMessage(lobbyId, yield* cardMessage(claim.id, night, missing));
               yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
             }).pipe(
               Effect.catch((e) =>
@@ -626,7 +628,7 @@ export class Spontaneous extends Context.Service<
         const { missing } = yield* hereFor(where, night, yield* voice.openRooms);
         const { flags: _, ...body } = yield* cardMessage(p.id, night, missing);
         // (deleted by hand: then there's nothing to follow; the row still closes with the gathering)
-        yield* discord.editMessage(askIn, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
+        yield* discord.editMessage(lobbyId, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
         yield* db.update(nightCards).set({ start_at: n.start_at }).where(eq(nightCards.prompt_id, p.id));
       });
 
@@ -675,7 +677,7 @@ export class Spontaneous extends Context.Service<
               }
               return yield* Effect.gen(function* () {
                 const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
-                if (p.message_id) yield* deleteMessage(askIn, p.message_id);
+                if (p.message_id) yield* deleteMessage((yield* isCard(p.id)) ? lobbyId : askIn, p.message_id);
                 if (p.activity) {
                   // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
                   return {
@@ -896,6 +898,7 @@ export class Spontaneous extends Context.Service<
           return one ? { game: one.game, by: [...one.by] } : null;
         }),
         cardGame,
+        leftAlone: leftAlone(),
         namesWaiting,
         place,
         recentGames,

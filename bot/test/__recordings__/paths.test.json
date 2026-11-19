@@ -59,8 +59,8 @@
    "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
    "DELETE https://discord.com/api/v10/channels/gn/messages/5001 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/5000 9edd12faf3e5",
-   "POST https://discord.com/api/v10/channels/gn/messages 4f94af6c5256",
-   "POST https://discord.com/api/v10/channels/gn/messages 44a1eadcc9d4"
+   "POST https://discord.com/api/v10/channels/gn/messages 41453a41d182",
+   "POST https://discord.com/api/v10/channels/gn/messages 1036401796e0"
   ],
   "db": {
    "game_night_votes": "1:9f4b56233015",
@@ -72,17 +72,17 @@
  "late slips: a failed post releases the claim; the slip renders": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
+   "POST https://discord.com/api/v10/channels/gn/messages 93999ce169fb",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
+   "POST https://discord.com/api/v10/channels/gn/messages 37a4c9d5b3cf",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60",
+   "POST https://discord.com/api/v10/channels/gn/messages fcb0ef3d6ea8",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
+   "POST https://discord.com/api/v10/channels/gn/messages 93999ce169fb",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
+   "POST https://discord.com/api/v10/channels/gn/messages 37a4c9d5b3cf",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60"
+   "POST https://discord.com/api/v10/channels/gn/messages fcb0ef3d6ea8"
   ],
   "db": {
    "game_nights": "1:9007e630cc8c",
@@ -93,8 +93,8 @@
  },
  "daily post: a failed post gives the meme back to the pool": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
-   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
+   "POST https://discord.com/api/v10/channels/memes/messages 6802b62502a2",
+   "POST https://discord.com/api/v10/channels/memes/messages 6802b62502a2",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 448d76a14709"
   ],
   "db": {
@@ -104,7 +104,7 @@
  },
  "Meme of the Week: top voter and longest streak, posted once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages ae2a9292838c"
+   "POST https://discord.com/api/v10/channels/memes/messages d3ef4cd371c7"
   ],
   "db": {
    "games": "8:a906c10ebcec",
@@ -252,8 +252,8 @@
  },
  "😐 meme slackers: called out at 19:00, once a day, at most every 3 days each": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages cb06d0e3c901",
-   "POST https://discord.com/api/v10/channels/memes/messages 7ddd5089f4ab"
+   "POST https://discord.com/api/v10/channels/memes/messages 07fab778bea3",
+   "POST https://discord.com/api/v10/channels/memes/messages 251367f7d1d0"
   ],
   "db": {
    "games": "8:a906c10ebcec",
@@ -327,7 +327,7 @@
  "late: a voice lookup that fails isn't \"already here\"; the ETA goes on a slip": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages af38b6a8011e"
+   "POST https://discord.com/api/v10/channels/gn/messages befaf4e36db4"
   ],
   "db": {
    "game_nights": "1:2adb073d91bc",
@@ -508,8 +508,8 @@
  },
  "😐 a call-out that fails is tried again the next minute, for whoever's still due": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages daf341aae1e1",
-   "POST https://discord.com/api/v10/channels/memes/messages fba9ad141016"
+   "POST https://discord.com/api/v10/channels/memes/messages 74d7155d0bc9",
+   "POST https://discord.com/api/v10/channels/memes/messages 79259fea21f4"
   ],
   "db": {
    "games": "8:1134d6e24e08",
@@ -551,7 +551,7 @@
  },
  "the daily meme waits for POST_HOUR_UTC, to the hour": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 3c12a9c30714",
+   "POST https://discord.com/api/v10/channels/memes/messages f634ad19c1b9",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 02a63615430a"
   ],
   "db": {
@@ -561,7 +561,7 @@
  },
  "a daily meme whose comment thread won't open is still posted": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 2db58342d0e6",
+   "POST https://discord.com/api/v10/channels/memes/messages 295cd1226953",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 252224f63af6"
   ],
   "db": {
@@ -578,7 +578,7 @@
   ],
   "db": {
    "games": "8:1134d6e24e08",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  }
 }

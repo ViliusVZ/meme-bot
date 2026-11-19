@@ -69,10 +69,10 @@ it.effect("two of us in the Lobby: the question comes after 30 s, not before", (
     ]));
     yield* io;
     yield* to(T0 + 29_000);
-    expect(posts("/channels/lobby/messages")).toEqual([]);
+    expect(posts("/channels/gn/messages")).toEqual([]);
     yield* to(T0 + 31_000);
-    yield* until(() => posts("/channels/lobby/messages").length > 0);
-    expect(posts("/channels/lobby/messages")).toHaveLength(1);
+    yield* until(() => posts("/channels/gn/messages").length > 0);
+    expect(posts("/channels/gn/messages")).toHaveLength(1); // the question goes to #game-night (19 Nov)
   }).pipe(Effect.scoped, h.provide),
 );
 

@@ -463,7 +463,7 @@ it.effect("😐 meme slackers: called out at 19:00, once a day, at most every 3 
     const post = calls.find((c) => c.method === "POST" && c.path === "/channels/memes/messages")!;
     expect(post.body.content).toMatch(/^😐 .*<@b>/);
     expect(post.body.content).not.toMatch(/\{\w+\}/);
-    expect(post.body.allowed_mentions).toEqual({ users: ["b"] });
+    expect([post.body.allowed_mentions, post.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // a roast is silent (19 Nov)
     expect(yield* evening).toEqual({}); // once a day
     yield* h.setTime(Date.parse("2026-11-07T17:05:00Z")); // next evening: b's still slacking, but cooling down
     expect(yield* evening).toEqual({});

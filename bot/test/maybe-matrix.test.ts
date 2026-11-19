@@ -94,7 +94,7 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
     switch (out.kind) {
       case "game":
         expect(n.stage).toBe("game");
-        expect(fresh.filter((m) => m.content?.includes("Everyone's in!")).map((m) => m.allowed_mentions.users)).toEqual([P]);
+        expect(fresh.filter((m) => m.content?.includes("Everyone's in!")).map((m) => [m.allowed_mentions, m.flags & (1 << 12)])).toEqual([[{ parse: [] }, 1 << 12]]); // the game step's own nudge is silent (19 Nov)
         expect(roasts).toEqual([]);
         return;
       case "off":
@@ -116,7 +116,7 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
         else if (!sure.length) expect(told).toEqual([]); // nobody's waiting on anyone
         else {
           expect(told.length).toBe(1);
-          expect(told[0].allowed_mentions.users).toEqual(sure);
+          expect([told[0].allowed_mentions, told[0].flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // why they wait: silent (19 Nov)
           expect(told[0].content).toBe(
             `${mention(sure)} 🤔 ${out.unsure.map((p) => `<@${p}>`).join(" & ")} ${out.unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until <t:${until}:t> (<t:${until}:R>). Then I'll ask again ⬆️`,
           );

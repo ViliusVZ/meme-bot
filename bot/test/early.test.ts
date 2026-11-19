@@ -234,7 +234,7 @@ it.effect("two early in the room, the third never comes: at 19:00 one message pi
     expect(gn()).toHaveLength(3);
     const slip = gn()[2];
     expect(text(slip)).toContain("⏰ <@c> we've started **World of Warcraft** in <#wow>. Running late?");
-    expect(slip.body.allowed_mentions).toEqual({ users: ["c"] });
+    expect([slip.body.allowed_mentions, slip.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // the slip is silent: the start already pinged c (19 Nov)
   }).pipe(h.provide),
 );
 
@@ -377,15 +377,17 @@ it.effect("outside the window, and while the vote is still open: plan 01's quest
     // 15:50: the night is 3 h 10 min away
     yield* step(at("15:50:00"), { a: "lobby", b: "lobby" });
     yield* step(at("15:50:30"));
-    expect(lobbyPosts()).toHaveLength(1);
-    expect(text(lobbyPosts()[0])).toContain("Playing something?");
-    // later, a new day's vote still running (no start yet): the question too
+    // the card already names tonight's game: no question, its room (19 Nov: "use it")
+    const questions = () => [...gn(), ...lobbyPosts()].filter((m) => text(m).includes("Playing something?"));
+    expect(questions()).toHaveLength(0);
+    // later, the vote still running (no start yet) and all three of us show up: that's the answer,
+    // the night starts in the card's game, no question (19 Nov: showing up is an answer)
     yield* step(at("15:55:00"), { a: null, b: null });
     yield* rows((db) => db.update(gameNights).set({ stage: "time", start_at: null }).where(eq(gameNights.day, DAY)));
     yield* step(at("18:20:00"), { a: "lobby", b: "lobby", c: "lobby" });
-    expect((yield* step(at("18:20:30"))).early).toEqual({ started: null, due: null });
-    expect(lobbyPosts()).toHaveLength(2);
-    expect(text(lobbyPosts()[1])).toContain("Playing something?");
+    expect((yield* step(at("18:20:30"))).early).toEqual({ started: DAY, due: null });
+    expect(questions()).toHaveLength(0);
+    expect((yield* theNight).stage).toBe("set");
     expect(yield* rows((db) => db.select().from(nightCards))).toEqual([]);
   }).pipe(h.provide),
 );
