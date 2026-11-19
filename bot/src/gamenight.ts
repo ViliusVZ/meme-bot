@@ -1368,6 +1368,11 @@ const showedUp = Effect.fnUntraced(function* (where: Where, t: number) {
     if (d && d.by.length >= 2) [game, how] = [d.game, "playing"];
   }
   if (!game) {
+    // all of them in one of our game rooms (the Lobby question's answer, or a room opened by hand): that game
+    const room = (yield* (yield* Voice).openRooms).find((r) => r.channel_id === channel);
+    if (room) game = room.game;
+  }
+  if (!game) {
     game = yield* usualGame(t);
     how = "usual";
   }
@@ -2032,7 +2037,8 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
   );
   // 🎧 who's in voice right now, so whoever looks at the card knows someone's waiting
   if (!me && day === today(w) && !(n.stage === "set" && n.reminded)) {
-    const here = yield* inVoiceNow();
+    // (as the showing-up check last saw it, on every voice change: the same picture it acts on)
+    const here = ((yield* getSetting(IN_VOICE(day))) as string[] | undefined) ?? [];
     if (here.length) body = [...body, text(`-# 🎧 In voice now: ${here.map(mention).join(" ")}`)];
   }
   if (me) {
