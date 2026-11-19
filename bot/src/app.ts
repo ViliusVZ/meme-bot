@@ -23,6 +23,7 @@ import { Voice } from "./voice.js";
 import { Activity, type Kind } from "./activity.js";
 import { Spontaneous } from "./spontaneous.js";
 import { ArticleInput, News, type NewsRefused } from "./news.js";
+import { Jokes } from "./jokes.js";
 import { Downtime, ReplayInput } from "./downtime.js";
 import { LateSlips } from "./late.js";
 import { Attendances } from "./attendance.js";
@@ -117,6 +118,9 @@ const bodyText = (req: HttpServerRequest.HttpServerRequest) =>
 /** POST /news/name: the writer's word on one waiting name (game null: not one of ours). */
 const NameInput = Schema.Struct({ name: Schema.String, game: Schema.NullOr(Schema.String), reason: Schema.optional(Schema.String) });
 
+/** POST /jokes: one joke for the morning joke's stock. */
+const JokeInput = Schema.Struct({ text: Schema.String, lang: Schema.String, theme: Schema.String, form: Schema.String });
+
 export class BadRequest extends Schema.TaggedError<BadRequest>()("BadRequest", { message: Schema.String }) {}
 
 const Text = Schema.String;
@@ -190,6 +194,7 @@ export const Routes = HttpRouter.use((router) =>
     const spontaneous = yield* Spontaneous;
     const late = yield* LateSlips;
     const news = yield* News;
+    const jokes = yield* Jokes;
     const downtime = yield* Downtime;
     const attendances = yield* Attendances;
     const presence = yield* Presence;
@@ -404,6 +409,27 @@ export const Routes = HttpRouter.use((router) =>
         if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
         const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(NameInput))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) })));
         const r = yield* spontaneous.place(input.name, input.game, input.reason);
+        return r.ok ? json(r) : json({ error: r.error }, r.status);
+      }),
+    );
+
+    // 🌅 the same writer, on the same key: the morning joke's stock (jokes.ts). GET answers how many
+    // are in stock, the target and the latest jokes; POST {text, lang, theme, form} adds one (400: its
+    // shape or length, 409: a repeat).
+    yield* route("GET", "/jokes/stock", (req) =>
+      Effect.gen(function* () {
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        return json(yield* jokes.stock);
+      }),
+    );
+    yield* route("POST", "/jokes", (req) =>
+      Effect.gen(function* () {
+        const body = yield* bodyText(req);
+        if (writerKey === undefined) return notFound(req);
+        if (!authorized(req.headers.authorization, Redacted.value(writerKey))) return nope;
+        const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(JokeInput))(body).pipe(Effect.mapError((e) => new BadRequest({ message: String(e) })));
+        const r = yield* jokes.add(input);
         return r.ok ? json(r) : json({ error: r.error }, r.status);
       }),
     );

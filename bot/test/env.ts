@@ -40,6 +40,8 @@ export interface Env {
   NEWS_BACKTEST_POST?: string;
   /** 🔊 The bot's voice by default (BOT_VOICE=on); off unless set. */
   BOT_VOICE?: boolean;
+  /** 🌅 Where the morning joke goes (jokes.ts); unset means no joke. */
+  JOKE_CHANNEL_ID?: string;
   /** Set by the admin test routes so simulated runs don't notify anyone. */
   QUIET?: boolean;
 }
@@ -86,6 +88,7 @@ export function envFields(c: AppConfigShape): Omit<Env, "db"> {
     NEWS_WRITER_KEY: c.newsWriterKey === undefined ? undefined : Redacted.value(c.newsWriterKey),
     NEWS_BACKTEST_POST: c.newsBacktestPost ? "1" : "",
     BOT_VOICE: c.botVoice,
+    JOKE_CHANNEL_ID: c.jokeChannelId,
   };
 }
 
@@ -125,6 +128,7 @@ export function configFromEnv(env: Env, extra: { databaseUrl?: string; port?: nu
     redditApiUrl: undefined,
     redditApiToken: undefined,
     botVoice: env.BOT_VOICE ?? false,
+    jokeChannelId: env.JOKE_CHANNEL_ID,
     appName: "meme-bot",
     revision: "dev",
   };

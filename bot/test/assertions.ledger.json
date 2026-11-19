@@ -3069,5 +3069,116 @@
    "expect.toEqual({ users: [\"c\"] })",
    "expect.toEqual([])"
   ]
+ },
+ "embed.test.ts": {
+  "test \"a week's listing: posts in order, images for the meme pool\"": [
+   "expect.toBeGreaterThan(80)",
+   "expect.toEqual(posts.map((_, i) => i + 1))",
+   "expect.toMatch(/^t3_\\w+$/)",
+   "expect.toMatch(/^https:\\/\\/www\\.reddit\\.com\\/r\\/ProgrammerHumor\\/comments\\//)",
+   "expect.not.toMatch(/&(amp|quot|#\\d+);|<\\w/)",
+   "expect.toBe(NOW)",
+   "expect.toBeGreaterThan(60)",
+   "expect.toMatch(/^https:\\/\\/i\\.redd\\.it\\/\\w+\\.(png|jpe?g|gif|webp)$/)"
+  ],
+  "test \"a day's listing: text posts have no target\"": [
+   "expect.toHaveLength(25)",
+   "expect.toBe(true)"
+  ],
+  "test \"a thread: comments as text, with their age\"": [
+   "expect.toBeNull()",
+   "expect.toBeGreaterThan(20)",
+   "expect.toBe(true)",
+   "expect.toBe(true)"
+  ],
+  "test \"anything else is no posts, not a crash\"": [
+   "expect.toEqual([])",
+   "expect.toEqual([])"
+  ]
+ },
+ "jokes.test.ts": {
+  "test \"due at 09:00 on weekdays and 10:30 at weekends, Vilnius time, on both sides of the clock change\"": [
+   "expect.toBe(\"2026-07-15T06:00:00.000Z\")",
+   "expect.toBe(\"2026-07-18T07:30:00.000Z\")",
+   "expect.toBe(\"2026-11-19T07:00:00.000Z\")",
+   "expect.toBe(\"2026-11-22T08:30:00.000Z\")",
+   "expect.toBe(\"2026-03-29T07:30:00.000Z\")",
+   "expect.toBe(\"2026-03-30T06:00:00.000Z\")",
+   "expect.toBe(\"2026-10-25T08:30:00.000Z\")",
+   "expect.toBe(\"2026-10-23T06:00:00.000Z\")",
+   "expect.toBe(\"2026-11-21\")"
+  ],
+  "test \"a repeat is the same text without case, accents, punctuation or spacing\"": [
+   "expect.toBe(normalized(\"siemet vasara, buvo graži\"))",
+   "expect.not.toBe(normalized(\"It's right in front of you.\"))"
+  ],
+  "test \"the oldest joke goes out at 09:00, once, silent and with the vote buttons; again or after a restart, nothing\"": [
+   "expect.toEqual({ skipped: \"too early\" })",
+   "expect.toEqual({ posted: first.id, day: \"2026-11-19\" })",
+   "expect.toEqual({ skipped: \"already posted\", day: \"2026-11-19\" })",
+   "expect.toEqual({ skipped: \"already posted\", day: \"2026-11-19\" })",
+   "expect.toHaveLength(1)",
+   "expect.toBe((1 << 15) | (1 << 12))",
+   "expect.toEqual({ parse: [] })",
+   "expect.toBe(\"First joke in.\")",
+   "expect.toEqual([\"fire\", \"lol\", \"dead\", \"mid\"].map((k) => `joke:${first.id}:${k}`))",
+   "expect.toEqual([\"2026-11-19\", \"jokes\", \"500\"])"
+  ],
+  "test \"two copies asking at once post one joke\"": [
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)",
+   "expect.toHaveLength(1)"
+  ],
+  "test \"late after a restart: posted under two hours late, skipped at two hours (the weekend's 10:30)\"": [
+   "expect.toMatchObject({ day: \"2026-11-21\", posted: expect.any(Number) })",
+   "expect.toEqual({ skipped: \"too late\", day: \"2026-11-22\" })",
+   "expect.toEqual({ skipped: \"too late\", day: \"2026-11-22\" })",
+   "expect.toHaveLength(1)",
+   "expect.not.toContain(\"none in stock\")"
+  ],
+  "test \"an empty stock posts nothing and logs it once, at info, with no alert\"": [
+   "expect.toEqual({ skipped: \"no joke in stock\", day: \"2026-11-19\" })",
+   "expect.toEqual({ skipped: \"no joke in stock\", day: \"2026-11-19\" })",
+   "expect.toHaveLength(1)",
+   "expect.toContain(\"level=INFO\")",
+   "expect.toEqual([])"
+  ],
+  "test \"a post that fails gives the joke back, and the next minute posts it\"": [
+   "expect.rejects.toThrow(\"500\")",
+   "expect.toEqual([null])",
+   "expect.toMatchObject({ posted: expect.any(Number), day: \"2026-11-19\" })"
+  ],
+  "test \"no JOKE_CHANNEL_ID: the feature is off\"": [
+   "expect.toEqual({ skipped: \"off\" })",
+   "expect.toEqual([])"
+  ],
+  "test \"the vote buttons count, toggle and show who voted\"": [
+   "expect.toBe(7)",
+   "expect.toEqual([\"0\", \"1\", \"0\", \"0\"])",
+   "expect.toEqual([\"0\", \"2\", \"0\", \"0\"])",
+   "expect.toContain(\"<@a> <@b>\")",
+   "expect.toEqual([\"0\", \"1\", \"0\", \"0\"])",
+   "expect.toEqual([\"1\", \"0\", \"0\", \"0\"])",
+   "expect.toMatchObject({ content: \"That joke has left the building 🫥\" })"
+  ],
+  "test \"GET /jokes/stock and POST /jokes: the news writer's key, the stock it tops up, 400 for the shape or length, 409 for a repeat\"": [
+   "expect.toBe(401)",
+   "expect.toBe(401)",
+   "expect.toEqual([200, { in_stock: 0, target: STOCK_TARGET, need: STOCK_TARGET, recent: [] }])",
+   "expect.toEqual([200, { ok: true, id: expect.any(Number) }])",
+   "expect.toEqual([409, { error: \"that joke is already in the stock or was posted\" }])",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(400)",
+   "expect.toBe(200)",
+   "expect.toEqual({ in_stock: 2, target: STOCK_TARGET, need: STOCK_TARGET - 2, recent: [ { text: \"Šiemet vasara buvo graži. Gaila, kad tą dieną dirbau.\", lang: \"lt\", theme: \"weather\", form: \"one-liner\" }, { text: joke.text, lang: \"en\", theme: \"technology\", form: \"one-liner\" }, ], })"
+  ],
+  "test \"no writer key configured: the joke routes are 404\"": [
+   "expect.toBe(404)",
+   "expect.toBe(404)"
+  ]
  }
 }

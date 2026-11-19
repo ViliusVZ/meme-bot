@@ -1,10 +1,13 @@
 // Message layouts, built with Discord's Components V2 (containers, media galleries, text displays).
 import { esc, IS_COMPONENTS_V2, messageLink } from "./discord.js";
 import { score, VOTES, type Meme, type Ranked, type Tally } from "./memes.js";
+import type { Joke } from "./jokes.js";
 
 const ORANGE = 0xff4500;
 const GOLD = 0xf1c40f;
 const PURPLE = 0x9b59b6;
+const SUNRISE = 0xffa630;
+const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
 const MEDALS = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."];
 
 const text = (content: string) => ({ type: 10, content });
@@ -66,6 +69,35 @@ export function memeMessage(m: Meme, t: Tally, subreddit: string, by: Partial<Re
             { type: 2, style: 5, label: "Reddit", url: m.link },
           ],
         },
+      ]),
+    ],
+  };
+}
+
+/** The meme's vote buttons, `prefix:<id>:<vote>`; the winning reaction lights up green. */
+function voteButtons(prefix: string, id: string | number, t: Tally) {
+  const lead = Math.max(0, ...VOTES.map((v) => t[v.key] ?? 0));
+  return VOTES.map((v) => ({
+    type: 2,
+    style: lead > 0 && (t[v.key] ?? 0) === lead ? 3 : 2,
+    emoji: { name: v.emoji },
+    label: String(t[v.key] ?? 0),
+    custom_id: `${prefix}:${id}:${v.key}`,
+  }));
+}
+
+/** 🌅 The morning joke, laid out like the daily meme, silent (it's the morning), with the meme's votes. */
+export function jokeMessage(j: Joke, t: Tally, by: Partial<Record<string, string[]>> = {}) {
+  return {
+    flags: IS_COMPONENTS_V2 | SILENT,
+    allowed_mentions: { parse: [] },
+    components: [
+      container(SUNRISE, [
+        text(`## 🌅 Morning Joke${j.day ? ` · ${stamp(j.day + "T12:00:00Z")}` : ""}`),
+        text(esc(j.text)),
+        divider,
+        text(`${bar(t)}${whoVoted(by)}`),
+        { type: 1, components: voteButtons("joke", j.id, t) },
       ]),
     ],
   };

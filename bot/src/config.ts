@@ -68,6 +68,8 @@ export interface AppConfigShape {
    * (the test bot); unset or "off" means off (production, until the owner has listened).
    */
   readonly botVoice: boolean;
+  /** 🌅 Where the morning joke goes (jokes.ts); unset means no joke. */
+  readonly jokeChannelId: string | undefined;
   readonly appName: string;
   readonly revision: string;
   /** 📡 Where logs, metrics and spans go over OTLP (architecture §14); unset everywhere for now, so none go. */
@@ -155,6 +157,7 @@ export const readConfig = Effect.gen(function* () {
     redditApiUrl: Option.getOrUndefined(yield* optional("REDDIT_API_URL")),
     redditApiToken: redditApiToken === undefined ? undefined : Redacted.make(redditApiToken),
     botVoice: (yield* or("BOT_VOICE", "off")) === "on",
+    jokeChannelId: Option.getOrUndefined(yield* optional("JOKE_CHANNEL_ID")),
     appName: yield* or("APP_NAME", "meme-bot"),
     revision: yield* or("REVISION", "dev"),
     otlpUrl: Option.getOrUndefined(yield* optional("OTLP_URL")),
