@@ -386,7 +386,7 @@
  },
  "one night's trouble doesn't hold up the other's upkeep": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card-a 13b32801040c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card-a 793d410349b1",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card-b 6e6b0118a419"
   ],
   "db": {
@@ -410,7 +410,7 @@
  },
  "the start times on an open card are refreshed every quarter hour": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 13b32801040c"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 793d410349b1"
   ],
   "db": {
    "game_nights": "1:f221fac91328",

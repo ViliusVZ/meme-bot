@@ -615,7 +615,7 @@
  "a night locked in (the stage → the event → its id → the ping): interrupted during the claim, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 608f302adf66",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3bccdbf987e4",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 0486082c9733",
    "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
   ],
   "db": {
@@ -627,7 +627,7 @@
  "a night locked in (the stage → the event → its id → the ping): interrupted during the post, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 608f302adf66",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8a1ca52008f0",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 366bba6de36e",
    "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
   ],
   "db": {
@@ -639,7 +639,7 @@
  "a night locked in (the stage → the event → its id → the ping): interrupted during the record, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 608f302adf66",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3bccdbf987e4",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 0486082c9733",
    "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
   ],
   "db": {
