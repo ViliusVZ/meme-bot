@@ -1,0 +1,40 @@
+{
+ "the hour's reminder skips whoever sits in voice with the others, and still reaches whoever doesn't": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3103db1af898"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "2:86723202527e",
+   "game_nights": "1:50d1b79974ed",
+   "games": "1:9aa25fcff709",
+   "settings": "1:95a891510826"
+  }
+ },
+ "not in voice: the hour's reminder goes out, loud, to them": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 6a36335e9311"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "2:86723202527e",
+   "game_nights": "1:9ca4dd8d2973",
+   "games": "1:fc678b8b7e36"
+  }
+ },
+ "the time step sends no reminder; after 15 min with one pick it closes, the others going with the group": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8e0235ddaa4f",
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 389564f30c27",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3ae214362f45",
+   "POST https://discord.com/api/v10/channels/gn/messages d4ddc6ad8bfb"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "4:8a506958aa25",
+   "game_nights": "1:a798c4133a6e",
+   "games": "1:de64f0aeee6f",
+   "settings": "1:afe5409b105b"
+  }
+ }
+}

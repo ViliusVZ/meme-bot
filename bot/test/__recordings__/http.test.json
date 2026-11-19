@@ -111,13 +111,13 @@
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
-   "POST https://discord.com/api/v10/channels/gn/messages 1bb27b985ef0"
+   "POST https://discord.com/api/v10/channels/gn/messages d4d09b338d40"
   ],
   "db": {
-   "game_nights": "1:0e9eacc25c33",
+   "game_nights": "1:015e17a7565f",
    "games": "8:297130793490",
    "rooms": "1:342f104b3d5c",
-   "settings": "2:d2ed10efb2ce",
+   "settings": "1:f0e123d0cabf",
    "voice_segments": "3:afa955e26f0f"
   }
  }
