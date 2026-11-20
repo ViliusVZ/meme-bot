@@ -307,7 +307,7 @@ it.effect("a no stays secret until everyone's answered, then the night's off and
     yield* act("b", "no");
     expect((yield* night())!.stage).toBe("ask"); // a no alone doesn't end it
     expect(text(yield* render(DAY))).toContain("🤫 Secret until all three answer");
-    expect(text(yield* render(DAY))).toContain("Vote by");
+    expect(text(yield* render(DAY))).toContain("vote by");
     yield* act("c", "yes");
     const n = (yield* night())!;
     expect([n.stage, n.roast!.who]).toEqual(["off", { b: "no" }]);
@@ -358,12 +358,12 @@ it.effect("🤔 a maybe holds it for 2 h once everyone's answered, then the unsu
     const at19 = wall(2026, 11, 6, 19, 0);
     expect([n.stage, n.maybes, n.paused_until]).toEqual(["ask", 1, at19]);
     let card = text(yield* render(DAY));
-    expect(card).toContain("✅ <@a>　✅ <@b>　🤔 <@c>"); // everyone answered, so it's out
+    expect(card).toContain("✅ <@a> any time · ✅ <@b> · 🤔 <@c>"); // everyone answered, so it's out (a started it: any time)
     expect(card).toContain("**On hold**");
     expect(card).not.toContain("Vote by"); // no deadline while it's on hold
     const held = posts().find((p) => p.body.content?.includes("isn't sure yet"))!;
-    expect(held.body.content).toMatch(/^<@a> <@b> 🤔 <@c> isn't sure yet, so it's on hold until/);
-    expect(held.body.allowed_mentions.users).toEqual(["a", "b"]); // the sure ones hear why they wait
+    expect(held.body.content).toMatch(/^🤔 <@c> isn't sure yet, so tonight is on hold until/);
+    expect(held.body.allowed_mentions).toEqual({ parse: [] }); // led by the unsure one; nobody pinged (20 Nov)
 
     yield* h.setTime(Date.parse("2026-11-06T16:59:00Z")); // 18:59: still on hold
     yield* maintain;
@@ -378,7 +378,7 @@ it.effect("🤔 a maybe holds it for 2 h once everyone's answered, then the unsu
     expect(again[0].body.content).toMatch(/^<@c> ⏰ Decision time: are you in tonight\?/);
     expect(again[0].body.allowed_mentions.users).toEqual(["c"]);
     card = text(yield* render(DAY));
-    expect(card).toContain("✅ <@a>　✅ <@b>　⏳ <@c>"); // the yeses carry over
+    expect(card).toContain("✅ <@a> any time · ✅ <@b> · ⏳ <@c>"); // the yeses carry over
     expect(card).toContain(`Vote by <t:${at19 + 3600}:t>`); // an hour to answer
     expect(maybeButton(yield* render(DAY))).toBe(true); // one more maybe is allowed
     yield* act("c", "yes");
