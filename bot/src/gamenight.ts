@@ -429,9 +429,10 @@ const timeVotesLine = Effect.fnUntraced(function* (day: string) {
   const until = yield* votes(day, "until");
   const ps = yield* theTrio;
   if (!ps.some((p) => v[p] || until[p])) return null;
+  const any = yield* anyTime(day);
   return ps
     .map((p) => {
-      const start = v[p] ? `**${timeLabel(w, Number(v[p]), day)}**` : "no pick";
+      const start = v[p] ? `**${timeLabel(w, Number(v[p]), day)}**` : any.includes(p) ? "any time" : "no pick";
       return `${mention(p)} ${start}${until[p] ? ` (🏁 ${timeLabel(w, Number(until[p]), day)})` : ""}`;
     })
     .join(" · ");
