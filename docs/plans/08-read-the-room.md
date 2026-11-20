@@ -48,14 +48,13 @@ When a night starts earlier than the picks said, the card says so instead of cal
 - "It's on" says who goes with the group.
 - The game and time steps send no reminders of their own. Only the first question's reminder, last call and final call remain.
 
-### E. Fewer notifications
+### E. Fewer notifications: withdrawn (20 Nov)
 
-`nudge(…, loud)` is silent by default.
+E silenced the memes, meme of the week, the recap, roasts, slips, late notices, snooze notes and most game-night nudges. The owner rejected it on 20 Nov ("those should not be silent … i never asked for that"), and it was reverted before the 09:00 joke (`a5ff92c` and `170c237`).
 
-| | What |
-|---|---|
-| **Loud** | the daily card; the first question's reminder, last and final call; someone starting or reopening tonight; "it's on" (pinging only whoever isn't in voice, and silent when everyone is); the start for whoever isn't there; the "coming?" message; downtime alerts |
-| **Silent, names without a ping** | memes, meme of the week, the recap, every roast, late notices, slips, snooze notes, hold and split notes, the morning joke, the news |
+Everything makes a sound and pings again exactly as before 19 Nov, and "it's on" pings all three again. The morning joke and the news now post with sound too; the news had been silent since plan 06, from the start.
+
+What stays from A and D: no reminder reaches someone sitting in voice with the others, and the game and time steps send no reminders of their own.
 
 ### F. Klodas Vandamas
 
@@ -67,7 +66,7 @@ When a night starts earlier than the picks said, the card says so instead of cal
 
 The bot side is `jokes.ts`.
 
-- **When and where:** 09:00 on weekdays and 10:30 at weekends (Vilnius), silent, with 🔥😂💀🗑️ buttons, in #🌅・morning-joke (`JOKE_CHANNEL_ID`).
+- **When and where:** 09:00 on weekdays and 10:30 at weekends (Vilnius), with sound and no mentions, with 🔥😂💀🗑️ buttons, in #🌅・morning-joke (`JOKE_CHANNEL_ID`).
 - **Stock:** the "WoW news writer" routine keeps it at 6, through its step 4 (`GET /jokes/stock`, `POST /jokes`).
 - **Misses:** an empty stock posts nothing; a restart more than 2 hours late skips that day.
 - **What's in stock:** 20 approved jokes, in the coordinator's order (the first is for Fri 20 Nov).
@@ -99,7 +98,7 @@ The bot side is `jokes.ts`.
 - **Unit tests in `test/readtheroom.test.ts`:**
   - 7: no reminder to someone in voice with the others.
   - The time step sends no reminder and closes after 15 min.
-- **Existing tests** were updated for the silent posts and the question's new channel.
+- **Existing tests** were updated for the question's new channel (and, on 19 Nov, for E's silent posts; those were put back on 20 Nov).
 - **The joke:** its own tests (`test/jokes.test.ts`). Writer routes checked on the test bot.
 
 ## Left open
