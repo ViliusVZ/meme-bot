@@ -1635,7 +1635,8 @@ const calledIn = Effect.fnUntraced(function* (n: Night, where: Where, ask: Votes
   const since = Math.max(...two.map((p) => segs.find((x) => x.user_id === p)?.started_at ?? t));
   if (t < since + SETTLE) return { started: null, due: since + SETTLE };
   if (!(yield* claimSetting(CALLED(n.day, third), { at: t }))) return none;
-  const game = n.game ?? (yield* (yield* Spontaneous).cardGame(n.day));
+  // the game when it's known: picked, leading the vote, or the usual one the card assumes
+  const game = n.game ?? (yield* (yield* Spontaneous).cardGame(n.day)) ?? (yield* assumedGame());
   const what = game ? ` for ${yield* (yield* Games).emojiFor(game)} **${game}**` : "";
   const button = (label: string, e: string, action: string, style = 2) => ({ type: 2, style, label, custom_id: `gn:${n.day}:${action}`, emoji: { name: e } });
   yield* (yield* Discord).createMessage(config.gameChannelId, {
