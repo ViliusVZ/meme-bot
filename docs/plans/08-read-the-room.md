@@ -8,6 +8,7 @@ On 19 Nov, all three had said yes and picked World of Warcraft by 20:24, and all
 - It treated the night as unplanned, asked aloud what they were playing, and put the buttons in the Lobby's own chat.
 - The card waited an hour for one time pick from someone sitting in the room, then pinged her.
 - The night locked at 🌙 00:30, and started at 21:30 only because the early-birds rule fired.
+  - The two 🌙 00:30 taps were deliberate (the owner, 20 Nov): "this was a joke, to mock the bot. We playing at 9pm and it asks us when are we playing, on fucking midnight yet, that's how much it's out of touch." Nothing is wrong with the slot row's layout; that question is closed.
 
 The rule now: **the card is a way to find out whether and when we play, not a gate.**
 
@@ -102,6 +103,8 @@ The bot side is `jokes.ts`.
 - **The joke:** its own tests (`test/jokes.test.ts`). Writer routes checked on the test bot.
 
 ## Left open
+
+- **Fixed 20 Nov:** a started night's card stayed live (buttons, "11 hours ago", slowpokes) because nothing settled it after the start. Now `settleCards` turns it into a finished record once its rooms wrap up, and catches any older open card every minute.
 
 - The quick-start "In 15 min" answer to the "coming?" message doesn't move the start; it only says so.
 - The `G6` gate flags one `try {` in `newsfeeds.ts`, from the Reddit change.
