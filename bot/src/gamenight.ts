@@ -43,7 +43,7 @@ import { Spontaneous, names, type Where } from "./spontaneous.js";
 import { Presence } from "./presence.js";
 import { BotVoice } from "./botvoice.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
-import { gameNights, gameNightVotes, games as gameTable, nightAttendance, settings, voiceSegments, type Reason, type Stage } from "./db/schema.js";
+import { gameNights, gameNightVotes, games as gameTable, nightAttendance, rooms, settings, voiceSegments, type Reason, type Stage } from "./db/schema.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import type { Night } from "./nights.js";
 
@@ -1210,6 +1210,46 @@ const errorText = (e: unknown) => (e instanceof Error && "_tag" in e && String(e
  * anyone who's left a stage waiting for an hour (once per stage), and ping the squad when a
  * locked-in night starts.
  */
+const SETTLED = (day: string) => `gn:settled:${day}`;
+
+/**
+ * 🗄️ Is this night over? A started night is over once its rooms have wrapped up (everyone left for a
+ * while; voice.ts archives them) and it's been 30 min since the start, or once its day is past. A
+ * called-off night is settled the morning after (its 🔄 Reopen is for the same day only).
+ */
+const nightOver = Effect.fnUntraced(function* (n: Night, t: number) {
+  const db = yield* Db;
+  const w = yield* when;
+  if (n.stage === "off") return n.day < today(w);
+  if (n.stage !== "set" || !n.reminded) return false;
+  if (n.day < today(w)) return true;
+  if ((n.start_at ?? t) > t - 1800) return false;
+  const open = yield* db.select({ id: rooms.channel_id }).from(rooms).where(and(eq(rooms.day, n.day), isNull(rooms.archived_at)));
+  return open.length === 0;
+});
+
+/**
+ * Every minute (and so at start-up): each card whose night is over is re-rendered once, into its
+ * finished record (no buttons). Older cards still voting are closed by closeStaleCards first.
+ */
+export const settleCards = Effect.gen(function* () {
+  const db = yield* Db;
+  const t = yield* currentSec;
+  const cards = yield* db
+    .select()
+    .from(gameNights)
+    .where(and(inArray(gameNights.stage, ["set", "off"]), sql`${gameNights.message_id} IS NOT NULL`));
+  const done: string[] = [];
+  for (const n of cards) {
+    if (yield* getSetting(SETTLED(n.day))) continue;
+    if (!(yield* nightOver(n, t))) continue;
+    yield* refreshCard(n.day);
+    yield* putSetting(SETTLED(n.day), { at: t });
+    done.push(n.day);
+  }
+  return done;
+});
+
 export const maintainAll = Effect.gen(function* () {
   const db = yield* Db;
   const alerts = yield* Alerts;
@@ -1220,6 +1260,10 @@ export const maintainAll = Effect.gen(function* () {
     .select()
     .from(gameNights)
     .where(and(gte(gameNights.day, today(w)), inArray(gameNights.stage, OPEN), sql`${gameNights.message_id} IS NOT NULL`));
+
+  // 🗄️ a card must not outlive its night: settled once (an edit, so nobody is notified)
+  const settled = yield* settleCards.pipe(Effect.catch((e) => Effect.as(alerts.failed("settling finished game-night cards", e), [] as string[])));
+  if (settled.length) done.settled = settled;
 
   // reminders wait for daytime: nobody gets pinged about a poll between midnight and 09:00
   const awake = localOf(w).hour >= 9;
@@ -1957,6 +2001,20 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
     ),
     Match.when("set", () =>
       Effect.gen(function* () {
+        // 🗄️ the night is over: a finished record of what happened (no buttons, no picks, no slowpokes)
+        if (yield* nightOver(n, w.now)) {
+          const db = yield* Db;
+          const played = (yield* db.select().from(nightAttendance).where(and(eq(nightAttendance.day, day), eq(nightAttendance.state, "arrived"))))
+            .sort((a, b) => (a.arrived_at ?? 0) - (b.arrived_at ?? 0))
+            .map((a) => a.user_id);
+          const ended = (yield* db.select({ at: rooms.archived_at }).from(rooms).where(eq(rooms.day, day))).map((r) => r.at ?? 0).filter(Boolean);
+          const end = ended.length ? Math.max(...ended) : null;
+          const length = end && end > n.start_at! ? ` · ended ${timeLabel(w, end, day)} (${Math.round((end - n.start_at!) / 60)} min)` : "";
+          return [
+            text(`## ✅ Game night · ${date}`),
+            text(`### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 Started **${timeLabel(w, n.start_at!, day)}**${length}\n👥 ${played.length ? played.map(mention).join(" ") : ps.map(mention).join(" ")}`),
+          ];
+        }
         // different times aren't a tie: we start when the last person is free. Credit them.
         const v = yield* votes(day, "time");
         const picks = ps.filter((p) => v[p]).map((p) => Number(v[p]));
