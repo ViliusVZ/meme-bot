@@ -781,18 +781,46 @@ it.effect("🧹 the sweep goes back page by page, 100 at a time", () =>
   }).pipe(h.provide),
 );
 
-it.effect("🧹 a night that started in the last 6 hours keeps its card through the sweep", () =>
+it.effect("🧹 a night that ended before 03:00 goes in that sweep, however late it started", () =>
   Effect.gen(function* () {
     const db = yield* Db;
     yield* h.setTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
     const card = snowflakeAt(Date.parse("2026-11-05T17:00:00Z"), 1);
+    // started 01:30, everyone left: its room wrapped up at 02:40
     yield* db.insert(gameNights).values({ day: "2026-11-05", stage: "set", game: "R.E.P.O.", start_at: Date.parse("2026-11-05T23:30:00Z") / 1000, reminded: true, message_id: card });
+    yield* db.insert(rooms).values({ channel_id: "repo", game: "R.E.P.O.", day: "2026-11-05", created_at: Date.parse("2026-11-05T23:30:00Z") / 1000, archived_at: Date.parse("2026-11-06T00:40:00Z") / 1000 });
     h.override = (c) => {
       if (c.path === "/users/@me") return json({ id: "bot" });
       if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json([{ id: card, author: { id: "bot" } }]);
       return undefined;
     };
-    expect(yield* Cleanup.use((c) => c.sweep(Date.parse("2026-11-06T01:00:00Z")))).toEqual({ deleted: 0, kept: 1 });
+    expect(yield* Cleanup.use((c) => c.sweep(Date.parse("2026-11-06T01:00:00Z")))).toEqual({ deleted: 1, kept: 0 });
+  }).pipe(h.provide),
+);
+
+it.effect("🧹 a night still going at 03:00 keeps its card, and a catch-up sweep takes it once it has ended", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const cleanup = yield* Cleanup;
+    yield* h.setTime(Date.parse("2026-11-06T01:05:00Z")); // 03:05 Friday
+    const card = snowflakeAt(Date.parse("2026-11-05T17:00:00Z"), 1);
+    yield* db.insert(gameNights).values({ day: "2026-11-05", stage: "set", game: "R.E.P.O.", start_at: Date.parse("2026-11-05T23:30:00Z") / 1000, reminded: true, message_id: card });
+    yield* db.insert(rooms).values({ channel_id: "repo", game: "R.E.P.O.", day: "2026-11-05", created_at: Date.parse("2026-11-05T23:30:00Z") / 1000 });
+    let gone = false;
+    h.override = (c) => {
+      if (c.path === "/users/@me") return json({ id: "bot" });
+      if (c.method === "GET" && c.path.startsWith("/channels/gn/messages")) return json(gone ? [] : [{ id: card, author: { id: "bot" } }]);
+      if (c.method === "DELETE" && c.path === `/channels/gn/messages/${card}`) gone = true;
+      return undefined;
+    };
+    expect(yield* cleanup.nightly).toEqual({ deleted: 0, kept: 1 }); // still playing: kept
+    yield* h.setTime(Date.parse("2026-11-06T01:30:00Z"));
+    expect(yield* cleanup.nightly).toEqual({}); // still going: nothing to catch up
+    yield* db.update(rooms).set({ archived_at: Date.parse("2026-11-06T01:40:00Z") / 1000 }).where(eq(rooms.channel_id, "repo"));
+    yield* h.setTime(Date.parse("2026-11-06T01:41:00Z"));
+    expect(yield* cleanup.nightly).toEqual({ catchUp: "2026-11-05", deleted: 1, kept: 0 }); // ended: gone
+    expect((yield* db.select().from(gameNights).where(eq(gameNights.day, "2026-11-05")))[0]!.message_id).toBeNull();
+    expect(yield* cleanup.nightly).toEqual({}); // once
   }).pipe(h.provide),
 );
 
