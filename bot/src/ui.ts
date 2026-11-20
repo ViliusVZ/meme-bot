@@ -85,17 +85,20 @@ function voteButtons(prefix: string, id: string | number, t: Tally) {
   }));
 }
 
-/** 🌅 The morning joke, laid out like the daily meme, silent (it's the morning), with the meme's votes. */
+/** 🌅 The morning joke: the joke, who reacted how, and the meme's vote buttons; silent (it's the morning). */
 export function jokeMessage(j: Joke, t: Tally, by: Partial<Record<string, string[]>> = {}) {
+  // one plain line, "😂 @a · 🔥 @b, @c"; nothing at all before the first vote
+  const reacted = VOTES.filter((v) => by[v.key]?.length)
+    .map((v) => `${v.emoji} ${by[v.key]!.map((u) => `<@${u}>`).join(", ")}`)
+    .join(" · ");
   return {
     flags: IS_COMPONENTS_V2,
     allowed_mentions: { parse: [] },
     components: [
       container(SUNRISE, [
-        text(`## 🌅 Morning Joke${j.day ? ` · ${stamp(j.day + "T12:00:00Z")}` : ""}`),
+        text("## 🌅 Morning joke"),
         text(esc(j.text)),
-        divider,
-        text(`${bar(t)}${whoVoted(by)}`),
+        ...(reacted ? [divider, text(reacted)] : []),
         { type: 1, components: voteButtons("joke", j.id, t) },
       ]),
     ],

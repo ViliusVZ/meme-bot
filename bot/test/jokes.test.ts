@@ -67,7 +67,9 @@ it.effect("the oldest joke goes out at 09:00, once, silent and with the vote but
     expect(body.flags).toBe(1 << 15); // with sound (the owner, 20 Nov)
     expect(body.allowed_mentions).toEqual({ parse: [] });
     const parts = body.components[0].components;
+    expect(parts[0].content).toBe("## 🌅 Morning joke");
     expect(parts[1].content).toBe("First joke in.");
+    expect(parts).toHaveLength(3); // no votes yet: nothing between the joke and the buttons
     expect(parts.at(-1)!.components!.map((b) => b.custom_id)).toEqual(["fire", "lol", "dead", "mid"].map((k) => `joke:${first.id}:${k}`));
     const [row] = yield* db.select().from(jokeTable).where(eq(jokeTable.id, first.id));
     expect([row.day, row.channel_id, row.message_id]).toEqual(["2026-11-19", "jokes", "500"]);
@@ -153,11 +155,12 @@ it.effect("the vote buttons count, toggle and show who voted", () =>
     expect(labels(one)).toEqual(["0", "1", "0", "0"]);
     const two = yield* tap(`joke:${posted}:lol`, "b");
     expect(labels(two)).toEqual(["0", "2", "0", "0"]);
-    expect(two.data.components[0].components[3].content).toContain("<@a> <@b>");
+    expect(two.data.components[0].components[3].content).toBe("😂 <@a>, <@b>");
     const again = yield* tap(`joke:${posted}:lol`, "a"); // the same button again takes the vote back
     expect(labels(again)).toEqual(["0", "1", "0", "0"]);
     const changed = yield* tap(`joke:${posted}:fire`, "b");
     expect(labels(changed)).toEqual(["1", "0", "0", "0"]);
+    expect(changed.data.components[0].components[3].content).toBe("🔥 <@b>");
     const gone = yield* tap("joke:99999:lol", "a");
     expect(gone.data).toMatchObject({ content: "That joke has left the building 🫥" });
   }).pipe(h.provide),

@@ -36,6 +36,7 @@ import { Alerts } from "./alerts.js";
 import { BotVoice } from "./botvoice.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
+import { assumedGame } from "./gamenight.js"; // used at run time only (gamenight imports this module too)
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
 export const PROMPT_TTL = 6 * 3600; // an unanswered question stays while we're gathered (the gathering ending takes it away)
@@ -391,6 +392,23 @@ export class Spontaneous extends Context.Service<
         return rows[0]!.choice;
       });
 
+      /**
+       * The game tonight's card names, for the Lobby: its pick, the game vote's leader (any stage, so a
+       * 🎮 tapped on an ask-stage card counts), or, nobody having voted a game, the usual game the card
+       * assumes. Null on a called-off night, a tied vote, or no card.
+       */
+      const tonightsGame = Effect.fnUntraced(function* (day: string) {
+        const [n] = yield* db.select({ stage: gameNights.stage, game: gameNights.game }).from(gameNights).where(eq(gameNights.day, day));
+        if (!n || n.stage === "off") return null;
+        if (n.game) return { game: n.game, assumed: false };
+        const { rows } = yield* db.execute<{ choice: string; n: number }>(
+          sql`SELECT choice, count(*)::int AS n FROM game_night_votes WHERE day = ${day} AND stage = 'game' GROUP BY choice ORDER BY n DESC, min(voted_at)`,
+        );
+        if (rows.length) return rows[1] && rows[1].n === rows[0]!.n ? null : { game: rows[0]!.choice, assumed: false };
+        const usual = yield* assumedGame().pipe(Effect.provideService(Db, db));
+        return usual ? { game: usual, assumed: true } : null;
+      });
+
       const recentGames = Effect.fn("Spontaneous.recentGames")(function* (n: number = 3) {
         const { rows } = yield* db.execute<{ game: string }>(sql`
     SELECT game FROM (
@@ -420,7 +438,7 @@ export class Spontaneous extends Context.Service<
               type: 17,
               accent_color: 0x57f287,
               components: [
-                { type: 10, content: "### 🎮 Playing something?\n-# Tap the game: I'll open its room and bring everyone here along." },
+                { type: 10, content: "### 🎮 Playing something?\n-# Tap the game: I'll open its room and move everyone in the Lobby there." },
                 ...(list.length ? [{ type: 1, components: list.map((g) => btn(g, `lob:${id}:g:${g}`.slice(0, 100), emoji.get(g.toLowerCase()) ?? "🎮", 1)) }] : []),
                 { type: 1, components: [btn("Other…", `lob:${id}:other`, "✏️"), btn("Just hanging out", `lob:${id}:chill`, "🛋️")] },
               ],
@@ -495,10 +513,12 @@ export class Spontaneous extends Context.Service<
         if (t < since + GATHER_AFTER) return since + GATHER_AFTER;
         // a locked-in night ahead: its own rules, never the question
         if (!plan.night) {
-          // tonight's card already names a game (picked, or leading the game vote): that's the answer
-          const named = yield* cardGame(time.at(t).day);
+          // tonight's card already names a game (picked, leading the game vote, or the usual one it assumes): that's the answer
+          const named = yield* tonightsGame(time.at(t).day);
+          // only assumed (nobody has picked it yet): no question, and nobody is moved either
+          if (named?.assumed) return null;
           if (named) {
-            yield* autoMove(named, lobby, t, `🎮 Tonight's card says **${named}**, so I brought you over.`);
+            yield* autoMove(named.game, lobby, t, `🎮 Tonight's card says **${named.game}**, so I brought you over.`);
             return null;
           }
         }

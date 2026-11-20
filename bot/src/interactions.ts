@@ -259,6 +259,9 @@ export class Interactions extends Context.Service<
               const field = i.data?.components?.[0]?.components?.[0] ?? i.data?.components?.[0]?.component;
               const value = i.type === 5 ? field?.value : (arg ?? i.data?.values?.[0]);
               const r = yield* gameNight.act(day, user.id, action, value, (e) => later(e, "game-night follow-up (pings, event)"));
+              // 🎧 "coming?" answered: its buttons come off (the answer is posted below it)
+              if ((action === "coming" || action === "nottonight") && i.channel_id && i.message?.id)
+                yield* later(discord.editMessage(i.channel_id, i.message.id, { components: [] }), "coming? buttons");
               const own = fromPrivateCopy(i);
               const panel = own ? i.message?.id : undefined;
               // a refusal on your private panel shows up in the panel itself, not as another message

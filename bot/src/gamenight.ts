@@ -43,6 +43,7 @@ import { Spontaneous, names, type Where } from "./spontaneous.js";
 import { Presence } from "./presence.js";
 import { BotVoice } from "./botvoice.js";
 import { nowIso, nowSec as currentSec } from "./clock.js";
+import { spokenName } from "./lines.js";
 import { gameNights, gameNightVotes, games as gameTable, nightAttendance, rooms, settings, voiceSegments, type Reason, type Stage } from "./db/schema.js";
 import { EPHEMERAL, IS_COMPONENTS_V2 } from "./discord.js";
 import type { Night } from "./nights.js";
@@ -348,6 +349,16 @@ const nudgeOnce = Effect.fnUntraced(function* (day: string, everyone: ReadonlyAr
   const db = yield* Db;
   const n = yield* nightOf(day);
   yield* clearNudge(n);
+  // nobody to chase: the line stands on its own (it still makes its sound; it just pings nobody)
+  if (!everyone.length) {
+    const m = yield* (yield* Discord).createMessage(config.gameChannelId, {
+      content,
+      allowed_mentions: { parse: [] },
+      message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
+    });
+    yield* db.update(gameNights).set({ nudge_id: m.id }).where(eq(gameNights.day, day));
+    return;
+  }
   // 🎧 never chase someone who's sitting in voice with the others: being there is the answer
   const sitting = yield* withOthers();
   const who = everyone.filter((p) => !sitting.includes(p));
@@ -414,7 +425,8 @@ const gameVotesLine = Effect.fnUntraced(function* (day: string) {
   const v = yield* votes(day, "game");
   const by = new Map<string, string[]>();
   for (const p of yield* theTrio) if (v[p]) by.set(v[p], [...(by.get(v[p]) ?? []), p]);
-  if (!by.size) return null;
+  // one game and nobody disputing it: nothing to show
+  if (by.size < 2) return null;
   const label = yield* (yield* Games).label;
   return [...by]
     .sort((a, b) => b[1].length - a[1].length)
@@ -706,7 +718,7 @@ export const actOn = Effect.fnUntraced(function* (day: string, user: string, act
         // 🎮 the game in question: the card shows the games, and the game step's rule settles it
         if (n.stage !== "ask" && n.stage !== "game") return say(n.game ? `The game's already picked: **${n.game}** 🎮` : "Game night's off 🫡", true);
         yield* putSetting(GAME_ROW(day), true);
-        return say("🎮 Pick the game on the card: most votes wins, as always.", true);
+        return say("🎮 Pick the game. Most votes wins.", true);
       }),
     ),
     Match.when("game", () =>
@@ -1098,10 +1110,9 @@ const hold = Effect.fnUntraced(function* (n: Night, unsure: ReadonlyArray<string
     .where(and(eq(gameNights.day, n.day), eq(gameNights.stage, "ask"), isNull(gameNights.paused_until), eq(gameNights.maybes, n.maybes)))
     .returning({ day: gameNights.day });
   if (!claimed.length) return;
-  // the sure ones hear why they're waiting; the unsure get their ping when it's up
-  const waiting = (yield* theTrio).filter((p) => !unsure.includes(p));
+  // one line, led by whoever isn't sure; nobody is pinged (the unsure get their ping when it's up)
   yield* later(
-    nudge(n.day, waiting, `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until ${stamp(w, until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
+    nudge(n.day, [], `🤔 ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet, so tonight is on hold until ${stamp(w, until)} (${ts(until, "R")}). Then I'll ask again ⬆️`),
   );
 });
 
@@ -1453,7 +1464,7 @@ const setAnyTime = Effect.fnUntraced(function* (day: string, user: string, on: b
 });
 
 /** The game the one-tap card assumes: the one our recent nights clearly were (null: no clear one). */
-const assumedGame = Effect.fnUntraced(function* () {
+export const assumedGame = Effect.fnUntraced(function* () {
   return yield* usualGame(yield* currentSec);
 });
 
@@ -1479,12 +1490,24 @@ const usualTimes = Effect.fnUntraced(function* (w: When, day: string) {
     const key = `${Math.floor(mins / 60)}:${mins % 60}`;
     count.set(key, (count.get(key) ?? 0) + 1);
   }
-  const hm = [...count].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k.split(":").map(Number) as [number, number]);
-  const fallback: Array<[number, number]> = [[19, 0], [20, 0], [20, 30], [21, 0]];
+  // always three: the most used (still ahead), then their half-hour neighbours, then the next
+  // half-hours from now (a card posted late); never past 23:30, never one that has passed
   const [y, m, d] = day.split("-").map(Number);
-  const at = (h: number, mi: number) => wallToUnixIn(w.zone, y, m, d, h, mi);
-  const list = (hm.length >= 2 ? hm : fallback).map(([h, mi]) => at(h, mi)).filter((t) => t > w.now + 60);
-  return [...new Set(list)].sort((a, b) => a - b);
+  const slot = (mins: number) => wallToUnixIn(w.zone, y, m, d, Math.floor(mins / 60), mins % 60);
+  const open = (mins: number) => mins >= 12 * 60 && mins <= 23 * 60 + 30 && slot(mins) > w.now + 60;
+  const ranked = [...count].sort((a, b) => b[1] - a[1]).map(([k]) => k.split(":").map(Number)).map(([h, mi]) => h * 60 + mi);
+  const picked: number[] = [];
+  const take = (mins: number) => {
+    if (picked.length < 3 && open(mins) && !picked.includes(mins)) picked.push(mins);
+  };
+  // no history yet: 20:30 and its neighbours (20:00, 21:00)
+  for (const t of ranked.length ? ranked : [20 * 60 + 30]) take(t);
+  const seeds = picked.length ? [...picked] : ranked.length ? ranked : [20 * 60 + 30];
+  for (let step = 30; picked.length < 3 && step <= 12 * 60; step += 30) for (const t of seeds) (take(t + step), take(t - step));
+  // all of the usual evening has passed: the next half-hours from now
+  const l = localAt(w.zone, w.now * 1000);
+  for (let t = Math.ceil((l.hour * 60 + l.minute + 1) / 30) * 30; picked.length < 3 && t <= 23 * 60 + 30; t += 30) take(t);
+  return picked.map(slot).sort((a, b) => a - b);
 });
 
 /** A one-tap answer is a yes, for the assumed game unless you picked another: record both. */
@@ -1496,7 +1519,7 @@ const commitYes = Effect.fnUntraced(function* (n: Night, user: string) {
   }
 });
 
-type Showed = { prev: { stage: Stage; game: string | null; start_at: number | null; note: string | null; stage_at: number | null }; showed: string[]; how: "card" | "playing" | "usual" };
+type Showed = { prev: { stage: Stage; game: string | null; start_at: number | null; note: string | null; stage_at: number | null }; showed: string[]; how: "card" | "playing" | "usual"; line?: string };
 
 const showedUp = Effect.fnUntraced(function* (where: Where, t: number) {
   const db = yield* Db;
@@ -1568,11 +1591,11 @@ const showedUp = Effect.fnUntraced(function* (where: Where, t: number) {
   yield* clearNudge(n);
   const fresh = yield* nightOf(day);
   const emoji = yield* (yield* Games).emojiFor(game);
-  const why = how === "playing" ? " (Discord says that's what you're in)" : how === "usual" ? " (your usual: wrong game? tap below)" : "";
+  const why = how === "playing" ? ", what Discord shows you in" : how === "usual" ? ", your usual" : "";
   const head =
     n.stage === "off"
-      ? `🎧 Called off? Apparently not: everyone showed up anyway, so ${emoji} **${game}** is on`
-      : `🎧 Everyone showed up, so ${emoji} **${game}** is on${why}`;
+      ? `🎧 Called off? Apparently not: everyone showed up anyway, so game night is on: ${emoji} **${game}**${why}.`
+      : `🎧 Everyone's here, so game night is on: ${emoji} **${game}**${why}.`;
   const others = how === "card" ? [] : (yield* spontaneous.recentGames(3)).filter((g) => g.toLowerCase() !== game!.toLowerCase()).slice(0, 2);
   const components = [
     {
@@ -1616,7 +1639,8 @@ const calledIn = Effect.fnUntraced(function* (n: Night, where: Where, ask: Votes
   const what = game ? ` for ${yield* (yield* Games).emojiFor(game)} **${game}**` : "";
   const button = (label: string, e: string, action: string, style = 2) => ({ type: 2, style, label, custom_id: `gn:${n.day}:${action}`, emoji: { name: e } });
   yield* (yield* Discord).createMessage(config.gameChannelId, {
-    content: `🎧 ${mention(third)} ${names(two)} are already in <#${channel}>${what}. Coming?`,
+    // the one who's missing is pinged; the two already there are named, not pinged
+    content: `🎧 ${mention(third)}, ${two.map(spokenName).join(" and ")} are already in <#${channel}>${what}. Coming?`,
     allowed_mentions: yield* allowedMentions([third]),
     components: [{ type: 1, components: [button("On my way", "🏃", "coming:0", 1), button("In 15 min", "⏰", "coming:15"), button("Not tonight", "😴", "nottonight")] }],
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
@@ -1668,6 +1692,13 @@ const hangOut = Effect.fnUntraced(function* (day: string) {
       .set({ stage: record.prev.stage, game: record.prev.game, start_at: record.prev.start_at, note: record.prev.note, stage_at: record.prev.stage_at, reminded: false })
       .where(eq(gameNights.day, day));
     yield* db.delete(settings).where(eq(settings.key, SHOWED(day)));
+    // the "everyone's here, so it's on" line isn't true any more: it says what is
+    if (record.line) {
+      const config = yield* AppConfig;
+      yield* (yield* Discord)
+        .editMessage(config.gameChannelId, record.line, { content: "🛋️ Just hanging out. The card is open again.", components: [] })
+        .pipe(Effect.catch((e) => Effect.logInfo(`hangout line edit ${errorText(e)}`)));
+    }
   }
   const ps = yield* theTrio;
   const rooms = (yield* voice.openRooms).filter((r) => r.day === day);
@@ -1927,7 +1958,10 @@ const startReminder = Effect.fnUntraced(function* (n: Night, at?: number, was?: 
   const pinged = ps.filter((p) => !there.includes(p));
   if (line) {
     // 🎧 they showed up: one silent line, pinging nobody, with the undo
-    yield* discord.createMessage(config.gameChannelId, { content: `${line.head}${toRoom}`, flags: SILENT, allowed_mentions: { parse: [] }, components: line.components, message_reference: reference });
+    const m = yield* discord.createMessage(config.gameChannelId, { content: `${line.head}${toRoom}`, flags: SILENT, allowed_mentions: { parse: [] }, components: line.components, message_reference: reference });
+    // remembered, so "just hanging out" can take the line back
+    const record = (yield* getSetting(SHOWED(n.day))) as Showed | undefined;
+    if (record) yield* putSetting(SHOWED(n.day), { ...record, line: m.id });
     if (room && moved.length) yield* (yield* Spontaneous).note(room.channelId, `🎧 Everyone's here, so I brought you over.`, moved);
     if (room) yield* (yield* BotVoice).nightStarted(n.day, room.channelId, n.game!);
     return;
@@ -1998,8 +2032,10 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         const waiting = ps.filter((p) => !v[p] || (last && v[p] === "maybe"));
         const whom = waiting.length ? ` for ${waiting.map(mention).join(" ")}` : "";
         let status: string;
+        const all = ps.length === 3 ? "all three" : `all ${ps.length}`;
+        // secret: one small line with the deadline in it (the Maybe rule is told to whoever taps Maybe)
         if (hidden)
-          status = `🤫 Answers stay secret until everyone's answered · waiting on ${waiting.length} more · it's on when all ${ps.length} say yes · not sure yet? 🤔 Maybe puts it on hold for 2 h`;
+          status = `🤫 Secret until ${all} answer · ⏳ vote by ${ts(deadline, isToday ? "t" : "f")} (${ts(deadline, "R")}) or it's off and you get roasted 🔥`;
         else if (n.paused_until)
           status = `Sure already? Change your answer any time: all ✅ and we're on. ${n.maybes < HOLDS.length ? "Still unsure after this? One more 🤔 holds it 1 more hour, then it's yes or no." : "This is the last hold: after it, it's ✅ or ✖️."}`;
         else if (last) status = `⏰ Final call${whom}: it's ✅ or ✖️ now, no more maybes.`;
@@ -2007,7 +2043,6 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         // revealed with nobody unsure means everyone answered and someone can't (all yes would have moved on)
         else status = `😴 Not ${isToday ? "tonight" : "that day"}… unless someone changes their mind (answers can change until the end of ${isToday ? "today" : weekdayOf(day)}).`;
         const mark = (p: string) => (!v[p] ? "⏳" : hidden ? "🗳️" : ANSWER[v[p]]);
-        const question = isToday ? "Are we playing today?" : `📅 Are we playing on ${weekdayOf(day)}?`;
         const broke = yield* (yield* Streaks).breaksOn(day);
         // ⚡ one tap: a time (or ⚡ Now, or ✅ any time) is a yes, for the game shown, free from then
         const assumed = yield* assumedGame();
@@ -2022,28 +2057,38 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         const mineAsk = me ? v[me] : undefined;
         const style = (on: boolean, base: number) => (me ? (on ? 3 : 2) : base);
         const gameLine = assumed
-          ? `${yield* games.emojiFor(assumed)} **${assumed}**, as usual · tap when you can start: that's your yes${showGames ? " · or pick another game below" : ""}`
-          : "🎮 Pick a game below, and tap when you can start";
+          ? `${yield* games.emojiFor(assumed)} **${assumed}**, as usual. Tap when you can start.${showGames ? " Or pick another game below." : ""}`
+          : "🎮 Pick a game below, and tap when you can start.";
         const gameList = showGames ? (yield* games.list()).slice(0, 5) : [];
+        // revealed: what each person picked ("✅ @a 21:00 · ✅ @b any time · 🤔 @c")
+        const picked = (p: string) =>
+          v[p] !== "yes" ? "" : tv[p] ? ` ${Number(tv[p]) <= w.now ? "now" : timeLabel(w, Number(tv[p]), day)}` : any.includes(p) ? " any time" : "";
+        const people = hidden ? ps.map((p) => `${mark(p)} ${mention(p)}`).join("　") : ps.map((p) => `${mark(p)} ${mention(p)}${picked(p)}`).join(" · ");
+        // a time you typed isn't one of the buttons: ⌨️ shows it, lit
+        const typed = mineTime !== undefined && Number(mineTime) > w.now && !times.slice(0, 3).some((t) => String(t) === mineTime) ? Number(mineTime) : null;
         return [
-          text(`## 🎮 Game night? · ${date}\n### ${last ? `⏰ Final call! ${question}` : question}\n${gameLine}`),
-          text(ps.map((p) => `${mark(p)} ${mention(p)}`).join("　")),
+          text(`## ${last ? "⏰ Final call! Game night?" : "🎮 Game night?"} · ${date}\n${gameLine}`),
+          text(people),
           ...(broke.length ? [text(broke.map((l) => `-# 🏅 ${l}`).join("\n"))] : []),
           ...(n.paused_until
             ? [text(`⏸️ **On hold** until ${stamp(w, n.paused_until)} (${ts(n.paused_until, "R")}): ${unsure.map(mention).join(" & ")} ${unsure.length > 1 ? "aren't" : "isn't"} sure yet. Then I'll ask again.`)]
             : []),
-          text(`-# ${status}${starter}${hidden || (n.maybes && !n.paused_until) ? `\n${closes}` : ""}`),
+          text(`-# ${status}${starter}${!hidden && n.maybes && !n.paused_until ? `\n${closes}` : ""}`),
           ...(gameList.length ? [row(...gameList.map((g) => button(me && gv[me] === g.name ? 3 : 2, g.emoji ?? "🎮", g.name, id(`game:${g.name}`))))] : []),
           row(
             ...(isToday ? [button(style(mineTime !== undefined && Number(mineTime) <= w.now, 1), "⚡", "Now", id("pick:now"))] : []),
-            ...times.slice(0, isToday ? 4 : 5).map((t) => button(style(mineTime === String(t), 2), null, timeLabel(w, t, day), id(`pick:${t}`))),
+            ...times.slice(0, 3).map((t) => button(style(mineTime === String(t), 2), null, timeLabel(w, t, day), id(`pick:${t}`))),
           ),
+          // your own answer, lit: green for a yes, blurple for maybe, red for no
           row(
             button(style(mineAny, 3), "✅", "Yes, any time", id("pick:any")),
-            ...(last ? [] : [button(style(mineAsk === "maybe", 2), "🤔", "Maybe", id("maybe"))]),
-            button(style(mineAsk === "no", 2), "❌", isToday ? "No" : "Can't", id("no")),
+            ...(last ? [] : [button(me && mineAsk === "maybe" ? 1 : 2, "🤔", "Maybe", id("maybe"))]),
+            button(me && mineAsk === "no" ? 4 : 2, "❌", isToday ? "No" : "Can't", id("no")),
           ),
-          row(...(showGames ? [] : [button(2, "🎮", "Different game", id("diffgame"))]), button(2, "⌨️", "Other time", id("custom"))),
+          row(
+            ...(showGames ? [] : [button(2, "🎮", "Different game", id("diffgame"))]),
+            button(typed !== null ? 3 : 2, "⌨️", typed !== null ? `Other time: ${timeLabel(w, typed, day)}` : "Other time", id("custom")),
+          ),
         ];
       }),
     ),
@@ -2160,15 +2205,25 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         // 🗄️ the night is over: a finished record of what happened (no buttons, no picks, no slowpokes)
         if (yield* nightOver(n, w.now)) {
           const db = yield* Db;
-          const played = (yield* db.select().from(nightAttendance).where(and(eq(nightAttendance.day, day), eq(nightAttendance.state, "arrived"))))
-            .sort((a, b) => (a.arrived_at ?? 0) - (b.arrived_at ?? 0))
-            .map((a) => a.user_id);
-          const ended = (yield* db.select({ at: rooms.archived_at }).from(rooms).where(eq(rooms.day, day))).map((r) => r.at ?? 0).filter(Boolean);
-          const end = ended.length ? Math.max(...ended) : null;
-          const length = end && end > n.start_at! ? ` · ended ${timeLabel(w, end, day)} (${Math.round((end - n.start_at!) / 60)} min)` : "";
+          // who was actually in the night's room, and when the last of them left (not when the
+          // room was archived, a while later); no voice data: nothing said about either
+          const roomIds = (yield* db.select({ id: rooms.channel_id }).from(rooms).where(eq(rooms.day, day))).map((r) => r.id);
+          const segs = roomIds.length
+            ? yield* db
+                .select()
+                .from(voiceSegments)
+                .where(and(inArray(voiceSegments.channel_id, roomIds), inArray(voiceSegments.user_id, [...ps]), gte(voiceSegments.last_seen, n.start_at! - 3600)))
+            : [];
+          const first = new Map<string, number>();
+          for (const s of segs) first.set(s.user_id, Math.min(first.get(s.user_id) ?? Infinity, s.started_at));
+          const played = [...first].sort((a, b) => a[1] - b[1]).map(([u]) => u);
+          const end = segs.length && segs.every((s) => !s.open) ? Math.max(...segs.map((s) => s.ended_at ?? s.last_seen + 60)) : null;
+          const mins = end ? Math.round((end - n.start_at!) / 60) : 0;
+          const span = mins >= 60 ? `${Math.floor(mins / 60)} h${mins % 60 ? ` ${mins % 60} min` : ""}` : `${mins} min`;
+          const length = end && end > n.start_at! ? ` · ended **${timeLabel(w, end, day)}** (${span})` : "";
           return [
             text(`## ✅ Game night · ${date}`),
-            text(`### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 Started **${timeLabel(w, n.start_at!, day)}**${length}\n👥 ${played.length ? played.map(mention).join(" ") : ps.map(mention).join(" ")}`),
+            text(`### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 Started **${timeLabel(w, n.start_at!, day)}**${length}${played.length ? `\n👥 ${played.map(mention).join(" ")}` : ""}`),
           ];
         }
         // different times aren't a tie: we start when the last person is free. Credit them.
@@ -2180,10 +2235,18 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         // the card says what happened, not what was picked
         const record = (yield* getSetting(SHOWED(day))) as Showed | undefined;
         const early = picks.length > 0 && n.reminded && latest > n.start_at! + 60;
+        const readied = early
+          ? (yield* (yield* Db).select({ user_id: gameNightVotes.user_id }).from(gameNightVotes).where(and(eq(gameNightVotes.day, day), eq(gameNightVotes.stage, "ready")))).map((r) => r.user_id)
+          : [];
+        // ⚡ an early start says how it happened: all three tapped Ready, or all three were here
+        const allReady = early && ps.every((p) => readied.includes(p));
         const flavour = record?.showed.length
           ? `
 -# 🎧 Showed up: ${record.showed.map(mention).join(" ")}. Being there counts as a yes.`
-          : early
+          : allReady
+            ? `
+-# ⚡ Everyone tapped Ready, so it started at ${timeLabel(w, n.start_at!, day)} (was ${timeLabel(w, latest, day)}).`
+            : early
             ? `
 -# 🕐 The picks said ${timeLabel(w, latest, day)}, but everyone was already here, so it started at ${timeLabel(w, n.start_at!, day)}.`
             : // (by the minute: three ⚡ Now taps seconds apart have no slowpoke)
@@ -2206,6 +2269,19 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
               .join(" · ")}${planned !== n.start_at ? ` · start moved from ${timeLabel(w, planned, day)}` : ""}`
           : "";
         const history = n.start_at! < w.now - 3 * 3600;
+        // started: who's in (no earlier picks), the time as now, and no "running late?" for people already in the room
+        const started = n.reminded && n.start_at! <= w.now + 60;
+        const askVotes = yield* votes(day, "ask");
+        const inTonight = ps.filter((p) => askVotes[p] !== "no");
+        const arrived = started
+          ? (yield* (yield* Db)
+              .select({ user_id: nightAttendance.user_id })
+              .from(nightAttendance)
+              .where(and(eq(nightAttendance.day, day), eq(nightAttendance.state, "arrived")))).map((a) => a.user_id)
+          : [];
+        const allHere = started && inTonight.every((p) => arrived.includes(p));
+        const when_ = started ? `🟢 On now · started **${timeLabel(w, n.start_at!, day)}**` : `🕐 **${timeLabel(w, n.start_at!, day)}** · ${ts(n.start_at!, "R")}`;
+        const who = started ? inTonight.map(mention).join(" ") : (timeVotes ?? ps.map(mention).join(" "));
         // ⚡ tonight, before the start: all three ready and it starts now
         const canReady = !n.reminded && n.start_at! > w.now && day === today(w);
         const ready = canReady ? yield* readyNow(day) : [];
@@ -2213,10 +2289,10 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
         return [
           text(`## 🎉 Game night is ON · ${date}`),
           text(
-            `### ${yield* games.emojiFor(n.game!)} ${n.game}\n🕐 **${timeLabel(w, n.start_at!, day)}** · ${ts(n.start_at!, "R")}${endLine}${lateLine}${readyLine}\n👥 ${timeVotes ?? ps.map(mention).join(" ")}${flavour}`,
+            `### ${yield* games.emojiFor(n.game!)} ${n.game}\n${when_}${endLine}${lateLine}${readyLine}\n👥 ${who}${flavour}`,
           ),
           ...(gameVotes ? [text(`-# 🗳️ ${gameVotes}`)] : []),
-          ...(history
+          ...(history || allHere
             ? []
             : [
                 text(n.reminded ? "-# ⏰ Running late? Tap your ETA:" : "-# ⏰ Running late? Tap how late: we wait for you, so the start moves for everyone (tap again to undo)"),
@@ -2257,7 +2333,7 @@ export const renderCard = Effect.fnUntraced(function* (day: string, viewer?: str
     type Row = { type: number; components: { custom_id: string; label: string }[] };
     const controls = (body as Row[]).filter((c) => c.type === 1);
     // (the one-tap card colours your own answer itself)
-    body = [...(notice ? [text(notice)] : []), text(yield* yourVote(n, me)), ...controls, text("-# 🔒 Only you can see this. Tap here to change your answer; the card shows everyone's progress.")];
+    body = [...(notice ? [text(notice)] : []), text(yield* yourVote(n, me)), ...controls, text("-# Tap to change your answer.")];
   }
   return {
     flags: IS_COMPONENTS_V2 | (me ? EPHEMERAL : 0),
@@ -2280,8 +2356,19 @@ const yourVote = Effect.fnUntraced(function* (n: Night, me: string) {
         const later = n.paused_until
           ? `I'll ask you again at ${stamp(w, n.paused_until)}.`
           : `Once everyone's answered (and nobody said no), it goes on hold for ${HOLDS[Math.min(n.maybes, HOLDS.length - 1)] / 3600} h and I'll ask you again.`;
+        // say exactly what you answered: the time (or any time) and the game
+        const t = (yield* votes(n.day, "time"))[me];
+        const any = (yield* anyTime(n.day)).includes(me);
+        const g = (yield* votes(n.day, "game"))[me] ?? (yield* assumedGame());
+        const game = g ? ` · ${yield* games.emojiFor(g)} ${g}` : "";
         const line =
-          v === "yes"
+          v === "yes" && t
+            ? Number(t) <= w.now
+              ? `✅ You're in, **now**${game}`
+              : `✅ You're in from **${timeLabel(w, Number(t), n.day)}**${game}`
+            : v === "yes" && any
+              ? `✅ You're in, **any time**${game}`
+              : v === "yes"
             ? `✅ You're **in** ${tonight}.`
             : v === "no"
               ? `✖️ You said **${isToday ? "not today" : "you can't"}**.`

@@ -14,11 +14,11 @@ import { AppConfig, readConfig, type AppConfigShape } from "../src/config.js";
 import { AppStatus, ROUTER_CONFIG, routesOn } from "../src/app.js";
 import { Db } from "../src/db/db.js";
 import type { AppServices } from "../src/runtime.js";
-import { activityGuesses, fleeting, gameAliases, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
+import { activityGuesses, fleeting, gameAliases, gameNightVotes, gameNights, games, lobbyPrompts, readyRooms, rooms, sessions, settings, voiceSegments } from "../src/db/schema.js";
 import { harness, json, routes } from "./fx.js";
 
 const h = harness({
-  tables: [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, games, gameAliases, readyRooms, activityGuesses, settings],
+  tables: [lobbyPrompts, sessions, fleeting, voiceSegments, rooms, gameNights, gameNightVotes, games, gameAliases, readyRooms, activityGuesses, settings],
   seed: (t) =>
     t.db.insert(games).values([
       { name: "World of Warcraft", emoji: "🐉", added_at: "x", plays: 3 },
@@ -250,6 +250,42 @@ it.effect("a planned night owns the Lobby: none while one starts within 15 min o
     yield* at(t0 + 180);
     expect(posted("gn")).toEqual([]);
     expect((yield* db.select().from(rooms)).map((r) => r.game)).toEqual(["R.E.P.O."]);
+  }).pipe(h.provide),
+);
+
+it.effect("an ask-stage card nobody voted a game on still names the usual game: no question, and nobody is moved (20 Nov)", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const t0 = yield* now;
+    // WoW on both recent nights: the card assumes it
+    yield* db.insert(gameNights).values([
+      { day: "2026-11-05", stage: "set", game: "World of Warcraft", start_at: t0 - 5 * 86400, reminded: true },
+      { day: "2026-11-07", stage: "set", game: "World of Warcraft", start_at: t0 - 3 * 86400, reminded: true },
+      { day: DAY, stage: "ask" },
+    ]);
+    yield* at(t0, { a: "lobby", b: "lobby" });
+    yield* at(t0 + 30);
+    expect(posted("gn")).toEqual([]);
+    expect((yield* db.select().from(rooms)).map((r) => r.game)).toEqual([]);
+  }).pipe(h.provide),
+);
+
+it.effect("someone voted a different game than the usual one, tied with another: the question still comes", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const t0 = yield* now;
+    yield* db.insert(gameNights).values([
+      { day: "2026-11-05", stage: "set", game: "World of Warcraft", start_at: t0 - 5 * 86400, reminded: true },
+      { day: "2026-11-07", stage: "set", game: "World of Warcraft", start_at: t0 - 3 * 86400, reminded: true },
+      { day: DAY, stage: "game" },
+    ]);
+    yield* db.insert(gameNightVotes).values([
+      { day: DAY, stage: "game", user_id: "a", choice: "R.E.P.O.", voted_at: "1" },
+      { day: DAY, stage: "game", user_id: "b", choice: "World of Warcraft", voted_at: "2" },
+    ]);
+    yield* at(t0, { a: "lobby", b: "lobby" });
+    yield* at(t0 + 30);
+    expect(JSON.stringify(posted("gn")[0]?.body)).toContain("move everyone in the Lobby there");
   }).pipe(h.provide),
 );
 

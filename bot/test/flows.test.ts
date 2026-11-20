@@ -110,13 +110,13 @@ it.effect("the whole night: secret answers → game → time → locked in → s
     const db = yield* Db;
     yield* startNight("a"); // /playtoday: a is in
     let card = text(yield* render(DAY));
-    expect(card).toContain("🤫 Answers stay secret");
+    expect(card).toContain("🤫 Secret until all three answer");
     yield* act("b", "yes");
     // b's private panel: their answer, and one button to switch; only b sees it
     const mine = (yield* render(DAY, "b")) as any;
     expect(mine.flags & 64).toBe(64);
     expect(text(mine)).toContain("You're **in**");
-    expect(text(mine)).not.toContain("Are we playing"); // not a second copy of the card
+    expect(text(mine)).not.toContain("Game night?"); // not a second copy of the card
     // the one-tap card's answers, b's own coloured (20 Nov)
     const buttons = mine.components[0].components.filter((c: any) => c.type === 1).flatMap((r: any) => r.components);
     expect(buttons.filter((b: any) => ["Yes, any time", "Maybe", "No"].includes(b.label)).map((b: any) => b.label)).toEqual(["Yes, any time", "Maybe", "No"]);
@@ -306,7 +306,7 @@ it.effect("a no stays secret until everyone's answered, then the night's off and
     yield* startNight("a");
     yield* act("b", "no");
     expect((yield* night())!.stage).toBe("ask"); // a no alone doesn't end it
-    expect(text(yield* render(DAY))).toContain("🤫 Answers stay secret");
+    expect(text(yield* render(DAY))).toContain("🤫 Secret until all three answer");
     expect(text(yield* render(DAY))).toContain("Vote by");
     yield* act("c", "yes");
     const n = (yield* night())!;
@@ -351,7 +351,7 @@ it.effect("🤔 a maybe holds it for 2 h once everyone's answered, then the unsu
     yield* startNight("a"); // 17:00
     yield* act("c", "maybe");
     expect((yield* night())!).toMatchObject({ stage: "ask", maybes: 0, paused_until: null }); // the others haven't answered
-    expect(text(yield* render(DAY))).toContain("🤫 Answers stay secret");
+    expect(text(yield* render(DAY))).toContain("🤫 Secret until all three answer");
     expect(text(yield* render(DAY, "c"))).toContain("You said **maybe**");
     yield* act("b", "yes");
     let n = (yield* night())!;
@@ -401,7 +401,7 @@ it.effect("🤔 a second maybe holds it 1 h more; then it's yes or no, and no an
     yield* maintain;
     expect(posts().some((p) => p.body.content?.startsWith("<@c> ⏰ Final call"))).toBe(true);
     const card = yield* render(DAY);
-    expect(text(card)).toContain("⏰ Final call! Are we playing today?");
+    expect(text(card)).toContain("⏰ Final call! Game night?");
     expect(maybeButton(card)).toBe(false);
     expect(maybeButton(yield* render(DAY, "c"))).toBe(false);
     const r = yield* act("c", "maybe"); // an old panel

@@ -108,14 +108,13 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
         expect(text(card)).not.toContain("Vote by");
         expect(askRow(card)).toEqual(["Yes, any time", "Maybe", "No"]);
         const told = fresh.filter((m) => m.content?.includes("sure yet"));
-        const sure = P.filter((p) => !out.unsure.includes(p));
-        if (held) expect(told).toEqual([]); // still the same hold: nobody's pinged again
-        else if (!sure.length) expect(told).toEqual([]); // nobody's waiting on anyone
+        if (held) expect(told).toEqual([]); // still the same hold: nobody's told again
         else {
+          // one line, led by whoever isn't sure; it pings nobody (20 Nov)
           expect(told.length).toBe(1);
-          expect(told[0].allowed_mentions.users).toEqual(sure);
+          expect(told[0].allowed_mentions).toEqual({ parse: [] });
           expect(told[0].content).toBe(
-            `${mention(sure)} 🤔 ${out.unsure.map((p) => `<@${p}>`).join(" & ")} ${out.unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until <t:${until}:t> (<t:${until}:R>). Then I'll ask again ⬆️`,
+            `🤔 ${out.unsure.map((p) => `<@${p}>`).join(" & ")} ${out.unsure.length > 1 ? "aren't" : "isn't"} sure yet, so tonight is on hold until <t:${until}:t> (<t:${until}:R>). Then I'll ask again ⬆️`,
           );
         }
         for (const p of P) expect(askRow(yield* render(p))).toEqual(["Yes, any time", "Maybe", "No"]); // your copy: the same answers, yours coloured
@@ -127,9 +126,9 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
         const card = yield* render();
         const hidden = round === 1;
         for (const p of P) expect(text(card)).toContain(`${!v[p] ? "⏳" : hidden ? "🗳️" : { yes: "✅", maybe: "🤔", no: "❌" }[v[p]!]} <@${p}>`);
-        expect(text(card)).toContain(`Vote by <t:${opened + WINDOW[round]}:t>`);
+        expect(text(card).toLowerCase()).toContain(`vote by <t:${opened + WINDOW[round]}:t>`);
         expect(askRow(card)).toEqual(round === 3 ? ["Yes, any time", "No"] : ["Yes, any time", "Maybe", "No"]);
-        if (round === 3) expect(text(card)).toContain("⏰ Final call! Are we playing today?");
+        if (round === 3) expect(text(card)).toContain("⏰ Final call! Game night?");
         for (const p of P) expect(askRow(yield* render(p))).toEqual(round === 3 ? ["Yes, any time", "No"] : ["Yes, any time", "Maybe", "No"]); // your copy: the same answers, yours coloured
         expect(roasts).toEqual([]);
         return;
@@ -304,7 +303,7 @@ it.effect("reopening after a final-call no starts over: round 1, secret, maybes 
     const n = yield* night();
     expect([n.stage, n.maybes, n.paused_until]).toEqual(["ask", 0, null]);
     const card = yield* render();
-    expect(text(card)).toContain("🤫 Answers stay secret");
+    expect(text(card)).toContain("🤫 Secret until all three answer");
     expect(askRow(card)).toEqual(["Yes, any time", "Maybe", "No"]);
   }).pipe(h.provide),
 );
