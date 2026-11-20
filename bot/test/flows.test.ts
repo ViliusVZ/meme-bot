@@ -117,11 +117,9 @@ it.effect("the whole night: secret answers → game → time → locked in → s
     expect(mine.flags & 64).toBe(64);
     expect(text(mine)).toContain("You're **in**");
     expect(text(mine)).not.toContain("Are we playing"); // not a second copy of the card
-    const buttons = mine.components[0].components.find((c: any) => c.type === 1).components;
-    expect(buttons.map((b: any) => [b.label, b.style])).toEqual([
-      ["Change to Maybe", 1],
-      ["Change to Not today", 4],
-    ]);
+    // the one-tap card's answers, b's own coloured (20 Nov)
+    const buttons = mine.components[0].components.filter((c: any) => c.type === 1).flatMap((r: any) => r.components);
+    expect(buttons.filter((b: any) => ["Yes, any time", "Maybe", "No"].includes(b.label)).map((b: any) => b.label)).toEqual(["Yes, any time", "Maybe", "No"]);
     expect(((yield* render(DAY)) as any).flags & 64).toBe(0); // the public card isn't
     yield* act("c", "yes");
     expect((yield* night())!.stage).toBe("game");

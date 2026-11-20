@@ -22,7 +22,6 @@ const T = (hm: string) => Date.parse(`${DAY}T${hm}:00+02:00`) / 1000; // Vilnius
 const OPENS = [0, T("17:00"), T("19:00"), T("20:00")]; // when each round opens on the paths below
 const WINDOW = [0, 3 * 3600, 3600, 3600];
 const HOLD = [0, 2 * 3600, 3600];
-const LABEL = { yes: "I'm in", maybe: "Maybe", no: "Not today" } as const;
 
 const h = harness({
   tables: [gameNightVotes, nightAttendance, gameNights, chases, roastBags, settings],
@@ -57,6 +56,8 @@ const posts = () => calls.filter((c) => c.method === "POST" && c.path.endsWith("
 const text = (m: unknown) => JSON.stringify(m);
 const labels = (m: any): string[] =>
   m.components[0].components.filter((c: any) => c.type === 1).flatMap((r: any) => r.components.filter((b: any) => b.type === 2).map((b: any) => b.label));
+/** The one-tap card's answer row (19→20 Nov: the card answers in one tap; these are the yes/maybe/no). */
+const askRow = (m: any): string[] => labels(m).filter((l) => ["Yes, any time", "Maybe", "No"].includes(l));
 const mention = (ps: string[]) => ps.map((p) => `<@${p}>`).join(" ");
 const subsets = [1, 2, 3, 4, 5, 6, 7].map((m) => P.filter((_, i) => m & (1 << i))); // every non-empty group of players
 const combos = (n: number, opts: Answer[]): Answer[][] => (n === 0 ? [[]] : combos(n - 1, opts).flatMap((c) => opts.map((o) => [...c, o])));
@@ -77,10 +78,6 @@ function decide(v: Votes, round: number): Outcome {
 /** At a deadline: no answer = ghost, a no gets roasted too, a maybe doesn't. */
 const atDeadline = (v: Votes) => Object.fromEntries(P.flatMap((p) => (!v[p] ? [[p, "ghost"]] : v[p] === "no" ? [[p, "no"]] : [])));
 
-function panel(mine: Answer, final: boolean) {
-  const opts = (["yes", "maybe", "no"] as const).filter((o) => !(final && o === "maybe"));
-  return mine ? opts.filter((o) => o !== mine).map((o) => `Change to ${LABEL[o]}`) : opts.map((o) => LABEL[o]);
-}
 
 // ---------------------------------------------------------------- checks
 
@@ -109,7 +106,7 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
         for (const p of P) expect(text(card)).toContain(`${v[p] === "yes" ? "✅" : "🤔"} <@${p}>`);
         expect(text(card)).toContain("**On hold**");
         expect(text(card)).not.toContain("Vote by");
-        expect(labels(card)).toEqual(["I'm in", "Maybe", "Not today"]);
+        expect(askRow(card)).toEqual(["Yes, any time", "Maybe", "No"]);
         const told = fresh.filter((m) => m.content?.includes("sure yet"));
         const sure = P.filter((p) => !out.unsure.includes(p));
         if (held) expect(told).toEqual([]); // still the same hold: nobody's pinged again
@@ -121,7 +118,7 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
             `${mention(sure)} 🤔 ${out.unsure.map((p) => `<@${p}>`).join(" & ")} ${out.unsure.length > 1 ? "aren't" : "isn't"} sure yet, so it's on hold until <t:${until}:t> (<t:${until}:R>). Then I'll ask again ⬆️`,
           );
         }
-        for (const p of P) expect(labels(yield* render(p))).toEqual(panel(v[p], false));
+        for (const p of P) expect(askRow(yield* render(p))).toEqual(["Yes, any time", "Maybe", "No"]); // your copy: the same answers, yours coloured
         expect(roasts).toEqual([]);
         return;
       }
@@ -131,9 +128,9 @@ function check(v: Votes, round: number, opened: number, before: number, held?: n
         const hidden = round === 1;
         for (const p of P) expect(text(card)).toContain(`${!v[p] ? "⏳" : hidden ? "🗳️" : { yes: "✅", maybe: "🤔", no: "❌" }[v[p]!]} <@${p}>`);
         expect(text(card)).toContain(`Vote by <t:${opened + WINDOW[round]}:t>`);
-        expect(labels(card)).toEqual(round === 3 ? ["I'm in", "Not today"] : ["I'm in", "Maybe", "Not today"]);
+        expect(askRow(card)).toEqual(round === 3 ? ["Yes, any time", "No"] : ["Yes, any time", "Maybe", "No"]);
         if (round === 3) expect(text(card)).toContain("⏰ Final call! Are we playing today?");
-        for (const p of P) expect(labels(yield* render(p))).toEqual(panel(v[p], round === 3));
+        for (const p of P) expect(askRow(yield* render(p))).toEqual(round === 3 ? ["Yes, any time", "No"] : ["Yes, any time", "Maybe", "No"]); // your copy: the same answers, yours coloured
         expect(roasts).toEqual([]);
         return;
       }
@@ -308,7 +305,7 @@ it.effect("reopening after a final-call no starts over: round 1, secret, maybes 
     expect([n.stage, n.maybes, n.paused_until]).toEqual(["ask", 0, null]);
     const card = yield* render();
     expect(text(card)).toContain("🤫 Answers stay secret");
-    expect(labels(card)).toEqual(["I'm in", "Maybe", "Not today"]);
+    expect(askRow(card)).toEqual(["Yes, any time", "Maybe", "No"]);
   }).pipe(h.provide),
 );
 
@@ -361,16 +358,16 @@ it.effect("taps: Maybe on the card opens your panel, on your panel updates it, a
     const fromCard = yield* tap("a", "maybe", false);
     expect([fromCard.type, fromCard.data.flags & 64]).toEqual([4, 64]); // a new message only a sees
     expect(text(fromCard.data)).toContain("You said **maybe**");
-    expect(labels(fromCard.data)).toEqual(["Change to I'm in", "Change to Not today"]);
+    expect(askRow(fromCard.data)).toEqual(["Yes, any time", "Maybe", "No"]);
     const fromPanel = yield* tap("a", "yes", true);
     expect(fromPanel.type).toBe(7); // edits a's panel in place
-    expect(labels(fromPanel.data)).toEqual(["Change to Maybe", "Change to Not today"]);
+    expect(askRow(fromPanel.data)).toEqual(["Yes, any time", "Maybe", "No"]);
     // to the final call, then a's old panel still has a Maybe button
     yield* db.update(gameNights).set({ maybes: 2 });
     const stale = yield* tap("a", "maybe", true);
     expect(stale.type).toBe(7);
     expect(text(stale.data)).toContain("No more maybes: this is the final call.");
-    expect(labels(stale.data)).toEqual(["Change to Not today"]);
+    expect(askRow(stale.data)).toEqual(["Yes, any time", "No"]);
   }).pipe(h.provide),
 );
 
@@ -388,16 +385,16 @@ it.effect("taps: Maybe on the card opens your panel, on your panel updates it, a
     const fromCard = yield* tap("a", "maybe", false);
     expect([fromCard.type, fromCard.data.flags & 64]).toEqual([4, 64]); // a new message only a sees
     expect(text(fromCard.data)).toContain("You said **maybe**");
-    expect(labels(fromCard.data)).toEqual(["Change to I'm in", "Change to Not today"]);
+    expect(askRow(fromCard.data)).toEqual(["Yes, any time", "Maybe", "No"]);
     const fromPanel = yield* tap("a", "yes", true);
     expect(fromPanel.type).toBe(7); // edits a's panel in place
-    expect(labels(fromPanel.data)).toEqual(["Change to Maybe", "Change to Not today"]);
+    expect(askRow(fromPanel.data)).toEqual(["Yes, any time", "Maybe", "No"]);
     // to the final call, then a's old panel still has a Maybe button
     yield* db.update(gameNights).set({ maybes: 2 });
     const stale = yield* tap("a", "maybe", true);
     expect(stale.type).toBe(7);
     expect(text(stale.data)).toContain("No more maybes: this is the final call.");
-    expect(labels(stale.data)).toEqual(["Change to Not today"]);
+    expect(askRow(stale.data)).toEqual(["Yes, any time", "No"]);
   }).pipe(h.provide),
 );
 
