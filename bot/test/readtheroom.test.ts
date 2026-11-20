@@ -74,3 +74,25 @@ it.effect("the time step sends no reminder; after 15 min with one pick it closes
     expect(gn().filter((m) => JSON.stringify(m.body).includes("still waiting") || JSON.stringify(m.body).includes("Last call"))).toEqual([]);
   }).pipe(h.provide),
 );
+
+it.effect("⚡ one tap each: a time, Now and any time lock the night in the usual game, with no game or time question", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* TestClock.setTime(at("17:00:00") * 1000);
+    // three World of Warcraft nights lately: it's the usual game
+    for (const [d, s] of [["2026-11-05", "20:30"], ["2026-11-08", "20:30"], ["2026-11-10", "21:00"]] as const)
+      yield* db.insert(gameNights).values({ day: d, stage: "set", game: "World of Warcraft", start_at: Date.parse(`${d}T${s}:00+02:00`) / 1000, reminded: true });
+    yield* db.insert(gameNights).values({ day: DAY, stage: "ask", message_id: "card", stage_at: at("17:00:00") });
+    yield* Presence.use((p) => p.snapshot([]));
+    const tap = (u: string, a: string, v?: string) => GameNight.use((g) => g.act(DAY, u, a, v, (x) => Effect.ignore(x)));
+    yield* tap("a", "pick", String(at("20:30:00")));
+    yield* tap("b", "pick", "any");
+    yield* TestClock.setTime(at("18:00:00") * 1000);
+    yield* tap("c", "pick", String(at("21:00:00")));
+    const [n] = yield* db.select().from(gameNights).where(eq(gameNights.day, DAY));
+    expect([n!.stage, n!.game, n!.start_at]).toEqual(["set", "World of Warcraft", at("21:00:00")]);
+    const said = gn().map((m) => JSON.stringify(m.body));
+    expect(said.filter((t) => t.includes("What are we playing") || t.includes("When can you start"))).toEqual([]);
+    expect(said.some((t) => t.includes("it's on"))).toBe(true);
+  }).pipe(h.provide),
+);

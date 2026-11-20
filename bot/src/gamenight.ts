@@ -488,7 +488,11 @@ export const openNight = Effect.fnUntraced(function* (by?: string, anyHour = fal
       }
       // whoever starts or plans the night is in (also when retrying a claim whose post failed). Only the
       // one who claimed it: someone tapping at the same moment is pointed at the card like anyone later
-      if (by && n.started_by === by && n.stage === "ask" && !n.message_id) yield* vote(day, "ask", by, "yes");
+      if (by && n.started_by === by && n.stage === "ask" && !n.message_id) {
+        // whoever starts it is in: any time, for the usual game (the one-tap card's ✅ Yes, any time)
+        yield* commitYes(n, by);
+        yield* setAnyTime(day, by, true);
+      }
       // already posted, or someone else's card: just point at it
       if (n.message_id || n.stage !== "ask") return { started: false, day, message_id: n.message_id, stage: n.stage };
       // otherwise the day is claimed but not posted yet (fresh claim, or an earlier post failed): post it
@@ -1467,7 +1471,7 @@ const usualTimes = Effect.fnUntraced(function* (w: When, day: string) {
   for (const r of rows) {
     const t = r.planned ?? r.start;
     if (!t) continue;
-    const l = localAt(w.zone, t);
+    const l = localAt(w.zone, t * 1000);
     // to the half hour, as people say it
     const mins = Math.round((l.hour * 60 + l.minute) / 30) * 30;
     if (mins < 12 * 60) continue; // an after-midnight start isn't a time to offer
