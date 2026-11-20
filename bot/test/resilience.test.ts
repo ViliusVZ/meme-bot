@@ -46,10 +46,12 @@ it.effect("the clock says how long since its last minute, and nothing once it st
     expect(yield* sinceTick).toBe(0);
     yield* tick(20_000);
     expect(yield* sinceTick).toBe(20);
-    yield* tick(15_000); // past the top of the minute
+    // exactly to the next minute's wake-up (17:01:00 + 50 ms) and no further: had the clock gone on
+    // past it, when the minute recorded its finish would depend on scheduling (0 s or 5 s ago)
+    yield* tick(10_050);
     yield* waitFor(Effect.sync(() => expect(minutes).toHaveLength(2)));
     expect(minutes[1]).toBeGreaterThanOrEqual(Date.parse("2026-11-09T17:01:00Z"));
-    expect(yield* sinceTick).toBeLessThan(2);
+    expect(yield* sinceTick).toBe(0);
     expect(yield* get("/health", { leader: true, shuttingDown: false })).toMatchObject({ ok: true, leader: true, clock: expect.any(Number), version: "dev" });
     yield* Fiber.interrupt(clock);
     expect(yield* sinceTick).toBeNull(); // a follower has no clock
