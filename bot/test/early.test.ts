@@ -42,7 +42,8 @@ const WOW = "World of Warcraft";
 
 const posts = (path: string) => calls.filter((c) => c.method === "POST" && c.path === path);
 const gn = () => posts("/channels/gn/messages");
-const lobbyPosts = () => posts("/channels/lobby/messages");
+/** The early-bird cards (in #game-night since 20 Nov, where they get seen). */
+const lobbyPosts = () => gn().filter((m) => text(m).includes("you're early"));
 const text = (c: { body?: any }) => JSON.stringify(c.body);
 const rows = <T>(q: (db: Db["Service"]) => Effect.Effect<T, DbError>) =>
   Effect.gen(function* () {
@@ -183,7 +184,7 @@ it.effect("two early: the night's card, not the question; Open the room; the lin
       ["a", room],
       ["b", room],
     ]);
-    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toBe(true);
+    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toBe(true);
     expect((yield* theNight).reminded).toBe(false); // the night itself hasn't started
     yield* step(at("18:20:45"), { a: room, b: room });
     // two minutes in, the quiet line tells the third where we are
@@ -298,19 +299,19 @@ it.effect("“Just hanging out”, then the third arrives: no early start; the p
     yield* step(at("18:20:40"));
     yield* tap(buttons(lobbyPosts()[0]).chill, "b");
     expect((yield* prompt).state).toBe("dismissed");
-    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/lobby/messages/"))).toBe(true);
+    expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toBe(true);
     yield* step(at("18:30:00"), { c: "lobby" }, { user: "c", from: null, to: "lobby" });
     expect((yield* step(at("18:30:30"))).early).toEqual({ started: null, due: null });
     yield* step(at("18:45:00"));
     expect((yield* theNight).reminded).toBe(false);
-    expect(gn()).toEqual([]);
+    expect(gn().filter((m) => !text(m).includes("you're early"))).toEqual([]); // nothing but the card
     expect(lobbyPosts()).toHaveLength(1);
     yield* now(START);
     yield* GameNight.use((g) => g.maintain);
     const n = yield* theNight;
     expect([n.reminded, n.start_at]).toEqual([true, START]);
     const room = (yield* roomId)!;
-    expect(gn().map((c) => c.body.content)).toEqual([`⏰ <@a> <@b> <@c> ⚔️ **World of Warcraft** starts now! Room: <#${room}> (moved <@a> <@b> <@c> from the Lobby)`]);
+    expect(gn().filter((m) => !text(m).includes("you're early")).map((c) => c.body.content)).toEqual([`⏰ <@a> <@b> <@c> ⚔️ **World of Warcraft** starts now! Room: <#${room}> (moved <@a> <@b> <@c> from the Lobby)`]);
   }).pipe(h.provide),
 );
 
@@ -339,7 +340,7 @@ it.effect("the card goes when the gathering breaks up and when the night is call
   Effect.gen(function* () {
     reset();
     yield* night();
-    const deleted = (id: string | null | undefined) => calls.some((c) => c.method === "DELETE" && c.path === `/channels/lobby/messages/${id}`);
+    const deleted = (id: string | null | undefined) => calls.some((c) => c.method === "DELETE" && c.path === `/channels/gn/messages/${id}`);
     yield* step(at("18:20:00"), { a: "lobby", b: "lobby" });
     yield* step(at("18:20:30"));
     const first = yield* prompt;
@@ -356,7 +357,7 @@ it.effect("the card goes when the gathering breaks up and when the night is call
     // ⏰ c is running 15 min late: the start moves, the card follows
     yield* GameNight.use((g) => g.act(DAY, "c", "late", "15", runNow));
     expect((yield* theNight).start_at).toBe(START + 900);
-    const [edit] = calls.filter((c) => c.method === "PATCH" && c.path === `/channels/lobby/messages/${second.message_id}`);
+    const [edit] = calls.filter((c) => c.method === "PATCH" && c.path === `/channels/gn/messages/${second.message_id}`);
     expect(text(edit)).toContain(`at <t:${START + 900}:t> · you're early`);
     expect((yield* rows((db) => db.select().from(nightCards).where(eq(nightCards.prompt_id, second.id))))[0].start_at).toBe(START + 900);
     // c can't make it after all: the night's off, and the card goes
@@ -470,7 +471,7 @@ it.effect("a card that won't post leaves the gathering quiet (and says so); the 
   Effect.gen(function* () {
     reset();
     yield* night();
-    h.override = (c) => (c.method === "POST" && c.path === "/channels/lobby/messages" ? json({ message: "boom" }, 400) : undefined);
+    h.override = (c) => (c.method === "POST" && c.path === "/channels/gn/messages" && text(c).includes("you're early") ? json({ message: "boom" }, 400) : undefined);
     yield* step(at("18:20:00"), { a: "lobby", b: "lobby" });
     yield* step(at("18:20:30"));
     expect((yield* prompt).state).toBe("failed");

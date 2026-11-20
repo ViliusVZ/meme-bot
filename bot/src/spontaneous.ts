@@ -184,9 +184,11 @@ export class Spontaneous extends Context.Service<
       const botVoice = yield* BotVoice;
       const trio = Effect.provideService(players, AppConfig, config);
       const lobbyId = config.lobbyChannelId;
-      // 🎮 the question goes where the night's card is (#game-night): the Lobby's own chat is a place
-      // nobody looks while sitting in voice (19 Nov). The early-bird card stays in the Lobby's chat.
+      // 🎮 the question and the early-bird card go where the night's card is (#game-night): the Lobby's
+      // own chat is a place nobody looks while sitting in voice (19 and 20 Nov)
       const askIn = config.gameChannelId;
+      /** A question or card goes: from #game-night, or from the Lobby's chat where older ones were posted. */
+      const goneEverywhere = (id: string) => Effect.andThen(deleteMessage(askIn, id), deleteMessage(lobbyId, id));
       const presencesOn = Effect.succeed(config.presences);
       const sessionIs = (s: { day: string; game: string }) => and(eq(sessions.day, s.day), eq(sessions.game, s.game));
 
@@ -456,7 +458,7 @@ export class Spontaneous extends Context.Service<
           .set({ state })
           .where(and(eq(lobbyPrompts.id, p.id), eq(lobbyPrompts.state, "open")))
           .returning({ id: lobbyPrompts.id });
-        if (done.length && p.message_id) yield* deleteMessage((yield* isCard(p.id)) ? lobbyId : askIn, p.message_id);
+        if (done.length && p.message_id) yield* goneEverywhere(p.message_id);
       });
 
       const endGathering = Effect.fnUntraced(function* (p: Prompt, t: number) {
@@ -584,7 +586,7 @@ export class Spontaneous extends Context.Service<
             if (!claim) return;
             yield* db.insert(nightCards).values({ prompt_id: claim.id, day: night.day, start_at: night.start_at });
             yield* Effect.gen(function* () {
-              const msg = yield* discord.createMessage(lobbyId, yield* cardMessage(claim.id, night, missing));
+              const msg = yield* discord.createMessage(askIn, yield* cardMessage(claim.id, night, missing));
               yield* db.update(lobbyPrompts).set({ message_id: msg.id, posted_at: t }).where(eq(lobbyPrompts.id, claim.id));
             }).pipe(
               Effect.catch((e) =>
@@ -628,7 +630,7 @@ export class Spontaneous extends Context.Service<
         const { missing } = yield* hereFor(where, night, yield* voice.openRooms);
         const { flags: _, ...body } = yield* cardMessage(p.id, night, missing);
         // (deleted by hand: then there's nothing to follow; the row still closes with the gathering)
-        yield* discord.editMessage(lobbyId, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
+        yield* discord.editMessage(askIn, p.message_id, body).pipe(Effect.catch((e) => Effect.logInfo(`early-bird card edit failed ${e}`)));
         yield* db.update(nightCards).set({ start_at: n.start_at }).where(eq(nightCards.prompt_id, p.id));
       });
 
@@ -677,7 +679,7 @@ export class Spontaneous extends Context.Service<
               }
               return yield* Effect.gen(function* () {
                 const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
-                if (p.message_id) yield* deleteMessage((yield* isCard(p.id)) ? lobbyId : askIn, p.message_id);
+                if (p.message_id) yield* goneEverywhere(p.message_id);
                 if (p.activity) {
                   // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
                   return {

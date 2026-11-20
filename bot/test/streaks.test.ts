@@ -7,7 +7,7 @@ import { chases, gameNights, gameNightVotes, roastBags, streakBreaks } from "../
 import { Db } from "../src/db/db.js";
 import { GameNight } from "../src/gamenight.js";
 import { K, L, V } from "../src/roasts.js";
-import { _latePools, standingOf, Streaks, tierFor, type Card } from "../src/streaks.js";
+import { _latePools, brokenStreak, lateOn, standingOf, Streaks, tierFor, type Card } from "../src/streaks.js";
 import { harness, routes } from "./fx.js";
 
 const h = harness({
@@ -27,6 +27,16 @@ const card = (day: string, chased: string[], ghost?: string): Card => ({
   chased,
   votes: [],
   posted: 0,
+});
+
+it("🎧 showing up is answering on time unless the bot reminded you first (20 Nov)", () => {
+  // a night started because everyone showed up: locked in, no roast; only who was chased counts as late
+  const showed = card("2026-11-19", []);
+  expect(lateOn(showed, V)).toBe(false); // showed up, never reminded: on time
+  expect(lateOn(card("2026-11-19", [L]), L)).toBe(true); // reminded first, then showed up: late
+  expect(lateOn(card("2026-11-19", [], K), K)).toBe(true); // never answered, never showed up: late
+  // and on time breaks a streak like any on-time answer
+  expect(brokenStreak([showed, card("2026-11-18", [V]), card("2026-11-17", [V])], V)).toBe(2);
 });
 
 it("the streak is late cards in a row, the window the late ones among the last 14; a reminder counts its own card", () => {
