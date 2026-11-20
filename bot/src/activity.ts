@@ -425,7 +425,7 @@ export class Activity extends Context.Service<
                   const title = `${{ week: "Weekly", month: "Monthly", year: "Yearly" }[kind as "week"]} recap · ${periodLabel(zone, kind, -1, from, to, true)}`;
                   const body = (yield* statsBody(title, s, prev, `the ${kind} before`)).map((content) => ({ type: 10, content }));
                   yield* discord.createMessage(config.gameChannelId, {
-                    flags: IS_COMPONENTS_V2 | (1 << 12), // silent: a recap is to read, not a call
+                    flags: IS_COMPONENTS_V2,
                     allowed_mentions: { parse: [] },
                     components: [{ type: 17, accent_color: 0x3498db, components: [...body, { type: 10, content: "-# 📊 More on the panel: **Stats**, or **/gamestats**" }] }],
                   });

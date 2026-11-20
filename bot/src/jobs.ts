@@ -22,9 +22,6 @@ import { Downtime } from "./downtime.js";
 import { BotVoice } from "./botvoice.js";
 import { Alerts } from "./alerts.js";
 import { count, jobsFailed, jobsRun, jobTime, time } from "./metrics.js";
-
-/** 🔕 Posted without a sound (the memes and their leaderboards are to enjoy, not a call). Only the first post: an edit keeps it. */
-const silent = <M extends { flags?: number }>(m: M): M => ({ ...m, flags: (m.flags ?? 0) | (1 << 12) });
 import { leaderboardMessage, memeMessage } from "./ui.js";
 
 const DAY_MS = 864e5;
@@ -104,7 +101,7 @@ export class Jobs extends Context.Service<
             Effect.gen(function* () {
               if (!(yield* memeService.claim(cand.id, "daily", { day }))) return null;
               const meme = { ...cand, post_kind: "daily" as const, day };
-              const posted = yield* discord.createMessage(config.channelId, silent(memeMessage(meme, {}, config.subreddit))).pipe(Effect.tapError(() => memeService.unclaim(cand.id)));
+              const posted = yield* discord.createMessage(config.channelId, memeMessage(meme, {}, config.subreddit)).pipe(Effect.tapError(() => memeService.unclaim(cand.id)));
               yield* memeService.setMessage(cand.id, config.channelId, posted.id);
               return posted;
             }),
@@ -137,7 +134,7 @@ export class Jobs extends Context.Service<
                 voter && `🗳️ Most votes: <@${voter.user_id}> (${voter.n})`,
                 streak && streak.streak > 1 && `🔥 Longest streak: <@${streak.user_id}> (${streak.streak} days)`,
               ].filter(Boolean) as string[];
-              yield* discord.createMessage(config.channelId, silent(leaderboardMessage(title, rows, config.guildId, extras, accent)));
+              yield* discord.createMessage(config.channelId, leaderboardMessage(title, rows, config.guildId, extras, accent));
               return { posted: period };
             }).pipe(Effect.tapError(() => memeService.unclaimRecap(period)));
           }),

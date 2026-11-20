@@ -393,7 +393,7 @@ it.effect("a write-up is posted silently as the card, once; the story is posted 
     expect(yield* write(writeup("reddit:t3_a"))).toEqual({ posted: true, message_id: expect.stringMatching(/^\d+$/) });
     expect(posted()).toHaveLength(1);
     const body = posted()[0].body;
-    expect([body.flags, body.allowed_mentions]).toEqual([(1 << 15) | (1 << 12), { parse: [] }]);
+    expect([body.flags, body.allowed_mentions]).toEqual([1 << 15, { parse: [] }]); // with sound (the owner, 20 Nov)
     expect(cardOf(posted()[0])).toBe(
       [
         "### About reddit:t3-a",
@@ -794,7 +794,7 @@ it.effect("a backtest day's write-ups: posted as the live card marked as a backt
     discordFails = false;
     expect(yield* news.article({ ...writeup(ids[0]), day: day1 })).toEqual({ posted: true, message_id: expect.stringMatching(/^\d+$/) });
     const msg = posted()[1];
-    expect([msg.body.flags, msg.body.allowed_mentions]).toEqual([(1 << 15) | (1 << 12), { parse: [] }]);
+    expect([msg.body.flags, msg.body.allowed_mentions]).toEqual([1 << 15, { parse: [] }]); // with sound (the owner, 20 Nov)
     const live = cardText({ source: "reddit", sub: "wowforever", link: "https://www.reddit.com/r/wowforever/comments/wowforeverd2p1/slug/", created_at: now() - (48 + 5.5) * 3600, official: null }, (check(writeup(ids[0]) as Writeup, 50) as { ok: Writeup }).ok);
     expect(cardOf(msg)).toBe(`${live}\n-# backtest · Tuesday 2026-11-10`);
     expect(yield* refusal(news.article({ ...writeup(ids[0]), day: day1 }))).toEqual([409, `${ids[0]} was already written or skipped for ${day1}`]);

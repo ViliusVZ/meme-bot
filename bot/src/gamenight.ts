@@ -340,7 +340,7 @@ const nightOf = Effect.fnUntraced(function* (day: string) {
  * first question's reminder, last and final call, someone starting or reopening tonight). Everything
  * else is silent, the names as text without a ping.
  */
-const nudge = (day: string, who: ReadonlyArray<string>, content: string, loud = false) => Effect.uninterruptible(nudgeOnce(day, who, content, loud)); // post → its id (§15)
+const nudge = (day: string, who: ReadonlyArray<string>, content: string, loud = true) => Effect.uninterruptible(nudgeOnce(day, who, content, loud)); // post → its id (§15)
 const nudgeOnce = Effect.fnUntraced(function* (day: string, everyone: ReadonlyArray<string>, content: string, loud: boolean) {
   const config = yield* AppConfig;
   const db = yield* Db;
@@ -929,8 +929,7 @@ const startMoved = Effect.fnUntraced(function* (n: Night, start: number, user: s
       : `⏰ ${mention(user)} is running ${mins === 60 ? "an hour" : `${mins} min`} late, so we start at **${at(start)}** ${ts(start, "R")} instead of ${at(n.start_at!)}${tight}`;
   yield* discord.createMessage(config.gameChannelId, {
     content,
-    flags: SILENT,
-    allowed_mentions: { parse: [] },
+    allowed_mentions: yield* allowedMentions(others),
     message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
   });
   // an early-bird card in the Lobby shows the new start
@@ -1037,9 +1036,7 @@ const lockInOnce = Effect.fnUntraced(function* (day: string) {
   yield* clearNudge(n);
   yield* createEvent(n);
   const isToday = day === today(yield* when);
-  // 🔔 names (and sound) only for whoever isn't in voice already; everyone there: a silent line
-  const inVoice = isToday ? yield* inVoiceNow() : [];
-  const ping = ps.filter((p) => !inVoice.includes(p));
+  const ping = ps;
   const group = ((yield* getSetting(WITH_GROUP(day))) as string[] | undefined) ?? [];
   const groupLine = group.length ? `\n-# ${names(group)} didn't pick, so ${group.length > 1 ? "they go" : "goes"} with the group. Late? The 🏃 buttons on the card move the start.` : "";
   yield* discord.createMessage(config.gameChannelId, {
@@ -1144,9 +1141,8 @@ export const postRoastOf = (day: string) =>
             : `🔥 **${what[0].toUpperCase()}${what.slice(1)} is off** · ${blame(roast.who)}`;
         yield* (yield* Discord).createMessage(config.gameChannelId, {
           content: `${head}\n> ${yield* (yield* Roasts).next(culprits)}`,
-          // silent: the culprits are named in it, without a ping
-          flags: SILENT,
-          allowed_mentions: { parse: [] },
+          // everyone hears it's off; the culprits are named in it
+          allowed_mentions: yield* allowedMentions(ps),
           message_reference: n.message_id ? { message_id: n.message_id, fail_if_not_exists: false } : undefined,
         });
       }).pipe(Effect.tapError(() => db.update(gameNights).set({ roasted_at: null }).where(eq(gameNights.day, day)))); // the next minute retries

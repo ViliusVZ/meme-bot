@@ -234,7 +234,7 @@ it.effect("two early in the room, the third never comes: at 19:00 one message pi
     expect(gn()).toHaveLength(3);
     const slip = gn()[2];
     expect(text(slip)).toContain("⏰ <@c> we've started **World of Warcraft** in <#wow>. Running late?");
-    expect([slip.body.allowed_mentions, slip.body.flags & (1 << 12)]).toEqual([{ parse: [] }, 1 << 12]); // the slip is silent: the start already pinged c (19 Nov)
+    expect(slip.body.allowed_mentions).toEqual({ users: ["c"] });
   }).pipe(h.provide),
 );
 
