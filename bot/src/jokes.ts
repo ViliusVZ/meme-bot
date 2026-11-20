@@ -1,7 +1,7 @@
 // 🌅 The morning joke: a small stock the outside writer keeps topped up (GET /jokes/stock, POST
 // /jokes), one joke posted each morning (09:00 on weekdays, 10:30 at weekends, local time) with the
 // meme vote buttons, so we learn what lands. The claim is the database's: one joke a day, ever.
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Clock, Context, Effect, Layer, Ref } from "effect";
 import { jokes, jokeVotes } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
@@ -53,7 +53,7 @@ export type Stock = {
   in_stock: number;
   target: number;
   need: number;
-  recent: { text: string; lang: string; theme: string; form: string }[];
+  recent: { text: string; lang: string; theme: string; form: string; posted: string | null; votes?: Partial<Record<"fire" | "lol" | "dead" | "mid", number>> }[];
 };
 export type Added = { ok: true; id: number } | { ok: false; status: 400 | 409; error: string };
 export type Voters = Partial<Record<VoteKind, string[]>>;
@@ -144,7 +144,20 @@ export class Jokes extends Context.Service<
       return Jokes.of({
         stock: Effect.gen(function* () {
           const [{ n }] = yield* db.select({ n: sql<number>`count(*)::int` }).from(jokes).where(isNull(jokes.day));
-          const recent = yield* db.select({ text: jokes.text, lang: jokes.lang, theme: jokes.theme, form: jokes.form }).from(jokes).orderBy(desc(jokes.id)).limit(RECENT);
+          const rows = yield* db.select({ id: jokes.id, text: jokes.text, lang: jokes.lang, theme: jokes.theme, form: jokes.form, posted: jokes.day }).from(jokes).orderBy(desc(jokes.id)).limit(RECENT);
+          // 🔥😂💀🗑️ how each posted joke landed, so the writer leans toward what works (and away from what doesn't)
+          const tallies = rows.some((r) => r.posted)
+            ? yield* db
+                .select({ id: jokeVotes.joke_id, kind: jokeVotes.kind, n: sql<number>`count(*)::int` })
+                .from(jokeVotes)
+                .where(inArray(jokeVotes.joke_id, rows.filter((r) => r.posted).map((r) => r.id)))
+                .groupBy(jokeVotes.joke_id, jokeVotes.kind)
+            : [];
+          const recent = rows.map(({ id, ...r }) => {
+            if (!r.posted) return { ...r, posted: null };
+            const votes = Object.fromEntries(tallies.filter((t) => t.id === id).map((t) => [t.kind, t.n]));
+            return { ...r, votes };
+          });
           return { in_stock: n, target: STOCK_TARGET, need: Math.max(0, STOCK_TARGET - n), recent };
         }).pipe(Effect.withSpan("Jokes.stock")),
         add: Effect.fn("Jokes.add")(function* (input: JokeInput) {

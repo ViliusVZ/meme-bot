@@ -208,10 +208,29 @@ it.effect("GET /jokes/stock and POST /jokes: the news writer's key, the stock it
       target: STOCK_TARGET,
       need: STOCK_TARGET - 2,
       recent: [
-        { text: "Šiemet vasara buvo graži. Gaila, kad tą dieną dirbau.", lang: "lt", theme: "weather", form: "one-liner" },
-        { text: joke.text, lang: "en", theme: "technology", form: "one-liner" },
+        { text: "Šiemet vasara buvo graži. Gaila, kad tą dieną dirbau.", lang: "lt", theme: "weather", form: "one-liner", posted: null },
+        { text: joke.text, lang: "en", theme: "technology", form: "one-liner", posted: null },
       ],
     });
+  }).pipe(h.provide),
+);
+
+it.effect("the stock shows the writer how each posted joke landed: its day and its votes", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const [a] = yield* db.insert(jokeTable).values({ text: "A posted one.", norm: "a posted one", lang: "en", theme: "work", form: "one-liner", added_at: "2026-11-18T10:00:00Z", day: "2026-11-19", posted_at: "2026-11-19T07:00:00Z" }).returning({ id: jokeTable.id });
+    yield* db.insert(jokeTable).values({ text: "Not yet.", norm: "not yet", lang: "en", theme: "food", form: "story", added_at: "2026-11-19T10:00:00Z" });
+    yield* db.insert(jokeVotes).values([
+      { joke_id: a!.id, user_id: "x", kind: "fire", voted_at: "2026-11-19T07:05:00Z" },
+      { joke_id: a!.id, user_id: "y", kind: "fire", voted_at: "2026-11-19T07:06:00Z" },
+      { joke_id: a!.id, user_id: "z", kind: "mid", voted_at: "2026-11-19T07:07:00Z" },
+    ]);
+    const http = yield* app();
+    const stock = JSON.parse((yield* http("GET", "/jokes/stock")).body);
+    expect(stock.recent).toEqual([
+      { text: "Not yet.", lang: "en", theme: "food", form: "story", posted: null },
+      { text: "A posted one.", lang: "en", theme: "work", form: "one-liner", posted: "2026-11-19", votes: { fire: 2, mid: 1 } },
+    ]);
   }).pipe(h.provide),
 );
 
