@@ -7,7 +7,6 @@ const ORANGE = 0xff4500;
 const GOLD = 0xf1c40f;
 const PURPLE = 0x9b59b6;
 const SUNRISE = 0xffa630;
-const SILENT = 1 << 12; // SUPPRESS_NOTIFICATIONS: no sound, no badge
 const MEDALS = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."];
 
 const text = (content: string) => ({ type: 10, content });
@@ -89,7 +88,7 @@ function voteButtons(prefix: string, id: string | number, t: Tally) {
 /** 🌅 The morning joke, laid out like the daily meme, silent (it's the morning), with the meme's votes. */
 export function jokeMessage(j: Joke, t: Tally, by: Partial<Record<string, string[]>> = {}) {
   return {
-    flags: IS_COMPONENTS_V2 | SILENT,
+    flags: IS_COMPONENTS_V2,
     allowed_mentions: { parse: [] },
     components: [
       container(SUNRISE, [

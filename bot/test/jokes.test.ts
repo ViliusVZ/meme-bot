@@ -64,7 +64,7 @@ it.effect("the oldest joke goes out at 09:00, once, silent and with the vote but
     expect(yield* afterRestart).toEqual({ skipped: "already posted", day: "2026-11-19" });
     expect(posts()).toHaveLength(1);
     const body = posts()[0].body as { flags: number; allowed_mentions: unknown; components: [{ components: { content?: string; components?: { custom_id: string }[] }[] }] };
-    expect(body.flags).toBe((1 << 15) | (1 << 12));
+    expect(body.flags).toBe(1 << 15); // with sound (the owner, 20 Nov)
     expect(body.allowed_mentions).toEqual({ parse: [] });
     const parts = body.components[0].components;
     expect(parts[1].content).toBe("First joke in.");
