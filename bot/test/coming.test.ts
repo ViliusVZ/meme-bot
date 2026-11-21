@@ -135,3 +135,21 @@ it.effect("her own “Not tonight” shows on the called-off card as what she sa
     expect(JSON.stringify(edits.at(-1)?.body)).toContain("<@c> 😴 not tonight");
   }).pipe(h.provide),
 );
+
+for (const [first, second] of [
+  ["nottonight:c", "nottonight:c"],
+  ["coming:0:c", "coming:15:c"],
+  ["coming:0:c", "nottonight:c"],
+] as const)
+  it.effect(`answered once means answered: ${first} then ${second} posts one line`, () =>
+    Effect.gen(function* () {
+      yield* setUp("off");
+      yield* tap(`gn:${DAY}:${first}`, "c");
+      const lines = () => calls.filter((c) => c.method === "POST" && c.path === "/channels/gn/messages" && /is out tonight|on the way|in \d+ min/.test(c.body.content ?? "")).length;
+      expect(lines()).toBe(1);
+      const r = yield* tap(`gn:${DAY}:${second}`, "c");
+      expect([r.type, r.data.flags & 64, r.data.content]).toEqual([4, 64, "You've already answered that one 🙂"]);
+      expect(lines()).toBe(1);
+      expect(yield* askOf("c")).toBe(first.startsWith("nottonight") ? "no" : "yes");
+    }).pipe(h.provide),
+  );

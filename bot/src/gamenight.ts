@@ -890,6 +890,7 @@ export const actOn = Effect.fnUntraced(function* (day: string, user: string, act
         const asked = yield* askedOn(day, to);
         if (asked && asked !== user) return say(`That one's for ${mention(asked)} 🙂`);
         const mins = Number(m || 0);
+        if (!(yield* claimSetting(ANSWERED(day, user), { what: mins ? `coming:${mins}` : "coming" }))) return { ...say("You've already answered that one 🙂"), clear: true };
         if ((yield* votes(day, "ask"))[user] !== "yes") yield* vote(day, "ask", user, "yes");
         const config = yield* AppConfig;
         yield* (yield* Discord).createMessage(config.gameChannelId, {
@@ -905,6 +906,7 @@ export const actOn = Effect.fnUntraced(function* (day: string, user: string, act
       Effect.gen(function* () {
         const asked = yield* askedOn(day, value || undefined);
         if (asked && asked !== user) return say(`That one's for ${mention(asked)} 🙂`);
+        if (!(yield* claimSetting(ANSWERED(day, user), { what: "nottonight" }))) return { ...say("You've already answered that one 🙂"), clear: true };
         // a no without the roast: the two play, and nobody chases you tonight
         yield* vote(day, "ask", user, "no");
         const said = ((yield* getSetting(NOT_TONIGHT(day))) as string[] | undefined) ?? [];
@@ -1445,6 +1447,7 @@ const IN_VOICE = (day: string) => `gn:invoice:${day}`; // who the card last show
 const ROAST_MSG = (day: string) => `gn:roastmsg:${day}`; // { id, content }: the night's roast, struck through if the night comes back
 const WAS_MAYBE = (day: string) => `gn:wasmaybe:${day}`; // who was asked again after a 🤔 hold
 const NOT_TONIGHT = (day: string) => `gn:nottonight:${day}`; // who answered "coming?" with 😴 Not tonight
+const ANSWERED = (day: string, user: string) => `gn:answered:${day}:${user}`; // the night's "coming?" was answered (once)
 
 const getSetting = Effect.fnUntraced(function* (key: string) {
   const db = yield* Db;
