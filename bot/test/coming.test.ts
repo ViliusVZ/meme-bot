@@ -116,7 +116,18 @@ it.effect("the two pick a game on the Lobby question: “coming?” now points a
     const [room] = yield* db.select().from(rooms);
     const edit = calls.find((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/coming")!;
     expect(edit.body.content.startsWith("🎧 <@c>, ")).toBe(true);
-    expect(edit.body.content.endsWith(` are in <#${room!.channel_id}> for ⚔️ **World of Warcraft**. Coming?`)).toBe(true);
+    expect(edit.body.content.endsWith(` are in <#${room!.channel_id}>. Coming?`)).toBe(true); // the room's name says the game
     expect(edit.body.components).toBeUndefined(); // its buttons stay while it's unanswered
+  }).pipe(h.provide),
+);
+
+it.effect("her own “Not tonight” shows on the called-off card as what she said", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* setUp("off");
+    yield* db.insert(gameNightVotes).values({ day: DAY, stage: "time", user_id: "a", choice: String(Date.parse("2026-11-06T20:00:00Z") / 1000), voted_at: new Date().toISOString() });
+    yield* tap(`gn:${DAY}:nottonight:c`, "c");
+    const card = JSON.stringify(yield* GameNight.use((g) => g.render(DAY)));
+    expect(card).toContain("<@c> 😴 not tonight");
   }).pipe(h.provide),
 );

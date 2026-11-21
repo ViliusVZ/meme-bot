@@ -445,15 +445,18 @@ const timeVotesLine = Effect.fnUntraced(function* (day: string) {
   const ask = yield* votes(day, "ask");
   // 🤔 a maybe, asked again after the hold, and no answer: say so rather than "no pick"
   const wasMaybe = ((yield* getSetting(WAS_MAYBE(day))) as string[] | undefined) ?? [];
+  const notTonight = ((yield* getSetting(NOT_TONIGHT(day))) as string[] | undefined) ?? [];
   return ps
     .map((p) => {
       const start = v[p]
         ? `**${timeLabel(w, Number(v[p]), day)}**`
         : any.includes(p)
           ? "any time"
-          : !ask[p] && wasMaybe.includes(p)
-            ? "🤔 Maybe, then no answer"
-            : "no pick";
+          : ask[p] === "no" && notTonight.includes(p)
+            ? "😴 not tonight"
+            : !ask[p] && wasMaybe.includes(p)
+              ? "🤔 Maybe, then no answer"
+              : "no pick";
       return `${mention(p)} ${start}${until[p] ? ` (🏁 ${timeLabel(w, Number(until[p]), day)})` : ""}`;
     })
     .join(" · ");
@@ -469,8 +472,14 @@ const revealOff = Effect.fnUntraced(function* (day: string) {
     const v = yield* votes(day, "ask");
     const ps = yield* theTrio;
     const wasMaybe = ((yield* getSetting(WAS_MAYBE(day))) as string[] | undefined) ?? [];
-    if (ps.some((p) => v[p]))
-      lines.push(ps.map((p) => (!v[p] && wasMaybe.includes(p) ? `${mention(p)} 🤔 Maybe, then no answer` : `${ANSWER[v[p]] ?? "⏳"} ${mention(p)}`)).join("　"));
+    const notTonight = ((yield* getSetting(NOT_TONIGHT(day))) as string[] | undefined) ?? [];
+    const said = (p: string) =>
+      v[p] === "no" && notTonight.includes(p)
+        ? `${mention(p)} 😴 not tonight`
+        : !v[p] && wasMaybe.includes(p)
+          ? `${mention(p)} 🤔 Maybe, then no answer`
+          : `${ANSWER[v[p]] ?? "⏳"} ${mention(p)}`;
+    if (ps.some((p) => v[p])) lines.push(ps.map(said).join("　"));
   }
   return lines.length ? [text(`-# 🗳️ How everyone voted\n${lines.map((l) => `-# ${l}`).join("\n")}`)] : [];
 });
@@ -898,6 +907,8 @@ export const actOn = Effect.fnUntraced(function* (day: string, user: string, act
         if (asked && asked !== user) return say(`That one's for ${mention(asked)} 🙂`);
         // a no without the roast: the two play, and nobody chases you tonight
         yield* vote(day, "ask", user, "no");
+        const said = ((yield* getSetting(NOT_TONIGHT(day))) as string[] | undefined) ?? [];
+        if (!said.includes(user)) yield* putSetting(NOT_TONIGHT(day), [...said, user]);
         const config = yield* AppConfig;
         yield* (yield* Discord).createMessage(config.gameChannelId, { content: `😴 ${mention(user)} is out tonight.`, flags: SILENT, allowed_mentions: { parse: [] } });
         return { notice: "😴 Got it. Have a good night.", update: false, clear: true };
@@ -1431,6 +1442,7 @@ const WITH_GROUP = (day: string) => `gn:group:${day}`; // who didn't pick when a
 const IN_VOICE = (day: string) => `gn:invoice:${day}`; // who the card last showed in voice
 const ROAST_MSG = (day: string) => `gn:roastmsg:${day}`; // { id, content }: the night's roast, struck through if the night comes back
 const WAS_MAYBE = (day: string) => `gn:wasmaybe:${day}`; // who was asked again after a 🤔 hold
+const NOT_TONIGHT = (day: string) => `gn:nottonight:${day}`; // who answered "coming?" with 😴 Not tonight
 
 const getSetting = Effect.fnUntraced(function* (key: string) {
   const db = yield* Db;
@@ -1676,7 +1688,8 @@ const calledIn = Effect.fnUntraced(function* (n: Night, where: Where, ask: Votes
   if (t < since + SETTLE) return { started: null, due: since + SETTLE };
   if (!(yield* claimSetting(CALLED(n.day, third), { at: t }))) return none;
   const game = yield* knownGame(n);
-  const what = game ? ` for ${yield* (yield* Games).emojiFor(game)} **${game}**` : "";
+  const inRoom = (yield* (yield* Voice).openRooms).some((r) => r.channel_id === channel);
+  const what = game && !inRoom ? ` for ${yield* (yield* Games).emojiFor(game)} **${game}**` : "";
   // only the one who was asked can answer (the id says who)
   const button = (label: string, e: string, action: string, style = 2) => ({ type: 2, style, label, custom_id: `gn:${n.day}:${action}`, emoji: { name: e } });
   const m = yield* (yield* Discord).createMessage(config.gameChannelId, {

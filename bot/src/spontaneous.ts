@@ -371,7 +371,8 @@ export class Spontaneous extends Context.Service<
           const v = c.value as { message_id?: string; two?: string[] } | null;
           if (!v?.message_id || !v.two) continue;
           const third = c.key.split(":").pop()!;
-          const content = comingLine(third, v.two, room, ` for ${yield* games.emojiFor(game)} **${game}**`);
+          // the room's own name says the game ("⚔️ World of Warcraft"), so no "for <game>" after it
+          const content = comingLine(third, v.two, room, "");
           yield* discord.editMessage(askIn, v.message_id, { content, allowed_mentions: { parse: [] } }).pipe(Effect.catch((e) => Effect.logInfo(`coming? edit ${e}`)));
         }
       });
