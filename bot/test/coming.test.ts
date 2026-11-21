@@ -129,5 +129,9 @@ it.effect("her own “Not tonight” shows on the called-off card as what she sa
     yield* tap(`gn:${DAY}:nottonight:c`, "c");
     const card = JSON.stringify(yield* GameNight.use((g) => g.render(DAY)));
     expect(card).toContain("<@c> 😴 not tonight");
+    // and the card in the channel is redrawn with it
+    yield* h.settle;
+    const edits = calls.filter((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/card");
+    expect(JSON.stringify(edits.at(-1)?.body)).toContain("<@c> 😴 not tonight");
   }).pipe(h.provide),
 );

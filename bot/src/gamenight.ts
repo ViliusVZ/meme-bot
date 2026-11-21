@@ -909,6 +909,8 @@ export const actOn = Effect.fnUntraced(function* (day: string, user: string, act
         yield* vote(day, "ask", user, "no");
         const said = ((yield* getSetting(NOT_TONIGHT(day))) as string[] | undefined) ?? [];
         if (!said.includes(user)) yield* putSetting(NOT_TONIGHT(day), [...said, user]);
+        // the card says it too ("😴 not tonight"); after the answer, so the tap stays quick
+        yield* later(refreshCard(day));
         const config = yield* AppConfig;
         yield* (yield* Discord).createMessage(config.gameChannelId, { content: `😴 ${mention(user)} is out tonight.`, flags: SILENT, allowed_mentions: { parse: [] } });
         return { notice: "😴 Got it. Have a good night.", update: false, clear: true };
