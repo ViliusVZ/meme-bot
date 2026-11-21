@@ -81,6 +81,10 @@ export function family(shared: ReadonlyArray<string>, personal: Readonly<Record<
 
 export const spokenName = (user: string) => SPOKEN_NAMES[user] ?? NOBODY;
 
+/** 🎧 "@third, A and B are in #channel (for 🎮 **game**). Coming?": the third is pinged, the two named. */
+export const comingLine = (third: string, two: ReadonlyArray<string>, channel: string, what: string) =>
+  `🎧 <@${third}>, ${two.map(spokenName).join(" and ")} are in <#${channel}>${what}. Coming?`;
+
 /**
  * Text fit to be read aloud: no emoji, no markdown, no small print, mentions as spoken names. Game
  * names come from people (the 🕹️ list), so they go through this too.

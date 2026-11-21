@@ -108,8 +108,9 @@ export function tapOf(i: Interaction): Tap {
   // game night: buttons/selects (type 3) and the suggest/custom-time modals (type 5)
   // custom_id is gn:<day>:<action>[:<value>], e.g. gn:2026-11-03:time:1793736000
   if ((button || form) && cid.startsWith("gn:")) {
-    const [, day, action, arg] = cid.split(":");
-    return { _tag: "Night", day, action, arg };
+    // the value is everything after the action (game names and "coming:<min>:<who>" have colons)
+    const [, day, action, ...rest] = cid.split(":");
+    return { _tag: "Night", day, action, arg: rest.length ? rest.join(":") : undefined };
   }
   if (button && cid.startsWith("hub:")) return { _tag: "Hub", what: cid.slice(4) };
   if (button && cid.startsWith("snz:")) return { _tag: "Snooze", what: cid.slice(4) };
@@ -259,9 +260,8 @@ export class Interactions extends Context.Service<
               const field = i.data?.components?.[0]?.components?.[0] ?? i.data?.components?.[0]?.component;
               const value = i.type === 5 ? field?.value : (arg ?? i.data?.values?.[0]);
               const r = yield* gameNight.act(day, user.id, action, value, (e) => later(e, "game-night follow-up (pings, event)"));
-              // 🎧 "coming?" answered: its buttons come off (the answer is posted below it)
-              if ((action === "coming" || action === "nottonight") && i.channel_id && i.message?.id)
-                yield* later(discord.editMessage(i.channel_id, i.message.id, { components: [] }), "coming? buttons");
+              // 🎧 "coming?" answered by the one asked: its buttons come off (the answer is posted below it)
+              if (r.clear && i.channel_id && i.message?.id) yield* later(discord.editMessage(i.channel_id, i.message.id, { components: [] }), "coming? buttons");
               const own = fromPrivateCopy(i);
               const panel = own ? i.message?.id : undefined;
               // a refusal on your private panel shows up in the panel itself, not as another message
@@ -336,7 +336,9 @@ export class Interactions extends Context.Service<
               if (!isPlayer) return ephemeral(TRIO_ONLY);
               const tell = (n: Notice) => (n ? Effect.asVoid(followup(token, { ...(typeof n === "string" ? { content: n } : n), flags: EPHEMERAL })) : Effect.void);
               if (id === "back") {
-                yield* later(Effect.flatMap(spontaneous.goBack(i.channel_id ?? "", what.split(","), i.message?.id), tell), "moving people back to the Lobby");
+                // lob:back:<users>[:<room>]: a note in the room's chat, or the Lobby question's result in #game-night
+                const room = rest[0] || (i.channel_id ?? "");
+                yield* later(Effect.flatMap(spontaneous.goBack(room, what.split(","), i.message?.id, undefined, i.channel_id), tell), "moving people back to the Lobby");
                 return reply({ type: R.DeferredUpdate });
               }
               if (what === "other") return reply({ type: R.Message, data: yield* voice.roomPicker });

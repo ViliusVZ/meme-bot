@@ -96,3 +96,67 @@ it.effect("⚡ one tap each: a time, Now and any time lock the night in the usua
     expect(said.some((t) => t.includes("it's on"))).toBe(true);
   }).pipe(h.provide),
 );
+
+// ---------------------------------------------------------------- 21 Nov: all three, or it isn't a game night
+
+/** a and b (and c, when `all`) in one room for SETTLE, as the gateway and the stats would have it. */
+const inRoom = (t: number, all: boolean) =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const who = all ? ["a", "b", "c"] : ["a", "b"];
+    yield* Presence.use((p) => p.snapshot(who.map((u) => ({ user_id: u, channel_id: "room1" }))));
+    yield* db.insert(voiceSegments).values(who.map((u) => ({ user_id: u, channel_id: "room1", started_at: t, last_seen: t, open: true })));
+    const where = new Map<string, string | null>([["a", "room1"], ["b", "room1"], ["c", all ? "room1" : null]]);
+    return yield* GameNight.use((g) => g.early(where, t + 31));
+  });
+
+it.effect("two in a room after the third said not tonight: no game night, the card stays off", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* TestClock.setTime(at("21:57:00") * 1000);
+    yield* db.insert(gameNights).values({ day: DAY, stage: "off", message_id: "card", stage_at: at("18:00:00"), note: "🔥 Called off" });
+    yield* db.insert(gameNightVotes).values([
+      ...["a", "b"].map((u) => ({ day: DAY, stage: "ask", user_id: u, choice: "yes", voted_at: new Date().toISOString() })),
+      { day: DAY, stage: "ask", user_id: "c", choice: "no", voted_at: new Date().toISOString() },
+    ]);
+    const r = yield* inRoom(at("21:57:00"), false);
+    expect(r.started).toBeNull();
+    expect((yield* db.select().from(gameNights).where(eq(gameNights.day, DAY)))[0]!.stage).toBe("off");
+    expect(gn().filter((m) => JSON.stringify(m.body).includes("game night is on"))).toEqual([]);
+  }).pipe(h.provide),
+);
+
+it.effect("two in a room: still no start; all three: the called-off night starts, and the roast's claim is struck", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* TestClock.setTime(at("21:57:00") * 1000);
+    yield* db.insert(gameNights).values({ day: DAY, stage: "off", message_id: "card", stage_at: at("18:00:00"), note: "🔥 Called off", game: null });
+    yield* db.insert(gameNights).values({ day: "2026-11-05", stage: "set", game: "World of Warcraft", start_at: Date.parse("2026-11-05T20:30:00+02:00") / 1000, reminded: true });
+    yield* db.insert(gameNights).values({ day: "2026-11-08", stage: "set", game: "World of Warcraft", start_at: Date.parse("2026-11-08T20:30:00+02:00") / 1000, reminded: true });
+    yield* db.insert(settings).values({ key: `gn:roastmsg:${DAY}`, value: { id: "roast", content: "🔥 **Tonight's game night is off** · <@c> 👻 didn't vote in time\n> a line" } });
+    expect((yield* inRoom(at("21:57:00"), false)).started).toBeNull();
+    yield* db.delete(voiceSegments);
+    const r = yield* inRoom(at("21:58:00"), true);
+    expect(r.started).toBe(DAY);
+    const struck = calls.find((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/roast")!;
+    expect(struck.body.content).toBe("🔥 ~~Tonight's game night is off~~ · <@c> 👻 didn't vote in time\n> a line");
+  }).pipe(h.provide),
+);
+
+it.effect("a maybe asked again after the hold who never answers shows as “🤔 Maybe, then no answer”", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* TestClock.setTime(at("20:02:00") * 1000);
+    yield* db.insert(gameNights).values({ day: DAY, stage: "ask", message_id: "card", stage_at: at("17:00:00"), maybes: 1, paused_until: at("20:01:00") });
+    yield* db.insert(gameNightVotes).values([
+      ...["a", "b"].map((u) => ({ day: DAY, stage: "ask", user_id: u, choice: "yes", voted_at: new Date().toISOString() })),
+      { day: DAY, stage: "time", user_id: "a", choice: String(at("21:00:00")), voted_at: new Date().toISOString() },
+      { day: DAY, stage: "ask", user_id: "c", choice: "maybe", voted_at: new Date().toISOString() },
+    ]);
+    yield* Presence.use((p) => p.snapshot([]));
+    yield* GameNight.use((g) => g.maintain); // the hold is up: c is asked again
+    yield* db.update(gameNights).set({ stage: "off", note: "🔥 Called off" }).where(eq(gameNights.day, DAY));
+    const card = JSON.stringify(yield* GameNight.use((g) => g.render(DAY)));
+    expect(card).toContain("<@c> 🤔 Maybe, then no answer");
+  }).pipe(h.provide),
+);

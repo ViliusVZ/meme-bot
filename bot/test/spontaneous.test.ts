@@ -119,17 +119,24 @@ it.effect("recent games come first on the question", () =>
   }).pipe(h.provide),
 );
 
-it.effect("first tap wins: the room opens, the Lobby comes along, the question goes; a late tap hears who won", () =>
+it.effect("first tap wins: the room opens, the Lobby comes along, the question turns into the result; a late tap hears who won", () =>
   Effect.gen(function* () {
     const db = yield* Db;
     const t0 = yield* now;
     yield* at(t0, { a: "lobby", b: "lobby" });
     yield* at(t0 + 30);
-    const id = (yield* prompt()).id;
+    const { id, message_id } = yield* prompt();
     calls.length = 0;
     yield* tap(`lob:${id}:g:World of Warcraft`, "a");
-    yield* waitFor(Effect.sync(() => expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/channels/gn/messages/"))).toBe(true)));
+    const edited = () => calls.find((c) => c.method === "PATCH" && c.path === `/channels/gn/messages/${message_id}`);
+    yield* waitFor(Effect.sync(() => expect(edited()).toBeDefined()));
     const [room] = yield* db.select().from(rooms);
+    // the result, on the question itself (21 Nov): who's in, who picked, and ↩ for those moved
+    const result = JSON.stringify(edited()!.body);
+    expect(result).toContain(`**World of Warcraft**: room's open (<#${room.channel_id}>)`);
+    expect(result).toContain("are in. (picked by");
+    expect(result).toContain(`lob:back:a,b:${room.channel_id}`);
+    expect(calls.some((c) => c.method === "DELETE" && c.path === `/channels/gn/messages/${message_id}`)).toBe(false);
     expect(room.game).toBe("World of Warcraft");
     expect(calls.filter((c) => c.method === "PATCH" && c.path.startsWith("/guilds/guild/members/")).map((c) => c.body.channel_id)).toEqual([room.channel_id, room.channel_id]);
     expect(yield* prompt()).toMatchObject({ state: "picked", by: "a", game: "World of Warcraft" });

@@ -24,7 +24,7 @@
 // Nothing here pings or notifies anyone, and everything it posts it tidies away again.
 import { and, desc, eq, gt, inArray, isNull, lte, not, like, sql } from "drizzle-orm";
 import { Context, DateTime, Effect, Layer, Match } from "effect";
-import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, nightCards, readyRooms, rooms, sessions, voiceSegments } from "./db/schema.js";
+import { activityGuesses, fleeting, gameAliases, gameNights, games as gameTable, lobbyPrompts, nightCards, readyRooms, rooms, sessions, settings, voiceSegments } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, players } from "./config.js";
 import { Discord, type DiscordError, IS_COMPONENTS_V2 } from "./discord.js";
@@ -36,6 +36,7 @@ import { Alerts } from "./alerts.js";
 import { BotVoice } from "./botvoice.js";
 import { nowSec } from "./clock.js";
 import { jsonText } from "./json.js";
+import { comingLine, spokenName } from "./lines.js";
 import { assumedGame } from "./gamenight.js"; // used at run time only (gamenight imports this module too)
 
 export const GATHER_AFTER = 30; // two of us in the Lobby this long → ask
@@ -134,7 +135,7 @@ export class Spontaneous extends Context.Service<
      * ↩ Back to the Lobby (from a note): whoever was moved goes back if they're still in that room, and
      * the Lobby stays quiet for this gathering. Returns what to tell the tapper.
      */
-    goBack(channel: string, users: ReadonlyArray<string>, messageId: string | undefined, t?: number): Effect.Effect<string | null, DbError>;
+    goBack(channel: string, users: ReadonlyArray<string>, messageId: string | undefined, t?: number, messageChannel?: string): Effect.Effect<string | null, DbError>;
     /**
      * The day's planned night just started with this game: a session of the same game that day is the
      * night now. It stops counting on its own (the night counts), and its line goes.
@@ -362,6 +363,19 @@ export class Spontaneous extends Context.Service<
         );
       });
 
+      /** 🎧 A room opened for us: tonight's "coming?" message says where we actually are now, and the game. */
+      const pointComing = Effect.fnUntraced(function* (room: string, game: string) {
+        const day = time.at(yield* nowSec).day;
+        const calls = yield* db.select().from(settings).where(like(settings.key, `gn:called:${day}:%`));
+        for (const c of calls) {
+          const v = c.value as { message_id?: string; two?: string[] } | null;
+          if (!v?.message_id || !v.two) continue;
+          const third = c.key.split(":").pop()!;
+          const content = comingLine(third, v.two, room, ` for ${yield* games.emojiFor(game)} **${game}**`);
+          yield* discord.editMessage(askIn, v.message_id, { content, allowed_mentions: { parse: [] } }).pipe(Effect.catch((e) => Effect.logInfo(`coming? edit ${e}`)));
+        }
+      });
+
       /** Two of us in the Lobby playing the same game: straight to its room, with ↩ in case we're wrong. */
       const autoMove = (game: string, by: ReadonlyArray<string>, t: number, why?: string) => Effect.uninterruptible(autoMoveOnce(game, by, t, why)); // claim → move → note (§15)
       const autoMoveOnce = Effect.fnUntraced(function* (game: string, by: ReadonlyArray<string>, t: number, why?: string) {
@@ -370,6 +384,7 @@ export class Spontaneous extends Context.Service<
         yield* Effect.gen(function* () {
           const r = yield* voice.openRoom(game, yield* games.emojiFor(game), { move: true });
           if (r.moved.length) yield* note(r.channelId, why ?? `🎮 Saw ${names(by)} in **${game}**, so I brought you over.`, r.moved, t);
+          yield* pointComing(r.channelId, game);
         }).pipe(
           Effect.catch((e) =>
             Effect.andThen(db.update(lobbyPrompts).set({ state: "failed" }).where(eq(lobbyPrompts.id, claim.id)), alerts.failed("moving the Lobby into the game we're playing", e, game)),
@@ -698,8 +713,35 @@ export class Spontaneous extends Context.Service<
                 return now?.state === "picked" && now.game ? `${mention(now.by!)} already picked **${now.game}** 🙂` : "That question's closed.";
               }
               return yield* Effect.gen(function* () {
-                const r = yield* voice.openRoom(game!, yield* games.emojiFor(game!), { by: user, move: true });
-                if (p.message_id) yield* goneEverywhere(p.message_id);
+                const emoji = yield* games.emojiFor(game!);
+                const r = yield* voice.openRoom(game!, emoji, { by: user, move: true });
+                // the early-bird card goes as before (the night takes over from it); the question turns into its result
+                if (p.message_id && (yield* isCard(id))) yield* goneEverywhere(p.message_id);
+                else if (p.message_id) {
+                  const who = r.moved.map(spokenName);
+                  const said = who.length
+                    ? `${emoji} **${game}**: room's open (<#${r.channelId}>), ${who.length > 1 ? `${who.slice(0, -1).join(", ")} and ${who[who.length - 1]} are` : `${who[0]} is`} in. (picked by ${spokenName(user)})`
+                    : `${emoji} **${game}**: room's open (<#${r.channelId}>). Nobody was in the Lobby to bring along. (picked by ${spokenName(user)})`;
+                  yield* discord
+                    .editMessage(askIn, p.message_id, {
+                      flags: IS_COMPONENTS_V2,
+                      allowed_mentions: { parse: [] },
+                      components: [
+                        {
+                          type: 17,
+                          accent_color: 0x57f287,
+                          components: [
+                            { type: 10, content: said },
+                            ...(r.moved.length
+                              ? [{ type: 1, components: [{ type: 2, style: 2, label: "Back to the Lobby", emoji: { name: "↩️" }, custom_id: `lob:back:${r.moved.join(",")}:${r.channelId}`.slice(0, 100) }] }]
+                              : []),
+                          ],
+                        },
+                      ],
+                    })
+                    .pipe(Effect.catch((e) => Effect.andThen(Effect.logInfo(`question result edit ${e}`), goneEverywhere(p.message_id!))));
+                }
+                yield* pointComing(r.channelId, game!);
                 if (p.activity) {
                   // they were all in a game Discord calls something we don't know: offer to remember it (never silently)
                   return {
@@ -707,7 +749,8 @@ export class Spontaneous extends Context.Service<
                     components: [{ type: 1, components: [{ type: 2, style: 1, label: `Yes, always open ${game}`.slice(0, 80), custom_id: `lob:${id}:alias`, emoji: { name: "🧠" } }] }],
                   } as Notice;
                 }
-                return r.moved.length ? null : `🔊 Room's up: <#${r.channelId}>. Nobody was left in the Lobby to bring along.`;
+                // the result is on the question itself, for everyone
+                return null;
               }).pipe(
                 Effect.catch((e) =>
                   Effect.gen(function* () {
@@ -748,7 +791,7 @@ export class Spontaneous extends Context.Service<
         );
       });
 
-      const goBack = Effect.fn("Spontaneous.goBack")(function* (channel: string, users: ReadonlyArray<string>, messageId: string | undefined, at?: number) {
+      const goBack = Effect.fn("Spontaneous.goBack")(function* (channel: string, users: ReadonlyArray<string>, messageId: string | undefined, at?: number, messageChannel?: string) {
         const t = at ?? (yield* nowSec);
         const back: string[] = [];
         for (const u of users) {
@@ -764,7 +807,7 @@ export class Spontaneous extends Context.Service<
         if (cur) yield* db.update(lobbyPrompts).set({ state: "undone", created_at: t }).where(eq(lobbyPrompts.id, cur.id));
         else yield* db.insert(lobbyPrompts).values({ created_at: t, state: "undone" }).onConflictDoNothing();
         if (messageId) {
-          yield* deleteMessage(channel, messageId);
+          yield* deleteMessage(messageChannel ?? channel, messageId);
           yield* db.delete(fleeting).where(eq(fleeting.message_id, messageId));
         }
         return back.length ? null : "Nobody to move back: they've already left that room.";
