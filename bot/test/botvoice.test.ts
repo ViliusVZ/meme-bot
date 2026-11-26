@@ -758,3 +758,18 @@ it.effect("a night start with one of us (or nobody) in the room waits, no line d
     expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)[0]).toBe("♪night");
   }).pipe(h.provide),
 );
+
+it.effect("a night begun on the spot (⚡ Now) with no grace saved: arriving 2 min in is no latecomer (27 Nov)", () =>
+  Effect.gen(function* () {
+    yield* start;
+    const db = yield* Db;
+    const t = Math.floor(T0 / 1000);
+    // locked and started the same second (as production's 19:00:39 night), no gn:grace row (started on an older copy)
+    yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: t - 140, stage_at: t - 140, reminded: true, message_id: "card" });
+    yield* db.insert(rooms).values({ channel_id: "r1", game: "R.E.P.O.", day: DAY, created_at: t - 140 });
+    yield* inVoice({ a: "r1" });
+    expect(yield* LateSlips.use((l) => l.watch)).toMatchObject({ arrived: ["a"] });
+    yield* real(100);
+    expect(count("join")).toBe(0); // nobody spoken to
+  }).pipe(h.provide),
+);

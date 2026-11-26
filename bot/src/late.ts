@@ -26,7 +26,7 @@ import { nowSec } from "./clock.js";
 const LATE_AFTER = 10 * 60; // grace before a late slip
 const WATCH_FOR = 3 * 3600; // stop watching this long after the start
 
-type Night = { day: string; game: string | null; start_at: number | null; message_id: string | null };
+type Night = { day: string; game: string | null; start_at: number | null; message_id: string | null; stage_at?: number | null };
 
 export class LateSlips extends Context.Service<
   LateSlips,
@@ -128,7 +128,7 @@ export class LateSlips extends Context.Service<
       const watch = Effect.gen(function* () {
         const t = yield* nowSec;
         const nights: Night[] = yield* db
-          .select({ day: gameNights.day, game: gameNights.game, start_at: gameNights.start_at, message_id: gameNights.message_id })
+          .select({ day: gameNights.day, game: gameNights.game, start_at: gameNights.start_at, message_id: gameNights.message_id, stage_at: gameNights.stage_at })
           .from(gameNights)
           .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, true), lte(gameNights.start_at, t), gt(gameNights.start_at, t - WATCH_FOR)));
         const done: Record<string, string[]> = {};
@@ -141,7 +141,11 @@ export class LateSlips extends Context.Service<
             .where(and(eq(rooms.day, n.day), isNull(rooms.archived_at), real));
           if (!room) continue;
           const [g] = yield* db.select({ value: settings.value }).from(settings).where(eq(settings.key, `gn:grace:${n.day}`));
-          const graceUntil = Number((g?.value as { until?: number } | undefined)?.until ?? 0);
+          // no grace saved (a night started before the grace existed, or the save was missed): the night's own
+          // times say it: locked and started within 10 min of each other means it began on the spot
+          const lockedAt = n.stage_at ?? null;
+          const derived = lockedAt !== null && n.start_at! - lockedAt < 600 ? n.start_at! + 600 : 0;
+          const graceUntil = Math.max(Number((g?.value as { until?: number } | undefined)?.until ?? 0), derived);
           for (const p of yield* trio) {
             // one player's trouble (a failed move or post) must not hold up the others
             yield* watchPlayer(n, room.channel_id, p, t, note, graceUntil).pipe(Effect.catch((e) => alerts.failed("latecomer upkeep", e, n.day, p)));

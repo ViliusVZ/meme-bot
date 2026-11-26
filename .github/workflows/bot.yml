@@ -94,10 +94,23 @@ jobs:
     # production follows the test bot; until the switchover from Cloudflare it stays off (PROD_ENABLED)
     if: always() && needs.build.result == 'success' && needs.deploy-dev.result != 'failure' && vars.PROD_ENABLED == 'true' && (github.event_name == 'push' || inputs.target != 'dev')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # it may wait for a game night to wind down (below) before the few minutes the deploy itself takes
+    timeout-minutes: 360
     environment: prod
     steps:
       - uses: actions/checkout@v5
+      # never restart production mid-game: wait while one of us is in voice or a night started in the
+      # last 15 min (/health "busy"); a copy without the field counts as not busy
+      - name: Wait until nobody is playing
+        shell: bash
+        run: |
+          for i in $(seq 1 170); do
+            busy=$(curl -fsS https://srv2140520.hstgr.cloud/bot/health | jq -r '.busy // false' || echo false)
+            if [ "$busy" != "true" ]; then echo "not busy: deploying"; exit 0; fi
+            echo "busy (someone's in voice or a night just started): waiting 2 min"
+            sleep 120
+          done
+          echo "still busy after ~5h40m: not deploying"; exit 1
       - uses: ./.github/actions/deploy
         with:
           app: meme-bot

@@ -1,12 +1,12 @@
 // HTTP: Discord interactions, meme intake from the GitHub fetcher, admin/test routes, health.
 import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
-import { sql } from "drizzle-orm";
+import { and, eq, gt, lte, sql } from "drizzle-orm";
 import { ByteSize, Cause, Clock, Context, Duration, Effect, Fiber, Layer, Match, Redacted, Schema } from "effect";
 import { count, taps, tapTime, time as timeIt } from "./metrics.js";
 import { HttpIncomingMessage, HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { NodeHttpServer } from "@effect/platform-node";
-import { memes } from "./db/schema.js";
+import { gameNights, memes } from "./db/schema.js";
 import { Db } from "./db/db.js";
 import { AppConfig, withOverrides } from "./config.js";
 import { Discord, EPHEMERAL, Response as R } from "./discord.js";
@@ -247,6 +247,18 @@ export const Routes = HttpRouter.use((router) =>
     const admin = <E>(path: HttpRouter.PathInput, handler: (input: Input) => Effect.Effect<HttpServerResponse.HttpServerResponse, E>) => withToken(config.adminSecret, path, handler);
     const answer = (value: unknown) => (value === undefined ? HttpServerResponse.empty() : json(value));
 
+    /** Someone's playing (or about to): a restart now would cut into it. */
+    const busy = Effect.gen(function* () {
+      if (!(yield* presence.isReady)) return false;
+      for (const p of config.players) if (yield* presence.lastKnown(p)) return true;
+      const t = yield* nowSec;
+      const started = yield* db
+        .select({ day: gameNights.day })
+        .from(gameNights)
+        .where(and(eq(gameNights.reminded, true), lte(gameNights.start_at, t), gt(gameNights.start_at, t - 900)));
+      return started.length > 0;
+    }).pipe(Effect.catch(() => Effect.succeed(false)));
+
     yield* route("GET", "/health", () =>
       Effect.gen(function* () {
         // ready to serve clicks: the database answers. (Leadership is separate: a follower serves too.)
@@ -265,6 +277,8 @@ export const Routes = HttpRouter.use((router) =>
           background: yield* background.inFlight,
           uptime: Math.round(process.uptime()),
           version: config.revision,
+          // the deploy waits while this is true: one of us in voice, or a night that started in the last 15 min
+          busy: yield* busy,
         });
       }),
     );
