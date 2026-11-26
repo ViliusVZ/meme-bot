@@ -9,12 +9,13 @@
 // demuxer passes straight to Discord (an Opus decoder plays at 48 kHz whatever the input rate, and a
 // mono frame is valid in Discord's stereo stream). Measured 2026-11-13: one line in 1 to 4 s.
 //
-// English lines go to `en-US-BrianMultilingualNeural`, Lithuanian ones to `lt-LT-LeonasNeural`
-// (lines.ts marks which is which).
+// Which voice says what is voices.ts's business (every span is cast at random since 26 Nov); a span
+// can carry Edge prosody (rate, pitch, volume), and a span in a `gemini:<Name>` voice goes to Gemini
+// with its style direction.
 //
-// The second engine, when Edge doesn't answer: Gemini's own speech (`gemini-3.8-flash-tts`, voice
-// Charon, one voice for both languages) on the GEMINI_API_KEY, at most 20 lines a day (its own
-// budget in `settings`). It gives back plain PCM, encoded here to Ogg Opus (opusogg.ts).
+// Gemini (`gemini-3.8-flash-tts`) on the GEMINI_API_KEY, at most 20 lines a day (its own budget in
+// `settings`): the spare engine when Edge doesn't answer (voice Charon), and the voice of lines with a
+// Gemini direction. It gives back PCM, encoded here to Ogg Opus (opusogg.ts).
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { Clock, Context, DateTime, Duration, Effect, Layer, Option, Redacted, Result, Schema } from "effect";
@@ -39,6 +40,7 @@ export const GEMINI_TTS = "gemini-3.8-flash-tts";
 export const GEMINI_VOICE = "Charon";
 export const GEMINI_DAILY = 20; // lines a day through Gemini, at most (Edge is the engine; this is the spare)
 const GEMINI_TIMEOUT = Duration.seconds(15); // a line took 2-3 s in Step 0
+export const GEMINI_MAX_SECONDS = 13; // longer than that, a Gemini reading isn't kept (Edge reads the line)
 const BUDGET = "gemini_tts_budget";
 const Budget = Schema.Struct({ day: Schema.String, used: Schema.Number });
 const Spoken = Schema.Struct({
@@ -73,13 +75,17 @@ export const escapeXml = (text: string) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
 
+/** Edge's prosody: rate and volume in percent, pitch in Hz, all relative to the voice's own. */
+export type Prosody = { readonly rate?: number; readonly pitch?: number; readonly volume?: number };
+const signed = (n: number | undefined, unit: string) => `${(n ?? 0) >= 0 ? "+" : ""}${Math.round(n ?? 0)}${unit}`;
+
 /** The two messages a synthesis sends: the audio format, then the line. */
-export function edgeRequest(text: string, voice: string, date: string, requestId: string) {
+export function edgeRequest(text: string, voice: string, date: string, requestId: string, prosody: Prosody = {}) {
   return [
     `X-Timestamp:${date}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
       `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"${FORMAT}"}}}}\r\n`,
     `X-RequestId:${requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${date}Z\r\nPath:ssml\r\n\r\n` +
-      `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>${escapeXml(text)}</prosody></voice></speak>`,
+      `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody pitch='${signed(prosody.pitch, "Hz")}' rate='${signed(prosody.rate, "%")}' volume='${signed(prosody.volume, "%")}'>${escapeXml(text)}</prosody></voice></speak>`,
   ] as const;
 }
 
@@ -129,9 +135,13 @@ export class Tts extends Context.Service<
     /**
      * One span of a line in one voice: WebM Opus from Edge, or (Edge failing, `spare` not false) Ogg
      * Opus from Gemini. Clips made ahead pass `spare: false`: Gemini's few lines a day are for speech
-     * that's due now.
+     * that's due now, and for the `gemini:<Name>` voices (always Gemini, with `style`, never a spare).
      */
-    synth(text: string, voice: string, options?: { readonly spare?: boolean }): Effect.Effect<Speech, TtsUnavailable>;
+    synth(
+      text: string,
+      voice: string,
+      options?: { readonly spare?: boolean; readonly prosody?: Prosody; readonly style?: string },
+    ): Effect.Effect<Speech, TtsUnavailable>;
   }
 >()("meme-bot/tts") {
   static readonly layer = Layer.effect(
@@ -143,13 +153,13 @@ export class Tts extends Context.Service<
       const http = yield* HttpClient.HttpClient;
       const unavailable = (detail: string) => new TtsUnavailable({ engine: "edge", detail });
 
-      const edge = Effect.fnUntraced(function* (text: string, voice: string) {
+      const edge = Effect.fnUntraced(function* (text: string, voice: string, prosody: Prosody) {
         const ms = yield* Clock.currentTimeMillis;
         const date = DateTime.toDateUtc(DateTime.makeUnsafe(ms)).toUTCString();
         const socket = yield* Socket.makeWebSocket(edgeUrl(ms, id()), { headers: { ...EDGE_HEADERS, Cookie: `muid=${id().toUpperCase()};` }, openTimeout: OPEN_TIMEOUT });
         const reader = yield* socket.reader;
         const writer = yield* socket.writer;
-        for (const m of edgeRequest(text, voice, date, id())) yield* writer.write(m);
+        for (const m of edgeRequest(text, voice, date, id(), prosody)) yield* writer.write(m);
         const audio: Uint8Array[] = [];
         for (;;) {
           const frames = yield* reader.pull;
@@ -164,8 +174,8 @@ export class Tts extends Context.Service<
         }
       });
 
-      const viaEdge = (text: string, voice: string) =>
-        Effect.scoped(edge(text, voice)).pipe(
+      const viaEdge = (text: string, voice: string, prosody: Prosody = {}) =>
+        Effect.scoped(edge(text, voice, prosody)).pipe(
           Effect.provideService(Socket.WebSocketConstructor, ctor),
           // closed early, refused (a changed protocol closes with 1007), unreachable: all the same to us
           Effect.catchTag("SocketError", (e) => Effect.fail(unavailable(e.message))),
@@ -188,7 +198,7 @@ export class Tts extends Context.Service<
         return true;
       }).pipe(Effect.mapError((e) => geminiFailed(`its budget: ${e.message}`)));
 
-      const viaGemini = Effect.fnUntraced(function* (text: string) {
+      const viaGemini = Effect.fnUntraced(function* (text: string, voice: string = GEMINI_VOICE, style?: string) {
         const key = config.geminiApiKey;
         if (!key) return yield* geminiFailed("no GEMINI_API_KEY");
         if (!(yield* spend)) return yield* geminiFailed(`today's ${GEMINI_DAILY} lines are used up`);
@@ -196,8 +206,9 @@ export class Tts extends Context.Service<
           HttpClientRequest.setHeaders({ "Content-Type": "application/json", "x-goog-api-key": Redacted.value(key) }),
           HttpClientRequest.bodyText(
             jsonText({
-              contents: [{ parts: [{ text }] }],
-              generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } } },
+              // a style is said as Gemini expects it: "<direction>: <text>"
+              contents: [{ parts: [{ text: style ? `${style}: ${text}` : text }] }],
+              generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
             }),
             "application/json",
           ),
@@ -210,21 +221,30 @@ export class Tts extends Context.Service<
         if (Result.isFailure(bytes)) return yield* geminiFailed("its audio isn't base64");
         const pcm = pcmOf(bytes.success, data.mimeType);
         if (!pcm) return yield* geminiFailed(`audio it can't encode (${data.mimeType})`);
+        // a visit is a jingle and about ten seconds: a reading that ran long is not kept
+        if (pcm.pcm.length / pcm.rate > GEMINI_MAX_SECONDS) return yield* geminiFailed(`too long (${(pcm.pcm.length / pcm.rate).toFixed(1)} s)`);
         return { audio: yield* encodeOggOpus(pcm.pcm, pcm.rate), engine: "gemini" } satisfies Speech;
       });
 
+      const gemini = (text: string, voice: string, style?: string) =>
+        viaGemini(text, voice, style).pipe(
+          Effect.catchTags({
+            HttpClientError: (e) => Effect.fail(geminiFailed(e.message)),
+            SchemaError: (e) => Effect.fail(geminiFailed(`its answer: ${e.message}`)),
+          }),
+          Effect.timeoutOrElse({ duration: GEMINI_TIMEOUT, orElse: () => Effect.fail(geminiFailed("timed out")) }),
+        );
+
       return Tts.of({
         synth: (text, voice, options) =>
-          viaEdge(text, voice).pipe(
+          // a Gemini voice: Gemini, with its direction (no spare: the caller falls back to Edge itself)
+          voice.startsWith("gemini:")
+            ? gemini(text, voice.slice("gemini:".length), options?.style).pipe(Effect.withSpan("Tts.synth", { attributes: { voice } }))
+            : viaEdge(text, voice, options?.prosody).pipe(
             // Edge said no: the spare engine, if there's a key (both failures reach the caller as one)
             Effect.catch((edgeFailed) =>
               config.geminiApiKey && options?.spare !== false
-                ? viaGemini(text).pipe(
-                    Effect.catchTags({
-                      HttpClientError: (e) => Effect.fail(geminiFailed(e.message)),
-                      SchemaError: (e) => Effect.fail(geminiFailed(`its answer: ${e.message}`)),
-                    }),
-                    Effect.timeoutOrElse({ duration: GEMINI_TIMEOUT, orElse: () => Effect.fail(geminiFailed("timed out")) }),
+                ? gemini(text, GEMINI_VOICE).pipe(
                     Effect.mapError((e) => new TtsUnavailable({ engine: "edge, gemini", detail: `${edgeFailed.detail}; ${e.detail}` })),
                   )
                 : Effect.fail(edgeFailed),

@@ -10,7 +10,10 @@ import { Tts, type TtsUnavailable } from "./tts.js";
 import type { Span } from "./lines.js";
 import { nowSec } from "./clock.js";
 
-export const clipKey = (s: Span) => createHash("sha256").update(`${s.voice}\n${s.text}`).digest("hex");
+export const clipKey = (s: Span) => {
+  const how = s.rate || s.pitch || s.volume || s.style ? `\n${s.rate ?? 0}|${s.pitch ?? 0}|${s.volume ?? 0}|${s.style ?? ""}` : "";
+  return createHash("sha256").update(`${s.voice}\n${s.text}${how}`).digest("hex");
+};
 
 export class Clips extends Context.Service<
   Clips,
@@ -35,7 +38,11 @@ export class Clips extends Context.Service<
         get: Effect.fn("Clips.get")(function* (span: Span, options?: { readonly spare?: boolean }) {
           const hit = yield* cached(span);
           if (hit) return hit;
-          const { audio, engine } = yield* tts.synth(span.text, span.voice, options);
+          const { audio, engine } = yield* tts.synth(span.text, span.voice, {
+            ...options,
+            prosody: { rate: span.rate, pitch: span.pitch, volume: span.volume },
+            style: span.style,
+          });
           yield* db
             .insert(voiceClips)
             .values({ key: clipKey(span), voice: span.voice, text: span.text, audio: Buffer.from(audio), engine, created_at: yield* nowSec })

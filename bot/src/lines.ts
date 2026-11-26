@@ -1,15 +1,24 @@
 // 🗣️ What the bot says out loud (plan 03), hand-written in the voice of roasts.ts and tone-read on
 // 2026-11-13. Put in code exactly as written; change them here and nowhere else.
 //
-// Markup: English by default; `‹…›` is a Lithuanian span, spoken in the Lithuanian voice (tts.ts).
+// Markup (26 Nov: "the cringe is the feature", voices.ts casts every span at random):
+//   English by default.
+//   `‹…›`        a Lithuanian span.
+//   `⟦de:…⟧`     a span in another language: de es it pl ja la fr.
+//   `‖`          a hand-over: what follows is said by another voice, as unlike the last as possible.
+//   a leading `[slow]` `[fast]` `[whisper]` `[shout]`: how the whole line is delivered (speed, pitch, volume);
+//   a leading `[gemini: <direction>]`: Gemini reads the whole line that way, made ahead within its
+//     daily allowance; without a clip made in time, Edge reads it plainly.
 // Placeholders: {who} the person, {V} Vithis, {K} Koral, {L} Ieva, {game} the night's game,
 // {mins} minutes late, always written "{mins} minutes" (it becomes "1 minute" or "12 minutes"),
-// never inside a ‹…› span (Lithuanian inflects it). Names are spoken names, never Discord's, and
-// always outside the Lithuanian spans. No emoji, no markdown: these are read aloud.
+// never inside a ‹…› or ⟦…⟧ span (those languages inflect it). Names are spoken names, never
+// Discord's, and always outside the spans. No emoji, no markdown: these are read aloud. A night-start
+// line always says {game}. A visit is a jingle and about ten seconds: keep a line under ~140 letters
+// (~100 for [slow] ones).
 //
 // Each moment draws from one shuffle-bag shared by everybody (roasts.ts `draw`, family `voice:*`):
 // the shared lines plus each person's own, so nothing repeats until the bag has gone round.
-import { EN_VOICE, LT_VOICE } from "./tts.js";
+import type { Lang } from "./voices.js";
 
 const V = "306836805825593344"; // Vithis
 const K = "212567787896307713"; // Koral
@@ -19,8 +28,63 @@ const L = "747902984003780651"; // Ieva (Lionixity)
 export const SPOKEN_NAMES: Readonly<Record<string, string>> = { [V]: "Vithis", [K]: "Koral", [L]: "Ieva" };
 const NOBODY = "you there"; // a stand-in player (QA) has no spoken name
 
-/** 1. A planned night starts (after the jingle). */
-export const START = ["{game} tonight. Nobody bails. ‹Pažadėjot.›", "‹Žaidimų vakaras:› {game}. Let's go.", "{game}. ‹Pradedam.›"];
+/** 1. A planned night starts (after the jingle). Every line says {game}. */
+export const START = [
+  // the originals
+  "{game} tonight. Nobody bails. ‹Pažadėjot.›",
+  "‹Žaidimų vakaras:› {game}. Let's go.",
+  "{game}. ‹Pradedam.›",
+  // film trailer
+  "[slow] In a world where nobody answered the poll, three heroes rose. {game}. This winter.",
+  "[gemini: Say it like a deep, dramatic movie trailer narrator, full of gravel] Three legends. Zero preparation. {game}.",
+  // football commentator
+  "[fast] And it's {game}! What a start! ‹Kokia pradžia!› The crowd goes absolutely mild!",
+  "[gemini: Say it like a football commentator losing his mind after a last-minute goal, very fast and loud] Vithis to Koral, Koral to Ieva, Ieva logs in, {game}! Game night is ON!",
+  // airport gate
+  "Attention please. Flight {game} is now boarding at gate three. ‖ ‹Keleiviai, prašome nesivėluoti.›",
+  "‹Dėmesio.› This is the final call for {game}. Cats named Pūkis must stay at home.",
+  // sat-nav
+  "In two hundred metres, turn left into {game}. ‖ ‹Perskaičiuojamas maršrutas.›",
+  "You have arrived at {game}. ‖ ‹Jūsų kelionės tikslas dešinėje.›",
+  // meditation app
+  "[whisper] Breathe in. Breathe out. Feel the {game} flowing through you. ‹Ramiai.›",
+  "[gemini: Say it like a calm meditation app voice, soothing, almost whispering] Close your eyes. Imagine no lag. Now open them. {game}.",
+  // corporate stand-up
+  "Quick sync before we start. Agenda item one: {game}. Agenda item two: also {game}. Any blockers? Great.",
+  "Let's take this offline and circle back to {game}. ‖ ‹Šitas susitikimas galėjo būti laiškas.›",
+  // news flash
+  "Breaking news. Three adults in Lithuania have started {game}. More at eleven.",
+  "‹Skubios žinios.› {game} has begun. ‖ Experts say nobody will sleep tonight.",
+  // medieval herald
+  "Hear ye, hear ye! By order of the Trio, {game} doth commence! ‹Tegyvuoja karalius!›",
+  "[gemini: Say it like a pompous medieval herald with trumpets in his voice] Lords and ladies of the realm! {game} begins! Bring snacks, or be banished!",
+  // kindergarten teacher
+  "Okay everyone, sit nicely! Today we are playing {game}! ‖ ‹Visi pasiruošę?› Wonderful!",
+  "[gemini: Say it like a sweet, extremely patient kindergarten teacher] Inside voices, please. It's {game} time. Hands where I can see them.",
+  // radio DJ
+  "[fast] You're listening to Trio FM, number one for {game}! Up next: zero sleep!",
+  "Good evening, night owls. Coming up after the break: {game}, and regret. ‖ Stay tuned.",
+  // customer service hold
+  "Your game night is important to us. Please hold. {game} will begin shortly. ‖ ‹Ačiū už kantrybę.›",
+  "Thank you for calling {game} support. For Koral, press one. For snacks, press two.",
+  // weather, robots, small print
+  "Tonight's forecast: heavy {game}, with a strong chance of nobody going to bed.",
+  "[slow] Game. Night. Has. Begun. {game}. Beep.",
+  "[whisper] Psst. It's {game}. ‖ Pass it on.",
+  "[fast] {game} may cause sleep loss, rage and mild friendship. Terms and conditions apply.",
+  "We are gathered here today ‖ to play {game}. ‖ ‹Amen.›",
+  "Ladies and gentlemen, tonight's main event ‖ is {game}, ‖ ‹ir niekas nepabėgs.›",
+  "[shout] {game}! ‹Visi į vietas!›",
+  "‹Dėmesio, dėmesio!› {game}. ‖ ‹Telefonus padėti, užkandžius paruošti.›",
+  // a surprise language
+  "⟦de:Achtung! Der Spieleabend beginnt jetzt. Heute spielen wir⟧ {game}. ⟦de:Ordnung muss sein.⟧",
+  "⟦es:¡Atención, amigos! Esta noche jugamos a⟧ {game}. ⟦es:¡Vamos!⟧",
+  "⟦it:Mamma mia, che serata! Stasera si gioca a⟧ {game}. ⟦it:Andiamo!⟧",
+  "⟦pl:Uwaga, uwaga! Dzisiaj gramy w⟧ {game}. ⟦pl:Do boju!⟧",
+  "⟦ja:皆さん、こんばんは。今夜のゲームは⟧ {game} ⟦ja:です。頑張りましょう！⟧",
+  "[slow] ⟦la:Alea iacta est. Hodie ludimus⟧ {game}. ⟦la:Ave, amici.⟧",
+  "⟦fr:Mesdames et messieurs, ce soir c'est⟧ {game}. ‖ ⟦fr:Bonne chance, mes amis.⟧",
+];
 
 /** 2. A latecomer arrives in the night's room. */
 export const LATE = [
@@ -28,6 +92,16 @@ export const LATE = [
   "‹Labas,› {who}. Only {mins} minutes late. ‹Rekordas.›",
   "Look who it is. {who}. {mins} minutes, fashionably late.",
   "‹Pagaliau,› {who}. Now the party can actually start.",
+  "Breaking news: {who} has arrived, {mins} minutes late. More at eleven.",
+  "Attention please. Passenger {who}, you are {mins} minutes late. ‖ ‹Lėktuvas jau pakilo.›",
+  "[whisper] {who} is here. Don't look. Just act normal.",
+  "Recalculating. {who}, {mins} minutes behind schedule. ‖ ‹Perskaičiuojamas maršrutas.›",
+  "⟦de:Pünktlichkeit ist eine Tugend,⟧ {who}. {mins} minutes late.",
+  "Hear ye! {who} hath arrived, {mins} minutes tardy! ‖ ‹Gėda, gėda.›",
+  "Your arrival is important to us, {who}. {mins} minutes late. ‖ ‹Ačiū, kad laukėte.›",
+  "[fast] And {who} enters the pitch! {mins} minutes late, but who's counting? Everyone is counting.",
+  "⟦it:Finalmente!⟧ {who}, {mins} minutes late. ⟦it:Mamma mia.⟧",
+  "⟦ja:遅いですよ、⟧ {who}. {mins} minutes. ‖ ‹Labas vakaras.›",
 ];
 export const LATE_PERSONAL: Readonly<Record<string, ReadonlyArray<string>>> = {
   [K]: ["{K}, {mins} minutes late. ‹Kaip visada, Venipak'o standartas.›", "{K}, ‹siunta pristatyta.› Signature not required."],
@@ -36,7 +110,16 @@ export const LATE_PERSONAL: Readonly<Record<string, ReadonlyArray<string>>> = {
 };
 
 /** 3. The Lobby question, aloud (when the bot posts "Playing something?"). */
-export const LOBBY = ["Playing something? ‹Ką žaidžiam?› Tap the game in game night.", "‹Labas.› What are we playing? The buttons are in game night.", "‹Nu, ką žaidžiam?› Pick it in the game night channel."];
+export const LOBBY = [
+  "Playing something? ‹Ką žaidžiam?› Tap the game in game night.",
+  "‹Labas.› What are we playing? The buttons are in game night.",
+  "‹Nu, ką žaidžiam?› Pick it in the game night channel.",
+  "Welcome to the Lobby. Please hold. The buttons are in game night. ‖ ‹Ačiū.›",
+  "[whisper] What are we playing? Tap it in game night. Quietly.",
+  "⟦de:Was spielen wir?⟧ ‖ The buttons are in game night.",
+  "Two players detected. ‖ ‹Ką žaidžiam?› Pick it in game night.",
+  "Attention, passengers in the Lobby. Please select your game in game night.",
+];
 
 /** 4. The lone early bird (the beep plays first, then one line). */
 export const EARLY = [
@@ -48,6 +131,12 @@ export const EARLY = [
   "‹Tylu, ramu, jauku.› Peak gaming, {who}.",
   "Table for one? Right this way, {who}.",
   "‹Aš irgi čia vienas sėdžiu.› Want to be friends, {who}?",
+  "[whisper] {who}... are you alone? ‖ ‹Labas.›",
+  "⟦es:Hola,⟧ {who}. ⟦es:¿Estás solo?⟧ ‖ Waiting is a lifestyle.",
+  "This is your captain speaking. {who}, we are early. Please remain seated.",
+  "In two hundred metres, the others will arrive. Probably. ‖ Please wait, {who}.",
+  "[slow] {who}. Breathe in. The others are coming. Breathe out. They are not.",
+  "Your wait time is approximately: forever. ‖ ‹Ačiū už kantrybę,› {who}.",
 ];
 export const EARLY_PERSONAL: Readonly<Record<string, ReadonlyArray<string>>> = {
   [K]: [
@@ -119,25 +208,65 @@ export function fill(line: string, values: { who?: string; game?: string; mins?:
     .replaceAll("{game}", clean(values.game ?? ""));
 }
 
-export type Span = { readonly voice: string; readonly text: string };
+/**
+ * A span as the speech engine gets it: who, what, and how (Edge's prosody: rate and volume in
+ * percent, pitch in Hz; Gemini's `style` direction). No prosody and no style is the plain voice.
+ */
+export type Span = {
+  readonly voice: string;
+  readonly text: string;
+  readonly rate?: number;
+  readonly pitch?: number;
+  readonly volume?: number;
+  readonly style?: string;
+};
 
-/** A filled line, split into what each voice says, in order. A span with nothing to say is dropped. */
-export function spans(line: string): Span[] {
-  const out: Span[] = [];
-  const re = /‹([^›]*)›/g;
-  let at = 0;
-  const push = (voice: string, raw: string) => {
-    const text = clean(raw);
-    if (/[\p{L}\p{N}]/u.test(text)) out.push({ voice, text });
+/** How a whole line is delivered (its leading tag). */
+export type Delivery = "plain" | "slow" | "fast" | "whisper" | "shout";
+/** A piece of a line in one language; `handover`: a new voice starts here even in the same language. */
+export type Piece = { readonly lang: Lang; readonly text: string; readonly handover: boolean };
+export type Parsed = { readonly delivery: Delivery; readonly gemini: string | null; readonly pieces: ReadonlyArray<Piece> };
+
+const LANGS: ReadonlyArray<Lang> = ["en", "lt", "de", "es", "it", "pl", "ja", "la", "fr"];
+
+/** A filled line, split into what's said in which language, in order (an empty piece is dropped). */
+export function parse(line: string): Parsed {
+  let rest = line.trim();
+  let delivery: Delivery = "plain";
+  let gemini: string | null = null;
+  const tag = /^\[(slow|fast|whisper|shout|gemini:([^\]]*))\]\s*/.exec(rest);
+  if (tag) {
+    if (tag[2] !== undefined) gemini = tag[2].trim();
+    else delivery = tag[1] as Delivery;
+    rest = rest.slice(tag[0].length);
+  }
+  const pieces: Piece[] = [];
+  let handover = false;
+  const push = (lang: Lang, raw: string) => {
+    // a hand-over mark inside the stretch splits it
+    raw.split("‖").forEach((part, i) => {
+      if (i > 0) handover = true;
+      const text = clean(part);
+      if (/[\p{L}\p{N}]/u.test(text)) {
+        pieces.push({ lang, text, handover });
+        handover = false;
+      }
+    });
   };
-  for (let m = re.exec(line); m; m = re.exec(line)) {
-    push(EN_VOICE, line.slice(at, m.index));
-    push(LT_VOICE, m[1]);
+  const re = /‹([^›]*)›|⟦([a-z]{2}):([^⟧]*)⟧/g;
+  let at = 0;
+  for (let m = re.exec(rest); m; m = re.exec(rest)) {
+    push("en", rest.slice(at, m.index));
+    if (m[1] !== undefined) push("lt", m[1]);
+    else push((LANGS.includes(m[2] as Lang) ? m[2] : "en") as Lang, m[3]);
     at = m.index + m[0].length;
   }
-  push(EN_VOICE, line.slice(at));
-  return out;
+  push("en", rest.slice(at));
+  return { delivery, gemini, pieces };
 }
+
+/** The line as plain text, for Gemini (which reads every language itself) and for logs. */
+export const plainText = (p: Parsed) => p.pieces.map((x) => x.text).join(" ");
 
 /**
  * 5. WoW Forever downtime (downtime.ts): one line when its card or its reminder goes out and any of

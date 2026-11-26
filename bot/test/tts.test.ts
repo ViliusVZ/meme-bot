@@ -18,7 +18,8 @@ import { settings } from "../src/db/schema.js";
 import { harness, json } from "./fx.js";
 
 const h = harness({ tables: [settings], discord: { firstId: 80000 }, clock: "test" });
-import { EARLY, EARLY_PERSONAL, LATE, LATE_PERSONAL, LOBBY, SPOKEN_NAMES, START, clean, fill, minutesText, spans } from "../src/lines.js";
+import { EARLY, EARLY_PERSONAL, LATE, LATE_PERSONAL, LOBBY, SPOKEN_NAMES, START, clean, fill, minutesText, parse } from "../src/lines.js";
+import { ENGLISH, NATIVE, STRANGERS, castPool, contrasts, voiceInfo } from "../src/voices.js";
 
 // ---------------------------------------------------------------- the endpoint's token
 
@@ -270,14 +271,23 @@ const every = [
 ];
 
 describe("the spoken lines", () => {
-  it("are as written: 3 for a start, 11 for latecomers, 3 for the Lobby, 24 for early birds", () => {
-    expect([START.length, LATE.length + Object.values(LATE_PERSONAL).flat().length, LOBBY.length, EARLY.length + Object.values(EARLY_PERSONAL).flat().length]).toEqual([3, 11, 3, 24]);
+  it("are as written: 40 for a start, 21 for latecomers, 8 for the Lobby, 30 for early birds", () => {
+    expect([START.length, LATE.length + Object.values(LATE_PERSONAL).flat().length, LOBBY.length, EARLY.length + Object.values(EARLY_PERSONAL).flat().length]).toEqual([40, 21, 8, 30]);
+    expect(START.every((l) => l.includes("{game}"))).toBe(true); // every night start says the game
+    expect(new Set(START).size).toBe(START.length);
     expect(SPOKEN_NAMES).toEqual({ "306836805825593344": "Vithis", "212567787896307713": "Koral", "747902984003780651": "Ieva" });
   });
 
   it("never put a placeholder inside a Lithuanian span; {mins} always reads '{mins} minutes'; nothing that can't be read aloud", () => {
     for (const l of every) {
-      for (const lt of l.match(/‹[^›]*›/g) ?? []) expect(lt).not.toMatch(/\{/);
+      for (const lt of l.match(/‹[^›]*›|⟦[^⟧]*⟧/g) ?? []) expect(lt).not.toMatch(/\{/);
+      expect((l.match(/⟦/g) ?? []).length).toBe((l.match(/⟧/g) ?? []).length);
+      for (const [, lang] of l.matchAll(/⟦([a-z]{2}):/g)) expect(["de", "es", "it", "pl", "ja", "la", "fr"]).toContain(lang);
+      // a jingle and about ten seconds: short enough to say, slow ones shorter
+      const p = parse(fill(l, { game: "World of Warcraft", who: "212567787896307713", mins: 12 }));
+      const letters = p.pieces.reduce((n, x) => n + x.text.length, 0);
+      expect(letters).toBeLessThanOrEqual(p.delivery === "slow" ? 105 : 150);
+      expect(p.pieces.length).toBeGreaterThan(0);
       expect(l.replaceAll("{mins} minutes", "")).not.toContain("{mins}");
       expect(clean(l)).toBe(l); // no emoji, no markdown, no mentions
       expect((l.match(/‹/g) ?? []).length).toBe((l.match(/›/g) ?? []).length);
@@ -291,14 +301,45 @@ describe("the spoken lines", () => {
     expect(fill("Beep beep, {who}.", { who: "stranger" })).toBe("Beep beep, you there.");
   });
 
-  it("split into what each voice says, in order; a span with nothing to say is dropped", () => {
-    expect(spans("‹Labas,› Koral. Only 12 minutes late. ‹Rekordas.›")).toEqual([
-      { voice: LT_VOICE, text: "Labas," },
-      { voice: EN_VOICE, text: "Koral. Only 12 minutes late." },
-      { voice: LT_VOICE, text: "Rekordas." },
+  it("split into what's said in which language, in order; an empty piece is dropped", () => {
+    expect(parse("‹Labas,› Koral. Only 12 minutes late. ‹Rekordas.›")).toEqual({
+      delivery: "plain",
+      gemini: null,
+      pieces: [
+        { lang: "lt", text: "Labas,", handover: false },
+        { lang: "en", text: "Koral. Only 12 minutes late.", handover: false },
+        { lang: "lt", text: "Rekordas.", handover: false },
+      ],
+    });
+    expect(parse("‹Tylu, ramu, jauku.› .").pieces).toEqual([{ lang: "lt", text: "Tylu, ramu, jauku.", handover: false }]);
+  });
+
+  it("a hand-over, a surprise language and a delivery tag", () => {
+    const p = parse("[fast] We are gathered here ‖ to play WoW. ‖ ‹Amen.› ⟦de:Ordnung muss sein.⟧");
+    expect(p.delivery).toBe("fast");
+    expect(p.pieces).toEqual([
+      { lang: "en", text: "We are gathered here", handover: false },
+      { lang: "en", text: "to play WoW.", handover: true },
+      { lang: "lt", text: "Amen.", handover: true },
+      { lang: "de", text: "Ordnung muss sein.", handover: false },
     ]);
-    expect(spans("Koral, ‹ko lauki?› The others aren't even out for delivery yet.").map((s) => s.voice)).toEqual([EN_VOICE, LT_VOICE, EN_VOICE]);
-    expect(spans("‹Tylu, ramu, jauku.› .")).toEqual([{ voice: LT_VOICE, text: "Tylu, ramu, jauku." }]);
+    const g = parse("[gemini: Say it like a herald] Hear ye! WoW begins!");
+    expect([g.delivery, g.gemini, g.pieces.map((x) => x.text)]).toEqual(["plain", "Say it like a herald", ["Hear ye! WoW begins!"]]);
+  });
+
+  it("the cast: every voice is known, every language has voices, a hand-over goes to the other gender and another language", () => {
+    expect(ENGLISH).toHaveLength(47);
+    for (const lang of ["en", "lt", "de", "es", "it", "pl", "ja", "la", "fr"] as const) {
+      const pool = castPool(lang);
+      expect(pool.length).toBeGreaterThan(3);
+      expect(new Set(pool).size).toBe(pool.length);
+      for (const v of pool) expect(voiceInfo(v)).toBeDefined();
+    }
+    expect(castPool("lt")).toEqual(expect.arrayContaining(NATIVE.lt.map((v) => v.name)));
+    expect(castPool("en")).toEqual(expect.arrayContaining(STRANGERS.map((v) => v.name)));
+    const brian = "en-US-BrianMultilingualNeural";
+    for (const v of contrasts(brian, castPool("en"))) expect([voiceInfo(v)!.gender, voiceInfo(v)!.locale.slice(0, 2)]).not.toContain("M");
+    expect(contrasts(brian, castPool("en")).every((v) => voiceInfo(v)!.gender === "F" && !voiceInfo(v)!.locale.startsWith("en"))).toBe(true);
   });
 
   it("text read aloud is cleaned: no emoji, markdown, small print or mentions", () => {

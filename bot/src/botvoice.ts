@@ -30,7 +30,9 @@ import { VoiceConnector, VoiceFailed } from "./voiceconn.js";
 import { VoiceLink } from "./voicelink.js";
 import { Alerts } from "./alerts.js";
 import { nowSec } from "./clock.js";
-import { EARLY, EARLY_PERSONAL, LATE, LATE_PERSONAL, LOBBY, START, family, fill, spans, type Span } from "./lines.js";
+import { EARLY, EARLY_PERSONAL, LATE, LATE_PERSONAL, LOBBY, START, family, fill, parse, plainText, type Delivery, type Span } from "./lines.js";
+import { GEMINI_VOICES, castPool, contrasts, safeVoice, type Lang } from "./voices.js";
+import { createHash } from "node:crypto";
 import { BEEP, NIGHT_JINGLE } from "./jingles.js";
 
 export const READY_GAP = Duration.seconds(3); // connection ready → first sound
@@ -42,6 +44,28 @@ export const BIRD_MIN = 4 * 60; // the lone early bird: alone this long at least
 export const BIRD_MAX = 9 * 60; // …and at most (a random wait in between)
 export const BIRD_WINDOW = 3 * 3600; // the night starts at most this far ahead
 const PREWARM_BATCH = 4; // spans made per minute (the "voice" job), gently
+/** How a whole line is delivered, on Edge: rate and volume in %, pitch in Hz. */
+const DELIVERY: Readonly<Record<Delivery, { rate: number; pitch: number; volume: number }>> = {
+  plain: { rate: 0, pitch: 0, volume: 0 },
+  slow: { rate: -38, pitch: -12, volume: 0 },
+  fast: { rate: 60, pitch: 12, volume: 0 },
+  whisper: { rate: -15, pitch: -10, volume: -70 },
+  shout: { rate: 22, pitch: 30, volume: 60 },
+};
+/** A plain line gets one of these, at random: a little wrong, every time. */
+const WOBBLE: ReadonlyArray<{ rate: number; pitch: number }> = [
+  { rate: 0, pitch: 0 },
+  { rate: 0, pitch: 0 },
+  { rate: -20, pitch: 0 },
+  { rate: 30, pitch: 0 },
+  { rate: 0, pitch: 25 },
+  { rate: 0, pitch: -20 },
+  { rate: 15, pitch: 15 },
+];
+const TALK_CAP = 11; // seconds of speech a line may take (a jingle and about ten seconds per visit)
+const LETTERS_PER_SECOND = 14; // a neural voice at its own speed, roughly
+/** Which Gemini voice reads a Gemini line (chosen once, when its clip is made ahead). */
+const GEMINI_CAST = (text: string, style: string) => `voice:gemini:${createHash("sha256").update(`${style}\n${text}`).digest("hex").slice(0, 24)}`;
 const SYNTH_ALERT_EVERY = 6 * 3600_000; // ms: the speech engine failing is one DM per 6 h at most
 const KEY = "bot_voice";
 const VoiceSetting = Schema.Struct({ on: Schema.Boolean, by: Schema.optional(Schema.String) });
@@ -165,13 +189,57 @@ export class BotVoice extends Context.Service<
         yield* alerts.failed("making the bot's speech", e, "lines already said still play; new ones are skipped");
       });
 
+      /**
+       * 🎭 Cast a line (voices.ts): a Gemini line whose clip was made ahead plays as that; anything
+       * else goes to Edge, every piece in a voice from its language's bag (a hand-over to the most
+       * unlike voice), at the line's delivery, a plain line with a random wobble, never longer than
+       * TALK_CAP seconds.
+       */
+      const cast = Effect.fnUntraced(function* (line: string): Effect.fn.Return<Array<Span & { readonly lang?: Lang }>, DbError> {
+        const parsed = parse(line);
+        if (parsed.gemini !== null) {
+          const text = plainText(parsed);
+          const [row] = yield* db.select({ value: settings.value }).from(settings).where(eq(settings.key, GEMINI_CAST(text, parsed.gemini)));
+          const voice = typeof row?.value === "string" ? row.value : null;
+          if (voice) {
+            const span: Span = { voice, text, style: parsed.gemini };
+            if (yield* clips.cached(span)) return [span];
+          }
+        }
+        const base = DELIVERY[parsed.delivery];
+        const wobble = parsed.delivery === "plain" && parsed.gemini === null ? WOBBLE[Math.floor((yield* Random.next) * WOBBLE.length)] : { rate: 0, pitch: 0 };
+        let rate = base.rate + wobble.rate;
+        const letters = parsed.pieces.reduce((n, p) => n + p.text.length, 0);
+        // too slow to fit: at its own speed instead
+        if (rate < 0 && letters / LETTERS_PER_SECOND / (1 + rate / 100) > TALK_CAP) rate = 0;
+        const out: Array<Span & { readonly lang?: Lang }> = [];
+        let prev: string | null = null;
+        for (const piece of parsed.pieces) {
+          const pool = castPool(piece.lang);
+          const fits: ReadonlyArray<string> = prev === null ? pool : piece.handover ? contrasts(prev, pool) : pool.filter((v) => v !== prev);
+          const voice: string = yield* roasts.draw(`voice:cast:${piece.lang}`, pool, fits.length ? fits : pool);
+          out.push({ voice, text: piece.text, rate, pitch: base.pitch + wobble.pitch, volume: base.volume, lang: piece.lang });
+          prev = voice;
+        }
+        return out;
+      });
+
       /** One line's clips, from the cache or made in time for `deadline` (ms); null if any span can't be had. */
       const lineClips = Effect.fnUntraced(function* (line: string, deadline: number) {
         const left = deadline - (yield* Clock.currentTimeMillis);
+        const cast_ = yield* cast(line);
+        yield* Effect.logInfo(`voice: cast ${cast_.map((s) => `${s.voice}${s.rate || s.pitch || s.volume ? ` (${s.rate ?? 0}%/${s.pitch ?? 0}Hz/${s.volume ?? 0}%)` : ""}: "${s.text}"`).join(" | ")}`);
+        // a cast voice that gives no audio (some won't read another language's text, now and then):
+        // the span again in the language's own voice, same delivery
+        const made = (span: Span & { readonly lang?: Lang }) => {
+          const { lang, ...plain } = span;
+          const fallback = lang && plain.voice !== safeVoice(lang) ? { ...plain, voice: safeVoice(lang) } : null;
+          return clips.get(plain).pipe(Effect.catch((e) => (fallback ? Effect.andThen(Effect.logInfo(`voice: ${plain.voice} gave no audio, ${fallback.voice} instead`), clips.get(fallback)) : Effect.fail(e))));
+        };
         const out = yield* Effect.forEach(
-          spans(line),
+          cast_,
           (span) =>
-            (left > 0 ? clips.get(span).pipe(Effect.timeoutOption(Duration.millis(left)), Effect.map(Option.getOrNull)) : clips.cached(span)).pipe(
+            (left > 0 ? made(span).pipe(Effect.timeoutOption(Duration.millis(left)), Effect.map(Option.getOrNull)) : clips.cached(span)).pipe(
               Effect.flatMap((clip) => (clip ? Effect.succeed(clip) : Effect.as(Effect.logWarning(`voice: no clip in time for "${span.text}"`), null))),
               Effect.catch((e) => Effect.as(synthFailed(span, e), null)),
             ),
@@ -233,38 +301,50 @@ export class BotVoice extends Context.Service<
         yield* speakIn(channel, audio, what).pipe(Effect.catch((e) => alerts.failed("speaking in voice", e, channel, what)));
       });
 
+      /**
+       * Made ahead: the Gemini lines (night starts with a Gemini direction) for the nights locked in for
+       * the next 24 h and for our usual game, each in a Gemini voice chosen once, a few a minute, within
+       * Gemini's daily allowance. Edge lines are cast at the moment they're said (a different voice
+       * each time), so they're made then.
+       */
       const prewarm = Effect.gen(function* () {
         if (!(yield* enabled)) return 0;
-        const ps = yield* trio;
-        const lines = [
-          ...LOBBY,
-          ...ps.flatMap((p) => family(EARLY, EARLY_PERSONAL, p).fits.map((l) => fill(l, { who: p }))),
-        ];
         const t = yield* nowSec;
         const nights = yield* db
           .select({ game: gameNights.game })
           .from(gameNights)
-          .where(and(eq(gameNights.stage, "set"), eq(gameNights.reminded, false), gt(gameNights.start_at, t), lte(gameNights.start_at, t + 86400)));
-        for (const n of nights) if (n.game) lines.push(...START.map((l) => fill(l, { game: n.game! })));
+          .where(and(eq(gameNights.stage, "set"), gt(gameNights.start_at, t - 86400), lte(gameNights.start_at, t + 86400)));
+        const games = [...new Set(nights.map((n) => n.game).filter((g): g is string => !!g))];
         let made = 0;
-        for (const span of lines.flatMap(spans)) {
-          if (made >= PREWARM_BATCH) break;
-          const key = clipKey(span);
-          if (cachedKeys.has(key)) continue;
-          if (yield* clips.cached(span)) {
+        for (const game of games)
+          for (const line of START) {
+            if (made >= PREWARM_BATCH) break;
+            const parsed = parse(fill(line, { game }));
+            if (parsed.gemini === null) continue;
+            const text = plainText(parsed);
+            const key = GEMINI_CAST(text, parsed.gemini);
+            if (cachedKeys.has(key)) continue;
+            const [row] = yield* db.select({ value: settings.value }).from(settings).where(eq(settings.key, key));
+            let voice = typeof row?.value === "string" ? row.value : null;
+            if (!voice) {
+              voice = GEMINI_VOICES[Math.floor((yield* Random.next) * GEMINI_VOICES.length)];
+              yield* db.insert(settings).values({ key, value: voice }).onConflictDoNothing();
+            }
+            const span: Span = { voice, text, style: parsed.gemini };
+            if (yield* clips.cached(span)) {
+              cachedKeys.add(key);
+              continue;
+            }
+            made++;
+            // Gemini's allowance used up (or Gemini down): the line is read by Edge until tomorrow
+            const ok = yield* clips.get(span).pipe(
+              Effect.as(true),
+              Effect.catch((e) => Effect.as(Effect.logInfo(`voice: no Gemini clip for "${text}" ${String(e)}`), false)),
+            );
+            if (!ok) return made;
             cachedKeys.add(key);
-            continue;
           }
-          made++;
-          // Edge only: Gemini's few lines a day are for speech that's due now. Edge failing: try again next minute
-          const ok = yield* clips.get(span, { spare: false }).pipe(
-            Effect.as(true),
-            Effect.catch((e) => Effect.as(synthFailed(span, e), false)),
-          );
-          if (!ok) break;
-          cachedKeys.add(key);
-        }
-        if (made) yield* Effect.logInfo(`voice: made ${made} clip(s) ahead`);
+        if (made) yield* Effect.logInfo(`voice: made ${made} Gemini clip(s) ahead`);
         return made;
       }).pipe(Effect.withSpan("BotVoice.prewarm"));
 

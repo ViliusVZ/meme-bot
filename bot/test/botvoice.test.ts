@@ -12,7 +12,7 @@ import * as TestClock from "effect/testing/TestClock";
 import { BotVoice, JINGLES, type Part } from "../src/botvoice.js";
 import { VoiceConnector, VoiceFailed } from "../src/voiceconn.js";
 import { VoiceLink } from "../src/voicelink.js";
-import { Tts, TtsUnavailable, LT_VOICE } from "../src/tts.js";
+import { Tts, TtsUnavailable } from "../src/tts.js";
 import { Clips } from "../src/clips.js";
 import { Presence } from "../src/presence.js";
 import { Alerts } from "../src/alerts.js";
@@ -24,7 +24,7 @@ import { Activity } from "../src/activity.js";
 import { Interactions } from "../src/interactions.js";
 import { readConfig } from "../src/config.js";
 import { Db } from "../src/db/db.js";
-import { EARLY, EARLY_PERSONAL, LATE, LOBBY, START, family, fill, spans } from "../src/lines.js";
+import { EARLY, EARLY_PERSONAL, LATE, LOBBY, START, family, fill, parse, plainText } from "../src/lines.js";
 import {
   loneBirds,
   fleeting,
@@ -95,7 +95,8 @@ const FakeTts = Layer.succeed(
         ? Effect.fail(new TtsUnavailable({ engine: "edge", detail: ["refused", "timed out", "closed early", "no audio"][fake.synths.push("✗") % 4] }))
         : Effect.sync(() => {
             fake.synths.push(options?.spare === false ? `${text} (ahead)` : text);
-            return { audio: enc.encode(`${voice === LT_VOICE ? "lt" : "en"}:${text}`), engine: "edge" as const };
+            // voices are cast at random: the audio says only what was said
+            return { audio: enc.encode(text), engine: (voice.startsWith("gemini:") ? "gemini" : "edge") as "gemini" | "edge" };
           }),
   }),
 );
@@ -129,7 +130,7 @@ const speaking = <A, E, R>(body: Effect.Effect<A, E, R>) => Effect.scoped(Effect
 const start = Effect.andThen(TestClock.setTime(T0), Effect.sync(() => fake.reset()));
 const inVoice = (states: Record<string, string>) => Presence.use((p) => p.snapshot(Object.entries(states).map(([user_id, channel_id]) => ({ user_id, channel_id }))));
 const line = (text: string): Part => ({ _tag: "Line", line: text });
-const spoken = (text: string) => spans(text).map((s) => `${s.voice === LT_VOICE ? "lt" : "en"}:${s.text}`);
+const spoken = (text: string) => parse(text).pieces.map((p) => p.text);
 const dms = () => h.calls.filter((c) => c.method === "POST" && /^\/channels\/[^/]+\/messages$/.test(c.path) && JSON.stringify(c.body ?? "").includes("🚨"));
 const logged = (s: string) => h.logs.some((l) => l.includes(s));
 
@@ -210,7 +211,7 @@ it.effect("3. everyone leaves while it's speaking: it stops and leaves at once",
     expect(timeline()).toEqual([
       [0, "join", "room"],
       [500, "ready", "room"],
-      [3500, "play", "en:A long line."],
+      [3500, "play", "A long line."],
       [4500, "leave", "room"],
     ]);
   }).pipe(h.provide),
@@ -240,7 +241,7 @@ it.effect("4. two things for two channels: one visit each, in order, never in tw
     expect(joins.map((e) => e.detail)).toEqual(["room0", "room1", "room2"]);
     expect(leaves.map((e) => e.detail)).toEqual(["room0", "room1", "room2"]);
     for (let i = 1; i < joins.length; i++) expect(joins[i].at).toBeGreaterThanOrEqual(leaves[i - 1].at);
-    expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)).toEqual(["en:Busy.", "en:First.", "en:Also first.", "en:Second."]);
+    expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)).toEqual(["Busy.", "First.", "Also first.", "Second."]);
   }).pipe(h.provide),
 );
 
@@ -285,7 +286,7 @@ it.effect("6. the 30-second cap fires even if playback hangs", () =>
     expect(timeline()).toEqual([
       [0, "join", "room"],
       [500, "ready", "room"],
-      [3500, "play", "en:Stuck."],
+      [3500, "play", "Stuck."],
       [30_000, "leave", "room"],
     ]);
     expect(logged("the 30 s cap ended the visit")).toBe(true);
@@ -674,28 +675,31 @@ it.effect("moment 4: nothing at all while no term is running (another copy leads
 
 // ---------------------------------------------------------------- the clip cache, and making clips ahead
 
-it.effect("a span is made once and cached; ahead of time, the likely lines are made a few a minute (none while off)", () =>
+it.effect("a span is made once and cached (its prosody is part of it); ahead of time, the Gemini lines are made a few a minute (none while off)", () =>
   Effect.gen(function* () {
     yield* start;
     const db = yield* Db;
     const clips = yield* Clips;
-    const span = { voice: LT_VOICE, text: "Labas." };
+    const span = { voice: "lt-LT-LeonasNeural", text: "Labas." };
     expect(yield* clips.cached(span)).toBeNull();
-    expect(new TextDecoder().decode(yield* clips.get(span))).toBe("lt:Labas.");
-    expect(new TextDecoder().decode(yield* clips.get(span))).toBe("lt:Labas.");
+    expect(new TextDecoder().decode(yield* clips.get(span))).toBe("Labas.");
+    expect(new TextDecoder().decode(yield* clips.get(span))).toBe("Labas.");
     expect(fake.synths).toEqual(["Labas."]);
+    expect(yield* clips.cached({ ...span, rate: 50 })).toBeNull(); // the same words, faster: another clip
     const [row] = yield* db.select().from(voiceClips);
-    expect([row.voice, row.text, row.engine]).toEqual([LT_VOICE, "Labas.", "edge"]);
+    expect([row.voice, row.text, row.engine]).toEqual(["lt-LT-LeonasNeural", "Labas.", "edge"]);
 
     yield* night(3600);
     const v = yield* BotVoice;
+    const geminiLines = START.filter((l) => l.startsWith("[gemini:")).length;
     expect(yield* v.prewarm).toBe(4);
-    expect(yield* v.prewarm).toBe(4);
-    expect(fake.synths).toHaveLength(9); // never the same span twice
+    expect(yield* v.prewarm).toBe(geminiLines - 4);
+    expect(yield* v.prewarm).toBe(0); // all made
+    const made = (yield* db.select().from(voiceClips)).filter((c) => c.voice.startsWith("gemini:"));
+    expect(made).toHaveLength(geminiLines);
+    expect(made.every((c) => c.engine === "gemini" && c.text.includes("R.E.P.O."))).toBe(true);
     yield* v.toggle("a");
     expect(yield* v.prewarm).toBe(0);
-    const made = (yield* db.select().from(voiceClips)).map((c) => c.text);
-    expect(made).toContain("Playing something?"); // the Lobby lines first
   }).pipe(h.provide),
 );
 
@@ -704,11 +708,12 @@ it.effect("a line already in the cache plays even with the speech engine down", 
     yield* start;
     const db = yield* Db;
     yield* inVoice({ a: "room" });
-    // already in the cache from an earlier night: plays even with the engine down
-    const cached = spans(fill(START[2], { game: "R.E.P.O." }));
-    yield* Effect.forEach(cached, (s) => Clips.use((c) => c.get(s)));
+    // a Gemini line made ahead: plays even with the engine down
+    yield* night(3600);
+    const gemini = START.find((l) => l.startsWith("[gemini:"))!;
+    yield* BotVoice.use((v) => v.prewarm);
     fake.synthFails = true;
-    const [bag] = [START[2]];
+    const [bag] = [gemini];
     yield* db.insert(roastBags).values({ pool: "voice:start", queue: [bag], last_line: null });
     yield* speaking(
       Effect.gen(function* () {
@@ -717,16 +722,15 @@ it.effect("a line already in the cache plays even with the speech engine down", 
         yield* TestClock.adjust(30_000);
       }),
     );
-    expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)).toEqual(["♪night", ...spoken(fill(START[2], { game: "R.E.P.O." }))]);
+    expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)).toEqual(["♪night", plainText(parse(fill(gemini, { game: "R.E.P.O." })))]);
   }).pipe(h.provide),
 );
 
-it.effect("clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round", () =>
+it.effect("clips made ahead are Gemini's lines only; Gemini down (or its day used up) stops the round", () =>
   Effect.gen(function* () {
     yield* start;
+    yield* night(3600);
     const v = yield* BotVoice;
-    expect(yield* v.prewarm).toBe(4);
-    expect(fake.synths.every((s) => s.endsWith(" (ahead)"))).toBe(true);
     fake.synthFails = true;
     expect(yield* v.prewarm).toBe(1); // one try, then wait for the next minute
     yield* real(50);
