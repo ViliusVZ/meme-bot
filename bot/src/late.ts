@@ -70,6 +70,8 @@ export class LateSlips extends Context.Service<
           note("arrived", p);
           // 🔊 a spoken welcome for the latecomer (queued; nothing here waits on it)
           if (!inGrace) yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
+          // their "🏃 ~20:45" comes off the card
+          if (row?.state === "eta") yield* gameNight.refresh(n.day).pipe(Effect.ignore);
           return;
         }
         if (row?.state === "absent") return;
@@ -80,6 +82,7 @@ export class LateSlips extends Context.Service<
           yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: arrivedAt }));
           note("moved", p);
           if (!inGrace) yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
+          if (row?.state === "eta") yield* gameNight.refresh(n.day).pipe(Effect.ignore);
           return;
         }
 
