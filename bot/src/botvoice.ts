@@ -119,6 +119,9 @@ export class BotVoice extends Context.Service<
       const wake = yield* PubSub.sliding<void>(1);
       const lastSynthAlert = yield* Ref.make<number | null>(null);
       const bird = yield* Ref.make<{ user: string; since: number; due: number } | null>(null);
+      // a night start nobody was in the room for yet: said when the first two of us are there (until it's old)
+      const startLater = yield* Ref.make<{ day: string; room: string; game: string; until: number } | null>(null);
+      const START_WAITS = 3 * 3600; // s: a start not heard by then is let go
       const cachedKeys = new Set<string>(); // clips known to be in the cache (prewarm stops asking the database about them)
 
       // ---------------------------------------------------------------- the 🔇 toggle
@@ -383,6 +386,20 @@ export class BotVoice extends Context.Service<
         );
       });
 
+      /** How many of us are in a channel (Presence's last known). */
+      const inRoom = (channel: string) =>
+        Effect.gen(function* () {
+          let n = 0;
+          for (const p of yield* trio) if ((yield* presence.lastKnown(p)) === channel) n++;
+          return n;
+        });
+
+      /** The night start, said now: its line drawn from the bag at this moment. */
+      const startNow = Effect.fnUntraced(function* (day: string, room: string, game: string) {
+        const line = fill(yield* roasts.draw("voice:start", START, START), { game });
+        yield* say(room, [{ _tag: "Jingle", clip: "night" }, { _tag: "Line", line }], `night start ${day}`);
+      });
+
       // ---------------------------------------------------------------- 4. the lone early bird
 
       /** Today's locked-in night that hasn't started and starts within 3 h. */
@@ -423,6 +440,13 @@ export class BotVoice extends Context.Service<
 
       const earlyBird = Effect.fn("BotVoice.earlyBird")(function* (where: ReadonlyMap<string, string | null>, t: number) {
         if (!(yield* Ref.get(active))) return null;
+        // a night start that waited for people: two of us in its room now
+        const waiting = yield* Ref.get(startLater);
+        if (waiting && t > waiting.until) yield* Ref.set(startLater, null);
+        else if (waiting && (yield* trio).filter((p) => where.get(p) === waiting.room).length >= 2) {
+          yield* Ref.set(startLater, null);
+          yield* startNow(waiting.day, waiting.room, waiting.game).pipe(Effect.catch((e) => Effect.logWarning(`voice: night start not queued ${e}`)));
+        }
         const ps = yield* trio;
         const inVoice = ps.filter((p) => where.get(p));
         const night = inVoice.length === 1 ? yield* nightAhead(t) : null;
@@ -471,8 +495,12 @@ export class BotVoice extends Context.Service<
             "night start",
             Effect.gen(function* () {
               if (!(yield* enabled)) return;
-              const line = fill(yield* roasts.draw("voice:start", START, START), { game });
-              yield* say(roomChannelId, [{ _tag: "Jingle", clip: "night" }, { _tag: "Line", line }], `night start ${day}`);
+              // nobody (or one of us) in the room yet: kept for when two of us are, and no line used up meanwhile
+              if ((yield* inRoom(roomChannelId)) < 2) {
+                yield* Ref.set(startLater, { day, room: roomChannelId, game, until: (yield* nowSec) + START_WAITS });
+                return yield* Effect.logInfo(`voice: night start ${day} waits for two of us in ${roomChannelId}`);
+              }
+              yield* startNow(day, roomChannelId, game);
             }),
           ),
         latecomer: (channelId, user, mins) =>

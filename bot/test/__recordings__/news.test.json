@@ -112,7 +112,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "82:f1e76494b675",
-   "settings": "4:0ca7d680c29a"
+   "settings": "4:02151149b185"
   }
  },
  "a hot thread ripens and waits with what the writer needs: the queue answers at once, best first, three at most": {
@@ -143,7 +143,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "4:cfaf23542215",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "a post that's hot but 40 hours old never waits for the writer; a Blizzard post may be 48": {
@@ -173,7 +173,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "3:5e9428abff82",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "a thread ripens first: 40 comments or 2 hours; a Blizzard post goes to the writer at once": {
@@ -212,7 +212,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:2ad00b205a5f",
-   "settings": "4:41fbb08ecb7d"
+   "settings": "4:4a9e7d507915"
   }
  },
  "crossposts are one story: the thread waits for the writer, Blizzard's post with the same title becomes its official post": {
@@ -236,7 +236,7 @@
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/700/1.json -",
    "GET https://www.reddit.com/r/classicwow/comments/hot1/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages bc322c186060",
+   "POST https://discord.com/api/v10/channels/news/messages f0d640cf74bb",
    "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
@@ -249,7 +249,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "4:f502c6efb975",
-   "settings": "4:75189d4ed5aa"
+   "settings": "4:bdf9584b29a6"
   }
  },
  "the fifth place in a small subreddit's day qualifies; the same place in r/wow doesn't": {
@@ -281,7 +281,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "12:88ee56a7c6ad",
-   "settings": "4:4aad41ef4d9c"
+   "settings": "4:604862e1632e"
   }
  },
  "climbing in hot between two runs makes a thread a candidate, though it's not in the top of the day": {
@@ -315,7 +315,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "10:fe088e831fc0",
-   "settings": "3:b926839d0802"
+   "settings": "3:f5b5ce5a0616"
   }
  },
  "the minute job: hourly; a restart right after a collect doesn't refetch until the hour is up": {
@@ -340,7 +340,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "3:315bfd0e23bb"
+   "settings": "3:1582c0bcbd87"
   }
  },
  "Reddit answers 429 or 403: logged, the rest collected, tried again the next hour, nothing lost, no alert": {
@@ -375,7 +375,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:6de522329626",
-   "settings": "4:b8e56d0115b0"
+   "settings": "4:8b000c3fc36d"
   }
  },
  "a thread that won't load waits for the next run; a removed one is skipped": {
@@ -411,7 +411,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:2437da01bd59",
-   "settings": "4:3cec9ecce190"
+   "settings": "4:6f4fc276a277"
   }
  },
  "a write-up is posted silently as the card, once; the story is posted and leaves the queue": {
@@ -434,12 +434,12 @@
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/comments/a/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages 4bbd7ce5282d"
+   "POST https://discord.com/api/v10/channels/news/messages 53dd4c933a81"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:1c270f8fad99",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "a skip: the story is skipped with the writer's reason and leaves the queue; nothing is posted": {
@@ -467,7 +467,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:e73461d53fe0",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "the day's three: a fourth write-up is refused (409) and its story stays queued until it ages out": {
@@ -493,9 +493,9 @@
    "GET https://www.reddit.com/r/classicwow/comments/s1/.rss?sort=top&limit=60 -",
    "GET https://www.reddit.com/r/classicwow/comments/s2/.rss?sort=top&limit=60 -",
    "GET https://www.reddit.com/r/classicwow/comments/s3/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages 0b6718c13d56",
-   "POST https://discord.com/api/v10/channels/news/messages e640ed83b1c7",
-   "POST https://discord.com/api/v10/channels/news/messages dbd39dd10c8f",
+   "POST https://discord.com/api/v10/channels/news/messages 7038e0e00bdd",
+   "POST https://discord.com/api/v10/channels/news/messages e56f0c0578ef",
+   "POST https://discord.com/api/v10/channels/news/messages c8a65474a76b",
    "GET https://eu.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.rss -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
@@ -517,7 +517,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "4:99b5025eb5bc",
-   "settings": "4:1c51e3228660"
+   "settings": "4:ab1e732a3f2e"
   }
  },
  "a write-up is checked and cleaned: no mention, no link, no markdown; too long or off the shape is refused; under 5 comments there's no reaction to tell": {
@@ -541,13 +541,13 @@
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/comments/evil/.rss?sort=top&limit=60 -",
    "GET https://www.reddit.com/r/wowforever/comments/quiet/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages 9c628613a80b",
-   "POST https://discord.com/api/v10/channels/news/messages 587cac45c3c4"
+   "POST https://discord.com/api/v10/channels/news/messages 3e12b12bcaba",
+   "POST https://discord.com/api/v10/channels/news/messages a982efe40078"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:7631bc3b8d00",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "the post to Discord fails: the writer is told (502), the story stays queued, and sending it again posts it once": {
@@ -570,13 +570,13 @@
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/comments/d/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages d37ada158c28",
-   "POST https://discord.com/api/v10/channels/news/messages d37ada158c28"
+   "POST https://discord.com/api/v10/channels/news/messages 46e1ea72d335",
+   "POST https://discord.com/api/v10/channels/news/messages 46e1ea72d335"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:da348f52636f",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "the code's rules: links, cleaning, the write-up check": {
@@ -605,12 +605,12 @@
    "GET https://www.reddit.com/r/wow/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/comments/a/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages 4bbd7ce5282d"
+   "POST https://discord.com/api/v10/channels/news/messages 53dd4c933a81"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:1c270f8fad99",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "no writer key configured: both routes are 404, whatever the token": {
@@ -643,7 +643,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:4fdedeb5ac4d",
-   "settings": "4:22360f632d20"
+   "settings": "4:32ada5bb6a80"
   }
  },
  "a Blizzard post about maintenance or realm restarts is a downtime notice (downtime.ts reads it), never the writer's": {
@@ -672,7 +672,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:676ac82a25aa",
-   "settings": "4:2ffcfdc7c90e"
+   "settings": "4:20c2a8cd23b9"
   }
  },
  "Blizzard's posts: Forever's only, by the forum's category (360); a retail topic (235) is never a story, and its category is read once": {
@@ -708,7 +708,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:df8b903c99fc",
-   "settings": "4:3b8fcffe0e30"
+   "settings": "4:6d5b762526c1"
   }
  },
  "a Blizzard post is given its own post from the topic, the players' replies as its comments (staff replies aren't), and no official post of itself": {
@@ -732,12 +732,12 @@
    "GET https://www.reddit.com/r/wow/hot/.rss?limit=25 -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/1.json -",
    "GET https://eu.forums.blizzard.com/en/wow/t/slug/800/4.json -",
-   "POST https://discord.com/api/v10/channels/news/messages 0642f2d31a58"
+   "POST https://discord.com/api/v10/channels/news/messages ebaff3ec2d9e"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:525cfad067b5",
-   "settings": "4:02f10f3b29eb"
+   "settings": "4:dbcce3a1003e"
   }
  },
  "a running hotfix post: each dated section no staff post carries is a story of its own, with only its own section": {
@@ -768,7 +768,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "4:8e7d8284f0d4",
-   "settings": "4:2e409cf0d973"
+   "settings": "4:1b5d75fa6566"
   }
  },
  "a running post's pieces: its sections, the ones of its own, a section's title, the opening post as it stood": {
@@ -850,7 +850,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "2:de20f533479c",
-   "settings": "4:26a61b6d4420"
+   "settings": "4:b4567ff896c3"
   }
  },
  "what's long done with is cleared after two weeks; posted stories stay": {
@@ -869,7 +869,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "news_stories": "1:ff581a060d3b",
-   "settings": "3:daa42b7f0d89"
+   "settings": "3:b523b98550c1"
   }
  },
  "Reddit's minute: requests one at a time, each the gap after the last": {
@@ -926,10 +926,10 @@
    "GET https://www.reddit.com/r/wowforever/comments/wowforeverd1p3/.rss?sort=top&limit=60 -",
    "GET https://www.reddit.com/r/wowforever/comments/wowforeverd1p4/.rss?sort=top&limit=60 -",
    "GET https://www.reddit.com/r/wowforever/comments/wowforeverd1p5/.rss?sort=top&limit=60 -",
-   "POST https://discord.com/api/v10/channels/news/messages a7fee83f4363",
-   "POST https://discord.com/api/v10/channels/news/messages a7fee83f4363",
-   "POST https://discord.com/api/v10/channels/news/messages 87cd515ce15c",
-   "POST https://discord.com/api/v10/channels/news/messages 58024aa1c847"
+   "POST https://discord.com/api/v10/channels/news/messages d803bb444157",
+   "POST https://discord.com/api/v10/channels/news/messages d803bb444157",
+   "POST https://discord.com/api/v10/channels/news/messages 9ae91ae61758",
+   "POST https://discord.com/api/v10/channels/news/messages 40dcf649c168"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -1020,13 +1020,13 @@
    "GET https://www.reddit.com/r/wowforever/hot/.rss?limit=25 -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=day&limit=25 -",
    "GET https://www.reddit.com/r/wowforever/top/.rss?t=month&limit=<id> -",
-   "POST https://discord.com/api/v10/channels/gn/messages ee24d0d9d136",
+   "POST https://discord.com/api/v10/channels/gn/messages 6581584b8782",
    "POST https://worldofwarcraft.blizzard.com/en-gb/graphql cd2766e3da61"
   ],
   "db": {
    "game_nights": "1:df4b397fd2d7",
    "games": "8:44c5a8b0c098",
-   "settings": "4:3930f0063aea"
+   "settings": "4:0eadb0e7e62a"
   }
  },
  "never one good check yet: the owner hears after a day of trying, not on the first failure": {
@@ -1065,7 +1065,7 @@
   "db": {
    "game_nights": "1:df4b397fd2d7",
    "games": "8:44c5a8b0c098",
-   "settings": "1:6c6303efbebe"
+   "settings": "1:abb0ad65d5a9"
   }
  },
  "the check's time can't be saved: the check doesn't start, and the next minute tries again": {
@@ -1084,7 +1084,7 @@
   "db": {
    "game_nights": "1:df4b397fd2d7",
    "games": "8:44c5a8b0c098",
-   "settings": "3:27bc895d60ea"
+   "settings": "3:c72e3439328d"
   }
  },
  "one check at a time: while one is running, the next minute doesn't start another": {
@@ -1103,7 +1103,7 @@
   "db": {
    "game_nights": "1:df4b397fd2d7",
    "games": "8:44c5a8b0c098",
-   "settings": "3:f8b48aa58b35"
+   "settings": "3:e812cc5d122a"
   }
  }
 }

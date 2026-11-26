@@ -8,7 +8,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "Discord calls are counted by outcome: ok, or the error's name": {
@@ -18,7 +18,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "alerts: one sent, the same problem again held back as a repeat": {
@@ -28,35 +28,35 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "background work in flight: up while a task runs, back down when it's done": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "OTLP_URL set: spans go to the collector (sent on shutdown at the latest)": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "OTLP_URL unset: no exporter at all, and nothing is sent anywhere": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  },
  "background work in flight: a task interrupted (drain out of time) is counted down too": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:12fd89d137a2"
+   "settings": "1:5ea7cb991fd2"
   }
  }
 }

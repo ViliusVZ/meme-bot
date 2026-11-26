@@ -13,7 +13,7 @@
  },
  "the oldest joke goes out at 09:00, once, silent and with the vote buttons; again or after a restart, nothing": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/jokes/messages bb6aaa7827fc"
+   "POST https://discord.com/api/v10/channels/jokes/messages 2982c8806242"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -22,7 +22,7 @@
  },
  "two copies asking at once post one joke": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/jokes/messages 575fa3cb90d8"
+   "POST https://discord.com/api/v10/channels/jokes/messages 0f8442225e79"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -31,7 +31,7 @@
  },
  "late after a restart: posted under two hours late, skipped at two hours (the weekend's 10:30)": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/jokes/messages ccc7d8a0d7c9"
+   "POST https://discord.com/api/v10/channels/jokes/messages 9873d2af7f05"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -46,8 +46,8 @@
  },
  "a post that fails gives the joke back, and the next minute posts it": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/jokes/messages 510b39642d11",
-   "POST https://discord.com/api/v10/channels/jokes/messages 510b39642d11"
+   "POST https://discord.com/api/v10/channels/jokes/messages d739b057bbec",
+   "POST https://discord.com/api/v10/channels/jokes/messages d739b057bbec"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -63,7 +63,7 @@
  },
  "the vote buttons count, toggle and show who voted": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/jokes/messages 4ec891a66b0a"
+   "POST https://discord.com/api/v10/channels/jokes/messages a1dbf1f40d0e"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -76,6 +76,14 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "jokes": "2:cd06d634d8d5"
+  }
+ },
+ "the stock shows the writer how each posted joke landed: its day and its votes": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098",
+   "joke_votes": "3:a9a250c13ffa",
+   "jokes": "2:384c9442d153"
   }
  },
  "no writer key configured: the joke routes are 404": {

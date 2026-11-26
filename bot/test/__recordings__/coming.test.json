@@ -1,0 +1,231 @@
+{
+ "off night, coming:0:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 44479ae157ab",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd"
+  ],
+  "db": {
+   "game_night_votes": "1:d8a9abe0c5e0",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:9aa25fcff709",
+   "settings": "2:c75114b4d687"
+  }
+ },
+ "off night, coming:15:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages cf11451ae959",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd"
+  ],
+  "db": {
+   "game_night_votes": "1:d8a9abe0c5e0",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:fc678b8b7e36",
+   "settings": "2:dd48f430bb25"
+  }
+ },
+ "off night, nottonight:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f43326abcb86",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 433a25f18c53"
+  ],
+  "db": {
+   "game_night_votes": "1:2a798f45ebde",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:de64f0aeee6f",
+   "settings": "4:df5d8430b8d1"
+  }
+ },
+ "ask night, coming:0:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 44479ae157ab",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card a25b631c4ba2"
+  ],
+  "db": {
+   "game_night_votes": "3:9d99fef50d33",
+   "game_nights": "1:f29ebbd91072",
+   "games": "1:653b011f6393",
+   "settings": "2:c75114b4d687"
+  }
+ },
+ "ask night, coming:15:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages cf11451ae959",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card a25b631c4ba2"
+  ],
+  "db": {
+   "game_night_votes": "2:38430ca247f8",
+   "game_nights": "1:f29ebbd91072",
+   "games": "1:d58db0d0dce1",
+   "settings": "2:dd48f430bb25"
+  }
+ },
+ "ask night, nottonight:c: the one asked gets a private answer, the buttons come off": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f43326abcb86",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 2f2c01d1f74c"
+  ],
+  "db": {
+   "game_night_votes": "1:2a798f45ebde",
+   "game_nights": "1:3e757d9085da",
+   "games": "1:f4d2d2f6b086",
+   "settings": "4:df5d8430b8d1"
+  }
+ },
+ "someone else taps coming:0:c: \"that one's for\" them, and nothing changes": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:04f59327ee1e",
+   "settings": "1:c111055f7fc5"
+  }
+ },
+ "someone else taps coming:15:c: \"that one's for\" them, and nothing changes": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:09f64f6fe8b4",
+   "settings": "1:c111055f7fc5"
+  }
+ },
+ "someone else taps nottonight:c: \"that one's for\" them, and nothing changes": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:2686c4ff593b",
+   "settings": "1:c111055f7fc5"
+  }
+ },
+ "an older message (no name on its buttons) still knows who it asked": {
+  "calls": [],
+  "db": {
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:8404f63d5942",
+   "settings": "1:c111055f7fc5"
+  }
+ },
+ "a called-off night names no game; an open card names its usual one": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card db9322c08a05",
+   "POST https://discord.com/api/v10/channels/gn/messages 0f782d63861e"
+  ],
+  "db": {
+   "game_nights": "3:f693bdcad5a5",
+   "games": "1:cc93e9ea74a0",
+   "settings": "2:ee12715f4410",
+   "voice_segments": "2:4c2601206054"
+  }
+ },
+ "the two pick a game on the Lobby question: “coming?” now points at their room and names the game": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 1d140c5facda",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
+   "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/q 3a26bbb42bf8",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 5d0090eb423c"
+  ],
+  "db": {
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:8d732538951e",
+   "lobby_prompts": "1:ed6da5b8f6c6",
+   "rooms": "1:806d76102afd",
+   "settings": "1:ea1f2f1e5938"
+  }
+ },
+ "her own “Not tonight” shows on the called-off card as what she said": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f43326abcb86",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card fafe2fdd5d42"
+  ],
+  "db": {
+   "game_night_votes": "2:db12dda3f9a0",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:a62e6e908815",
+   "settings": "4:df5d8430b8d1"
+  }
+ },
+ "answered once means answered: nottonight:c then nottonight:c posts one line": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f43326abcb86",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 433a25f18c53"
+  ],
+  "db": {
+   "game_night_votes": "1:2a798f45ebde",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:b2c43649cac9",
+   "settings": "4:df5d8430b8d1"
+  }
+ },
+ "answered once means answered: coming:0:c then coming:15:c posts one line": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 44479ae157ab",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd"
+  ],
+  "db": {
+   "game_night_votes": "1:d8a9abe0c5e0",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:2372bf1dba50",
+   "settings": "2:c75114b4d687"
+  }
+ },
+ "answered once means answered: coming:0:c then nottonight:c posts one line": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 44479ae157ab",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd"
+  ],
+  "db": {
+   "game_night_votes": "1:d8a9abe0c5e0",
+   "game_nights": "1:6ee1fad6611b",
+   "games": "1:5d7823bd3f79",
+   "settings": "2:c75114b4d687"
+  }
+ },
+ "“1 h” on an open card on hold is a full yes at that time: the hold ends and the card moves on": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages 9e770f795ec2",
+   "POST https://discord.com/api/v10/channels/gn/messages 5260d99732de",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card c1648d9b33f2",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd"
+  ],
+  "db": {
+   "game_night_votes": "4:41c01fb1d912",
+   "game_nights": "1:ecb2cefb84a6",
+   "games": "1:4d525da4bc74",
+   "settings": "3:3fecb0b5317f"
+  }
+ },
+ "“Not tonight” on an open card calls the night off, no roast, nothing left waiting": {
+  "calls": [
+   "POST https://discord.com/api/v10/channels/gn/messages f43326abcb86",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 35e4efcb52cd",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 2f2c01d1f74c"
+  ],
+  "db": {
+   "game_night_votes": "1:2a798f45ebde",
+   "game_nights": "1:3e757d9085da",
+   "games": "1:db6e27bb1420",
+   "settings": "4:df5d8430b8d1"
+  }
+ },
+ "the two leave before the answer: “Coming?” turns to the past, its buttons gone": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/coming 1819f3981365"
+  ],
+  "db": {
+   "game_nights": "1:f29ebbd91072",
+   "games": "1:b5bc15640d6d",
+   "settings": "1:6ee2376cc8af"
+  }
+ }
+}

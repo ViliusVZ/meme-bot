@@ -57,7 +57,7 @@ export const START = [
   "‹Skubios žinios.› {game} has begun. ‖ Experts say nobody will sleep tonight.",
   // medieval herald
   "Hear ye, hear ye! By order of the Trio, {game} doth commence! ‹Tegyvuoja karalius!›",
-  "[gemini: Say it like a pompous medieval herald with trumpets in his voice] Lords and ladies! {game} begins! Bring snacks or be banished!",
+  "[gemini: Say it like a pompous medieval herald with trumpets in his voice] Lords and ladies of the realm! {game} begins! Bring snacks, or be banished!",
   // kindergarten teacher
   "Okay everyone, sit nicely! Today we are playing {game}! ‖ ‹Visi pasiruošę?› Wonderful!",
   "[gemini: Say it like a sweet, extremely patient kindergarten teacher] Inside voices, please. It's {game} time. Hands where I can see them.",

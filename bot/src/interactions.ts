@@ -10,7 +10,7 @@ import { Background } from "./background.js";
 import { Alerts } from "./alerts.js";
 import { Memes, utcDayAt, VOTES, type VoteKind } from "./memes.js";
 import { Jokes } from "./jokes.js";
-import { GameNight, type NightGone, suggestModal, customTimeModal } from "./gamenight.js";
+import { GameNight, type NightGone, suggestModal, customTimeModal, comingTimeModal } from "./gamenight.js";
 import { Games } from "./games.js";
 import { Hub, addGameModal } from "./hub.js";
 import { Panels } from "./panels.js";
@@ -252,13 +252,21 @@ export class Interactions extends Context.Service<
           ),
           Match.tag("Night", ({ day, action, arg }) =>
             Effect.gen(function* () {
-              if (i.type === 3 && (action === "suggest" || action === "custom" || action === "leaveby")) {
+              if (i.type === 3 && (action === "suggest" || action === "custom" || action === "leaveby" || action === "comingat")) {
                 if (!isPlayer) return ephemeral(TRIO_ONLY);
-                const modal = action === "suggest" ? suggestModal(day) : action === "custom" ? customTimeModal(day) : yield* gameNight.leaveByModal(day, user.id);
+                const modal =
+                  action === "suggest"
+                    ? suggestModal(day)
+                    : action === "custom"
+                      ? customTimeModal(day)
+                      : action === "comingat"
+                        ? comingTimeModal(day, arg ?? "")
+                        : yield* gameNight.leaveByModal(day, user.id);
                 return reply({ type: R.Modal, data: modal });
               }
               const field = i.data?.components?.[0]?.components?.[0] ?? i.data?.components?.[0]?.component;
-              const value = i.type === 5 ? field?.value : (arg ?? i.data?.values?.[0]);
+              // "coming?"'s form also carries whom it asked: "HH:MM|<who>"
+              const value = i.type === 5 ? (action === "comingat" ? `${field?.value ?? ""}|${arg ?? ""}` : field?.value) : (arg ?? i.data?.values?.[0]);
               const r = yield* gameNight.act(day, user.id, action, value, (e) => later(e, "game-night follow-up (pings, event)"));
               // 🎧 "coming?" answered by the one asked: its buttons come off (the answer is posted below it)
               if (r.clear && i.channel_id && i.message?.id) yield* later(discord.editMessage(i.channel_id, i.message.id, { components: [] }), "coming? buttons");

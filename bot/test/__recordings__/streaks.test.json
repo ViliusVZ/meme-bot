@@ -1,4 +1,10 @@
 {
+ "🎧 showing up is answering on time unless the bot reminded you first (20 Nov)": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
  "the streak is late cards in a row, the window the late ones among the last 14; a reminder counts its own card": {
   "calls": [],
   "db": {
@@ -35,8 +41,8 @@
  },
  "answering on time ends the streak: the next card says so once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 878a31b2c91d",
-   "POST https://discord.com/api/v10/channels/gn/messages d7059137f22f"
+   "POST https://discord.com/api/v10/channels/gn/messages db457cbd4074",
+   "POST https://discord.com/api/v10/channels/gn/messages 951772a40f65"
   ],
   "db": {
    "chases": "2:687c241ea5ac",

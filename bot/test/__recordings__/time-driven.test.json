@@ -8,7 +8,7 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages 9c6952f81d25",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07718040d408"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 35f78b792d6e"
   ],
   "db": {
    "game_nights": "1:e5a10420f6a3",
@@ -18,12 +18,12 @@
  },
  "two of us in the Lobby: the question comes after 30 s, not before": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 829ee82ecdd0"
+   "POST https://discord.com/api/v10/channels/gn/messages e2565c7c8696"
   ],
   "db": {
    "games": "8:a906c10ebcec",
    "lobby_prompts": "1:9534426ff779",
-   "voice_segments": "2:3a4f75c706ca"
+   "voice_segments": "2:676165d406c5"
   }
  },
  "a private copy follows its card for 14 minutes after the last tap, then it's let go": {
@@ -117,7 +117,7 @@
  },
  "the 19:00 call-out with a real slacker: posted once at 19:00, not again, not after a restart": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 8a8a93f643fd"
+   "POST https://discord.com/api/v10/channels/memes/messages bbad3708c3d6"
   ],
   "db": {
    "games": "8:a906c10ebcec",

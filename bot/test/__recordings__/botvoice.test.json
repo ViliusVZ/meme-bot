@@ -2,8 +2,8 @@
  "1. join → ready → 3 s → play → end → 3 s → leave, in that order with those gaps (a night's start: the jingle, then its line)": {
   "calls": [],
   "db": {
-   "roast_bags": "1:a936fad0de73",
-   "voice_clips": "2:8475527e74d0"
+   "roast_bags": "3:03072528eced",
+   "voice_clips": "2:3026bfb78823"
   }
  },
  "2. a connection that never becomes ready is given up at 10 s, with one alert; the caller never waited": {
@@ -12,38 +12,43 @@
    "POST https://discord.com/api/v10/channels/70000/messages 9e4bb832e88b"
   ],
   "db": {
-   "roast_bags": "1:8c0ca037925e",
-   "voice_clips": "3:683d67231f52"
+   "roast_bags": "3:7cd9d725fc54",
+   "voice_clips": "4:eab1e816c54c"
   }
  },
  "3. everyone leaves while it's speaking: it stops and leaves at once": {
   "calls": [],
   "db": {
-   "voice_clips": "1:f6c18e27acfd"
+   "roast_bags": "1:91cd29364f1b",
+   "voice_clips": "1:c0aefa66bb89"
   }
  },
  "4. two things for two channels: one visit each, in order, never in two channels at once; two for one channel: one visit": {
   "calls": [],
   "db": {
-   "voice_clips": "4:ae5fab5ccd83"
+   "roast_bags": "1:c066d9e406e1",
+   "voice_clips": "4:80e0505b8598"
   }
  },
  "5. something queued more than 20 s before its turn is dropped; younger is still said": {
   "calls": [],
   "db": {
-   "voice_clips": "2:f72c560cb4f2"
+   "roast_bags": "1:d173023e8ae1",
+   "voice_clips": "2:f21c96a93a73"
   }
  },
  "6. the 30-second cap fires even if playback hangs": {
   "calls": [],
   "db": {
-   "voice_clips": "1:dabc1b9bd0c8"
+   "roast_bags": "1:281e50ca39d1",
+   "voice_clips": "1:994391ab989a"
   }
  },
  "7. the term ends (shutdown, or leadership lost) while connected: it leaves first, and makes sure Discord has it out": {
   "calls": [],
   "db": {
-   "voice_clips": "1:2936dae80844"
+   "roast_bags": "1:19308733a7c9",
+   "voice_clips": "1:40e54bbac6f3"
   }
  },
  "9. the toggle is off: no joins at all, no lines drawn; the HQ panel's 🔇 flips it": {
@@ -70,24 +75,23 @@
  "11. a clip that isn't cached and can't be made: no speech, no alert storm (one alert); a night's start plays its jingle alone": {
   "calls": [
    "POST https://discord.com/api/v10/users/@me/channels e68e7f1412ff",
-   "POST https://discord.com/api/v10/channels/70000/messages c402bf08fcbd"
+   "POST https://discord.com/api/v10/channels/70000/messages 19d191d3d8c6"
   ],
   "db": {
-   "roast_bags": "1:6b4b52bf3ff0"
+   "roast_bags": "3:c57362b2d35d"
   }
  },
- "moment 1: a night's start queues its jingle and line for the room, after the ping": {
+ "moment 1: a night's start with nobody in the room waits for two of us (after the ping)": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels ff140b4de8c6",
    "POST https://discord.com/api/v10/channels/gn/messages f0134fbbd8b1",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 5ccaa5fda71f"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 09b0d438d905"
   ],
   "db": {
    "game_nights": "1:8546c8f807b1",
    "games": "1:d3fdae7f9400",
-   "roast_bags": "1:dbb81afd00ef",
    "rooms": "1:efc1ecc81465"
   }
  },
@@ -99,14 +103,14 @@
   "db": {
    "game_nights": "1:d71b01fcd6c2",
    "night_attendance": "3:98529f24e3d4",
-   "roast_bags": "1:ec8f7b880fe3",
+   "roast_bags": "2:267d8fe1f28f",
    "rooms": "1:d1c4eb9f8537",
-   "voice_clips": "1:9b6c254fe716"
+   "voice_clips": "1:c6f499209a42"
   }
  },
  "moment 3: the Lobby question is asked aloud; on auto-move the bot stays silent": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/lobby/messages eda1e4812adb",
+   "POST https://discord.com/api/v10/channels/gn/messages 1fac7ec9ae1a",
    "POST https://discord.com/api/v10/guilds/guild/channels 74dcece1dff3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 3f55ddea7b49",
@@ -118,9 +122,9 @@
    "fleeting": "1:7f73d2823b22",
    "games": "1:97abecacab69",
    "lobby_prompts": "1:6844738cbafd",
-   "roast_bags": "1:d0e248d68276",
+   "roast_bags": "3:242008921e37",
    "rooms": "1:53adef148ea0",
-   "voice_clips": "2:130ce3612749",
+   "voice_clips": "2:ce28e5c74528",
    "voice_segments": "2:49f635f6f932"
   }
  },
@@ -129,8 +133,8 @@
   "db": {
    "game_nights": "1:f43e8c641524",
    "lone_birds": "1:60dc4d666134",
-   "roast_bags": "1:12c8fdd69791",
-   "voice_clips": "1:35c7a775f864",
+   "roast_bags": "2:d430964a5b13",
+   "voice_clips": "2:dbbdd5a5c292",
    "voice_segments": "1:eddf7de4849b"
   }
  },
@@ -139,9 +143,9 @@
   "db": {
    "game_nights": "1:c3a8001e71ed",
    "lone_birds": "1:a66cd7c76d9b",
-   "roast_bags": "1:a6995bb2e4e7",
+   "roast_bags": "3:2b88271ce759",
    "rooms": "2:ec41dca21e83",
-   "voice_clips": "1:c11313993357",
+   "voice_clips": "2:8835549412a9",
    "voice_segments": "2:add96b1a569a"
   }
  },
@@ -157,8 +161,8 @@
   "db": {
    "game_nights": "1:f43e8c641524",
    "lone_birds": "2:e7ca86cfe704",
-   "roast_bags": "1:311c71202cf6",
-   "voice_clips": "5:23f5b7ca6d99",
+   "roast_bags": "3:8dc36dd135b1",
+   "voice_clips": "4:cadef018931e",
    "voice_segments": "2:3769725d65d1"
   }
  },
@@ -184,25 +188,35 @@
    "voice_segments": "1:84aec8be7110"
   }
  },
- "a span is made once and cached; ahead of time, the likely lines are made a few a minute (none while off)": {
+ "a span is made once and cached (its prosody is part of it); ahead of time, the Gemini lines are made a few a minute (none while off)": {
   "calls": [],
   "db": {
    "game_nights": "1:c3a8001e71ed",
-   "settings": "1:b83a275ed775",
-   "voice_clips": "9:2fa57e8a2e76"
+   "settings": "6:26578a935926",
+   "voice_clips": "6:63a7d6606109"
   }
  },
  "a line already in the cache plays even with the speech engine down": {
   "calls": [],
   "db": {
-   "roast_bags": "1:da1899c75167",
-   "voice_clips": "2:dc81c65f03a3"
+   "game_nights": "1:c3a8001e71ed",
+   "roast_bags": "1:086064e46249",
+   "settings": "4:452a6a5a9a32",
+   "voice_clips": "4:d16239232cb2"
   }
  },
- "clips made ahead ask Edge only (Gemini's few lines a day are for speech due now); an engine that's down stops the round": {
+ "clips made ahead are Gemini's lines only; Gemini down (or its day used up) stops the round": {
   "calls": [],
   "db": {
-   "voice_clips": "4:989ce6f96e2e"
+   "game_nights": "1:c3a8001e71ed",
+   "settings": "1:92f8a6794939"
+  }
+ },
+ "a night start with one of us (or nobody) in the room waits, no line drawn, and plays when the second arrives": {
+  "calls": [],
+  "db": {
+   "roast_bags": "3:713381228340",
+   "voice_clips": "3:fddff0f25b6c"
   }
  }
 }

@@ -48,7 +48,7 @@
  "the admin test DM reaches whoever it's sent to": {
   "calls": [
    "POST https://discord.com/api/v10/users/@me/channels 9124e538ae81",
-   "POST https://discord.com/api/v10/channels/dm-someone/messages ba724bda325a"
+   "POST https://discord.com/api/v10/channels/dm-someone/messages 3955f704201e"
   ],
   "db": {}
  }

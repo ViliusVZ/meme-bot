@@ -1,9 +1,9 @@
 {
  "2026-11-12 again: the third joins at 18:43:45, the night starts at 18:44:15 with one silent line, and 19:00 brings nothing": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 93301e041abc",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1602942d9109",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8b3558d1c48f",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 23084f191bd6",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 75b550774948",
@@ -12,7 +12,7 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/c 1f2634ed7384",
    "POST https://discord.com/api/v10/channels/gn/messages 7e0c874feb98",
    "POST https://discord.com/api/v10/channels/70003/messages 3d64d958b553",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 801c72b5cd4d"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 53ca57900567"
   ],
   "db": {
    "fleeting": "1:00dddefad97e",
@@ -20,53 +20,54 @@
    "games": "2:e69ac83fc6a2",
    "night_attendance": "3:7d0f5d992fed",
    "rooms": "1:01c2e32607be",
-   "settings": "1:6e7376150d77",
-   "voice_segments": "12:48b43b6e4d32"
+   "settings": "2:8978fb19b748",
+   "voice_segments": "6:eaaf98ac4ddb"
   }
  },
  "two early: the night's card, not the question; Open the room; the line for the third; the third pulled in and 30 s later it starts, counted once": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 93301e041abc",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages 66643c2a854d",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8b3558d1c48f",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages 66643c2a854d",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 75b550774948",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 1f2634ed7384",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b 1f2634ed7384",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/70002 -",
    "DELETE https://discord.com/api/v10/channels/lobby/messages/70002 -",
    "POST https://discord.com/api/v10/channels/gn/messages 07b6e3ec0ec1",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1602942d9109",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 23084f191bd6",
    "PATCH https://discord.com/api/v10/guilds/guild/members/c 1f2634ed7384",
    "POST https://discord.com/api/v10/channels/70003/messages 05e0a098267a",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/70008 67cc505b9e9a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/70009 67cc505b9e9a",
    "GET https://discord.com/api/v10/channels/70003 -",
    "POST https://discord.com/api/v10/channels/gn/messages 7e0c874feb98",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 2a90a7b05a7a",
-   "DELETE https://discord.com/api/v10/channels/gn/messages/70008 -"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 7b76f5eadf15",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/70009 -"
   ],
   "db": {
-   "fleeting": "1:13391f9bec27",
+   "fleeting": "1:50638688d4b4",
    "game_nights": "1:381348fd4e37",
    "games": "2:5380e34b0221",
    "lobby_prompts": "1:002823b8e9ba",
    "night_attendance": "3:bcffb839e911",
    "night_cards": "1:b82ef69fe877",
    "rooms": "1:7bfcc2f08c43",
-   "sessions": "1:f3d296395243",
-   "settings": "1:6b54706d2ebb",
-   "voice_segments": "10:ffd922a08268"
+   "sessions": "1:2df4bceeb17e",
+   "settings": "2:8443b8bf903c",
+   "voice_segments": "10:5cc8bb9ee506"
   }
  },
  "two early in the room, the third never comes: at 19:00 one message pinging only the third, their late slip at 19:10": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
    "POST https://discord.com/api/v10/channels/gn/messages 7a0d65f3746d",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages 937dc77cbadf",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "DELETE https://discord.com/api/v10/channels/gn/messages/70001 -",
-   "POST https://discord.com/api/v10/channels/gn/messages 70b7493566e5"
+   "POST https://discord.com/api/v10/channels/gn/messages 1d8e75e3f4ed"
   ],
   "db": {
    "game_nights": "1:335d0ee0f31f",
@@ -75,35 +76,35 @@
    "rooms": "1:222487a6cdd1",
    "sessions": "1:14eb8cd313ac",
    "settings": "1:fa9bb6c1601d",
-   "voice_segments": "4:5735e68052b1"
+   "voice_segments": "4:abaf534c5c62"
   }
  },
  "the start pings exactly the people not in the room, for all eight combinations of who is": {
   "calls": [
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages 78778689ba80",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages 4708c6c94707",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages a7a49088cfdd",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages 937dc77cbadf",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages dabb3ee6e683",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages d18dfb223fe2",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages a27e1a209adb",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f7f5fba3ccd1",
    "GET https://discord.com/api/v10/channels/wow -",
    "POST https://discord.com/api/v10/channels/gn/messages e73795925e87",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4bed489ac9aa"
   ],
   "db": {
    "game_nights": "1:335d0ee0f31f",
@@ -114,8 +115,8 @@
  },
  "two early, both shown in the night's game: moved straight in, with ↩, and no card": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 93301e041abc",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8b3558d1c48f",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 2d0fb719b9b0",
@@ -130,24 +131,25 @@
    "lobby_prompts": "1:bc537ee7d36f",
    "rooms": "1:fef325c6f47f",
    "settings": "1:a1bac0809bbf",
-   "voice_segments": "2:c8bd02edb986"
+   "voice_segments": "2:83337eb0bb29"
   }
  },
  "“Just hanging out”, then the third arrives: no early start; the planned start runs as usual": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 93301e041abc",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages 60c8f6915f93",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8b3558d1c48f",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages 60c8f6915f93",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/70002 -",
    "DELETE https://discord.com/api/v10/channels/lobby/messages/70002 -",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1602942d9109",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 23084f191bd6",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
-   "PATCH https://discord.com/api/v10/guilds/guild/channels 157cb631c4a4",
-   "PATCH https://discord.com/api/v10/guilds/guild/members/a 22e47a0a5e5d",
-   "PATCH https://discord.com/api/v10/guilds/guild/members/b 22e47a0a5e5d",
-   "PATCH https://discord.com/api/v10/guilds/guild/members/c 22e47a0a5e5d",
-   "POST https://discord.com/api/v10/channels/gn/messages d003a3428b31",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 576380b8218c"
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 94ce0be80b54",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a f9e7ff116f1d",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/b f9e7ff116f1d",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c f9e7ff116f1d",
+   "POST https://discord.com/api/v10/channels/gn/messages c13516349c97",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4bed489ac9aa"
   ],
   "db": {
    "game_nights": "1:335d0ee0f31f",
@@ -155,15 +157,15 @@
    "lobby_prompts": "1:2746b12fe499",
    "night_attendance": "3:1536c2373c90",
    "night_cards": "1:59c5a8e8f24f",
-   "rooms": "1:b01f3e369689",
+   "rooms": "1:a1cbca24d8eb",
    "settings": "1:577c28ae2756",
-   "voice_segments": "8:5cba54af5473"
+   "voice_segments": "8:469dab711d8c"
   }
  },
  "all three here, two shown in another of our games: no early start, the card instead": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1602942d9109",
-   "POST https://discord.com/api/v10/channels/lobby/messages 0cb4ffe697fe"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 23084f191bd6",
+   "POST https://discord.com/api/v10/channels/gn/messages 0cb4ffe697fe"
   ],
   "db": {
    "game_nights": "1:fc85be52fee5",
@@ -171,37 +173,39 @@
    "lobby_prompts": "1:96f19b91d4b0",
    "night_cards": "1:85965be60337",
    "settings": "1:ca0a623bcdf7",
-   "voice_segments": "6:82a49597379a"
+   "voice_segments": "6:e6adebc6b359"
   }
  },
  "the card goes when the gathering breaks up and when the night is called off, and follows a moved start": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages 92cef6d3e49c",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 93301e041abc",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages 92cef6d3e49c",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 8b3558d1c48f",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/70001 -",
    "DELETE https://discord.com/api/v10/channels/lobby/messages/70001 -",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages 8aa61380ecc7",
-   "POST https://discord.com/api/v10/channels/gn/messages eb12ef1d0740",
-   "PATCH https://discord.com/api/v10/channels/lobby/messages/70005 c6d4ccdc596a",
-   "DELETE https://discord.com/api/v10/channels/lobby/messages/70005 -",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages 8aa61380ecc7",
+   "POST https://discord.com/api/v10/channels/gn/messages 16f4371a3f49",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/70006 c6d4ccdc596a",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/70006 -",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/70006 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 2d0b59210d47",
-   "POST https://discord.com/api/v10/channels/gn/messages ebbd3b2d96c8"
+   "POST https://discord.com/api/v10/channels/gn/messages f98e1621a67c"
   ],
   "db": {
    "game_nights": "1:4dac53d2080a",
    "games": "2:bf67c7535e3e",
-   "lobby_prompts": "2:0ab0ecbee2c6",
+   "lobby_prompts": "2:d60c3a4d7de3",
    "night_attendance": "1:0c7c2b55ecfc",
    "night_cards": "2:3e169806a3c3",
    "roast_bags": "1:914eb2efbc0e",
-   "settings": "1:0d204de0dd3a",
-   "voice_segments": "3:e992984e27e7"
+   "settings": "2:d847537e9aa1",
+   "voice_segments": "3:7d4cf284f164"
   }
  },
- "outside the window, and while the vote is still open: the card's game, never the question (19 Nov)": {
+ "outside the window, and while the vote is still open: plan 01's question, unchanged": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 3f55ddea7b49",
@@ -214,9 +218,9 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/a b86532e467be",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b b86532e467be",
    "PATCH https://discord.com/api/v10/guilds/guild/members/c b86532e467be",
-   "POST https://discord.com/api/v10/channels/gn/messages 1006712a86c3",
+   "POST https://discord.com/api/v10/channels/gn/messages 965bac0222f8",
    "POST https://discord.com/api/v10/channels/70001/messages 56a25af2cb71",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 2a0b346dfbff"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card c185ea9c745e"
   ],
   "db": {
    "fleeting": "2:88fe7c778ec2",
@@ -226,8 +230,8 @@
    "night_attendance": "3:c61384bd7c1e",
    "roast_bags": "1:914eb2efbc0e",
    "rooms": "1:2c5c9181d015",
-   "settings": "2:75df66f2b8a3",
-   "voice_segments": "5:8e2f1aa033d2"
+   "settings": "3:80edb3c9d331",
+   "voice_segments": "5:c0550487ff6a"
   }
  },
  "no voice snapshot: no early start and no card": {
@@ -236,12 +240,12 @@
    "game_nights": "1:fc85be52fee5",
    "games": "2:bd978ba397ab",
    "roast_bags": "1:914eb2efbc0e",
-   "voice_segments": "3:50851036e350"
+   "voice_segments": "3:792b87e725cb"
   }
  },
  "a voice change and the minute tick both see “everyone's here” at once: one start": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1602942d9109",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 23084f191bd6",
    "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 3f55ddea7b49",
@@ -250,7 +254,7 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/c b86532e467be",
    "POST https://discord.com/api/v10/channels/gn/messages d6294651aea2",
    "POST https://discord.com/api/v10/channels/70001/messages 3d64d958b553",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card b7f5f3085da3"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card fd02cb1e1cc6"
   ],
   "db": {
    "fleeting": "1:87f80f1196b3",
@@ -259,8 +263,8 @@
    "night_attendance": "3:c61384bd7c1e",
    "roast_bags": "1:914eb2efbc0e",
    "rooms": "1:c7b3b526f8b3",
-   "settings": "1:ca0a623bcdf7",
-   "voice_segments": "3:e7bae36ce1a7"
+   "settings": "2:b837e9cc39b1",
+   "voice_segments": "3:5c1e5216a64b"
   }
  },
  "“World of Warcraft: Forever” is World of Warcraft (a migration); a name we don't know waits for the news writer, once": {
@@ -281,16 +285,16 @@
    "lobby_prompts": "1:c6900fbfb8df",
    "roast_bags": "1:914eb2efbc0e",
    "rooms": "1:504475c12f32",
-   "voice_segments": "2:9107c94cedda"
+   "voice_segments": "2:305c11955eac"
   }
  },
  "a card that won't post leaves the gathering quiet (and says so); the next gathering gets one": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages 758f2dfdf238",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages 758f2dfdf238",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 045b6783449e",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 33df239d5760",
-   "POST https://discord.com/api/v10/channels/lobby/messages c08ee87dbec6"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 07674410149d",
+   "POST https://discord.com/api/v10/channels/gn/messages c08ee87dbec6"
   ],
   "db": {
    "game_nights": "1:fc85be52fee5",
@@ -299,7 +303,7 @@
    "night_cards": "2:23a98487b36f",
    "roast_bags": "1:914eb2efbc0e",
    "settings": "1:3015692c38b6",
-   "voice_segments": "6:800aa7e4e9a9"
+   "voice_segments": "6:dfa6143cb69c"
   }
  }
 }

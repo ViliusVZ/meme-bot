@@ -41,7 +41,7 @@
  },
  "the Lobby question (claim → post → its message id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 14489fe5b08a"
+   "POST https://discord.com/api/v10/channels/gn/messages 6a39e9bd2173"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -51,7 +51,7 @@
  },
  "the Lobby question (claim → post → its message id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 60be5fb92f40"
+   "POST https://discord.com/api/v10/channels/gn/messages 4b1833c78407"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -61,7 +61,7 @@
  },
  "the Lobby question (claim → post → its message id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 5265e01e4e76"
+   "POST https://discord.com/api/v10/channels/gn/messages a2069791922f"
   ],
   "db": {
    "games": "8:44c5a8b0c098",
@@ -78,7 +78,7 @@
  },
  "a late slip (the ETA → the slip → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 7d7282ac88ce"
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
   ],
   "db": {
    "game_nights": "1:cc0a4abfad8c",
@@ -88,7 +88,7 @@
  },
  "a late slip (the ETA → the slip → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 7d7282ac88ce"
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
   ],
   "db": {
    "game_nights": "1:cc0a4abfad8c",
@@ -98,7 +98,7 @@
  },
  "a late slip (the ETA → the slip → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 7d7282ac88ce"
+   "POST https://discord.com/api/v10/channels/gn/messages d813a83b2e5a"
   ],
   "db": {
    "game_nights": "1:cc0a4abfad8c",
@@ -152,7 +152,7 @@
  },
  "the game-night card (the day's claim → the card → its message id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+   "POST https://discord.com/api/v10/channels/gn/messages 259fb8a34375"
   ],
   "db": {
    "game_nights": "1:43b2c8a275e9",
@@ -161,7 +161,7 @@
  },
  "the game-night card (the day's claim → the card → its message id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+   "POST https://discord.com/api/v10/channels/gn/messages 259fb8a34375"
   ],
   "db": {
    "game_nights": "1:fdc0c17fb9bd",
@@ -170,7 +170,7 @@
  },
  "the game-night card (the day's claim → the card → its message id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages f51e6a1cfb26"
+   "POST https://discord.com/api/v10/channels/gn/messages 259fb8a34375"
   ],
   "db": {
    "game_nights": "1:43b2c8a275e9",
@@ -193,7 +193,7 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6c277c37e03b"
   ],
   "db": {
    "game_nights": "1:a966e79e0386",
@@ -210,7 +210,7 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6c277c37e03b"
   ],
   "db": {
    "game_nights": "1:a966e79e0386",
@@ -227,7 +227,7 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages 1121606b260b",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 4a27a6a32392"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6c277c37e03b"
   ],
   "db": {
    "game_nights": "1:a966e79e0386",
@@ -244,22 +244,24 @@
  },
  "the roast (the due roasts read → its claim → the roast): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages d8e15769f0f1"
+   "POST https://discord.com/api/v10/channels/gn/messages 289829207256"
   ],
   "db": {
    "game_nights": "1:e1ddc1eb3beb",
    "games": "8:20142a6ccc67",
-   "roast_bags": "1:98dee6e29e8b"
+   "roast_bags": "1:98dee6e29e8b",
+   "settings": "1:124fa8470eb2"
   }
  },
  "the roast (the due roasts read → its claim → the roast): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 10418f1a1345"
+   "POST https://discord.com/api/v10/channels/gn/messages 6e1947a252b1"
   ],
   "db": {
    "game_nights": "1:e1ddc1eb3beb",
    "games": "8:20142a6ccc67",
-   "roast_bags": "1:35b4871d9cc9"
+   "roast_bags": "1:35b4871d9cc9",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the late watcher's slip (its claim → the slip → its id): interrupted before its claim, nothing is done": {
@@ -268,72 +270,79 @@
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "roast_bags": "1:35b4871d9cc9",
-   "rooms": "1:41c643dac21f"
+   "rooms": "1:41c643dac21f",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the late watcher's slip (its claim → the slip → its id): interrupted during the claim, everything is done, once": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages ecc70e2c234b"
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
   ],
   "db": {
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "night_attendance": "1:31e53117721e",
    "roast_bags": "1:35b4871d9cc9",
-   "rooms": "1:41c643dac21f"
+   "rooms": "1:41c643dac21f",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the late watcher's slip (its claim → the slip → its id): interrupted during the post, everything is done, once": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages ecc70e2c234b"
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
   ],
   "db": {
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "night_attendance": "1:47c012ad1d2e",
    "roast_bags": "1:35b4871d9cc9",
-   "rooms": "1:41c643dac21f"
+   "rooms": "1:41c643dac21f",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the late watcher's slip (its claim → the slip → its id): interrupted during the record, everything is done, once": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages ecc70e2c234b"
+   "POST https://discord.com/api/v10/channels/gn/messages 9f73137b7c6c"
   ],
   "db": {
    "game_nights": "1:19f0b8d0ba42",
    "games": "8:20142a6ccc67",
    "night_attendance": "1:31e53117721e",
    "roast_bags": "1:35b4871d9cc9",
-   "rooms": "1:41c643dac21f"
+   "rooms": "1:41c643dac21f",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the weekly recap (its claim → the recap): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
    "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:fab1e9a747ec"
   }
  },
  "the weekly recap (its claim → the recap): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 7328e73bab20"
+   "POST https://discord.com/api/v10/channels/gn/messages c8847c5a9cae"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "recaps": "1:5c42aff4e925",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:c16631665d1e"
   }
  },
  "the weekly recap (its claim → the recap): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 7328e73bab20"
+   "POST https://discord.com/api/v10/channels/gn/messages c8847c5a9cae"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "recaps": "1:5c42aff4e925",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:fd572a9e731b"
   }
  },
@@ -342,30 +351,33 @@
   "db": {
    "games": "8:20142a6ccc67",
    "memes": "5:359eb4394653",
+   "settings": "1:51c00d6e9e0f",
    "votes": "10:f7e428a9e52c"
   }
  },
  "the meme call-out (the day's claim → the person's claim → the call-out): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 07fab778bea3"
+   "POST https://discord.com/api/v10/channels/memes/messages cb06d0e3c901"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "memes": "5:359eb4394653",
    "recaps": "2:9643825dc198",
    "roast_bags": "1:0f472a3ea0df",
+   "settings": "1:51c00d6e9e0f",
    "votes": "10:f7e428a9e52c"
   }
  },
  "the meme call-out (the day's claim → the person's claim → the call-out): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 7bfc00cf1b0a"
+   "POST https://discord.com/api/v10/channels/memes/messages f9e459047ff0"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "memes": "5:359eb4394653",
    "recaps": "2:9643825dc198",
    "roast_bags": "1:8ddff92379a2",
+   "settings": "1:51c00d6e9e0f",
    "votes": "10:f7e428a9e52c"
   }
  },
@@ -373,7 +385,8 @@
   "calls": [],
   "db": {
    "game_nights": "1:fd271a70ce3b",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the 03:00 sweep (its claim → the deletes → the cleared ids): interrupted during the claim, everything is done, once": {
@@ -385,7 +398,8 @@
   "db": {
    "game_nights": "1:fe3dc14817da",
    "games": "8:20142a6ccc67",
-   "recaps": "1:7e69b80a481d"
+   "recaps": "1:7e69b80a481d",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the 03:00 sweep (its claim → the deletes → the cleared ids): interrupted during the post, everything is done, once": {
@@ -397,7 +411,8 @@
   "db": {
    "game_nights": "1:fe3dc14817da",
    "games": "8:20142a6ccc67",
-   "recaps": "1:7e69b80a481d"
+   "recaps": "1:7e69b80a481d",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the 03:00 sweep (its claim → the deletes → the cleared ids): interrupted during the record, everything is done, once": {
@@ -409,13 +424,15 @@
   "db": {
    "game_nights": "1:fe3dc14817da",
    "games": "8:20142a6ccc67",
-   "recaps": "1:7e69b80a481d"
+   "recaps": "1:7e69b80a481d",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a room got ready ahead (its claim → the room → its id): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a room got ready ahead (its claim → the room → its id): interrupted during the claim, everything is done, once": {
@@ -427,7 +444,8 @@
   "db": {
    "games": "8:20142a6ccc67",
    "ready_rooms": "1:b84484e26dcd",
-   "rooms": "1:bd41ca256fc5"
+   "rooms": "1:bd41ca256fc5",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a room got ready ahead (its claim → the room → its id): interrupted during the post, everything is done, once": {
@@ -439,7 +457,8 @@
   "db": {
    "games": "8:20142a6ccc67",
    "ready_rooms": "1:b84484e26dcd",
-   "rooms": "1:6080dbce616d"
+   "rooms": "1:6080dbce616d",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a room got ready ahead (its claim → the room → its id): interrupted during the record, everything is done, once": {
@@ -451,13 +470,15 @@
   "db": {
    "games": "8:20142a6ccc67",
    "ready_rooms": "1:b84484e26dcd",
-   "rooms": "1:bd41ca256fc5"
+   "rooms": "1:bd41ca256fc5",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "an auto-move (its claim → the room → its id): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
    "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:23bb1543c906"
   }
  },
@@ -474,6 +495,7 @@
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:9af2747ec99a",
    "rooms": "1:bd41ca256fc5",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:8366d2740c91"
   }
  },
@@ -490,6 +512,7 @@
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:7f62e49a2211",
    "rooms": "1:6080dbce616d",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:4b438e353fe1"
   }
  },
@@ -506,6 +529,7 @@
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:c39b4dd7b0a5",
    "rooms": "1:bd41ca256fc5",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:406654bf879d"
   }
  },
@@ -513,7 +537,8 @@
   "calls": [],
   "db": {
    "games": "8:20142a6ccc67",
-   "rooms": "1:7fc380c049e5"
+   "rooms": "1:7fc380c049e5",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pull-in (its claim → the move → the note): interrupted during the claim, everything is done, once": {
@@ -524,7 +549,8 @@
   "db": {
    "fleeting": "1:ca501e4af2aa",
    "games": "8:20142a6ccc67",
-   "rooms": "1:24cc6bfc3127"
+   "rooms": "1:24cc6bfc3127",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pull-in (its claim → the move → the note): interrupted during the post, everything is done, once": {
@@ -535,7 +561,8 @@
   "db": {
    "fleeting": "1:c1b6ca48f557",
    "games": "8:20142a6ccc67",
-   "rooms": "1:24cc6bfc3127"
+   "rooms": "1:24cc6bfc3127",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pull-in (its claim → the move → the note): interrupted during the record, everything is done, once": {
@@ -546,14 +573,16 @@
   "db": {
    "fleeting": "1:ca501e4af2aa",
    "games": "8:20142a6ccc67",
-   "rooms": "1:24cc6bfc3127"
+   "rooms": "1:24cc6bfc3127",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pick on the Lobby question (the pick → the room → its id): interrupted before its claim, nothing is done": {
   "calls": [],
   "db": {
    "games": "8:20142a6ccc67",
-   "lobby_prompts": "1:bbec3a5bad1a"
+   "lobby_prompts": "1:bbec3a5bad1a",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pick on the Lobby question (the pick → the room → its id): interrupted during the claim, everything is done, once": {
@@ -564,12 +593,13 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/q1 7d11e88b483f"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:eb0d3cf5f0cb",
-   "rooms": "1:e07ed670ec46"
+   "rooms": "1:e07ed670ec46",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pick on the Lobby question (the pick → the room → its id): interrupted during the post, everything is done, once": {
@@ -580,12 +610,13 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/q1 63501eda3e19"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:4d20951e507f",
-   "rooms": "1:86eb16c34e22"
+   "rooms": "1:86eb16c34e22",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a pick on the Lobby question (the pick → the room → its id): interrupted during the record, everything is done, once": {
@@ -596,12 +627,13 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/q1 7d11e88b483f"
   ],
   "db": {
    "games": "8:20142a6ccc67",
    "lobby_prompts": "1:4dd601a88876",
-   "rooms": "1:e07ed670ec46"
+   "rooms": "1:e07ed670ec46",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a night locked in (the stage → the event → its id → the ping): interrupted before its claim, nothing is done": {
@@ -609,43 +641,47 @@
   "db": {
    "game_night_votes": "2:21289dc1807f",
    "game_nights": "1:dddfe3c11beb",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a night locked in (the stage → the event → its id → the ping): interrupted during the claim, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 5c0a3237e363",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 0486082c9733",
-   "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
+   "POST https://discord.com/api/v10/channels/gn/messages 1c1c95359ca1"
   ],
   "db": {
    "game_night_votes": "3:3c3cccc40f6a",
    "game_nights": "1:dbf1fc07c6df",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a night locked in (the stage → the event → its id → the ping): interrupted during the post, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 5c0a3237e363",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 366bba6de36e",
-   "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
+   "POST https://discord.com/api/v10/channels/gn/messages 1c1c95359ca1"
   ],
   "db": {
    "game_night_votes": "3:3c3cccc40f6a",
    "game_nights": "1:4a6c56f4f1eb",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a night locked in (the stage → the event → its id → the ping): interrupted during the record, everything is done, once": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 5c0a3237e363",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 0486082c9733",
-   "POST https://discord.com/api/v10/channels/gn/messages 7657c08e1d0a"
+   "POST https://discord.com/api/v10/channels/gn/messages 1c1c95359ca1"
   ],
   "db": {
    "game_night_votes": "3:3c3cccc40f6a",
    "game_nights": "1:dbf1fc07c6df",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a re-nudge (its claim → the ping → its id): interrupted before its claim, nothing is done": {
@@ -653,7 +689,8 @@
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:f73cb692bcd6",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a re-nudge (its claim → the ping → its id): interrupted during the claim, everything is done, once": {
@@ -664,7 +701,8 @@
    "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:68e4eda7d57e",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a re-nudge (its claim → the ping → its id): interrupted during the post, everything is done, once": {
@@ -675,7 +713,8 @@
    "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:b007b3d4e485",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "a re-nudge (its claim → the ping → its id): interrupted during the record, everything is done, once": {
@@ -686,7 +725,8 @@
    "chases": "2:0fb62f6f86c9",
    "game_night_votes": "1:b37c045ea7a5",
    "game_nights": "1:68e4eda7d57e",
-   "games": "8:20142a6ccc67"
+   "games": "8:20142a6ccc67",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the daily meme (its claim → the post → its id): interrupted before its claim, nothing is done": {
@@ -694,37 +734,41 @@
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
-   "memes": "1:e2e33bedacb2"
+   "memes": "1:e2e33bedacb2",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the daily meme (its claim → the post → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 9df8adf26eeb"
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
   ],
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
-   "memes": "1:9408232b63be"
+   "memes": "1:9408232b63be",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the daily meme (its claim → the post → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 9df8adf26eeb"
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
   ],
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
-   "memes": "1:f6cfd792c4bb"
+   "memes": "1:f6cfd792c4bb",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the daily meme (its claim → the post → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 9df8adf26eeb"
+   "POST https://discord.com/api/v10/channels/memes/messages f2116e141a15"
   ],
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
-   "memes": "1:9408232b63be"
+   "memes": "1:9408232b63be",
+   "settings": "1:51c00d6e9e0f"
   }
  },
  "the Meme of the Week (its claim → the post): interrupted before its claim, nothing is done": {
@@ -733,30 +777,33 @@
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Meme of the Week (its claim → the post): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages a44296bb8ee7"
+   "POST https://discord.com/api/v10/channels/memes/messages 85d5dbe24a80"
   ],
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Meme of the Week (its claim → the post): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages a44296bb8ee7"
+   "POST https://discord.com/api/v10/channels/memes/messages 85d5dbe24a80"
   ],
   "db": {
    "game_night_votes": "1:b37c045ea7a5",
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -769,6 +816,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -781,13 +829,14 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:bf43c59c933f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Lobby question (its claim → the question → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 771c5703182a"
+   "POST https://discord.com/api/v10/channels/gn/messages f68f93b5db11"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -797,13 +846,14 @@
    "lobby_prompts": "1:dfb2d9495374",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:a6958f81c496",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Lobby question (its claim → the question → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages d6d83de35894"
+   "POST https://discord.com/api/v10/channels/gn/messages 13e47b6601f0"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -813,13 +863,14 @@
    "lobby_prompts": "1:311d5ada1ab7",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:8b2bfa60c2d1",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Lobby question (its claim → the question → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 645f3f541376"
+   "POST https://discord.com/api/v10/channels/gn/messages 47e4b0825885"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -829,6 +880,7 @@
    "lobby_prompts": "1:4f8acf337716",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "voice_segments": "2:d9939d3674d4",
    "votes": "1:27fd349c6e9d"
   }
@@ -843,12 +895,14 @@
    "lobby_prompts": "1:ef3338fa32a2",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Lobby question closed when the gathering ends (its claim → the message gone): interrupted during the claim, everything is done, once": {
   "calls": [
-   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -"
+   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/q1 -"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -858,12 +912,14 @@
    "lobby_prompts": "1:2cd616eb3001",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "the Lobby question closed when the gathering ends (its claim → the message gone): interrupted during the post, everything is done, once": {
   "calls": [
-   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -"
+   "DELETE https://discord.com/api/v10/channels/gn/messages/q1 -",
+   "DELETE https://discord.com/api/v10/channels/lobby/messages/q1 -"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -873,6 +929,7 @@
    "lobby_prompts": "1:c19706d34da5",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -886,12 +943,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "an ETA on a late slip (the ETA → the slip → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages ef250f79da63"
+   "POST https://discord.com/api/v10/channels/gn/messages 5114db8e25af"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -902,12 +960,13 @@
    "memes": "1:7d751880cc55",
    "night_attendance": "1:5e5199e84c8a",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "an ETA on a late slip (the ETA → the slip → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages ef250f79da63"
+   "POST https://discord.com/api/v10/channels/gn/messages 5114db8e25af"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -918,12 +977,13 @@
    "memes": "1:7d751880cc55",
    "night_attendance": "1:fcace8483a81",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "an ETA on a late slip (the ETA → the slip → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages ef250f79da63"
+   "POST https://discord.com/api/v10/channels/gn/messages 5114db8e25af"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -934,6 +994,7 @@
    "memes": "1:7d751880cc55",
    "night_attendance": "1:5e5199e84c8a",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -947,12 +1008,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "1:51c00d6e9e0f",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a hold resumed (its claim → the re-ask ping → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 5ec5cfc8821a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 9c2b57003b12",
    "POST https://discord.com/api/v10/channels/gn/messages 30568853c65d"
   ],
   "db": {
@@ -963,12 +1025,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:92d1946943c6",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a hold resumed (its claim → the re-ask ping → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 5ec5cfc8821a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 9c2b57003b12",
    "POST https://discord.com/api/v10/channels/gn/messages 30568853c65d"
   ],
   "db": {
@@ -979,12 +1042,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a hold resumed (its claim → the re-ask ping → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 5ec5cfc8821a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 9c2b57003b12",
    "POST https://discord.com/api/v10/channels/gn/messages 30568853c65d"
   ],
   "db": {
@@ -995,6 +1059,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1008,6 +1073,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1024,6 +1090,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1040,6 +1107,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1056,6 +1124,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1069,12 +1138,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a split's last call (its claim → the ping → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 81f4f371fcda"
+   "POST https://discord.com/api/v10/channels/gn/messages ec901ce314a3"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1084,12 +1154,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a split's last call (its claim → the ping → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 81f4f371fcda"
+   "POST https://discord.com/api/v10/channels/gn/messages ec901ce314a3"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1099,12 +1170,13 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
  "a split's last call (its claim → the ping → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 81f4f371fcda"
+   "POST https://discord.com/api/v10/channels/gn/messages ec901ce314a3"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1114,6 +1186,7 @@
    "games": "8:20142a6ccc67",
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1127,6 +1200,7 @@
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:e8f835a74af4",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1142,6 +1216,7 @@
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1157,6 +1232,7 @@
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1172,6 +1248,7 @@
    "memes": "1:7d751880cc55",
    "recaps": "1:146271b47b81",
    "sessions": "1:607b150ccbc8",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1186,6 +1263,7 @@
    "recaps": "1:146271b47b81",
    "rooms": "1:803d92d9d09a",
    "sessions": "1:24df3aa6f117",
+   "settings": "2:9705f89f8e99",
    "votes": "1:27fd349c6e9d"
   }
  },
@@ -1199,7 +1277,8 @@
    "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
-   "memes": "1:9bc174350963"
+   "memes": "1:9bc174350963",
+   "settings": "2:9705f89f8e99"
   }
  },
  "/meme: its reply's message id is recorded even when the background work is cut off during the lookup (phase 7 audit)": {
@@ -1212,7 +1291,8 @@
    "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
    "games": "9:fa5c08387b7a",
-   "memes": "1:d188e12f3e47"
+   "memes": "1:d188e12f3e47",
+   "settings": "2:9705f89f8e99"
   }
  },
  "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted before its claim, nothing is done": {
@@ -1224,33 +1304,34 @@
    "game_nights": "1:602eb4f5c39d",
    "games": "9:ea9dfc7eb603",
    "memes": "1:d188e12f3e47",
+   "settings": "2:9705f89f8e99",
    "voice_segments": "3:8b7ac1867a3a"
   }
  },
  "the early start (its claim, the start moved to now → the silent line → the night counted as played): interrupted during the claim, everything is done, once": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card c0ed24d2303a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3a6090149dbb",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels 23beb20caaf1",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a ca486f78da27",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b ca486f78da27",
    "PATCH https://discord.com/api/v10/guilds/guild/members/c ca486f78da27",
-   "POST https://discord.com/api/v10/channels/gn/messages 1cee33dda010",
-   "POST https://discord.com/api/v10/channels/20001/messages 56a25af2cb71",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 960ffd324ebe"
+   "POST https://discord.com/api/v10/channels/gn/messages 9223d5c89a2b",
+   "POST https://discord.com/api/v10/channels/20001/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3458033d5eb0"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "1:0867039392c6",
    "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
-   "game_nights": "1:862a014fab04",
+   "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:bf876988f29e",
-   "settings": "2:0634a57716fa",
+   "settings": "4:a110451ecd3e",
    "voice_segments": "3:e9327d28131f"
   }
  },
@@ -1262,21 +1343,21 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 908e25d06719",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b 908e25d06719",
    "PATCH https://discord.com/api/v10/guilds/guild/members/c 908e25d06719",
-   "POST https://discord.com/api/v10/channels/gn/messages 7f19bf7b7c6e",
-   "POST https://discord.com/api/v10/channels/20000/messages 56a25af2cb71",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 960ffd324ebe"
+   "POST https://discord.com/api/v10/channels/gn/messages e9e7eaf31f0e",
+   "POST https://discord.com/api/v10/channels/20000/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3458033d5eb0"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "2:741b9d9dacb6",
    "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
-   "game_nights": "1:862a014fab04",
+   "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
-   "settings": "2:1ac1ae28398c",
+   "settings": "4:e682f19e109f",
    "voice_segments": "3:21067506ca0d"
   }
  },
@@ -1288,21 +1369,21 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/a 908e25d06719",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b 908e25d06719",
    "PATCH https://discord.com/api/v10/guilds/guild/members/c 908e25d06719",
-   "POST https://discord.com/api/v10/channels/gn/messages 7f19bf7b7c6e",
-   "POST https://discord.com/api/v10/channels/20000/messages 56a25af2cb71",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 960ffd324ebe"
+   "POST https://discord.com/api/v10/channels/gn/messages e9e7eaf31f0e",
+   "POST https://discord.com/api/v10/channels/20000/messages 798cb9403a68",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3458033d5eb0"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
    "fleeting": "3:13c818a09085",
    "game_aliases": "1:1731edb01033",
    "game_night_votes": "3:f98beaf65529",
-   "game_nights": "1:862a014fab04",
+   "game_nights": "1:a966e79e0386",
    "games": "9:fa5c08387b7a",
    "memes": "1:d188e12f3e47",
    "night_attendance": "3:baa73d39e1bd",
    "rooms": "1:16fb061a2387",
-   "settings": "2:1ac1ae28398c",
+   "settings": "4:e682f19e109f",
    "voice_segments": "3:080d0cd320ec"
   }
  },
@@ -1321,7 +1402,7 @@
  },
  "a WoW news card (its claim → the post → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+   "POST https://discord.com/api/v10/channels/news/messages b4d7d77a3a94"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1336,7 +1417,7 @@
  },
  "a WoW news card (its claim → the post → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+   "POST https://discord.com/api/v10/channels/news/messages b4d7d77a3a94"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1351,7 +1432,7 @@
  },
  "a WoW news card (its claim → the post → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages d3c770c29092"
+   "POST https://discord.com/api/v10/channels/news/messages b4d7d77a3a94"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1380,7 +1461,7 @@
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the claim, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+   "POST https://discord.com/api/v10/channels/news/messages 3a70ee90e4ed"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1396,7 +1477,7 @@
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the post, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+   "POST https://discord.com/api/v10/channels/news/messages 3a70ee90e4ed"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",
@@ -1412,7 +1493,7 @@
  },
  "a backtest card posted on the test bot (its claim → the post → its id): interrupted during the record, everything is done, once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/news/messages a0e187fc208e"
+   "POST https://discord.com/api/v10/channels/news/messages 3a70ee90e4ed"
   ],
   "db": {
    "activity_guesses": "1:0e82556f3e84",

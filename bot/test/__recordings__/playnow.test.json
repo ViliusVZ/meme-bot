@@ -2,28 +2,29 @@
  "everyone taps ⚡ Now: it starts at once, the Lobby is moved in, and only who isn't in voice is pinged": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events 2ecad285c6a1",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 0bbfded40f14",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6bd6f44a4e97",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/5000 1ce399d6e936",
    "PATCH https://discord.com/api/v10/guilds/guild/members/a fdb9bdb9c630",
    "PATCH https://discord.com/api/v10/guilds/guild/members/b fdb9bdb9c630",
-   "POST https://discord.com/api/v10/channels/gn/messages b328e06e7481",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card c5a7cf9bd119"
+   "POST https://discord.com/api/v10/channels/gn/messages 58cf73eb0f92",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 354d8af7c3a6"
   ],
   "db": {
    "game_night_votes": "3:d3a3f0f18b63",
    "game_nights": "1:314824693325",
    "games": "1:77fcc5bd2165",
    "night_attendance": "2:79bac94f4476",
-   "rooms": "1:f9ca647c94cf"
+   "rooms": "1:f9ca647c94cf",
+   "settings": "1:9711ab55cbaa"
   }
  },
  "everyone on ⚡ Now and all in voice: one silent line": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events bbb112819fa1",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card fe74ab817fe3",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6ed33d762f31",
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
@@ -33,7 +34,7 @@
    "PATCH https://discord.com/api/v10/guilds/guild/members/c fdb9bdb9c630",
    "POST https://discord.com/api/v10/channels/gn/messages 96775d3bc34d",
    "POST https://discord.com/api/v10/channels/5002/messages 759db1a9e147",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 37b7d39a1345"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 291a65973ffb"
   ],
   "db": {
    "fleeting": "1:892fd56dd338",
@@ -41,33 +42,36 @@
    "game_nights": "1:76bb782c5245",
    "games": "1:0cc52188ec8b",
    "night_attendance": "3:b9ab71e56e6f",
-   "rooms": "1:ce76b0771339"
+   "rooms": "1:ce76b0771339",
+   "settings": "1:1633253b2a5d"
   }
  },
  "mixed quick picks: rounded up to the next 5 minutes, and the night locks in at the latest": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events b28b8dfc3a10",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card 2abc20d9de78",
-   "POST https://discord.com/api/v10/channels/gn/messages cc972240dad1"
+   "POST https://discord.com/api/v10/channels/gn/messages 3028294fce56"
   ],
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_night_votes": "3:a4d2f9e49ea1",
    "game_nights": "1:e686f0c97c41",
-   "games": "1:dd25cb809b55"
+   "games": "1:dd25cb809b55",
+   "settings": "1:1633253b2a5d"
   }
  },
  "one on a fixed slot and two on ⚡ Now: it starts at the slot": {
   "calls": [
    "POST https://discord.com/api/v10/guilds/guild/scheduled-events a159e4b9f938",
    "PATCH https://discord.com/api/v10/channels/gn/messages/card f562ba94edc3",
-   "POST https://discord.com/api/v10/channels/gn/messages 8a17070b9813"
+   "POST https://discord.com/api/v10/channels/gn/messages 717f16c6e139"
   ],
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_night_votes": "3:15791ca8dcfe",
    "game_nights": "1:abbf4a74837a",
-   "games": "1:d976e187132a"
+   "games": "1:d976e187132a",
+   "settings": "1:1633253b2a5d"
   }
  },
  "changing your mind: another quick button replaces your pick; tapping your pick's button takes it back, also once it has passed": {
@@ -75,7 +79,8 @@
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_nights": "1:d3097fa2d964",
-   "games": "1:e5eab2654486"
+   "games": "1:e5eab2654486",
+   "settings": "1:1633253b2a5d"
   }
  },
  "a ⚡ Now pick 40 minutes old when the last one taps: it starts now": {
@@ -86,15 +91,16 @@
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels e764105ed0a7",
    "PATCH https://discord.com/api/v10/guilds/guild/scheduled-events/5000 1ce399d6e936",
-   "POST https://discord.com/api/v10/channels/gn/messages 534dd620dc1e",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card e1c8d760cf51"
+   "POST https://discord.com/api/v10/channels/gn/messages 211ee85f5f63",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card b1db45a8b46a"
   ],
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_night_votes": "3:b04fa82ae93c",
    "game_nights": "1:824ba22a6388",
    "games": "1:01130f55b19b",
-   "rooms": "1:f33d068865ab"
+   "rooms": "1:f33d068865ab",
+   "settings": "1:8ed21f259d7b"
   }
  },
  "the quick row is on today's time card only": {
@@ -102,7 +108,8 @@
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_nights": "2:3d88871d6bed",
-   "games": "1:77c72c5153f3"
+   "games": "1:77c72c5153f3",
+   "settings": "1:8ed21f259d7b"
   }
  },
  "⚡ Ready now on a locked-in night: two aren't enough, a tap goes stale after 30 min, all three start it now": {
@@ -110,18 +117,36 @@
    "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
-   "PATCH https://discord.com/api/v10/guilds/guild/members/a 668a3869ee22",
-   "PATCH https://discord.com/api/v10/guilds/guild/members/b 668a3869ee22",
-   "POST https://discord.com/api/v10/channels/gn/messages ab739b6f662a",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 83a01bb5bea4"
+   "POST https://discord.com/api/v10/channels/gn/messages 7c23911db835",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card c3edb848f029"
   ],
   "db": {
    "fleeting": "1:892fd56dd338",
    "game_night_votes": "3:d3f766f6b518",
    "game_nights": "1:4b598d071879",
    "games": "1:2e5765fd94be",
-   "night_attendance": "2:f52533bb02ab",
-   "rooms": "1:b076f4e97eb3"
+   "rooms": "1:8fb6f0c0869f",
+   "settings": "1:87df544e52dc"
+  }
+ },
+ "sitting in voice counts as ready; a ⚡ Ready tap then names only who's still missing": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/channels 8775bc2c40f3",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/a 668a3869ee22",
+   "PATCH https://discord.com/api/v10/guilds/guild/members/c 668a3869ee22",
+   "POST https://discord.com/api/v10/channels/gn/messages a1484048b41a",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 458c89104bd3"
+  ],
+  "db": {
+   "fleeting": "1:892fd56dd338",
+   "game_night_votes": "1:5c80dfded96b",
+   "game_nights": "1:d69469b44545",
+   "games": "1:0af15342bc44",
+   "night_attendance": "2:eebe77b9380e",
+   "rooms": "1:368ff5d60093",
+   "settings": "1:1633253b2a5d"
   }
  }
 }

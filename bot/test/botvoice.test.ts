@@ -139,7 +139,7 @@ const logged = (s: string) => h.logs.some((l) => l.includes(s));
 it.effect("1. join → ready → 3 s → play → end → 3 s → leave, in that order with those gaps (a night's start: the jingle, then its line)", () =>
   Effect.gen(function* () {
     yield* start;
-    yield* inVoice({ a: "room" });
+    yield* inVoice({ a: "room", b: "room" }); // two of us: a night start waits for two
     yield* speaking(
       Effect.gen(function* () {
         yield* BotVoice.use((v) => v.nightStarted(DAY, "room", "World of Warcraft"));
@@ -167,7 +167,7 @@ it.effect("2. a connection that never becomes ready is given up at 10 s, with on
     yield* start;
     yield* Alerts.use((a) => a.setOwner("owner"));
     fake.readyAfter = null;
-    yield* inVoice({ a: "room" });
+    yield* inVoice({ a: "room", b: "room" }); // two of us: a night start waits for two
     yield* speaking(
       Effect.gen(function* () {
         const v = yield* BotVoice;
@@ -405,7 +405,7 @@ it.effect("11. a clip that isn't cached and can't be made: no speech, no alert s
     yield* start;
     yield* Alerts.use((a) => a.setOwner("owner"));
     fake.synthFails = true;
-    yield* inVoice({ a: "room" });
+    yield* inVoice({ a: "room", b: "room" }); // two of us: a night start waits for two
     yield* speaking(
       Effect.gen(function* () {
         const v = yield* BotVoice;
@@ -427,7 +427,7 @@ it.effect("11. a clip that isn't cached and can't be made: no speech, no alert s
 
 // ---------------------------------------------------------------- the moments, from where they happen
 
-it.effect("moment 1: a night's start queues its jingle and line for the room, after the ping", () =>
+it.effect("moment 1: a night's start with nobody in the room waits for two of us (after the ping)", () =>
   Effect.gen(function* () {
     yield* start;
     const db = yield* Db;
@@ -438,14 +438,14 @@ it.effect("moment 1: a night's start queues its jingle and line for the room, af
     yield* speaking(
       Effect.gen(function* () {
         yield* GameNight.use((g) => g.maintain); // the start the timer missed
-        yield* until(() => logged("voice: nobody in"), "the visit");
+        yield* until(() => logged("waits for two of us"), "the wait");
       }),
     );
     const [room] = yield* db.select().from(rooms);
     const ping = h.calls.findIndex((c) => c.method === "POST" && c.path === "/channels/gn/messages" && JSON.stringify(c.body).includes("starts now"));
     expect(ping).toBeGreaterThan(-1);
-    expect(logged(`voice: queued night start ${DAY} for ${room.channel_id}`)).toBe(true);
-    expect(logged(`voice: nobody in ${room.channel_id}, not joining`)).toBe(true); // nobody came, so no visit
+    expect(logged(`voice: night start ${DAY} waits for two of us in ${room.channel_id}`)).toBe(true);
+    expect(logged(`voice: queued night start ${DAY}`)).toBe(false); // nothing played to an empty room
     expect(count("join")).toBe(0);
   }).pipe(h.provide),
 );
@@ -707,7 +707,7 @@ it.effect("a line already in the cache plays even with the speech engine down", 
   Effect.gen(function* () {
     yield* start;
     const db = yield* Db;
-    yield* inVoice({ a: "room" });
+    yield* inVoice({ a: "room", b: "room" }); // two of us: a night start waits for two
     // a Gemini line made ahead: plays even with the engine down
     yield* night(3600);
     const gemini = START.find((l) => l.startsWith("[gemini:"))!;
@@ -734,5 +734,27 @@ it.effect("clips made ahead are Gemini's lines only; Gemini down (or its day use
     fake.synthFails = true;
     expect(yield* v.prewarm).toBe(1); // one try, then wait for the next minute
     yield* real(50);
+  }).pipe(h.provide),
+);
+
+it.effect("a night start with one of us (or nobody) in the room waits, no line drawn, and plays when the second arrives", () =>
+  Effect.gen(function* () {
+    yield* start;
+    const db = yield* Db;
+    yield* inVoice({ a: "room" });
+    yield* speaking(
+      Effect.gen(function* () {
+        const v = yield* BotVoice;
+        yield* v.nightStarted(DAY, "room", "R.E.P.O.");
+        yield* real(50);
+        expect(count("join")).toBe(0);
+        expect(yield* db.select().from(roastBags)).toEqual([]); // no line used up meanwhile
+        yield* inVoice({ a: "room", b: "room" });
+        yield* v.earlyBird(new Map([["a", "room"], ["b", "room"], ["c", null]]), Math.floor(T0 / 1000) + 60);
+        yield* joined();
+        yield* TestClock.adjust(30_000);
+      }),
+    );
+    expect(fake.events.filter((e) => e.what === "play").map((e) => e.detail)[0]).toBe("♪night");
   }).pipe(h.provide),
 );

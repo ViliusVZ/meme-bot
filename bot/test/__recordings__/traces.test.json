@@ -15,12 +15,12 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "recaps": "1:7b8f7df99221",
-   "settings": "1:e684586edf80"
+   "settings": "1:e59169d63cf7"
   }
  },
  "posting a card is one trace": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 5a2214c8d446",
+   "POST https://discord.com/api/v10/channels/gn/messages c41f7f1de01b",
    "POST https://discord.com/api/v10/channels/gn/messages cbc7bbf7eafb"
   ],
   "db": {
@@ -28,7 +28,7 @@
    "game_nights": "1:ce0eae95f3b1",
    "games": "8:44c5a8b0c098",
    "recaps": "1:7b8f7df99221",
-   "settings": "1:e684586edf80"
+   "settings": "2:70f1f9c0066a"
   }
  },
  "an interaction's token never lands in a span (its webhook calls are left out)": {
@@ -40,7 +40,7 @@
    "game_nights": "1:ce0eae95f3b1",
    "games": "8:44c5a8b0c098",
    "recaps": "1:7b8f7df99221",
-   "settings": "1:e684586edf80"
+   "settings": "2:70f1f9c0066a"
   }
  }
 }

@@ -42,7 +42,7 @@
   ],
   "db": {
    "games": "8:44c5a8b0c098",
-   "settings": "1:f957b79285c0"
+   "settings": "1:dd2758186296"
   }
  },
  "PCM to Ogg Opus: whole pages, the first one a stream's start and the last one its end; raw PCM and WAV both read": {
@@ -57,7 +57,7 @@
    "games": "8:44c5a8b0c098"
   }
  },
- "the spoken lines > are as written: 3 for a start, 11 for latecomers, 3 for the Lobby, 24 for early birds": {
+ "the spoken lines > are as written: 40 for a start, 21 for latecomers, 8 for the Lobby, 30 for early birds": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098"
@@ -75,7 +75,19 @@
    "games": "8:44c5a8b0c098"
   }
  },
- "the spoken lines > split into what each voice says, in order; a span with nothing to say is dropped": {
+ "the spoken lines > split into what's said in which language, in order; an empty piece is dropped": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > a hand-over, a surprise language and a delivery tag": {
+  "calls": [],
+  "db": {
+   "games": "8:44c5a8b0c098"
+  }
+ },
+ "the spoken lines > the cast: every voice is known, every language has voices, a hand-over goes to the other gender and another language": {
   "calls": [],
   "db": {
    "games": "8:44c5a8b0c098"

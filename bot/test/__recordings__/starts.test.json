@@ -15,7 +15,7 @@
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
    "POST https://discord.com/api/v10/channels/gn/messages d4749f8c0d77",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card fa1d0357b06d"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 6c277c37e03b"
   ],
   "db": {
    "game_nights": "1:06c246763b44",

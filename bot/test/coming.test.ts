@@ -45,7 +45,7 @@ const askOf = (user: string) =>
 for (const stage of ["off", "ask"] as const)
   for (const [button, said] of [
     ["coming:0:c", "🏃 Told them you're on the way."],
-    ["coming:15:c", "⏰ Told them: 15 min."],
+    ["coming:15:c", "⏰ Told them: there by 21:15."],
     ["nottonight:c", "😴 Got it. Have a good night."],
   ] as const)
     it.effect(`${stage} night, ${button}: the one asked gets a private answer, the buttons come off`, () =>
@@ -101,7 +101,14 @@ it.effect("a called-off night names no game; an open card names its usual one", 
     const off = calls.find((c) => c.method === "POST" && JSON.stringify(c.body).includes("Coming?"))!;
     expect(off.body.content).toMatch(/^🎧 <@c>, .+ are in <#lobby>\. Coming\?$/);
     expect(off.body.content).not.toContain("World of Warcraft");
-    expect(off.body.components[0].components.map((b: any) => b.custom_id)).toEqual([`gn:${DAY}:coming:0:c`, `gn:${DAY}:coming:15:c`, `gn:${DAY}:nottonight:c`]);
+    expect(off.body.components.flatMap((r: any) => r.components.map((b: any) => b.custom_id))).toEqual([
+      `gn:${DAY}:coming:0:c`,
+      `gn:${DAY}:coming:15:c`,
+      `gn:${DAY}:coming:30:c`,
+      `gn:${DAY}:coming:60:c`,
+      `gn:${DAY}:comingat:c`,
+      `gn:${DAY}:nottonight:c`,
+    ]);
     const [saved] = yield* db.select().from(settings).where(eq(settings.key, `gn:called:${DAY}:c`));
     expect(saved.value).toMatchObject({ two: ["a", "b"] });
   }).pipe(h.provide),
@@ -153,3 +160,50 @@ for (const [first, second] of [
       expect(yield* askOf("c")).toBe(first.startsWith("nottonight") ? "no" : "yes");
     }).pipe(h.provide),
   );
+
+
+it.effect("“1 h” on an open card on hold is a full yes at that time: the hold ends and the card moves on", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const t = Date.parse("2026-11-06T19:00:00Z") / 1000;
+    yield* db.insert(gameNights).values({ day: DAY, stage: "ask", message_id: "card", stage_at: t - 3600, maybes: 1, paused_until: t + 3600 });
+    yield* db.insert(gameNightVotes).values([
+      ...["a", "b"].map((u) => ({ day: DAY, stage: "ask", user_id: u, choice: "yes", voted_at: new Date().toISOString() })),
+      { day: DAY, stage: "ask", user_id: "c", choice: "maybe", voted_at: new Date().toISOString() },
+    ]);
+    yield* db.insert(settings).values({ key: `gn:any:${DAY}`, value: ["a", "b"] });
+    yield* db.insert(settings).values({ key: `gn:called:${DAY}:c`, value: { at: 1, message_id: "coming", two: ["a", "b"] } });
+    yield* Presence.use((p) => p.snapshot([{ user_id: "a", channel_id: "room" }, { user_id: "b", channel_id: "room" }]));
+    const r = yield* tap(`gn:${DAY}:coming:60:c`, "c");
+    expect([r.type, r.data.flags & 64, r.data.content]).toEqual([4, 64, "⏰ Told them: there by 22:00."]);
+    yield* h.settle;
+    const [n] = yield* db.select().from(gameNights).where(eq(gameNights.day, DAY));
+    expect([n!.stage, n!.paused_until]).toEqual(["game", null]); // all three in: on to the game pick, no hold
+    const tv = yield* db.select().from(gameNightVotes).where(eq(gameNightVotes.user_id, "c"));
+    expect(tv.find((v) => v.stage === "ask")?.choice).toBe("yes");
+    expect(tv.find((v) => v.stage === "time")?.choice).toBe(String(t + 3600)); // her time waits for the time step
+    expect(calls.some((c) => c.method === "POST" && c.body?.content === "⏰ <@c>: there by 22:00.")).toBe(true);
+  }).pipe(h.provide),
+);
+
+it.effect("“Not tonight” on an open card calls the night off, no roast, nothing left waiting", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* setUp("ask");
+    yield* tap(`gn:${DAY}:nottonight:c`, "c");
+    const [n] = yield* db.select().from(gameNights).where(eq(gameNights.day, DAY));
+    expect([n!.stage, n!.note, n!.roast]).toEqual(["off", "😴 <@c> is out tonight.", null]);
+  }).pipe(h.provide),
+);
+
+it.effect("the two leave before the answer: “Coming?” turns to the past, its buttons gone", () =>
+  Effect.gen(function* () {
+    yield* setUp("ask");
+    const t = Date.parse("2026-11-06T19:00:00Z") / 1000;
+    yield* Presence.use((p) => p.snapshot([]));
+    yield* GameNight.use((g) => g.early(new Map([["a", null], ["b", null], ["c", null]]), t));
+    const edit = calls.find((c) => c.method === "PATCH" && c.path === "/channels/gn/messages/coming")!;
+    expect(edit.body.components).toEqual([]);
+    expect(edit.body.content).toMatch(/^🎧 <@c>, .+ were in <#.+> until 21:00\.$/);
+  }).pipe(h.provide),
+);

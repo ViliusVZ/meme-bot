@@ -1,7 +1,7 @@
 {
  "the hour's reminder skips whoever sits in voice with the others, and still reaches whoever doesn't": {
   "calls": [
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3103db1af898"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 0340f6f29eda"
   ],
   "db": {
    "chases": "1:a4d328987589",
@@ -31,10 +31,71 @@
   ],
   "db": {
    "chases": "1:a4d328987589",
-   "game_night_votes": "4:8a506958aa25",
+   "game_night_votes": "4:94d19e5e1cf2",
    "game_nights": "1:a798c4133a6e",
    "games": "1:de64f0aeee6f",
    "settings": "1:afe5409b105b"
+  }
+ },
+ "⚡ one tap each: a time, Now and any time lock the night in the usual game, with no game or time question": {
+  "calls": [
+   "POST https://discord.com/api/v10/guilds/guild/scheduled-events 15149666ebd3",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 2cd60cd7cef1",
+   "POST https://discord.com/api/v10/channels/gn/messages a9b209509172"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "8:780ef2275168",
+   "game_nights": "4:968cffcfacee",
+   "games": "1:653b011f6393",
+   "settings": "1:1e4963b4bffb"
+  }
+ },
+ "two in a room after the third said not tonight: no game night, the card stays off": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d90911a790d0"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "3:3b41a0375bb6",
+   "game_nights": "1:8913ff149843",
+   "games": "1:d58db0d0dce1",
+   "settings": "1:fa9bb6c1601d",
+   "voice_segments": "2:c8c0a08bd8b4"
+  }
+ },
+ "two in a room: still no start; all three: the called-off night starts, and the roast's claim is struck": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card d2f097c38a40",
+   "POST https://discord.com/api/v10/channels/gn/messages c281e9ba8071",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card f0bd09b24dc8",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/roast 901fdc1262a0",
+   "POST https://discord.com/api/v10/guilds/guild/channels fc9067a1596a",
+   "GET https://discord.com/api/v10/guilds/guild/channels -",
+   "PATCH https://discord.com/api/v10/guilds/guild/channels 86a901dac34d",
+   "POST https://discord.com/api/v10/channels/gn/messages 97a33417fac8",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 17cf05072844"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_nights": "3:6f152cdfd41a",
+   "games": "1:684c614147a7",
+   "rooms": "1:21a5396e6ebf",
+   "settings": "5:e7aae2f672c8",
+   "voice_segments": "3:6e8830beaeec"
+  }
+ },
+ "a maybe asked again after the hold who never answers shows as “🤔 Maybe, then no answer”": {
+  "calls": [
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 3b7579592b5b",
+   "POST https://discord.com/api/v10/channels/gn/messages 996c23b918e6"
+  ],
+  "db": {
+   "chases": "1:a4d328987589",
+   "game_night_votes": "3:a37971ef919b",
+   "game_nights": "1:14dd3f60db44",
+   "games": "1:04f59327ee1e",
+   "settings": "1:df849472daa0"
   }
  }
 }

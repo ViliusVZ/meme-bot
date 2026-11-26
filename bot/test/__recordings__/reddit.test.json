@@ -19,7 +19,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "memes": "84:05bab78b3688",
-   "settings": "1:1b13f37dcb19"
+   "settings": "1:d72f4db2c808"
   }
  },
  "a failed refill waits 10 minutes before trying again, also across a restart": {
@@ -30,7 +30,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "memes": "84:05bab78b3688",
-   "settings": "1:9254292f8cfe"
+   "settings": "1:ad46a94d7d91"
   }
  },
  "a failed refill DMs only once the pool has gone 12 hours without fresh memes": {
@@ -43,7 +43,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "memes": "84:05bab78b3688",
-   "settings": "1:aff0da4937ff"
+   "settings": "1:2964f0dc4805"
   }
  },
  "Reddit's busy answers are tried again: 1 s after a 503, then the 429's reset plus 2 s; a 404 is final": {
@@ -56,7 +56,7 @@
   "db": {
    "games": "8:44c5a8b0c098",
    "memes": "84:05bab78b3688",
-   "settings": "1:842d1aa82d80"
+   "settings": "1:5fea4efd738c"
   }
  }
 }

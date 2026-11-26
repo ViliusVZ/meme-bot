@@ -77,7 +77,7 @@ it.effect("everyone taps ⚡ Now: it starts at once, the Lobby is moved in, and 
     ]);
     // no "it's on at…" ping: just the start, for the one who isn't in voice
     expect(gn().map((c) => c.body.content)).toEqual([`⏰ <@c> 📦 **R.E.P.O.** starts now! <@a> and <@b> are already in → <#${room}>`]);
-    expect(gn()[0].body.allowed_mentions).toEqual({ users: ["c"] });
+    expect(gn()[0].body.allowed_mentions).toEqual({ parse: [] }); // c's own tap started it: named, not pinged (27 Nov)
     expect(calls.filter((c) => c.method === "POST" && c.path.endsWith("/scheduled-events"))).toHaveLength(1); // the event, as on any night
     expect(yield* card()).not.toContain("Slowpoke"); // three taps seconds apart
   }).pipe(h.provide),
@@ -103,7 +103,8 @@ it.effect("mixed quick picks: rounded up to the next 5 minutes, and the night lo
     expect([yield* myPick("a"), yield* myPick("b"), yield* myPick("c")]).toEqual([at("18:07:30"), at("18:25:00"), at("18:40:00")]);
     const n = yield* night();
     expect([n.stage, n.start_at, n.reminded]).toEqual(["set", at("18:40:00"), false]);
-    expect(gn().map((c) => c.body.content)).toEqual([`🎉 <@a> <@b> <@c> it's on! 📦 **R.E.P.O.** at <t:${at("18:40:00")}:t> (<t:${at("18:40:00")}:R>)`]);
+    // c's tap locked it: c isn't pinged about it
+    expect(gn().map((c) => c.body.content)).toEqual([`🎉 <@a> <@b> it's on! 📦 **R.E.P.O.** at <t:${at("18:40:00")}:t> (<t:${at("18:40:00")}:R>)`]);
   }).pipe(h.provide),
 );
 
@@ -178,7 +179,7 @@ it.effect("⚡ Ready now on a locked-in night: two aren't enough, a tap goes sta
   Effect.gen(function* () {
     const db = yield* Db;
     yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: at("20:00:00"), message_id: "card", stage_at: at("17:30:00") });
-    yield* voice({ a: "lobby", b: "lobby" });
+    yield* voice({}); // nobody in voice: only taps make anyone ready here (sitting in voice is its own test)
     expect(yield* card()).toContain(`gn:${DAY}:readynow`);
     yield* act("a", "readynow");
     yield* now("18:10:00");
@@ -199,12 +200,25 @@ it.effect("⚡ Ready now on a locked-in night: two aren't enough, a tap goes sta
     const n = yield* night();
     expect([n.reminded, n.start_at]).toEqual([true, at("18:40:00")]);
     const room = (yield* roomId)!;
-    expect(gn().map((c) => c.body.content)).toEqual([`⏰ <@c> 📦 Everyone's ready, so **R.E.P.O.** is on now (was 20:00)! <@a> and <@b> are already in → <#${room}>`]);
-    expect(gn()[0].body.allowed_mentions).toEqual({ users: ["c"] });
+    expect(gn().map((c) => c.body.content)).toEqual([`⏰ <@a> <@b> <@c> 📦 Everyone's ready, so **R.E.P.O.** is on now (was 20:00)! Room: <#${room}>`]);
+    expect(gn()[0].body.allowed_mentions).toEqual({ users: ["b", "c"] }); // a's tap started it
     // the 20:00 timer finds it started and moved: nothing more
     yield* now("20:00:00");
     const before = calls.length;
     yield* GameNight.use((g) => g.maintain);
     expect(calls.slice(before).filter((c) => c.method === "POST")).toEqual([]);
+  }).pipe(h.provide),
+);
+
+
+it.effect("sitting in voice counts as ready; a ⚡ Ready tap then names only who's still missing", () =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    yield* db.insert(gameNights).values({ day: DAY, stage: "set", game: "R.E.P.O.", start_at: at("20:00:00"), message_id: "card", stage_at: at("17:30:00") });
+    yield* voice({ a: "lobby" });
+    expect((yield* act("b", "readynow")).notice).toContain("When <@c> taps it too"); // a is in voice: ready
+    yield* voice({ a: "lobby", c: "lobby" });
+    expect((yield* act("b", "readynow")).notice).toContain("Taken back"); // b's own tap, taken back
+    expect((yield* act("b", "readynow")).notice).toContain("starting now");
   }).pipe(h.provide),
 );

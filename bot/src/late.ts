@@ -12,7 +12,7 @@
 // late and still isn't here 10 min after their ETA gets a slip like everyone else.
 import { and, eq, gt, isNull, lte } from "drizzle-orm";
 import { Context, Effect, Layer, Match } from "effect";
-import { gameNights, nightAttendance, rooms } from "./db/schema.js";
+import { gameNights, nightAttendance, rooms, settings } from "./db/schema.js";
 import { Db, type DbError } from "./db/db.js";
 import { AppConfig, allowedMentions, players } from "./config.js";
 import { Discord, type DiscordError } from "./discord.js";
@@ -50,7 +50,10 @@ export class LateSlips extends Context.Service<
       const alerts = yield* Alerts;
       const trio = Effect.provideService(players, AppConfig, config);
 
-      const watchPlayer = Effect.fnUntraced(function* (n: Night, roomId: string, p: string, t: number, note: (k: string, v: string) => void) {
+      const watchPlayer = Effect.fnUntraced(function* (n: Night, roomId: string, p: string, t: number, note: (k: string, v: string) => void, graceUntil = 0) {
+        // ⏳ inside the grace of a night that began on the spot: arriving isn't arriving late
+        const inGrace = t < graceUntil;
+        const arrivedAt = inGrace ? n.start_at! : t;
         const at = yield* voice.voiceChannel(p).pipe(
           Effect.map((channel) => ({ channel })),
           Effect.catch((e) => Effect.as(Effect.logInfo(`late: voice lookup failed ${p} ${e}`), null)),
@@ -63,10 +66,10 @@ export class LateSlips extends Context.Service<
         if (at.channel === roomId) {
           // here (even if they'd said they couldn't make it: plans change, nice surprise)
           if (row?.state === "arrived") return;
-          yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: t }));
+          yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: arrivedAt }));
           note("arrived", p);
           // 🔊 a spoken welcome for the latecomer (queued; nothing here waits on it)
-          yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
+          if (!inGrace) yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
           return;
         }
         if (row?.state === "absent") return;
@@ -74,15 +77,15 @@ export class LateSlips extends Context.Service<
         if (at.channel === config.lobbyChannelId && row?.state !== "arrived") {
           // late arrival waiting in the Lobby: bring them in (once; arrived means we never move again)
           yield* discord.moveMember(p, roomId);
-          yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: t }));
+          yield* updateSlip(yield* attendances.put(n.day, p, { state: "arrived", arrived_at: arrivedAt }));
           note("moved", p);
-          yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
+          if (!inGrace) yield* botVoice.latecomer(roomId, p, Math.floor((t - n.start_at!) / 60));
           return;
         }
 
         // said ahead they'd be late, and 10 min past that ETA they're still not here
         const overdue = row?.state === "eta" && !row.message_id && t - Math.max(row.eta!, n.start_at!) >= LATE_AFTER;
-        if ((!row && t - n.start_at! >= LATE_AFTER) || overdue) {
+        if (!inGrace && ((!row && t - n.start_at! >= LATE_AFTER) || overdue)) {
           // not here, not in the Lobby, no word from them: one late slip. Claim the row first so two
           // overlapping runs can't both post one; claim → slip → its id is never cut short (§15)
           yield* Effect.uninterruptible(
@@ -134,9 +137,11 @@ export class LateSlips extends Context.Service<
             .from(rooms)
             .where(and(eq(rooms.day, n.day), isNull(rooms.archived_at), real));
           if (!room) continue;
+          const [g] = yield* db.select({ value: settings.value }).from(settings).where(eq(settings.key, `gn:grace:${n.day}`));
+          const graceUntil = Number((g?.value as { until?: number } | undefined)?.until ?? 0);
           for (const p of yield* trio) {
             // one player's trouble (a failed move or post) must not hold up the others
-            yield* watchPlayer(n, room.channel_id, p, t, note).pipe(Effect.catch((e) => alerts.failed("latecomer upkeep", e, n.day, p)));
+            yield* watchPlayer(n, room.channel_id, p, t, note, graceUntil).pipe(Effect.catch((e) => alerts.failed("latecomer upkeep", e, n.day, p)));
           }
         }
         return done;

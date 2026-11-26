@@ -18,18 +18,19 @@
  },
  "the one-hour re-nudge, a card deleted by hand, refreshing open cards, the plan picker": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages 6b9c7ba59198",
    "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
    "DELETE https://discord.com/api/v10/channels/gn/messages/5001 -",
    "POST https://discord.com/api/v10/channels/gn/messages c7a67dd47c74",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 b1f5764cd15a",
-   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 6b9c7ba59198",
+   "POST https://discord.com/api/v10/channels/gn/messages 6b9c7ba59198"
   ],
   "db": {
    "chases": "2:fea85bcacb28",
    "game_night_votes": "1:9f4b56233015",
    "game_nights": "1:abb66d0ccbf0",
-   "games": "8:44c5a8b0c098"
+   "games": "8:44c5a8b0c098",
+   "settings": "1:ae207e959861"
   }
  },
  "exact starts: a failed start ping releases the claim for a retry": {
@@ -50,66 +51,71 @@
   "db": {
    "game_nights": "1:f7f92083526b",
    "games": "8:a906c10ebcec",
-   "rooms": "1:debbe1b49b61"
+   "rooms": "1:debbe1b49b61",
+   "settings": "1:ae207e959861"
   }
  },
  "a roast that fails to post is retried": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages bbb4fddcd7eb",
    "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
    "DELETE https://discord.com/api/v10/channels/gn/messages/5001 -",
    "PATCH https://discord.com/api/v10/channels/gn/messages/5000 9edd12faf3e5",
-   "POST https://discord.com/api/v10/channels/gn/messages 41453a41d182",
-   "POST https://discord.com/api/v10/channels/gn/messages 1036401796e0"
+   "POST https://discord.com/api/v10/channels/gn/messages 4f94af6c5256",
+   "POST https://discord.com/api/v10/channels/gn/messages 44a1eadcc9d4"
   ],
   "db": {
    "game_night_votes": "1:9f4b56233015",
    "game_nights": "1:7fa4054dfd54",
    "games": "8:a906c10ebcec",
-   "roast_bags": "1:831c0c1cbc92"
+   "roast_bags": "1:831c0c1cbc92",
+   "settings": "2:8aed822f752d"
   }
  },
  "late slips: a failed post releases the claim; the slip renders": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages 93999ce169fb",
+   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages 37a4c9d5b3cf",
+   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "POST https://discord.com/api/v10/channels/gn/messages fcb0ef3d6ea8",
+   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/a -",
-   "POST https://discord.com/api/v10/channels/gn/messages 93999ce169fb",
+   "POST https://discord.com/api/v10/channels/gn/messages a204b5ad3284",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages 37a4c9d5b3cf",
+   "POST https://discord.com/api/v10/channels/gn/messages aa07fd39baac",
    "GET https://discord.com/api/v10/guilds/guild/voice-states/c -",
-   "POST https://discord.com/api/v10/channels/gn/messages fcb0ef3d6ea8"
+   "POST https://discord.com/api/v10/channels/gn/messages 528ae5142b60"
   ],
   "db": {
    "game_nights": "1:9007e630cc8c",
    "games": "8:a906c10ebcec",
    "night_attendance": "3:6cb0d3d3dbe4",
-   "rooms": "1:5129853fa77d"
+   "rooms": "1:5129853fa77d",
+   "settings": "2:8aed822f752d"
   }
  },
  "daily post: a failed post gives the meme back to the pool": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 6802b62502a2",
-   "POST https://discord.com/api/v10/channels/memes/messages 6802b62502a2",
+   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
+   "POST https://discord.com/api/v10/channels/memes/messages 967d46571888",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 448d76a14709"
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "memes": "1:83ce65a0dc53"
+   "memes": "1:83ce65a0dc53",
+   "settings": "2:8aed822f752d"
   }
  },
  "Meme of the Week: top voter and longest streak, posted once": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages d3ef4cd371c7"
+   "POST https://discord.com/api/v10/channels/memes/messages ae2a9292838c"
   ],
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "1:1c0cf36201d7",
    "recaps": "1:d3b52386c9fe",
+   "settings": "2:8aed822f752d",
    "users": "1:639f3c5e513d",
    "votes": "1:204389feb4d5"
   }
@@ -118,7 +124,8 @@
   "calls": [],
   "db": {
    "games": "8:a906c10ebcec",
-   "polls": "1:eb120a2f2368"
+   "polls": "1:eb120a2f2368",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: a hand-deleted room is recreated; a failed creation leaves no placeholder": {
@@ -134,7 +141,8 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:aac686bdba67"
+   "rooms": "1:aac686bdba67",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: busy keeps the event alive, empty wraps it up and ends the event": {
@@ -148,7 +156,8 @@
   "db": {
    "game_nights": "1:58fddfe8311d",
    "games": "8:a906c10ebcec",
-   "rooms": "1:bc5c77307e7d"
+   "rooms": "1:bc5c77307e7d",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: an event ended by hand (or deleted) is let go quietly; other refusals still alert": {
@@ -161,7 +170,8 @@
   "db": {
    "game_nights": "1:7c3b78f5944b",
    "games": "8:a906c10ebcec",
-   "rooms": "1:b02af87a2124"
+   "rooms": "1:b02af87a2124",
+   "settings": "2:8aed822f752d"
   }
  },
  "room upkeep: stale placeholders, hand-deleted rooms, revivals, 3-day deletion": {
@@ -176,14 +186,16 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:152fa8cbc13c"
+   "rooms": "1:152fa8cbc13c",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: another click finishing the same room between our look and our claim": {
   "calls": [],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:342f12ef659c"
+   "rooms": "1:342f12ef659c",
+   "settings": "2:8aed822f752d"
   }
  },
  "room upkeep: reviving a room whose channel vanished just forgets it": {
@@ -193,7 +205,8 @@
    "GET https://discord.com/api/v10/guilds/guild/channels -"
   ],
   "db": {
-   "games": "8:a906c10ebcec"
+   "games": "8:a906c10ebcec",
+   "settings": "2:8aed822f752d"
   }
  },
  "clicking the card opens your private copy; clicking your copy updates it in place": {
@@ -202,18 +215,19 @@
    "game_night_votes": "2:27349f3ce78d",
    "game_nights": "1:5e721f5dbc69",
    "games": "8:a906c10ebcec",
-   "panels": "3:724a883e6bff"
+   "panels": "3:724a883e6bff",
+   "settings": "2:8aed822f752d"
   }
  },
  "clicking the card opens your private copy; clicking your copy updates it in place (each tap done before the next)": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages b1f5764cd15a",
+   "POST https://discord.com/api/v10/channels/gn/messages bbb4fddcd7eb",
    "POST https://discord.com/api/v10/channels/gn/messages 520ffadc351e",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
-   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 7bf484f3a738",
-   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
-   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 2965a2ca73db",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 677f0d7e23b3",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 1915bee19394",
+   "PATCH https://discord.com/api/v10/channels/gn/messages/5000 677f0d7e23b3",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 1915bee19394",
+   "PATCH https://discord.com/api/v10/webhooks/app/tok/messages/@original 1915bee19394",
    "-- background reads --",
    "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
    "GET https://discord.com/api/v10/webhooks/app/tok/messages/@original -",
@@ -223,7 +237,8 @@
    "game_night_votes": "2:27349f3ce78d",
    "game_nights": "1:5e721f5dbc69",
    "games": "8:a906c10ebcec",
-   "panels": "3:c0fc222fa785"
+   "panels": "3:c0fc222fa785",
+   "settings": "2:8aed822f752d"
   }
  },
  "🧹 03:00 sweep: old bot messages go; pins, live cards, recaps and people's messages stay": {
@@ -236,7 +251,8 @@
   "db": {
    "game_nights": "2:2779ea6932b9",
    "games": "8:a906c10ebcec",
-   "recaps": "1:7e69b80a481d"
+   "recaps": "1:7e69b80a481d",
+   "settings": "2:8aed822f752d"
   }
  },
  "a meme vote shows who voted what under the bar, without pinging": {
@@ -246,20 +262,22 @@
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "1:f7a4cb2689f9",
+   "settings": "2:8aed822f752d",
    "users": "1:01f8403778c8",
    "votes": "2:4ac6daab99f3"
   }
  },
  "😐 meme slackers: called out at 19:00, once a day, at most every 3 days each": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 07fab778bea3",
-   "POST https://discord.com/api/v10/channels/memes/messages 251367f7d1d0"
+   "POST https://discord.com/api/v10/channels/memes/messages cb06d0e3c901",
+   "POST https://discord.com/api/v10/channels/memes/messages 7ddd5089f4ab"
   ],
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "5:359eb4394653",
    "recaps": "5:2bdc6de660f9",
    "roast_bags": "1:f1f27b14f179",
+   "settings": "2:8aed822f752d",
    "votes": "8:54eba2067553"
   }
  },
@@ -270,6 +288,7 @@
   "db": {
    "games": "8:a906c10ebcec",
    "memes": "1:b34a7ab0c4f9",
+   "settings": "2:8aed822f752d",
    "votes": "1:3fabfdfb4bfd"
   }
  },
@@ -284,7 +303,8 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:b21c6cc63dab"
+   "rooms": "1:b21c6cc63dab",
+   "settings": "2:8aed822f752d"
   }
  },
  "room upkeep: an archived room is deleted 3 days after it was archived, not a second sooner": {
@@ -295,7 +315,8 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:cb2e8c200bb7"
+   "rooms": "1:cb2e8c200bb7",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: a room Discord won't move to Recent games stays open, and the next check tries again": {
@@ -309,7 +330,8 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:ab5fce78da1c"
+   "rooms": "1:ab5fce78da1c",
+   "settings": "2:8aed822f752d"
   }
  },
  "rooms: a new room Discord won't slot under the Lobby is still known, so the next tap makes no twin": {
@@ -321,19 +343,21 @@
   ],
   "db": {
    "games": "8:a906c10ebcec",
-   "rooms": "1:9111e49316d9"
+   "rooms": "1:9111e49316d9",
+   "settings": "2:8aed822f752d"
   }
  },
  "late: a voice lookup that fails isn't \"already here\"; the ETA goes on a slip": {
   "calls": [
    "GET https://discord.com/api/v10/guilds/guild/voice-states/b -",
-   "POST https://discord.com/api/v10/channels/gn/messages befaf4e36db4"
+   "POST https://discord.com/api/v10/channels/gn/messages af38b6a8011e"
   ],
   "db": {
    "game_nights": "1:2adb073d91bc",
    "games": "8:a906c10ebcec",
    "night_attendance": "1:3460bf9046d6",
-   "rooms": "1:dd0f90ceaccf"
+   "rooms": "1:dd0f90ceaccf",
+   "settings": "2:8aed822f752d"
   }
  },
  "late: a slip that won't update still takes the ETA": {
@@ -343,7 +367,8 @@
   "db": {
    "game_nights": "1:2adb073d91bc",
    "games": "8:a906c10ebcec",
-   "night_attendance": "1:de68ea57f618"
+   "night_attendance": "1:de68ea57f618",
+   "settings": "2:8aed822f752d"
   }
  },
  "a called-off night leaves the slips of people who made it alone": {
@@ -354,23 +379,26 @@
   "db": {
    "game_nights": "1:192b90cae77c",
    "games": "8:a906c10ebcec",
-   "night_attendance": "3:b3adb2fc41d8"
+   "night_attendance": "3:b3adb2fc41d8",
+   "settings": "2:8aed822f752d"
   }
  },
  "a night another copy already called off isn't touched again": {
   "calls": [],
   "db": {
    "game_nights": "1:e719994f5665",
-   "games": "8:a906c10ebcec"
+   "games": "8:a906c10ebcec",
+   "settings": "2:8aed822f752d"
   }
  },
  "a card that won't post is reported, and its claim kept": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/gn/messages 70c1761bd115"
+   "POST https://discord.com/api/v10/channels/gn/messages f730bde6d6ed"
   ],
   "db": {
    "game_nights": "1:ccf7a8646862",
-   "games": "8:a906c10ebcec"
+   "games": "8:a906c10ebcec",
+   "settings": "2:8aed822f752d"
   }
  },
  "no reminders before 09:00: a waiting card is re-nudged from 09:00 on": {
@@ -381,7 +409,8 @@
    "chases": "2:21427d7bf043",
    "game_night_votes": "1:bac87a01c289",
    "game_nights": "1:a927b0b71325",
-   "games": "8:a906c10ebcec"
+   "games": "8:a906c10ebcec",
+   "settings": "2:8aed822f752d"
   }
  },
  "one night's trouble doesn't hold up the other's upkeep": {
@@ -391,7 +420,8 @@
   ],
   "db": {
    "game_nights": "2:d3ff69e11f3a",
-   "games": "8:a906c10ebcec"
+   "games": "8:a906c10ebcec",
+   "settings": "2:8aed822f752d"
   }
  },
  "a start the timer missed is caught up within half an hour": {
@@ -400,12 +430,13 @@
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
    "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1127025dccbe"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card cd426edec550"
   ],
   "db": {
    "game_nights": "1:539d1b20bfd8",
    "games": "8:745dc9153deb",
-   "rooms": "1:97ffae361dcd"
+   "rooms": "1:97ffae361dcd",
+   "settings": "2:8aed822f752d"
   }
  },
  "the start times on an open card are refreshed every quarter hour": {
@@ -414,7 +445,8 @@
   ],
   "db": {
    "game_nights": "1:f221fac91328",
-   "games": "8:745dc9153deb"
+   "games": "8:745dc9153deb",
+   "settings": "2:8aed822f752d"
   }
  },
  "the start ping goes out on the start's second, not before": {
@@ -428,7 +460,8 @@
   "db": {
    "game_nights": "1:85c4766e3562",
    "games": "8:20142a6ccc67",
-   "rooms": "1:853eba14b193"
+   "rooms": "1:853eba14b193",
+   "settings": "2:8aed822f752d"
   }
  },
  "a start whose unplanned session can't be merged still happens": {
@@ -437,12 +470,13 @@
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
    "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1ab8f6e604ab"
   ],
   "db": {
    "game_nights": "1:de3146d5e8ef",
    "games": "8:1134d6e24e08",
-   "rooms": "1:97ffae361dcd"
+   "rooms": "1:97ffae361dcd",
+   "settings": "2:8aed822f752d"
   }
  },
  "late: someone who arrived and wandered back to the Lobby is left there": {
@@ -451,7 +485,8 @@
    "game_nights": "1:adc07981488b",
    "games": "8:1134d6e24e08",
    "night_attendance": "1:2f76ddafe5d8",
-   "rooms": "1:be996a3dd2c9"
+   "rooms": "1:be996a3dd2c9",
+   "settings": "2:8aed822f752d"
   }
  },
  "late: a latecomer the bot can't move into the room isn't counted as here": {
@@ -461,14 +496,16 @@
   "db": {
    "game_nights": "1:adc07981488b",
    "games": "8:1134d6e24e08",
-   "rooms": "1:be996a3dd2c9"
+   "rooms": "1:be996a3dd2c9",
+   "settings": "2:8aed822f752d"
   }
  },
  "a poll: tapping your answer again takes your vote back": {
   "calls": [],
   "db": {
    "games": "8:1134d6e24e08",
-   "polls": "1:b32b0c016eb1"
+   "polls": "1:b32b0c016eb1",
+   "settings": "2:8aed822f752d"
   }
  },
  "🧹 a sweep that fails is tried again the next minute": {
@@ -481,7 +518,8 @@
   ],
   "db": {
    "games": "8:1134d6e24e08",
-   "recaps": "1:92779ec0676a"
+   "recaps": "1:92779ec0676a",
+   "settings": "2:8aed822f752d"
   }
  },
  "🧹 the sweep goes back page by page, 100 at a time": {
@@ -493,29 +531,50 @@
    "DELETE https://discord.com/api/v10/channels/gn/messages/1567916399001600001 -"
   ],
   "db": {
-   "games": "8:1134d6e24e08"
+   "games": "8:1134d6e24e08",
+   "settings": "2:8aed822f752d"
   }
  },
- "🧹 a night that started in the last 6 hours keeps its card through the sweep": {
+ "🧹 a night that ended before 03:00 goes in that sweep, however late it started": {
   "calls": [
    "GET https://discord.com/api/v10/users/@me -",
-   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -"
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567946597990400001 -"
   ],
   "db": {
-   "game_nights": "1:e08e1890459e",
-   "games": "8:1134d6e24e08"
+   "game_nights": "1:d8cac66c1d19",
+   "games": "8:1134d6e24e08",
+   "rooms": "1:8461b75a73a8",
+   "settings": "2:8aed822f752d"
+  }
+ },
+ "🧹 a night still going at 03:00 keeps its card, and a catch-up sweep takes it once it has ended": {
+  "calls": [
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "GET https://discord.com/api/v10/users/@me -",
+   "GET https://discord.com/api/v10/channels/gn/messages?limit=100 -",
+   "DELETE https://discord.com/api/v10/channels/gn/messages/1567946597990400001 -"
+  ],
+  "db": {
+   "game_nights": "1:d8cac66c1d19",
+   "games": "8:1134d6e24e08",
+   "recaps": "2:ae33ebbf7fd7",
+   "rooms": "1:09b8c71de298",
+   "settings": "2:8aed822f752d"
   }
  },
  "😐 a call-out that fails is tried again the next minute, for whoever's still due": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 74d7155d0bc9",
-   "POST https://discord.com/api/v10/channels/memes/messages 79259fea21f4"
+   "POST https://discord.com/api/v10/channels/memes/messages daf341aae1e1",
+   "POST https://discord.com/api/v10/channels/memes/messages fba9ad141016"
   ],
   "db": {
    "games": "8:1134d6e24e08",
    "memes": "5:359eb4394653",
    "recaps": "3:efa28b2367e7",
    "roast_bags": "1:aee9308b7eab",
+   "settings": "2:8aed822f752d",
    "votes": "5:13409b675a1b"
   }
  },
@@ -524,6 +583,7 @@
   "db": {
    "games": "8:1134d6e24e08",
    "memes": "5:359eb4394653",
+   "settings": "2:8aed822f752d",
    "votes": "12:f41b9b9451a3"
   }
  },
@@ -532,6 +592,7 @@
   "db": {
    "games": "8:1134d6e24e08",
    "memes": "8:9aa77a46c0fd",
+   "settings": "2:8aed822f752d",
    "votes": "15:8b17456357cd"
   }
  },
@@ -541,32 +602,35 @@
    "GET https://discord.com/api/v10/guilds/guild/channels -",
    "PATCH https://discord.com/api/v10/guilds/guild/channels aeb0385dc301",
    "POST https://discord.com/api/v10/channels/gn/messages 16c1c8fad2c9",
-   "PATCH https://discord.com/api/v10/channels/gn/messages/card d976817a019c"
+   "PATCH https://discord.com/api/v10/channels/gn/messages/card 1ab8f6e604ab"
   ],
   "db": {
    "game_nights": "1:de3146d5e8ef",
    "games": "8:1134d6e24e08",
-   "rooms": "1:97ffae361dcd"
+   "rooms": "1:97ffae361dcd",
+   "settings": "2:8aed822f752d"
   }
  },
  "the daily meme waits for POST_HOUR_UTC, to the hour": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages f634ad19c1b9",
+   "POST https://discord.com/api/v10/channels/memes/messages 3c12a9c30714",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 02a63615430a"
   ],
   "db": {
    "games": "8:1134d6e24e08",
-   "memes": "1:408322f0720f"
+   "memes": "1:408322f0720f",
+   "settings": "2:8aed822f752d"
   }
  },
  "a daily meme whose comment thread won't open is still posted": {
   "calls": [
-   "POST https://discord.com/api/v10/channels/memes/messages 295cd1226953",
+   "POST https://discord.com/api/v10/channels/memes/messages 2db58342d0e6",
    "POST https://discord.com/api/v10/channels/memes/messages/5000/threads 252224f63af6"
   ],
   "db": {
    "games": "8:1134d6e24e08",
-   "memes": "1:ed591c5c2b1f"
+   "memes": "1:ed591c5c2b1f",
+   "settings": "2:8aed822f752d"
   }
  },
  "one failing job doesn't stop the others in the same minute": {
@@ -578,7 +642,7 @@
   ],
   "db": {
    "games": "8:1134d6e24e08",
-   "settings": "1:5ea7cb991fd2"
+   "settings": "3:a87f9b8cbf07"
   }
  }
 }
