@@ -214,6 +214,16 @@ export class Tts extends Context.Service<
           ),
         );
         const res = yield* http.execute(request);
+        if (res.status === 429) {
+          // Google's own daily quota is smaller than ours: today's allowance is spent, ask again tomorrow
+          const day = DateTime.formatIso(yield* DateTime.now).slice(0, 10);
+          yield* db
+            .insert(settings)
+            .values({ key: BUDGET, value: { day, used: GEMINI_DAILY } })
+            .onConflictDoUpdate({ target: settings.key, set: { value: { day, used: GEMINI_DAILY } } })
+            .pipe(Effect.ignore);
+          return yield* geminiFailed("429: today's quota is used up");
+        }
         if (res.status < 200 || res.status >= 300) return yield* geminiFailed(`${res.status} ${(yield* res.text).slice(0, 200)}`);
         const data = (yield* Schema.decodeUnknownEffect(Spoken)(yield* res.json)).candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData;
         if (!data) return yield* geminiFailed("no audio in the answer");

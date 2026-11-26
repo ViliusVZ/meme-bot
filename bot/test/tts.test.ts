@@ -214,6 +214,10 @@ describe("Gemini's speech, the spare engine", () => {
       h.override = (c) => (c.path === GEMINI ? json({ error: "quota" }, 429) : undefined);
       const refused = yield* Effect.flip(speak("refuse", "Hi", EN_VOICE, "gemini-key"));
       expect([refused.engine, refused.detail]).toEqual(["edge, gemini", expect.stringContaining("429")]);
+      // a 429 is Google's own quota: the rest of the day is spent (no asking again every minute)
+      const [spent] = yield* db.select().from(settings).where(eq(settings.key, "gemini_tts_budget"));
+      expect(spent.value).toEqual({ day: "2026-11-13", used: GEMINI_DAILY });
+      yield* db.update(settings).set({ value: { day: "2026-11-13", used: 3 } }).where(eq(settings.key, "gemini_tts_budget"));
       h.override = (c) => (c.path === GEMINI ? json({ candidates: [] }) : undefined);
       expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE, "gemini-key"))).detail).toContain("no audio in the answer");
       expect((yield* Effect.flip(speak("close", "Hi", EN_VOICE))).engine).toBe("edge"); // no key: Edge's failure as it was

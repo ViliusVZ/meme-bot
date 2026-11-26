@@ -62,8 +62,8 @@ const WOBBLE: ReadonlyArray<{ rate: number; pitch: number }> = [
   { rate: 0, pitch: -20 },
   { rate: 15, pitch: 15 },
 ];
-const TALK_CAP = 11; // seconds of speech a line may take (a jingle and about ten seconds per visit)
-const LETTERS_PER_SECOND = 14; // a neural voice at its own speed, roughly
+const TALK_CAP = 10; // seconds of speech a line may take (a jingle and about ten seconds per visit)
+const LETTERS_PER_SECOND = 12; // a neural voice at its own speed (measured on the test bot, 26 Nov)
 /** Which Gemini voice reads a Gemini line (chosen once, when its clip is made ahead). */
 const GEMINI_CAST = (text: string, style: string) => `voice:gemini:${createHash("sha256").update(`${style}\n${text}`).digest("hex").slice(0, 24)}`;
 const SYNTH_ALERT_EVERY = 6 * 3600_000; // ms: the speech engine failing is one DM per 6 h at most
@@ -210,8 +210,10 @@ export class BotVoice extends Context.Service<
         const wobble = parsed.delivery === "plain" && parsed.gemini === null ? WOBBLE[Math.floor((yield* Random.next) * WOBBLE.length)] : { rate: 0, pitch: 0 };
         let rate = base.rate + wobble.rate;
         const letters = parsed.pieces.reduce((n, p) => n + p.text.length, 0);
-        // too slow to fit: at its own speed instead
-        if (rate < 0 && letters / LETTERS_PER_SECOND / (1 + rate / 100) > TALK_CAP) rate = 0;
+        const takes = (r: number) => letters / LETTERS_PER_SECOND / (1 + r / 100);
+        // too slow to fit: at its own speed instead; still too long: faster until it fits (up to +60 %)
+        if (rate < 0 && takes(rate) > TALK_CAP) rate = 0;
+        if (takes(rate) > TALK_CAP) rate = Math.min(60, Math.ceil((letters / LETTERS_PER_SECOND / TALK_CAP - 1) * 100));
         const out: Array<Span & { readonly lang?: Lang }> = [];
         let prev: string | null = null;
         for (const piece of parsed.pieces) {
@@ -326,6 +328,7 @@ export class BotVoice extends Context.Service<
             if (cachedKeys.has(key)) continue;
             const [row] = yield* db.select({ value: settings.value }).from(settings).where(eq(settings.key, key));
             let voice = typeof row?.value === "string" ? row.value : null;
+            if (voice === "edge") continue; // Gemini read it too long once: Edge's line for good
             if (!voice) {
               voice = GEMINI_VOICES[Math.floor((yield* Random.next) * GEMINI_VOICES.length)];
               yield* db.insert(settings).values({ key, value: voice }).onConflictDoNothing();
@@ -339,8 +342,19 @@ export class BotVoice extends Context.Service<
             // Gemini's allowance used up (or Gemini down): the line is read by Edge until tomorrow
             const ok = yield* clips.get(span).pipe(
               Effect.as(true),
-              Effect.catch((e) => Effect.as(Effect.logInfo(`voice: no Gemini clip for "${text}" ${String(e)}`), false)),
+              Effect.catch((e) =>
+                Effect.gen(function* () {
+                  yield* Effect.logInfo(`voice: no Gemini clip for "${text}" ${String(e)}`);
+                  if (e._tag === "TtsUnavailable" && e.detail.startsWith("too long")) {
+                    yield* db.update(settings).set({ value: "edge" }).where(eq(settings.key, key));
+                    cachedKeys.add(key);
+                    return "next" as const;
+                  }
+                  return false;
+                }),
+              ),
             );
+            if (ok === "next") continue;
             if (!ok) return made;
             cachedKeys.add(key);
           }
